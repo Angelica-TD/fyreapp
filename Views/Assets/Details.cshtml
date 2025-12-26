@@ -1,0 +1,37 @@
+@model Asset
+
+<h2>@Model.Name</h2>
+<p>Site: <a asp-controller="Sites" asp-action="Details" asp-route-id="@Model.SiteId">@Model.Site.Name</a></p>
+<p>Client: <a asp-controller="Clients" asp-action="Details" asp-route-id="@Model.Site.ClientId">@Model.Site.Client.Name</a></p>
+
+<form asp-controller="MaintenanceSchedules"
+      asp-action="Create"
+      method="post">
+
+    <input type="hidden" name="targetType" value="Asset" />
+    <input type="hidden" name="targetId" value="@Model.Id" />
+
+    <label>Start Date</label>
+    <input type="date" name="startDate" required />
+
+    <label>Interval</label>
+    <select name="intervalId" class="form-select" required>
+        @foreach (var interval in ViewBag.Intervals as List<MaintenanceInterval>)
+        {
+            <option value="@interval.Id">@interval.Name</option>
+        }
+    </select>
+
+    <button class="btn btn-primary mt-2" type="submit">
+        Create Schedule
+    </button>
+</form>
+
+
+<h3>Types</h3>
+<ul>
+@foreach(var type in Model.AssetTypes)
+{
+    <li>@type.Name</li>
+}
+</ul>

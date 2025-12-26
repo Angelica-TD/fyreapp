@@ -1,0 +1,33 @@
+@model IEnumerable<FyreApp.Models.Client>
+
+@{
+    ViewData["Title"] = "Clients";
+}
+
+<h1>Clients</h1>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Sites</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var client in Model)
+{
+        <tr>
+            <td>@client.Name</td>
+            <td>@client.Sites.Count</td>
+            <td>
+                <a asp-controller="Clients"
+                   asp-action="Details"
+                   asp-route-id="@client.Id">
+                    Details
+                </a>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>

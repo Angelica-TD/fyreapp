@@ -1,0 +1,89 @@
+@model FyreApp.Models.Site
+
+@{
+    ViewData["Title"] = "Site Details";
+}
+
+<h1>@Model.Name</h1>
+
+<p>
+    <strong>Client:</strong>
+    <a asp-controller="Clients"
+       asp-action="Details"
+       asp-route-id="@Model.Client.Id">
+        @Model.Client.Name
+    </a>
+</p>
+
+<hr />
+
+<form asp-controller="MaintenanceSchedules"
+      asp-action="Create"
+      method="post">
+
+    <input type="hidden" name="targetType" value="Site" />
+    <input type="hidden" name="targetId" value="@Model.Id" />
+
+    <label>Start Date</label>
+    <input type="date" name="startDate" required />
+
+    <label>Interval</label>
+    <select name="intervalId" class="form-select" required>
+        @foreach (var interval in ViewBag.Intervals as List<MaintenanceInterval>)
+        {
+            <option value="@interval.Id">@interval.Name</option>
+        }
+    </select>
+
+    <button class="btn btn-primary mt-2" type="submit">
+        Create Schedule
+    </button>
+</form>
+
+
+<h3>Assets</h3>
+
+@if (!Model.Assets.Any())
+{
+    <p class="text-muted">No assets found for this site.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Asset Name</th>
+                <th>Types</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+@foreach (var asset in Model.Assets)
+{
+            <tr>
+                <td>@asset.Name</td>
+                <td>
+@foreach (var type in asset.AssetTypes)
+{
+                    <span class="badge bg-secondary me-1">@type.Name</span>
+}
+                </td>
+                <td>
+                    <a asp-controller="Assets"
+                       asp-action="Details"
+                       asp-route-id="@asset.Id">
+                        View Asset
+                    </a>
+                </td>
+            </tr>
+}
+        </tbody>
+    </table>
+}
+
+<a asp-controller="Clients"
+   asp-action="Details"
+   asp-route-id="@Model.ClientId"
+   class="btn btn-secondary">
+    ← Back to Client
+</a>

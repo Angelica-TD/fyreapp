@@ -1,0 +1,48 @@
+@model FyreApp.Models.Client
+
+@{
+    ViewData["Title"] = "Client Details";
+}
+
+<h1>@Model.Name</h1>
+
+<hr />
+
+<h3>Sites</h3>
+
+@if (!Model.Sites.Any())
+{
+    <p class="text-muted">No sites found for this client.</p>
+}
+else
+{
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Site Name</th>
+                <th>Assets</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+@foreach (var site in Model.Sites)
+{
+            <tr>
+                <td>@site.Name</td>
+                <td>@site.Assets.Count</td>
+                <td>
+                    <a asp-controller="Sites"
+                       asp-action="Details"
+                       asp-route-id="@site.Id">
+                        View Site
+                    </a>
+                </td>
+            </tr>
+}
+        </tbody>
+    </table>
+}
+
+<a asp-action="Index" class="btn btn-secondary">
+    ← Back to Clients
+</a>
