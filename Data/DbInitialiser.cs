@@ -7,86 +7,87 @@ public static class DbInitialiser
     public static void Seed(AppDbContext context)
     {
         // Prevent duplicate seeding
-        if (context.Clients.Any())
-            return;
-
-        var clients = new List<Client>
+        if (!context.Clients.Any())
         {
-            new Client
+            var clients = new List<Client>
             {
-                Name = "Acme Corp",
-                Sites =
+                new Client
                 {
-                    new Site
+                    Name = "Acme Corp",
+                    Sites =
                     {
-                        Name = "New York Site",
-                        Assets =
+                        new Site
                         {
-                            new Asset
+                            Name = "New York Site",
+                            Assets =
                             {
-                                Name = "Generator A",
-                                AssetTypes =
+                                new Asset
                                 {
-                                    new AssetType { Name = "Electrical" },
-                                    new AssetType { Name = "Critical" }
+                                    Name = "Generator A",
+                                    AssetTypes =
+                                    {
+                                        new AssetType { Name = "Electrical" },
+                                        new AssetType { Name = "Critical" }
+                                    }
+                                },
+                                new Asset
+                                {
+                                    Name = "UPS A",
+                                    AssetTypes =
+                                    {
+                                        new AssetType { Name = "Backup" }
+                                    }
                                 }
-                            },
-                            new Asset
+                            }
+                        },
+                        new Site
+                        {
+                            Name = "Los Angeles Site",
+                            Assets =
                             {
-                                Name = "UPS A",
-                                AssetTypes =
+                                new Asset
                                 {
-                                    new AssetType { Name = "Backup" }
+                                    Name = "HVAC Unit",
+                                    AssetTypes =
+                                    {
+                                        new AssetType { Name = "Mechanical" }
+                                    }
                                 }
                             }
                         }
-                    },
-                    new Site
+                    }
+                },
+                new Client
+                {
+                    Name = "Globex Ltd",
+                    Sites =
                     {
-                        Name = "Los Angeles Site",
-                        Assets =
+                        new Site
                         {
-                            new Asset
+                            Name = "London Site",
+                            Assets =
                             {
-                                Name = "HVAC Unit",
-                                AssetTypes =
+                                new Asset
                                 {
-                                    new AssetType { Name = "Mechanical" }
+                                    Name = "Server Rack",
+                                    AssetTypes =
+                                    {
+                                        new AssetType { Name = "IT" },
+                                        new AssetType { Name = "Critical" }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            },
-            new Client
-            {
-                Name = "Globex Ltd",
-                Sites =
-                {
-                    new Site
-                    {
-                        Name = "London Site",
-                        Assets =
-                        {
-                            new Asset
-                            {
-                                Name = "Server Rack",
-                                AssetTypes =
-                                {
-                                    new AssetType { Name = "IT" },
-                                    new AssetType { Name = "Critical" }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        };
+            };
 
-        context.Clients.AddRange(clients);
-        // context.SaveChanges();
+            context.Clients.AddRange(clients);
+            // context.SaveChanges();
+        }
 
-        // Data/DbInitializer.cs
+
+
         if (!context.MaintenanceIntervals.Any())
         {
             context.MaintenanceIntervals.AddRange(
@@ -112,8 +113,8 @@ public static class DbInitialiser
                 }
             );
 
-            context.SaveChanges();
         }
 
+        context.SaveChanges();
     }
 }

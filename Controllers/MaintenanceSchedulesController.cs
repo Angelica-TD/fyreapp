@@ -13,58 +13,77 @@ namespace FyreApp.Controllers
         {
             _context = context;
         }
-
-        // GET: MaintenanceSchedulesController
-        public ActionResult Index()
+        
+        [HttpGet]
+        public async Task<IActionResult> Upsert(ScheduleTargetType targetType, int targetId)
         {
-            return View();
+            MaintenanceSchedule schedule = null;
+
+            if (targetType == ScheduleTargetType.Site)
+            {
+                schedule = await _context.MaintenanceSchedules
+                    .Include(s => s.MaintenanceInterval)
+                    .FirstOrDefaultAsync(s => s.TargetType == targetType && s.SiteId == targetId);
+            }
+            else if (targetType == ScheduleTargetType.Asset)
+            {
+                schedule = await _context.MaintenanceSchedules
+                    .Include(s => s.MaintenanceInterval)
+                    .FirstOrDefaultAsync(s => s.TargetType == targetType && s.AssetId == targetId);
+            }
+
+            // If no schedule exists, create a new one (for form binding)
+            if (schedule == null)
+            {
+                schedule = new MaintenanceSchedule
+                {
+                    TargetType = targetType,
+                    SiteId = targetType == ScheduleTargetType.Site ? targetId : null,
+                    AssetId = targetType == ScheduleTargetType.Asset ? targetId : null,
+                    StartDate = DateTime.UtcNow
+                };
+            }
+
+            ViewData["Intervals"] = await _context.MaintenanceIntervals.ToListAsync();
+            return View(schedule);
+
         }
 
-        // Create schedule for SITE
+        
         [HttpPost]
-        public async Task<IActionResult> CreateForSite(int siteId, DateTime startDate, int intervalId)
+        public async Task<IActionResult> Upsert(int scheduleId, ScheduleTargetType targetType, int targetId, DateTime startDate, int intervalId)
         {
             var interval = await _context.MaintenanceIntervals.FindAsync(intervalId);
-            
-            if (interval == null) return BadRequest();
+            if (interval == null) return BadRequest("Invalid interval");
 
-            var startUtc = DateTime.SpecifyKind(startDate, DateTimeKind.Utc);
+            MaintenanceSchedule schedule;
 
-            var schedule = new MaintenanceSchedule
+            if (scheduleId > 0)
             {
-                TargetType = ScheduleTargetType.Site,
-                SiteId = siteId,
-                StartDate = startUtc,
-                NextRunDate = startUtc.AddMonths(interval.Months)
-            };
+                schedule = await _context.MaintenanceSchedules.FindAsync(scheduleId);
+                if (schedule == null) return NotFound();
+            }
+            else
+            {
+                schedule = new MaintenanceSchedule
+                {
+                    TargetType = targetType,
+                    SiteId = targetType == ScheduleTargetType.Site ? targetId : null,
+                    AssetId = targetType == ScheduleTargetType.Asset ? targetId : null
+                };
+                _context.MaintenanceSchedules.Add(schedule);
+            }
 
-            _context.MaintenanceSchedules.Add(schedule);
+            schedule.StartDate = DateTime.SpecifyKind(startDate, DateTimeKind.Utc);
+            schedule.MaintenanceIntervalId = interval.Id;
+            schedule.NextRunDate = schedule.StartDate.AddMonths(interval.Months);
+
             await _context.SaveChangesAsync();
 
-            return RedirectToAction("Details", "Sites", new { id = siteId });
-        }
-
-        // Create schedule for ASSET
-        [HttpPost]
-        public async Task<IActionResult> CreateForAsset(int assetId, DateTime startDate, int intervalId)
-        {
-            var interval = await _context.MaintenanceIntervals.FindAsync(intervalId);
-            
-            if (interval == null) return BadRequest();
-
-            var startUtc = DateTime.SpecifyKind(startDate, DateTimeKind.Utc);
-            var schedule = new MaintenanceSchedule
-            {
-                TargetType = ScheduleTargetType.Asset,
-                AssetId = assetId,
-                StartDate = startUtc,
-                NextRunDate = startUtc.AddMonths(interval.Months)
-            };
-
-            _context.MaintenanceSchedules.Add(schedule);
-            await _context.SaveChangesAsync();
-
-            return RedirectToAction("Details", "Assets", new { id = assetId });
+            if (targetType == ScheduleTargetType.Site)
+                return RedirectToAction("Details", "Sites", new { id = targetId });
+            else
+                return RedirectToAction("Details", "Assets", new { id = targetId });
         }
 
 
@@ -110,6 +129,40 @@ namespace FyreApp.Controllers
                 ? RedirectToAction("Details", "Sites", new { id = targetId })
                 : RedirectToAction("Details", "Assets", new { id = targetId });
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Complete(int id, string? notes)
+        {
+            var schedule = await _context.MaintenanceSchedules
+                .Include(ms => ms.MaintenanceInterval)
+                .FirstOrDefaultAsync(ms => ms.Id == id);
+
+            if (schedule == null) return NotFound();
+            if (!schedule.IsActive) return BadRequest();
+
+            var now = DateTime.UtcNow;
+
+            var history = new MaintenanceHistory
+            {
+                MaintenanceScheduleId = schedule.Id,
+                CompletedAt = now,
+                DueDateAtCompletion = schedule.NextRunDate,
+                Notes = notes
+            };
+
+            _context.MaintenanceHistory.Add(history);
+
+            var months = schedule.MaintenanceInterval?.Months ?? 0;
+            if (months <= 0) return BadRequest("Invalid interval.");
+
+            // Advance from due date (prevents drift)
+            schedule.NextRunDate = schedule.NextRunDate.Date.AddMonths(months);
+
+            await _context.SaveChangesAsync();
+            return RedirectToAction("Details", new { id = schedule.Id });
+        }
+
 
     }
 }

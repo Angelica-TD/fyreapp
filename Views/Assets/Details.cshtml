@@ -1,31 +1,80 @@
 @model Asset
+@{
+    ViewData["Title"] = "Asset Details";
+    var intervals = ViewBag.Intervals as List<FyreApp.Models.MaintenanceInterval>;
+}
 
 <h2>@Model.Name</h2>
 <p>Site: <a asp-controller="Sites" asp-action="Details" asp-route-id="@Model.SiteId">@Model.Site.Name</a></p>
 <p>Client: <a asp-controller="Clients" asp-action="Details" asp-route-id="@Model.Site.ClientId">@Model.Site.Client.Name</a></p>
 
-<form asp-controller="MaintenanceSchedules"
-      asp-action="Create"
-      method="post">
+<hr>
 
-    <input type="hidden" name="targetType" value="Asset" />
-    <input type="hidden" name="targetId" value="@Model.Id" />
+<h2>Maintenance Schedule</h2>
 
-    <label>Start Date</label>
-    <input type="date" name="startDate" required />
+@if (Model.MaintenanceSchedules.Any())
+{
+    var schedule = Model.MaintenanceSchedules.First();
 
-    <label>Interval</label>
-    <select name="intervalId" class="form-select" required>
-        @foreach (var interval in ViewBag.Intervals as List<MaintenanceInterval>)
-        {
-            <option value="@interval.Id">@interval.Name</option>
-        }
-    </select>
+    <form asp-controller="MaintenanceSchedules" asp-action="Upsert" method="post" class="row g-3">
+        <input type="hidden" name="scheduleId" value="@schedule.Id" />
+        <input type="hidden" name="targetType" value="Asset" />
+        <input type="hidden" name="targetId" value="@Model.Id" />
 
-    <button class="btn btn-primary mt-2" type="submit">
-        Create Schedule
-    </button>
-</form>
+        <div class="col-md-4">
+            <label class="form-label">Start Date</label>
+            <input type="date" name="startDate" class="form-control" 
+                   value="@schedule.StartDate.ToString("yyyy-MM-dd")" required />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Interval</label>
+            <select name="intervalId" class="form-select" required>
+                @foreach(var interval in intervals)
+                {
+                    <option value="@interval.Id" selected="@(interval.Id == schedule.MaintenanceIntervalId ? "selected" : null)">
+                        @interval.Name
+                    </option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-4 align-self-end">
+            <button type="submit" class="btn btn-primary">Save Schedule</button>
+        </div>
+    </form>
+
+    <p class="mt-2"><strong>Next Maintenance:</strong> @schedule.NextRunDate.ToShortDateString()</p>
+}
+else
+{
+    <form asp-controller="MaintenanceSchedules" asp-action="Upsert" method="post" class="row g-3">
+        <input type="hidden" name="scheduleId" value="0" />
+        <input type="hidden" name="targetType" value="Asset" />
+        <input type="hidden" name="targetId" value="@Model.Id" />
+
+        <div class="col-md-4">
+            <label class="form-label">Start Date</label>
+            <input type="date" name="startDate" class="form-control" 
+                   value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" required />
+        </div>
+
+        <div class="col-md-4">
+            <label class="form-label">Interval</label>
+            <select name="intervalId" class="form-select" required>
+                @foreach(var interval in intervals)
+                {
+                    <option value="@interval.Id">@interval.Name</option>
+                }
+            </select>
+        </div>
+
+        <div class="col-md-4 align-self-end">
+            <button type="submit" class="btn btn-success">Create Schedule</button>
+        </div>
+    </form>
+}
+
+<hr />
 
 
 <h3>Types</h3>

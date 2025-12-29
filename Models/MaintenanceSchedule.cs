@@ -32,4 +32,8 @@ public class MaintenanceSchedule
     public DateTime NextRunDate { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    public ICollection<MaintenanceHistory> MaintenanceHistory { get; set; }
+    = new List<MaintenanceHistory>();
+
 }

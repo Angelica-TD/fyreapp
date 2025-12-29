@@ -16,6 +16,8 @@ public class AppDbContext : DbContext
     public DbSet<AssetType> AssetTypes => Set<AssetType>();
     public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
     public DbSet<MaintenanceInterval> MaintenanceIntervals { get; set; }
+    public DbSet<MaintenanceHistory> MaintenanceHistory => Set<MaintenanceHistory>();
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -58,6 +60,17 @@ public class AppDbContext : DbContext
             .WithMany(s => s.MaintenanceSchedules)
             .HasForeignKey(mi => mi.MaintenanceIntervalId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<MaintenanceHistory>(entity =>
+        {
+            entity.HasOne(h => h.MaintenanceSchedule)
+                .WithMany(s => s.MaintenanceHistory)
+                .HasForeignKey(h => h.MaintenanceScheduleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(h => h.MaintenanceScheduleId);
+            entity.HasIndex(h => h.CompletedAt);
+        });
 
     }
 
