@@ -1,33 +1,63 @@
-@model IEnumerable<FyreApp.Models.Client>
+@model FyreApp.ViewModels.Clients.ClientIndexVm
 
 @{
     ViewData["Title"] = "Clients";
 }
 
-<h1>Clients</h1>
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="m-0">Clients</h1>
 
-<table class="table table-striped">
+    @if (User.IsInRole("Admin"))
+    {
+        <button class="btn btn-primary"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#createClientModal">
+            + New Client
+        </button>
+    }
+</div>
+
+@if (TempData["Success"] is string successMsg)
+{
+    <div class="alert alert-success">@successMsg</div>
+}
+
+<table class="table table-striped align-middle">
     <thead>
         <tr>
             <th>Name</th>
-            <th>Sites</th>
-            <th></th>
+            <th class="text-end">Sites</th>
         </tr>
     </thead>
     <tbody>
-@foreach (var client in Model)
-{
+    @foreach (var c in Model.Clients)
+    {
         <tr>
-            <td>@client.Name</td>
-            <td>@client.Sites.Count</td>
-            <td>
-                <a asp-controller="Clients"
-                   asp-action="Details"
-                   asp-route-id="@client.Id">
-                    Details
-                </a>
-            </td>
+            <td>@c.Name</td>
+            <td class="text-end">@((c.Sites?.Count ?? 0))</td>
         </tr>
-}
+    }
     </tbody>
 </table>
+
+@if (User.IsInRole("Admin"))
+{
+    @await Html.PartialAsync("_CreateClientModal", Model.Create)
+}
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+
+    @if (Model.OpenCreateModal)
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                var modalEl = document.getElementById("createClientModal");
+                var modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            });
+        </script>
+    }
+}
