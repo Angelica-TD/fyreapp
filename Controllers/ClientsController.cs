@@ -1,9 +1,11 @@
+using FyreApp.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using FyreApp.Data;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FyreApp.Controllers
 {
+    [Authorize]
     public class ClientsController : Controller
     {
         private readonly AppDbContext _context;
@@ -36,6 +38,13 @@ namespace FyreApp.Controllers
 
             return View(client);
         }
+
+        // [HttpPost]
+        // [ValidateAntiForgeryToken]
+        // [Authorize(Roles = "Admin")]
+        // public IActionResult Create(Client client)
+        // {
+        // }
 
     }
 }

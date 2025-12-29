@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using FyreApp.Models;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Data;
 
