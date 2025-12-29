@@ -6,7 +6,7 @@
 
 @if (!User.Identity?.IsAuthenticated ?? true)
 {
-    ViewData["LoginMessage"] = "Please log in to view the maintenance calendar.";
+    ViewData["LoginMessage"] = "Please log in.";
     <partial name="_Login" model="Model" />
 }
 else if (User.IsInRole("Admin"))

@@ -32,9 +32,7 @@
                                 <a class="nav-link text-dark" asp-area="" asp-controller="Clients" asp-action="Index">Clients</a>
                             </li>
 
-                            <form asp-area="Identity" asp-page="/Account/Logout" method="post" class="d-inline">
-                                <button class="btn btn-link">Logout</button>
-                            </form>
+                            <partial name="_LogoutButton" />
                         }
                         else
                         {
