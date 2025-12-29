@@ -1,8 +1,10 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using FyreApp.ViewModels.Home;
 using FyreApp.Models;
 using FyreApp.Data;
 using FyreApp.Dtos;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FyreApp.Controllers;
 
@@ -12,13 +14,20 @@ public class HomeController : Controller
 
     public HomeController(AppDbContext db) => _db = db;
 
-    public IActionResult Index() => View();
+    [HttpGet]
+    public IActionResult Index(string? returnUrl = null)
+    {
+        var vm = new HomeIndexVm();
+        vm.Login.ReturnUrl = returnUrl ?? Url.Action(nameof(Index), "Home");
+        return View(vm);
+    }
     
 
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> MaintenanceEvents(DateTime start, DateTime end)
     {
-        // Normalize to date boundaries if you want (optional)
+        // Normalie to date boundaries
         var rangeStart = start.Date;
         var rangeEnd = end.Date;
 
@@ -26,7 +35,7 @@ public class HomeController : Controller
             .AsNoTracking()
             .Where(ms => ms.IsActive)
             .Where(ms => ms.NextRunDate >= rangeStart && ms.NextRunDate < rangeEnd)
-            .Include(ms => ms.MaintenanceInterval) // if you want interval name/months
+            .Include(ms => ms.MaintenanceInterval) // interval name/months
             .Include(ms => ms.Site)                // for Site-targeted schedules
                 .ThenInclude(s => s!.Client)
             .Include(ms => ms.Asset)               // for Asset-targeted schedules
@@ -64,7 +73,7 @@ public class HomeController : Controller
                 Title = title,
                 Start = ms.NextRunDate.ToString("yyyy-MM-dd"),
                 ClassName = isOverdue ? "overdue" : "due",
-                // Optional: link to wherever you manage schedules
+                // link to wherever you manage schedules
                 Url = Url.Action("Details", "MaintenanceSchedules", new { id = ms.Id })
             };
         });

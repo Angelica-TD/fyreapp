@@ -25,7 +25,7 @@ public static class IdentitySeed
         {
             user = new ApplicationUser { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
             var created = await userManager.CreateAsync(user, adminPassword);
-            if (!created.Succeeded) return; // you can log created.Errors if you want
+            if (!created.Succeeded) return; // can log created.Errors if wanted
         }
 
         if (!await userManager.IsInRoleAsync(user, adminRole))

@@ -1,0 +1,38 @@
+@model FyreApp.ViewModels.Home.HomeIndexVm
+
+<div class="text-center mt-5">
+    <div class="container" style="max-width: 420px;">
+        <h2>Welcome</h2>
+        <p class="text-muted">@ViewData["LoginMessage"]</p>
+
+        <form asp-controller="Auth" asp-action="Login" method="post" class="text-start">
+            @Html.AntiForgeryToken()
+
+            <input asp-for="Login.ReturnUrl" type="hidden" />
+
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+            <div class="form-floating mb-3">
+                <input asp-for="Login.Email" class="form-control" autocomplete="username" />
+                <label asp-for="Login.Email"></label>
+                <span asp-validation-for="Login.Email" class="text-danger"></span>
+            </div>
+
+            <div class="form-floating mb-3">
+                <input asp-for="Login.Password" class="form-control" autocomplete="current-password" />
+                <label asp-for="Login.Password"></label>
+                <span asp-validation-for="Login.Password" class="text-danger"></span>
+            </div>
+
+            <div class="form-check mb-3">
+                <input asp-for="Login.RememberMe" class="form-check-input" />
+                <label asp-for="Login.RememberMe" class="form-check-label"></label>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Log in</button>
+        </form>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

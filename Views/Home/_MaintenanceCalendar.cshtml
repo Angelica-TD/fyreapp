@@ -1,0 +1,48 @@
+<style>
+    /* quick status styles */
+    .fc-event.overdue {
+        border-color: #b91c1c;
+        background: #ef4444;
+    }
+
+    .fc-event.due {
+        border-color: #b45309;
+        background: #f59e0b;
+    }
+</style>
+
+<div class="text-center">
+    <div class="container">
+        <h2 class="mt-3">Maintenance Calendar</h2>
+        <div id="calendar" class="mt-3"></div>
+    </div>
+</div>
+
+<script src="~/lib/fullcalendar/dist/index.global.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const calendarEl = document.getElementById('calendar');
+
+        if (!calendarEl) return;
+
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            height: 'auto',
+            eventDisplay: 'block',
+
+            events: {
+                url: '@Url.Action("MaintenanceEvents", "Home")',
+                failure: function () {
+                    alert('Failed to load maintenance events');
+                }
+            },
+
+            eventClassNames: function (arg) {
+                return arg.event.classNames;
+            }
+        });
+
+        calendar.render();
+    });
+</script>

@@ -20,8 +20,9 @@
   <ItemGroup>
     <Folder Include="Data\" />
     <Folder Include="Dtos\" />
-    <Folder Include="ViewModels\" />
+    <Folder Include="ViewModels\Auth\" />
     <Folder Include="ViewModels\Clients\" />
+    <Folder Include="ViewModels\Home\" />
   </ItemGroup>
 
 </Project>

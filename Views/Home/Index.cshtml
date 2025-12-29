@@ -1,50 +1,24 @@
-﻿@{
+﻿@model FyreApp.ViewModels.Home.HomeIndexVm
+
+@{
     ViewData["Title"] = "Home Page";
 }
 
-<style>
-    /* quick status styles */
-    .fc-event.overdue {
-        border-color: #b91c1c;
-        background: #ef4444;
-    }
+@if (!User.Identity?.IsAuthenticated ?? true)
+{
+    ViewData["LoginMessage"] = "Please log in to view the maintenance calendar.";
+    <partial name="_Login" model="Model" />
+}
+else if (User.IsInRole("Admin"))
+{
+    <partial name="_MaintenanceCalendar" />
+}
+else
+{
+    ViewData["AccessMessage"] = "You are logged in, but you do not have permission to view the maintenance calendar.";
+    <partial name="_AccessRestricted" />
+}
 
-    .fc-event.due {
-        border-color: #b45309;
-        background: #f59e0b;
-    }
-</style>
-
-<div class="text-center">
-    <div class="container">
-        <h2 class="mt-3">Maintenance Calendar</h2>
-        <div id="calendar" class="mt-3"></div>
-    </div>
-</div>
-
-
-<script src="~/lib/fullcalendar/dist/index.global.min.js"></script>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const calendarEl = document.getElementById('calendar');
-
-        const calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            height: 'auto',
-            eventDisplay: 'block',
-
-            events: {
-                url: '@Url.Action("MaintenanceEvents", "Home")',
-                failure: function () { alert('Failed to load maintenance events'); }
-            },
-
-            eventClassNames: function (arg) {
-                // arg.event.extendedProps not needed if you return "className" from server
-                return arg.event.classNames;
-            }
-        });
-
-        calendar.render();
-    });
-</script>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
