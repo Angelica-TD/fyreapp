@@ -1,9 +1,12 @@
 using FyreApp.Data;
 using FyreApp.Models;
+using FyreApp.Auth;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+var authEnabled = builder.Configuration.GetValue<bool>("Auth:Enabled", true);
 
 // --------------------------------------------------
 // Services
@@ -28,6 +31,18 @@ builder.Services
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
+if (!authEnabled)
+{
+    // Override the default auth scheme to always authenticate as Admin in dev
+    builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = DevAuthHandler.SchemeName;
+        options.DefaultChallengeScheme = DevAuthHandler.SchemeName;
+    })
+    .AddScheme<AuthenticationSchemeOptions, DevAuthHandler>(
+        DevAuthHandler.SchemeName, _ => { });
+}
+
 // --------------------------------------------------
 // Auth cookie behaviour (GLOBAL + DRY)
 // --------------------------------------------------
@@ -41,6 +56,11 @@ builder.Services.ConfigureApplicationCookie(options =>
     // API / AJAX should never receive HTML redirects
     options.Events.OnRedirectToLogin = ctx =>
     {
+        if (!authEnabled)
+        {
+            ctx.Response.StatusCode = StatusCodes.Status200OK;
+            return Task.CompletedTask;
+        }
         if (IsApiOrAjaxRequest(ctx.Request))
         {
             ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -53,6 +73,11 @@ builder.Services.ConfigureApplicationCookie(options =>
 
     options.Events.OnRedirectToAccessDenied = ctx =>
     {
+        if (!authEnabled)
+        {
+            ctx.Response.StatusCode = StatusCodes.Status200OK;
+            return Task.CompletedTask;
+        }
         if (IsApiOrAjaxRequest(ctx.Request))
         {
             ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -98,13 +123,8 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseRouting();
 
-var authEnabled = builder.Configuration.GetValue<bool>("Auth:Enabled", true);
-
-if (authEnabled)
-{
-    app.UseAuthentication();
-    app.UseAuthorization();
-}
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapStaticAssets();
 

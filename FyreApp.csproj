@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Auth\" />
     <Folder Include="Data\" />
     <Folder Include="Dtos\" />
     <Folder Include="ViewModels\Auth\" />

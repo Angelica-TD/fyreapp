@@ -47,6 +47,10 @@
     <div class="container">
         <main role="main" class="pb-3">
             @RenderBody()
+            @* <small>
+                ENV: @Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            </small> *@
+
         </main>
     </div>
 
