@@ -27,7 +27,8 @@
     <thead>
         <tr>
             <th>Name</th>
-            <th class="text-end">Sites</th>
+            <th>Sites</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
@@ -35,7 +36,14 @@
     {
         <tr>
             <td>@c.Name</td>
-            <td class="text-end">@((c.Sites?.Count ?? 0))</td>
+            <td>@((c.Sites?.Count ?? 0))</td>
+            <td>
+                <a asp-controller="Clients"
+                   asp-action="Details"
+                   asp-route-id="@c.Id">
+                    Details
+                </a>
+            </td>
         </tr>
     }
     </tbody>

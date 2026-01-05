@@ -26,11 +26,45 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         base.OnModelCreating(modelBuilder);
 
         // Client → Sites (1:N)
-        modelBuilder.Entity<Client>()
-            .HasMany(c => c.Sites)
-            .WithOne(s => s.Client)
-            .HasForeignKey(s => s.ClientId)
-            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<Client>(entity =>
+        {
+            entity.Property(x => x.Name).HasMaxLength(200);
+
+            // Postgres-friendly UTC timestamps
+            entity.Property(x => x.Created)
+                    .HasColumnType("timestamptz")
+                    .HasDefaultValueSql("now()")
+                    .ValueGeneratedOnAdd();
+
+            entity.Property(x => x.Updated)
+                  .HasColumnType("timestamptz");
+
+            entity.Property(x => x.PrimaryContactName).HasMaxLength(200);
+            entity.Property(x => x.PrimaryContactEmail).HasMaxLength(320);
+            entity.Property(x => x.PrimaryContactMobile).HasMaxLength(32);
+            entity.Property(x => x.PrimaryContactCcEmail).HasMaxLength(320);
+
+            entity.Property(x => x.PrimaryStreetAddress).HasMaxLength(200);
+            entity.Property(x => x.PrimarySuburb).HasMaxLength(100);
+            entity.Property(x => x.PrimaryState).HasMaxLength(10);
+            entity.Property(x => x.PrimaryPostcode).HasMaxLength(16);
+
+            entity.Property(x => x.BillingName).HasMaxLength(200);
+            entity.Property(x => x.BillingAttentionTo).HasMaxLength(200);
+            entity.Property(x => x.BillingEmail).HasMaxLength(320);
+            entity.Property(x => x.BillingCcEmail).HasMaxLength(320);
+            entity.Property(x => x.BillingStreetAddress).HasMaxLength(200);
+            entity.Property(x => x.BillingSuburb).HasMaxLength(100);
+            entity.Property(x => x.BillingState).HasMaxLength(10);
+            entity.Property(x => x.BillingPostcode).HasMaxLength(16);
+
+            entity.Property(x => x.Active).HasDefaultValue(true);
+
+            // searching by these fields is common
+            entity.HasIndex(x => x.Active);
+            entity.HasIndex(x => x.PrimaryContactEmail);
+            entity.HasIndex(x => x.BillingEmail);
+        });
 
         // Site → Assets (1:N)
         modelBuilder.Entity<Site>()
