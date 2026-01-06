@@ -1,6 +1,8 @@
 using FyreApp.Data;
 using FyreApp.Models;
 using FyreApp.Auth;
+using FyreApp.Hubs;
+using FyreApp.Services.Clients;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +14,11 @@ var authEnabled = builder.Configuration.GetValue<bool>("Auth:Enabled", true);
 // Services
 // --------------------------------------------------
 
+builder.Services.AddSingleton<IImportTracker, ImportTracker>();
 builder.Services.AddControllersWithViews();
+builder.Services.AddScoped<IClientImportService, ClientImportService>();
+builder.Services.AddSignalR();
+
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -127,6 +133,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
+
+app.MapHub<ImportProgressHub>("/hubs/importProgress");
 
 // --------------------------------------------------
 // Routing

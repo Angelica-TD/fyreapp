@@ -28,7 +28,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         // Client → Sites (1:N)
         modelBuilder.Entity<Client>(entity =>
         {
-            entity.Property(x => x.Name).HasMaxLength(200);
+            entity.Property(c => c.Name)
+                    .IsRequired()
+                    .HasMaxLength(200);
+            
+            entity.HasIndex(c => c.Name).IsUnique();
+
+            entity.Property(c => c.ExternalId)
+                    .HasMaxLength(64);
+
+            entity.HasIndex(c => c.ExternalId).IsUnique();
 
             // Postgres-friendly UTC timestamps
             entity.Property(x => x.Created)
@@ -44,19 +53,20 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(x => x.PrimaryContactMobile).HasMaxLength(32);
             entity.Property(x => x.PrimaryContactCcEmail).HasMaxLength(320);
 
-            entity.Property(x => x.PrimaryStreetAddress).HasMaxLength(200);
-            entity.Property(x => x.PrimarySuburb).HasMaxLength(100);
-            entity.Property(x => x.PrimaryState).HasMaxLength(10);
-            entity.Property(x => x.PrimaryPostcode).HasMaxLength(16);
+            entity.Property(x => x.PrimaryContactAddress).HasMaxLength(320);
+            // entity.Property(x => x.PrimaryStreetAddress).HasMaxLength(200);
+            // entity.Property(x => x.PrimarySuburb).HasMaxLength(100);
+            // entity.Property(x => x.PrimaryState).HasMaxLength(10);
+            // entity.Property(x => x.PrimaryPostcode).HasMaxLength(16);
 
             entity.Property(x => x.BillingName).HasMaxLength(200);
             entity.Property(x => x.BillingAttentionTo).HasMaxLength(200);
             entity.Property(x => x.BillingEmail).HasMaxLength(320);
             entity.Property(x => x.BillingCcEmail).HasMaxLength(320);
-            entity.Property(x => x.BillingStreetAddress).HasMaxLength(200);
-            entity.Property(x => x.BillingSuburb).HasMaxLength(100);
-            entity.Property(x => x.BillingState).HasMaxLength(10);
-            entity.Property(x => x.BillingPostcode).HasMaxLength(16);
+            entity.Property(x => x.BillingAddress).HasMaxLength(320);
+            // entity.Property(x => x.BillingSuburb).HasMaxLength(100);
+            // entity.Property(x => x.BillingState).HasMaxLength(10);
+            // entity.Property(x => x.BillingPostcode).HasMaxLength(16);
 
             entity.Property(x => x.Active).HasDefaultValue(true);
 

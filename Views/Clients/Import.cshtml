@@ -1,0 +1,452 @@
+@{
+    ViewData["Title"] = "Import Clients";
+}
+
+<h2>Import Clients</h2>
+
+<form id="importForm" method="post" enctype="multipart/form-data">
+    @Html.AntiForgeryToken()
+
+    <div class="mb-3">
+        <label class="form-label">CSV or XLSX file</label>
+        <input type="file" name="file" class="form-control" accept=".csv,.txt,.xlsx" required />
+    </div>
+
+    <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" name="dryRun" id="dryRun" value="true" />
+        <label class="form-check-label" for="dryRun">
+            Dry-run (validate + preview counts, don't save)
+        </label>
+    </div>
+
+    <button id="startBtn" type="submit" class="btn btn-primary">Start Import</button>
+</form>
+
+<hr />
+
+<div class="mb-2">
+    <strong id="statusText">Idle</strong>
+</div>
+
+<div class="progress mb-3" style="height: 24px;">
+    <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%">
+        0%
+    </div>
+</div>
+
+<ul id="stats">
+    <li>Total: <span id="total">0</span></li>
+    <li>Processed: <span id="processed">0</span></li>
+    <li>Would create: <span id="wouldCreate">0</span></li>
+    <li>Skipped duplicate ExternalId: <span id="skipExt">0</span></li>
+    <li>Skipped duplicate Name: <span id="skipName">0</span></li>
+    <li>Skipped missing Name: <span id="skipMissing">0</span></li>
+</ul>
+
+<div id="summaryCard" class="alert alert-success d-none" role="alert">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <strong id="summaryTitle">Import complete</strong>
+            <div class="small text-muted" id="summarySubtitle"></div>
+        </div>
+        <span id="summaryBadge" class="badge bg-success">Done</span>
+    </div>
+
+    <hr />
+
+    <ul class="mb-0">
+        <li>Total rows: <strong id="sTotal">0</strong></li>
+        <li>Processed: <strong id="sProcessed">0</strong></li>
+        <li>Created / Would create: <strong id="sWouldCreate">0</strong></li>
+        <li>Skipped duplicate ExternalId: <strong id="sSkipExt">0</strong></li>
+        <li>Skipped duplicate Name: <strong id="sSkipName">0</strong></li>
+        <li>Skipped missing Name: <strong id="sSkipMissing">0</strong></li>
+    </ul>
+
+</div>
+
+
+<div id="failureCard" class="alert alert-danger d-none" role="alert">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <strong id="failureTitle">Import failed</strong>
+            <div class="small text-muted" id="failureSubtitle"></div>
+        </div>
+        <span class="badge bg-danger">Error</span>
+    </div>
+
+    <hr />
+
+    <ul class="mb-0">
+        <li>Total rows: <strong id="fTotal">0</strong></li>
+        <li>Processed: <strong id="fProcessed">0</strong></li>
+        <li>Would create: <strong id="fWouldCreate">0</strong></li>
+        <li>Skipped duplicate ExternalId: <strong id="fSkipExt">0</strong></li>
+        <li>Skipped duplicate Name: <strong id="fSkipName">0</strong></li>
+        <li>Skipped missing Name: <strong id="fSkipMissing">0</strong></li>
+        <li>Failed: <strong id="fFailed">0</strong></li>
+    </ul>
+
+    <div id="failureDetailsWrap" class="mt-3 d-none">
+        <div class="small fw-bold">Details</div>
+        <pre id="failureDetails" class="mb-0" style="white-space: pre-wrap;"></pre>
+    </div>
+</div>
+
+
+<div id="issueListWrap" class="mt-3 d-none alert alert-warning">
+    <div class="small fw-bold">IDs to check</div>
+    <div class="small text-muted">Please review the list below. Make necessary changes to your CSV/Excel file or ignore.</div>
+    <hr>
+    <table id="issueTable" class="table table-sm table-striped align-middle mb-0">
+        <thead>
+            <tr>
+                <th style="width: 25%">IDs</th>
+                <th style="width: 35%">Client name</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+</div>
+
+@section Scripts {
+    <script src="~/js/signalr/dist/browser/signalr.js"></script>
+
+    <script>
+        const summaryCard = document.getElementById("summaryCard");
+        const failureCard = document.getElementById("failureCard");
+
+        const summaryTitle = document.getElementById("summaryTitle");
+        const summarySubtitle = document.getElementById("summarySubtitle");
+        const summaryBadge = document.getElementById("summaryBadge");
+
+        const failureSubtitle = document.getElementById("failureSubtitle");
+        const failureDetailsWrap = document.getElementById("failureDetailsWrap");
+        const failureDetails = document.getElementById("failureDetails");
+
+        const issueListWrap = document.getElementById("issueListWrap");
+        const issueTable = document.getElementById("issueTable");
+        const issueTableBody = issueTable.querySelector("tbody");
+
+
+        const statsBlock = document.getElementById("stats");
+        const progressBarWrap = document.querySelector(".progress");
+        const statusText = document.getElementById("statusText");
+
+        function isErrorMessage(msg) {
+            if (!msg) return false;
+            const m = msg.toLowerCase();
+            return m.includes("error") ||
+                   m.includes("failed") ||
+                   m.includes("exception") ||
+                   m.includes("rejected") ||
+                   m.includes("cannot access") ||
+                   m.includes("disposed") ||
+                   m.includes("unsupported file type");
+        }
+
+        function hideCards() {
+            summaryCard.classList.add("d-none");
+            failureCard.classList.add("d-none");
+        }
+
+        function setBar(pct) {
+            const bar = document.getElementById("progressBar");
+            const v = Math.max(0, Math.min(100, pct));
+            bar.style.width = v + "%";
+            bar.textContent = v.toFixed(0) + "%";
+        }
+
+        function setStats(p) {
+            document.getElementById("total").textContent = p.total ?? 0;
+            document.getElementById("processed").textContent = p.processed ?? 0;
+            document.getElementById("wouldCreate").textContent = p.wouldCreate ?? 0;
+            document.getElementById("skipExt").textContent = p.skippedDuplicateExternalId ?? 0;
+            document.getElementById("skipName").textContent = p.skippedDuplicateName ?? 0;
+            document.getElementById("skipMissing").textContent = p.skippedMissingName ?? 0;
+
+            const total = p.total || 0;
+            const processed = p.processed || 0;
+            const pct = total > 0 ? (processed / total) * 100 : 0;
+            setBar(pct);
+
+            statusText.textContent = p.message || (p.completed ? "Completed" : "Running...");
+        }
+
+        function renderIssuesIntoSummary(p) {
+            const issues = p.issues ?? [];
+
+            issueTableBody.innerHTML = "";
+
+            if (!issues.length) {
+                issueListWrap.classList.add("d-none");
+                return;
+            }
+
+            issueListWrap.classList.remove("d-none");
+
+            for (const it of issues) {
+                const ids = (it.idValues ?? []).join(", ");
+                const clientName = it.key || "(unknown)";
+                const message = it.message || "";
+
+                const tr = document.createElement("tr");
+
+                const tdIds = document.createElement("td");
+                tdIds.textContent = ids || "—";
+
+                const tdName = document.createElement("td");
+                tdName.innerHTML = `<strong>${clientName}</strong>`;
+
+                const tdMsg = document.createElement("td");
+                tdMsg.textContent = message;
+
+                tr.appendChild(tdIds);
+                tr.appendChild(tdName);
+                tr.appendChild(tdMsg);
+
+                issueTableBody.appendChild(tr);
+            }
+        }
+
+
+        function showSuccess(p, warningsCount = 0) {
+            hideCards();
+            summaryCard.classList.remove("d-none");
+
+            const isDryRun = !!p.dryRun;
+
+            summaryTitle.textContent = isDryRun ? "Dry-run complete" : "Import complete";
+            summaryBadge.textContent = isDryRun ? "Dry-run" : "Done";
+            summaryBadge.className = "badge " + (isDryRun ? "bg-info" : "bg-success");
+
+            const issues = p.issues ?? [];
+            const issueCount = issues.length;
+
+            const hasWarnings = warningsCount > 0 || (isDryRun && issueCount > 0);
+
+            if (hasWarnings) {
+                setSummaryAlert("alert-warning");
+
+                if (isDryRun && issueCount > 0) {
+                    summarySubtitle.innerHTML =
+                        `Dry-run complete with warnings — <strong>${issueCount} item(s) need review. Please scroll down.</strong>`;
+                } else if (!isDryRun && warningsCount > 0) {
+                    summarySubtitle.innerHTML =
+                        `Import complete with warnings — <strong>${warningsCount} item(s) need review.</strong>`;
+                } else {
+                    summarySubtitle.textContent = p.message || "Completed with warnings.";
+                }
+            } else {
+                setSummaryAlert("alert-success");
+                summarySubtitle.textContent =
+                    p.message || (isDryRun ? "Dry-run complete (no data was saved)." : "Data saved.");
+            }
+
+            document.getElementById("sTotal").textContent = p.total ?? 0;
+            document.getElementById("sProcessed").textContent = p.processed ?? 0;
+            document.getElementById("sWouldCreate").textContent = p.wouldCreate ?? 0;
+            document.getElementById("sSkipExt").textContent = p.skippedDuplicateExternalId ?? 0;
+            document.getElementById("sSkipName").textContent = p.skippedDuplicateName ?? 0;
+            document.getElementById("sSkipMissing").textContent = p.skippedMissingName ?? 0;
+
+            // Only show issues table on dry-run
+            if (isDryRun) {
+                renderIssuesIntoSummary(p);
+            } else {
+                issueListWrap.classList.add("d-none");
+                issueTableBody.innerHTML = "";
+            }
+        }
+
+
+
+        function setSummaryAlert(type) {
+            summaryCard.classList.remove("alert-success", "alert-warning", "alert-danger");
+            summaryCard.classList.add(type);
+        }
+
+        function showFailure(p) {
+            hideCards();
+            failureCard.classList.remove("d-none");
+
+            failureSubtitle.textContent = p.message || "An error occurred during import.";
+
+            document.getElementById("fTotal").textContent = p.total ?? 0;
+            document.getElementById("fProcessed").textContent = p.processed ?? 0;
+            document.getElementById("fWouldCreate").textContent = p.wouldCreate ?? 0;
+            document.getElementById("fSkipExt").textContent = p.skippedDuplicateExternalId ?? 0;
+            document.getElementById("fSkipName").textContent = p.skippedDuplicateName ?? 0;
+            document.getElementById("fSkipMissing").textContent = p.skippedMissingName ?? 0;
+            document.getElementById("fFailed").textContent = p.failed ?? 0;
+
+            if (p.message && (p.message.length > 60 || isErrorMessage(p.message))) {
+                failureDetailsWrap.classList.remove("d-none");
+                failureDetails.textContent = p.message;
+            } else {
+                failureDetailsWrap.classList.add("d-none");
+                failureDetails.textContent = "";
+            }
+        }
+
+        function applyDryRunFinalUI() {
+            // We hide the live status/progress/stats area once dry-run completes.
+            statusText.closest(".mb-2")?.classList.add("d-none");
+            progressBarWrap?.classList.add("d-none");
+            statsBlock?.classList.add("d-none");
+        }
+
+        const form = document.getElementById("importForm");
+        const startBtn = document.getElementById("startBtn");
+
+        let pollTimer = null;
+        let connection = null;
+
+        function cleanup() {
+            startBtn.disabled = false;
+            startBtn.textContent = "Start Import";
+
+            if (pollTimer) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+            }
+            if (connection) {
+                connection.stop().catch(() => {});
+                connection = null;
+            }
+        }
+
+        async function startPolling(importId) {
+            pollTimer = setInterval(async () => {
+                try {
+                    const resp = await fetch("@Url.Action("ImportStatus", "Clients")" + "?id=" + encodeURIComponent(importId), {
+                        method: "GET",
+                        credentials: "same-origin",
+                        headers: { "Accept": "application/json" }
+                    });
+
+                    if (resp.status === 404) {
+                        statusText.textContent = "Queued...";
+                        return;
+                    }
+                    if (!resp.ok) return;
+
+
+                    const p = await resp.json();
+                    handleProgress(p);
+                } catch {
+                }
+            }, 1000);
+        }
+
+        function handleProgress(p) {
+            setStats(p);
+
+            if (!p.completed) return;
+
+            const failedCount = p.failed ?? 0;
+            const bar = document.getElementById("progressBar");
+
+            if (failedCount > 0) {
+                bar.classList.add("bg-danger");
+                showFailure(p);
+                cleanup();
+                return;
+            }
+
+            // Treat these as warnings (not fatal)
+            const warningsCount =
+                (p.skippedInvalid ?? 0) +
+                (p.skippedDuplicateExternalId ?? 0) +
+                (p.skippedDuplicateName ?? 0) +
+                (p.skippedMissingName ?? 0);
+
+            bar.classList.add(warningsCount > 0 ? "bg-warning" : "bg-success");
+
+            // Use ONE success renderer, and let it colour itself
+            showSuccess(p, warningsCount);
+
+            if (p.dryRun) {
+                applyDryRunFinalUI();
+            }
+
+            cleanup();
+        }
+
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            hideCards();
+
+            // reset live UI
+            document.querySelector(".mb-2")?.classList.remove("d-none");
+            document.querySelector(".progress")?.classList.remove("d-none");
+            document.getElementById("stats")?.classList.remove("d-none");
+
+            const bar = document.getElementById("progressBar");
+            bar.classList.remove("bg-success", "bg-danger");
+
+            issueListWrap.classList.add("d-none");
+            @* issueList.innerHTML = ""; *@
+
+            const fd = new FormData(form);
+            fd.set("dryRun", document.getElementById("dryRun").checked ? "true" : "false");
+
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            statusText.textContent = "Starting...";
+            setBar(0);
+
+            startBtn.disabled = true;
+            startBtn.textContent = "Starting...";
+
+            let importId = null;
+
+            try {
+                const resp = await fetch("@Url.Action("StartImport", "Clients")", {
+                    method: "POST",
+                    body: fd,
+                    credentials: "same-origin",
+                    headers: {
+                        "RequestVerificationToken": token,
+                        "Accept": "application/json"
+                    }
+                });
+
+                if (!resp.ok) {
+                    const text = await resp.text();
+                    throw new Error("StartImport failed: " + resp.status + " " + text);
+                }
+
+                const data = await resp.json();
+                importId = data.importId;
+
+                statusText.textContent = "Upload received. Import running...";
+                startBtn.textContent = "Running...";
+            } catch (err) {
+                statusText.textContent = err?.message || "Failed to start import.";
+                cleanup();
+                return;
+            }
+
+            startPolling(importId);
+
+            try {
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl("/hubs/importProgress")
+                    .withAutomaticReconnect()
+                    .build();
+
+                connection.on("progress", (p) => handleProgress(p));
+
+                await connection.start();
+                await connection.invoke("JoinImport", importId);
+            } catch (err) {
+                console.warn("SignalR failed, using polling fallback.", err);
+            }
+        });
+    </script>
+}

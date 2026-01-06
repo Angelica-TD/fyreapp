@@ -7,6 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="CsvHelper" Version="33.1.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="10.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.1" />
@@ -21,6 +23,8 @@
     <Folder Include="Auth\" />
     <Folder Include="Data\" />
     <Folder Include="Dtos\" />
+    <Folder Include="Services\" />
+    <Folder Include="Services\Clients\" />
     <Folder Include="ViewModels\Auth\" />
     <Folder Include="ViewModels\Clients\" />
     <Folder Include="ViewModels\Home\" />
