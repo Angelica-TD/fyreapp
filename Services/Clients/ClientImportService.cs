@@ -315,7 +315,7 @@ public class ClientImportService : IClientImportService
 
             addIssue(
                 "ValueTooLong",
-                !string.IsNullOrWhiteSpace(externalId) ? externalId : name,
+                !string.IsNullOrWhiteSpace(name) ? name : externalId,
                 new[] { rowNumber },
                 "Primary Contact Mobile is longer than 32 characters. Row will be skipped.",
                 string.IsNullOrWhiteSpace(externalId) ? null : new[] { externalId }

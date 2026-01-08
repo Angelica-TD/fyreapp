@@ -44,15 +44,15 @@
             </div>
         </nav>
     </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+    <main role="main" class="pb-3">
+        <div class="container-fluid px-2 px-sm-3 px-lg-4 pt-3">
             @RenderBody()
-            @* <small>
-                ENV: @Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-            </small> *@
+        </div>
+        @* <small>
+            ENV: @Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+        </small> *@
 
-        </main>
-    </div>
+    </main>
 
     <footer class="border-top footer text-muted">
         <div class="container">
