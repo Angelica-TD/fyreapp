@@ -1,25 +1,31 @@
-// 1) Your theme variables (set BEFORE Bootstrap imports)
-$primary: #0d6efd;
-$secondary: #6c757d;
-$success: #198754;
-$danger: #dc3545;
-$warning: #ffc107;
-$info: #0dcaf0;
+// 1) Theme variables
+$primary: #337ab7;
+$secondary: #6b7785;
+$success: #1b9e3e;
+$danger: #e55353;
+$warning: #f9b115;
+$info: #39f;
 
 // Typography
-$font-family-sans-serif: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+$font-size-base: 0.875rem;
+$line-height-base: 1.5;
+$font-family-sans-serif: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-// Spacing scale (Bootstrap uses $spacer for many utilities)
+// Spacing scale
 $spacer: 1rem;
 
 // Buttons, radius, etc.
-$border-radius: 0.75rem;
-$border-radius-sm: 0.5rem;
-$border-radius-lg: 1rem;
+$border-radius: 0.375rem;
+$border-radius-sm: 0.25rem;
+$border-radius-lg: .5rem;
 
-$btn-padding-y: .6rem;
-$btn-padding-x: 1rem;
-$btn-font-weight: 600;
+$btn-padding-y: .375rem;
+$btn-padding-x: .75rem;
+$btn-font-weight: 400;
+
+// Table
+$table-hover-bg: rgba(51, 122, 183, 0.09);
+
 
 // 2) Import Bootstrap (full build)
 @import "../../node_modules/bootstrap/scss/bootstrap";

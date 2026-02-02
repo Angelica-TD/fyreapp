@@ -78,3 +78,4 @@ appsettings.Development.json
 /wwwroot/lib/
 /node_modules/
 /wwwroot/css/bootstrap.custom.css.map
+.vscode

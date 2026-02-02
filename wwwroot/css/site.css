@@ -6,9 +6,9 @@
   box-sizing: border-box;
 }
 
-:root {
-  font-size: 87.5%; /* 1rem = 14px */
-}
+/* :root {
+  font-size: .875rem;
+} */
 
 /* html {
   font-size: 14px;
@@ -44,4 +44,12 @@ body {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
   text-align: start;
+}
+
+/* .table-row-link {
+  cursor: pointer;
+} */
+
+.table-row-link:hover td {
+  background-color: rgba(51, 122, 183, 0.03);
 }
