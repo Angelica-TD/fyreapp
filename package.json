@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npm run css:build",
     "css:build": "sass FyreFrontend/scss/bootstrap.custom.scss wwwroot/css/bootstrap.custom.css --style=compressed --no-source-map",
     "css:watch": "sass --watch FyreFrontend/scss/bootstrap.custom.scss:wwwroot/css/bootstrap.custom.css --style=expanded --source-map"
   },

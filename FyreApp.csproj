@@ -30,4 +30,11 @@
     <Folder Include="ViewModels\Home\" />
   </ItemGroup>
 
+  <Target Name="BuildFrontendCss" BeforeTargets="Build"
+    Condition="'$(Configuration)'=='Release'">
+    <Exec Command="npm ci" />
+    <Exec Command="npm run css:build" />
+  </Target>
+
+
 </Project>
