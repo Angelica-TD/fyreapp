@@ -75,7 +75,7 @@ _[Ss]cripts
 *.dot[Cc]over
 
 appsettings.Development.json
-/wwwroot/lib/
+/wwwroot/lib/boots*
 /node_modules/
 /wwwroot/css/bootstrap.custom.css.map
 .vscode
