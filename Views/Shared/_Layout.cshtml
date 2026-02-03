@@ -45,11 +45,13 @@
             </div>
         </nav>
     </header>
-    <div class="container">
+    <div>
         <div class="d-flex">
             <partial name="~/Views/Components/_Sidebar.cshtml" />
-            <main role="main" class="pb-3">
-                @RenderBody()
+            <main role="main" class="pb-3 flex-grow-1">
+                <div class="container">
+                    @RenderBody()
+                </div>
                 @* <small>
                     ENV: @Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
                 </small> *@

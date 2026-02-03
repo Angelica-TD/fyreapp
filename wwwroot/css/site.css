@@ -53,3 +53,23 @@ body {
 .table-row-link:hover td {
   background-color: rgba(51, 122, 183, 0.03);
 }
+
+/* Hidden by default */
+.has-subnav > .sub-nav {
+    display: none;
+}
+
+/* Show only when parent nav-link is active */
+.has-subnav > .nav-link.active + .sub-nav {
+    display: block;
+}
+
+.sub-nav .btn-link.nav-link {
+    text-decoration: none;
+    padding: .25rem .75rem;
+}
+
+.sub-nav .btn-link.nav-link:hover,
+.sub-nav .btn-link.nav-link:focus {
+    text-decoration: none;
+}

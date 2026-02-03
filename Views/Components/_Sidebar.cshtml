@@ -5,26 +5,38 @@
         </button>
     </div>
 
-    <ul class="nav flex-column mt-3">
+    <ul class="nav nav-pills flex-column mt-3">
+
+        <!-- Home -->
         <li class="nav-item">
-            <a class="nav-link" href="#">
+            <a class="nav-link"
+               asp-controller="Home"
+               asp-action="Index"
+               nav-active>
                 <i class="bi bi-house"></i>
-                <span class="label">Dashboard</span>
+                <span class="label">Home</span>
             </a>
         </li>
 
-        <li class="nav-item">
-            <a class="nav-link" href="#">
-                <i class="bi bi-gear"></i>
-                <span class="label">Settings</span>
+        <!-- Clients (parent) -->
+        <li class="nav-item has-subnav">
+            <a class="nav-link" asp-controller="Clients" asp-action="Index" nav-active nav-active-controller-only>
+                <i class="bi bi-person-circle"></i>
+                <span class="label">Clients</span>
             </a>
+
+            <ul class="nav flex-column ms-4 mt-1 sub-nav">
+                <li class="nav-item">
+                    <button type="button" class="nav-link small btn btn-link text-start w-100" data-bs-toggle="modal"
+                        data-bs-target="#createClientModal">
+                        <i class="bi bi-plus-circle"></i>
+                        <span class="label">Add new</span>
+                    </button>
+                </li>
+            </ul>
         </li>
 
-        <li class="nav-item">
-            <a class="nav-link" href="#">
-                <i class="bi bi-calendar-event"></i>
-                <span class="label">Maintenance</span>
-            </a>
-        </li>
+
+
     </ul>
 </nav>
