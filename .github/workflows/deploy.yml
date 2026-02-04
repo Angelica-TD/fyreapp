@@ -49,16 +49,41 @@ jobs:
           rsync -az --delete -e "ssh -p ${{ secrets.VPS_PORT }}" out/web/ \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/fyreapp/releases/$RELEASE/
 
-      - name: Switch current + restart
+      - name: Switch current + restart (safe)
         run: |
           ssh -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "\
             set -euo pipefail; \
             RELEASE='${{ env.RELEASE }}'; \
+            \
+            # Validate new release
+            test -f /var/www/fyreapp/releases/$RELEASE/FyreApp; \
             chmod +x /var/www/fyreapp/releases/$RELEASE/FyreApp; \
+            \
+            # Remember previous target for rollback-on-fail
+            PREV=\$(readlink -f /var/www/fyreapp/current || true); \
+            echo \"Previous current: \$PREV\"; \
+            \
+            # Ensure current is a symlink (not a directory)
             rm -rf /var/www/fyreapp/current; \
             ln -s /var/www/fyreapp/releases/$RELEASE /var/www/fyreapp/current; \
-
+            \
+            # Restart
             sudo systemctl restart fyreapp; \
-            sudo systemctl --no-pager --full status fyreapp | head -n 40; \
+            \
+            # If restart failed, rollback immediately
+            if ! systemctl is-active --quiet fyreapp; then \
+              echo '❌ Service failed. Rolling back...'; \
+              if [ -n \"\$PREV\" ] && [ -d \"\$PREV\" ]; then \
+                rm -rf /var/www/fyreapp/current; \
+                ln -s \"\$PREV\" /var/www/fyreapp/current; \
+                sudo systemctl restart fyreapp || true; \
+              fi; \
+              sudo systemctl --no-pager --full status fyreapp | head -n 60; \
+              exit 1; \
+            fi; \
+            \
+            # Keep last 5 releases (excluding dry runs)
             ls -1dt /var/www/fyreapp/releases/release-* | tail -n +6 | xargs -r rm -rf; \
+            \
+            sudo systemctl --no-pager --full status fyreapp | head -n 40; \
           "
