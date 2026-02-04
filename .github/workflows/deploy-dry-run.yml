@@ -1,11 +1,10 @@
-name: Deploy FyreApp (releases + rollback)
+name: Deploy FyreApp (DRY RUN)
 
 on:
-  push:
-    branches: ["main"]
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  dry-run:
     runs-on: ubuntu-latest
 
     steps:
@@ -36,9 +35,9 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Upload release
+      - name: Upload release (dry run)
         run: |
-          RELEASE="release-$(date +%Y%m%d-%H%M%S)"
+          RELEASE="dryrun-$(date +%Y%m%d-%H%M%S)"
           echo "RELEASE=$RELEASE" >> $GITHUB_ENV
 
           ssh -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "\
@@ -49,16 +48,15 @@ jobs:
           rsync -az --delete -e "ssh -p ${{ secrets.VPS_PORT }}" out/web/ \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/fyreapp/releases/$RELEASE/
 
-      - name: Switch current + restart
+      - name: Validate on server (no switch, no restart)
         run: |
           ssh -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "\
             set -euo pipefail; \
             RELEASE='${{ env.RELEASE }}'; \
+            test -f /var/www/fyreapp/releases/$RELEASE/FyreApp; \
             chmod +x /var/www/fyreapp/releases/$RELEASE/FyreApp; \
-            rm -rf /var/www/fyreapp/current; \
-            ln -s /var/www/fyreapp/releases/$RELEASE /var/www/fyreapp/current; \
-
-            sudo systemctl restart fyreapp; \
-            sudo systemctl --no-pager --full status fyreapp | head -n 40; \
-            ls -1dt /var/www/fyreapp/releases/release-* | tail -n +6 | xargs -r rm -rf; \
+            echo '✅ Dry run upload looks good:'; \
+            ls -la /var/www/fyreapp/releases/$RELEASE/FyreApp; \
+            echo 'Current still points to:'; \
+            readlink -f /var/www/fyreapp/current; \
           "
