@@ -51,39 +51,32 @@ jobs:
 
       - name: Switch current + restart (safe)
         run: |
-          ssh -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "\
-            set -euo pipefail; \
-            RELEASE='${{ env.RELEASE }}'; \
-            \
-            # Validate new release
-            test -f /var/www/fyreapp/releases/$RELEASE/FyreApp; \
-            chmod +x /var/www/fyreapp/releases/$RELEASE/FyreApp; \
-            \
-            # Remember previous target for rollback-on-fail
-            PREV=\$(readlink -f /var/www/fyreapp/current || true); \
-            echo \"Previous current: \$PREV\"; \
-            \
-            # Ensure current is a symlink (not a directory)
-            rm -rf /var/www/fyreapp/current; \
-            ln -s /var/www/fyreapp/releases/$RELEASE /var/www/fyreapp/current; \
-            \
-            # Restart
-            sudo systemctl restart fyreapp; \
-            \
-            # If restart failed, rollback immediately
-            if ! systemctl is-active --quiet fyreapp; then \
-              echo '❌ Service failed. Rolling back...'; \
-              if [ -n \"\$PREV\" ] && [ -d \"\$PREV\" ]; then \
-                rm -rf /var/www/fyreapp/current; \
-                ln -s \"\$PREV\" /var/www/fyreapp/current; \
-                sudo systemctl restart fyreapp || true; \
-              fi; \
-              sudo systemctl --no-pager --full status fyreapp | head -n 60; \
-              exit 1; \
+          ssh -T -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "\
+          set -euo pipefail; \
+          RELEASE='${{ env.RELEASE }}'; \
+          \
+          test -f /var/www/fyreapp/releases/$RELEASE/FyreApp; \
+          chmod +x /var/www/fyreapp/releases/$RELEASE/FyreApp; \
+          \
+          PREV=\$(readlink -f /var/www/fyreapp/current || true); \
+          echo \"Previous current: \$PREV\"; \
+          \
+          rm -rf /var/www/fyreapp/current; \
+          ln -s /var/www/fyreapp/releases/$RELEASE /var/www/fyreapp/current; \
+          \
+          sudo -n /usr/bin/systemctl restart fyreapp; \
+          \
+          if ! /usr/bin/systemctl is-active --quiet fyreapp; then \
+            echo '❌ Service failed. Rolling back...'; \
+            if [ -n \"\$PREV\" ] && [ -d \"\$PREV\" ]; then \
+              rm -rf /var/www/fyreapp/current; \
+              ln -s \"\$PREV\" /var/www/fyreapp/current; \
+              sudo -n /usr/bin/systemctl restart fyreapp || true; \
             fi; \
-            \
-            # Keep last 5 releases (excluding dry runs)
-            ls -1dt /var/www/fyreapp/releases/release-* | tail -n +6 | xargs -r rm -rf; \
-            \
-            sudo systemctl --no-pager --full status fyreapp | head -n 40; \
-          "
+            sudo -n /usr/bin/systemctl --no-pager --full status fyreapp | head -n 60 || true; \
+            exit 1; \
+          fi; \
+          \
+          ls -1dt /var/www/fyreapp/releases/release-* | tail -n +6 | xargs -r rm -rf; \
+          sudo -n /usr/bin/systemctl --no-pager --full status fyreapp | head -n 40; \
+        "
