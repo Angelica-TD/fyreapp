@@ -1,0 +1,81 @@
+name: Deploy FyreApp (releases + rollback)
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Setup Node (for npm build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Publish Web (self-contained linux-x64)
+        run: dotnet publish ./FyreApp.csproj -c Release -r linux-x64 --self-contained true -o out/web
+
+      - name: Publish Migrator (self-contained linux-x64)
+        run: dotnet publish ./FyreApp.Migrator/FyreApp.Migrator.csproj -c Release -r linux-x64 --self-contained true -o out/migrator
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy release to VPS
+        run: |
+          RELEASE="release-$(date +%Y%m%d-%H%M%S)"
+          echo "RELEASE=$RELEASE" >> $GITHUB_ENV
+
+          ssh -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "\
+            set -e; \
+            mkdir -p /var/www/fyreapp/releases/$RELEASE/web; \
+            mkdir -p /var/www/fyreapp/releases/$RELEASE/migrator; \
+          "
+
+          rsync -az --delete -e "ssh -p ${{ secrets.VPS_PORT }}" out/web/ \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/fyreapp/releases/$RELEASE/web/
+
+          rsync -az --delete -e "ssh -p ${{ secrets.VPS_PORT }}" out/migrator/ \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/fyreapp/releases/$RELEASE/migrator/
+
+      - name: Run migrations, switch current, restart
+        run: |
+          ssh -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "\
+            set -euo pipefail; \
+            RELEASE='${{ env.RELEASE }}'; \
+            chmod +x /var/www/fyreapp/releases/$RELEASE/web/FyreApp; \
+            chmod +x /var/www/fyreapp/releases/$RELEASE/migrator/FyreApp.Migrator; \
+            \
+            # Load production env vars for migrator (same ones systemd uses)
+            set -a; . /etc/fyreapp.env; set +a; \
+            \
+            # Apply migrations using the NEW release's migrator
+            /var/www/fyreapp/releases/$RELEASE/migrator/FyreApp.Migrator; \
+            \
+            # Atomic switch to new release
+            ln -sfn /var/www/fyreapp/releases/$RELEASE/web /var/www/fyreapp/current; \
+            \
+            sudo systemctl restart fyreapp; \
+            sudo systemctl --no-pager --full status fyreapp | head -n 40; \
+            \
+            # Keep last 5 releases
+            ls -1dt /var/www/fyreapp/releases/release-* | tail -n +6 | xargs -r rm -rf; \
+          "
