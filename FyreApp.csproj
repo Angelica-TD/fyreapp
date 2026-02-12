@@ -5,8 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 
-    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
-    <SelfContained>true</SelfContained>
+    <!-- <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained> -->
   </PropertyGroup>
 
   <ItemGroup>

@@ -70,36 +70,49 @@ namespace FyreApp.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create(ClientIndexVm vm)
+        public async Task<IActionResult> Create(CreateClientVm vm)
         {
 
             if (!ModelState.IsValid)
             {
-                vm.Clients = await _context.Clients
-                    .Include(c => c.Sites)
-                    .OrderBy(c => c.Name)
-                    .ToListAsync();
+                var indexVm = new ClientIndexVm
+                {
+                    Clients = await _context.Clients
+                        .Include(c => c.Sites)
+                        .OrderBy(c => c.Name)
+                        .ToListAsync(),
+                    OpenCreateModal = true,
+                    Create = vm
+                };
 
-                vm.OpenCreateModal = true;
-                return View("Index", vm);
+                return View("Index", indexVm);
             }
 
-            var name = vm.Create.Name!.Trim();
+            var name = vm.Name!.Trim();
 
             var exists = await _context.Clients
-                .AnyAsync(c => c.Name.ToLower() == name.ToLower());
+                .FirstOrDefaultAsync(c => c.Name == vm.Name);
 
-            if (exists)
+            if (exists != null)
             {
-                ModelState.AddModelError("Create.Name", "A client with this name already exists.");
 
-                vm.Clients = await _context.Clients
-                    .Include(c => c.Sites)
-                    .OrderBy(c => c.Name)
-                    .ToListAsync();
+                vm.ExistingClient = new ClientVm
+                    {
+                    ClientId = exists.Id,
+                    ClientName = exists.Name  
+                    };
 
-                vm.OpenCreateModal = true;
-                return View("Index", vm);
+                var indexVm = new ClientIndexVm
+                {
+                    Clients = await _context.Clients
+                        .Include(c => c.Sites)
+                        .OrderBy(c => c.Name)
+                        .ToListAsync(),
+                    OpenCreateModal = true,
+                    Create = vm
+                };
+
+                return View("Index", indexVm);
             }
 
             _context.Clients.Add(new Client { Name = name });

@@ -8,13 +8,20 @@
 
 @if (User.IsInRole("Admin"))
 {
-    <div>
+    <div class="d-flex justify-content-between">
         <button class="btn btn-primary"
                 type="button"
                 data-bs-toggle="modal"
                 data-bs-target="#createClientModal">
             <i class="bi bi-plus-lg"></i> Create client
         </button>
+
+        <a class="btn btn-primary"
+            asp-controller="Clients"
+            asp-action="Import"
+            >
+            <i class="bi bi-collection"></i> Bulk import
+        </a>
     </div>
 }
 
@@ -87,4 +94,23 @@
             });
         </script>
     }
+
+    <script>
+        const modalEl = document.getElementById("createClientModal");
+        @* if (!modalEl) return; *@
+
+        if(modalEl)
+        {
+
+            modalEl.addEventListener("shown.bs.modal", function () {
+
+                const input = document.getElementById("createClientName");
+                if (!input) return;
+
+                input.focus();
+                input.select();
+            });
+
+        }
+    </script>
 }
