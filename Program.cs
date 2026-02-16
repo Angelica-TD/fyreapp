@@ -19,6 +19,8 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IClientImportService, ClientImportService>();
 builder.Services.AddSignalR();
 
+builder.Services.AddScoped<IClientService, ClientService>();
+
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

@@ -19,6 +19,7 @@ namespace FyreApp.Controllers
         private readonly IHubContext<ImportProgressHub> _hub;
         private readonly IImportTracker _tracker;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IClientService _clients;
 
 
         public ClientsController(
@@ -26,7 +27,8 @@ namespace FyreApp.Controllers
             IClientImportService importService,
             IHubContext<ImportProgressHub> hub,
             IImportTracker tracker,
-            IServiceScopeFactory scopeFactory
+            IServiceScopeFactory scopeFactory,
+            IClientService clients
         )
 
         {
@@ -35,6 +37,7 @@ namespace FyreApp.Controllers
             _hub = hub;
             _tracker = tracker;
             _scopeFactory = scopeFactory;
+            _clients = clients;
         }
 
         // GET: ClientsController
@@ -53,7 +56,7 @@ namespace FyreApp.Controllers
         }
 
         // GET: /Clients/Details/5
-        public async Task<IActionResult> Details(int id)
+        public async Task<IActionResult> Details(int id, CancellationToken ct)
         {
             var client = await _context.Clients
                 .Include(c => c.Sites)
@@ -63,7 +66,32 @@ namespace FyreApp.Controllers
             if (client == null)
                 return NotFound();
 
-            return View(client);
+            var vm = new ClientDetailsVm
+            {
+                Client = client,
+                Edit = new UpdateClientRequest
+                {
+                    Name = client.Name,
+                    Active = client.Active,
+
+                    PrimaryContactName = client.PrimaryContactName,
+                    PrimaryContactEmail = client.PrimaryContactEmail,
+                    PrimaryContactMobile = client.PrimaryContactMobile,
+                    PrimaryContactCcEmail = client.PrimaryContactCcEmail,
+                    PrimaryContactAddress = client.PrimaryContactAddress,
+
+                    BillingName = client.BillingName,
+                    BillingAttentionTo = client.BillingAttentionTo,
+                    BillingEmail = client.BillingEmail,
+                    BillingCcEmail = client.BillingCcEmail,
+                    BillingAddress = client.BillingAddress,
+
+                    Updated = client.Updated
+                },
+                OpenEdit = TempData["OpenEdit"] as bool? ?? false
+            };
+
+            return View(vm);
         }
 
         // POST: /Client/Create (submitted from modal)
@@ -125,6 +153,50 @@ namespace FyreApp.Controllers
         [HttpGet]
         [Authorize(Roles = "Admin")]
         public IActionResult Import() => View();
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(int id, UpdateClientRequest request, CancellationToken ct)
+        {
+            var result = await _clients.UpdateAsync(id, request, ct);
+
+            return result.Status switch
+            {
+                ClientUpdateStatus.Success => RedirectToAction(nameof(Details), new { id }),
+                ClientUpdateStatus.NotFound => NotFound(),
+
+                ClientUpdateStatus.DuplicateName => RedirectWithError(id, result.ErrorMessage ?? "A client with this name already exists."),
+                ClientUpdateStatus.ValidationError => RedirectWithError(id, result.ErrorMessage ?? "Please check the form and try again."),
+
+                _ => BadRequest()
+            };
+
+            IActionResult RedirectWithError(int clientId, string message)
+            {
+                TempData["Error"] = message;
+                TempData["OpenEdit"] = true;
+                return RedirectToAction(nameof(Details), new { id = clientId });
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(int id, bool hardDelete = false, CancellationToken ct = default)
+        {
+            var result = await _clients.DeleteAsync(id, hardDelete, ct);
+
+            if (result.Status == ClientDeleteStatus.NotFound)
+                return NotFound();
+
+            TempData["Success"] = hardDelete
+                ? "Client deleted."
+                : "Client deactivated.";
+
+            return RedirectToAction(nameof(Index));
+        }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
