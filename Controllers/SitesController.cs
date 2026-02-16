@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FyreApp.Data;
+using FyreApp.Models;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FyreApp.Controllers
 {
@@ -12,6 +14,31 @@ namespace FyreApp.Controllers
         {
             _context = context;
         }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Create(int clientId, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return BadRequest("Site name is required.");
+
+            var clientExists = await _context.Clients.AnyAsync(c => c.Id == clientId);
+            if (!clientExists)
+                return NotFound();
+
+            var site = new Site
+            {
+                Name = name.Trim(),
+                ClientId = clientId
+            };
+
+            _context.Sites.Add(site);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction("Details", "Clients", new { id = clientId });
+        }
+
 
         // GET: /Sites/Details/5
         public async Task<IActionResult> Details(int id)
