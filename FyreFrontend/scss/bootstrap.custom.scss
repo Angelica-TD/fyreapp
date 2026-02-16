@@ -26,6 +26,16 @@ $btn-font-weight: 400;
 // Table
 $table-hover-bg: rgba(51, 122, 183, 0.09);
 
+// Offcanvas width
+$offcanvas-horizontal-width: 320px;
+
 
 // 2) Import Bootstrap (full build)
-@import "../../node_modules/bootstrap/scss/bootstrap";
+@import "bootstrap/scss/bootstrap";
+
+
+@media (max-width: 575.98px) {
+  .offcanvas {
+    --bs-offcanvas-width: 85vw;
+  }
+}
