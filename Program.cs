@@ -3,6 +3,7 @@ using FyreApp.Models;
 using FyreApp.Auth;
 using FyreApp.Hubs;
 using FyreApp.Services.Clients;
+using FyreApp.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,11 @@ builder.Services.AddScoped<IClientImportService, ClientImportService>();
 builder.Services.AddSignalR();
 
 builder.Services.AddScoped<IClientService, ClientService>();
+builder.Services.AddControllersWithViews(options =>
+{
+    options.Filters.Add<BreadcrumbFilter>();
+});
+
 
 
 builder.Services.AddDbContext<AppDbContext>(options =>

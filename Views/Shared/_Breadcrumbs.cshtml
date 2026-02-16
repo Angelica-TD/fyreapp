@@ -1,0 +1,25 @@
+@model IReadOnlyList<(string Text, string? Url)>
+
+@if (Model is { Count: > 0 })
+{
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0">
+            @for (var i = 0; i < Model.Count; i++)
+            {
+                var item = Model[i];
+                var isLast = i == Model.Count - 1;
+
+                if (isLast || string.IsNullOrWhiteSpace(item.Url))
+                {
+                    <li class="breadcrumb-item active" aria-current="page">@item.Text</li>
+                }
+                else
+                {
+                    <li class="breadcrumb-item">
+                        <a href="@item.Url">@item.Text</a>
+                    </li>
+                }
+            }
+        </ol>
+    </nav>
+}

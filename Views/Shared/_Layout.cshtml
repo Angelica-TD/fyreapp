@@ -1,4 +1,8 @@
-﻿<!DOCTYPE html>
+﻿@{
+    var crumbs = ViewData["Breadcrumbs"] as IReadOnlyList<(string Text, string? Url)>;
+}
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -15,53 +19,60 @@
 
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
+    <header class="bg-white">
+        <div class="container-fluid">
+            <nav class="navbar navbar-expand-sm navbar-toggleable-sm">
+                <div class="container-fluid">
 
-                <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
 
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">FyreApp</a>
-                
+                    <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">FyreApp</a>
+                    
 
-                <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
-                    <div class="offcanvas-header">
-                        <h5 class="offcanvas-title" id="offcanvasNavbarLabel">FyreApp</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
+                        <div class="offcanvas-header">
+                            <h5 class="offcanvas-title" id="offcanvasNavbarLabel">FyreApp</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                        </div>
+
+                        <div class="offcanvas-body">
+                            <ul class="navbar-nav flex-grow-1">
+                                                    
+                            @if (User.Identity?.IsAuthenticated ?? false)
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a class="nav-link text-dark" asp-area="" asp-controller="Clients" asp-action="Index">Clients</a>
+                                </li>
+
+                                <hr />
+
+                                <partial name="_LogoutButton" />
+                            }
+                            else
+                            {
+                                <a class="btn btn-link" asp-area="Identity" asp-page="/Account/Login">Login</a>
+                            }
+
+                            </ul>
+                        </div>
+                    
                     </div>
-
-                    <div class="offcanvas-body">
-                        <ul class="navbar-nav flex-grow-1">
-                                                
-                        @if (User.Identity?.IsAuthenticated ?? false)
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                            </li>
-
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-controller="Clients" asp-action="Index">Clients</a>
-                            </li>
-
-                            <hr />
-
-                            <partial name="_LogoutButton" />
-                        }
-                        else
-                        {
-                            <a class="btn btn-link" asp-area="Identity" asp-page="/Account/Login">Login</a>
-                        }
-
-                        </ul>
-                    </div>
-                
                 </div>
-            </div>
-        </nav>
+            </nav>
+        </div>
+
+        <div class="container-fluid">
+            @await Html.PartialAsync("_Breadcrumbs", crumbs ?? Array.Empty<(string, string?)>())
+        </div>
+
     </header>
-    <div>
+    <div class="bg-light py-3">
         <div class="d-flex">
             @if (User.Identity?.IsAuthenticated ?? false)
             {
