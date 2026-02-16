@@ -1,3 +1,4 @@
+@using FyreApp.Infrastructure
 @model FyreApp.ViewModels.Clients.ClientDetailsVm
 
 @{
@@ -6,7 +7,31 @@
     var showEdit = Model.OpenEdit;
 }
 
-<h1>@c.Name</h1>
+<div class="card">
+
+    <div class="card-header">
+        <div class="d-flex align-items-center justify-content-between">
+            <h5>@c.Name</h5>
+
+            
+            <button class="btn text-uppercase text-primary"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#editClientCollapse"
+                    aria-expanded="@(showEdit.ToString().ToLowerInvariant())"
+                    aria-controls="editClientCollapse">
+                    <i class="bi bi-pencil-square"></i>
+                Edit
+            </button>
+
+        </div>
+    </div>
+
+    @await Html.PartialAsync("_FieldList", UiFieldBuilder.Build(c))
+    
+</div>
+
+
 
 @if (TempData["Success"] is string okMsg)
 {

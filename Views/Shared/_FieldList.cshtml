@@ -1,0 +1,38 @@
+@model IReadOnlyList<FyreApp.Infrastructure.UiField>
+
+@if (Model is { Count: > 0 })
+{
+    var groups = Model
+        .GroupBy(f => f.Group)
+        .OrderBy(g => g.Key ?? string.Empty);
+
+    foreach (var group in groups)
+    {
+
+
+        <div class="card-body">
+        
+            @if (!string.IsNullOrWhiteSpace(group.Key))
+            {
+                <div class="fw-semibold text-muted mb-2">@group.Key</div>
+            }
+
+            @foreach (var f in group)
+            {
+            <div class="row py-2">
+                <div class="col-sm-6">
+                    <strong>@f.Label</strong>
+                </div>
+                <div class="col-sm-6">
+                    @f.Value
+                </div>
+            </div>
+            }
+        
+        </div>
+
+        
+
+        <hr class="my-3" />
+    }
+}
