@@ -67,9 +67,13 @@
             </nav>
         </div>
 
+        @if (!(ViewData["HideBreadcrumb"] as bool? ?? false))
+        {
         <div class="container-fluid">
             @await Html.PartialAsync("_Breadcrumbs", crumbs ?? Array.Empty<(string, string?)>())
         </div>
+        }
+
 
     </header>
     <div class="bg-light py-3">

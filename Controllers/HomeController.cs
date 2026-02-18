@@ -17,6 +17,7 @@ public class HomeController : Controller
     [HttpGet]
     public IActionResult Index(string? returnUrl = null)
     {
+        ViewData["HideBreadcrumb"] = true;
         var vm = new HomeIndexVm();
         vm.Login.ReturnUrl = returnUrl ?? Url.Action(nameof(Index), "Home");
         return View(vm);
