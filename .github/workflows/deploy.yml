@@ -112,8 +112,10 @@ jobs:
             PREV=\$(readlink -f /var/www/fyreapp/current || true); \
             echo \"Previous current: \$PREV\"; \
             \
-            rm -rf /var/www/fyreapp/current; \
-            ln -s /var/www/fyreapp/releases/$RELEASE /var/www/fyreapp/current; \
+            mkdir -p /var/www/fyreapp; \
+            ln -sfn /var/www/fyreapp/releases/$RELEASE /var/www/fyreapp/current; \
+            echo "Now current -> $(readlink -f /var/www/fyreapp/current)"; \
+
             \
             sudo -n /usr/bin/systemctl restart fyreapp; \
             \
