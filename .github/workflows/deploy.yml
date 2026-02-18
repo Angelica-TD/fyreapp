@@ -71,11 +71,19 @@ jobs:
             mkdir -p /var/www/fyreapp/releases/$RELEASE/db; \
           "
 
+          ssh -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "\
+            set -e; \
+            ls -la /var/www/fyreapp/releases/$RELEASE; \
+            ls -la /var/www/fyreapp/releases/$RELEASE/db; \
+          "
+
+
           rsync -az --delete -e "ssh -p ${{ secrets.VPS_PORT }}" out/web/ \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/fyreapp/releases/$RELEASE/
 
-          rsync -az -e "ssh -p ${{ secrets.VPS_PORT }}" out/db/migrate \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/fyreapp/releases/$RELEASE/db/migrate
+          rsync -az -e "ssh -p ${{ secrets.VPS_PORT }}" out/db/ \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/fyreapp/releases/$RELEASE/db/
+
 
       - name: Switch current + restart (safe)
         run: |
