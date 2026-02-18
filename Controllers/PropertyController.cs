@@ -6,11 +6,11 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace FyreApp.Controllers
 {
-    public class SitesController : Controller
+    public class PropertyController : Controller
     {
         private readonly AppDbContext _context;
 
-        public SitesController(AppDbContext context)
+        public PropertyController(AppDbContext context)
         {
             _context = context;
         }

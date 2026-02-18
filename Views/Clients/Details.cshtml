@@ -156,14 +156,14 @@
 
 <hr />
 
-<h3>Sites</h3>
+<h3>Properties</h3>
 
 @if (User.IsInRole("Admin"))
 {
     <button class="btn btn-primary"
             data-bs-toggle="modal"
             data-bs-target="#createSiteModal">
-        <i class="bi bi-plus-lg"></i> Add Site
+        <i class="bi bi-plus-lg"></i> Add Property
     </button>
 }
 
@@ -188,7 +188,7 @@
 
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Site Name</label>
+                        <label class="form-label">Property Name</label>
                         <input name="name"
                                class="form-control"
                                required
@@ -219,7 +219,7 @@ else
     <table class="table table-bordered">
         <thead>
             <tr>
-                <th>Site Name</th>
+                <th>Property Name</th>
                 <th>Assets</th>
                 <th></th>
             </tr>
@@ -231,8 +231,8 @@ else
                 <td>@site.Name</td>
                 <td>@site.Assets.Count</td>
                 <td>
-                    <a asp-controller="Sites" asp-action="Details" asp-route-id="@site.Id">
-                        View Site
+                    <a asp-controller="Property" asp-action="Details" asp-route-id="@site.Id">
+                        View Property
                     </a>
                 </td>
             </tr>
