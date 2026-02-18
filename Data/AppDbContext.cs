@@ -19,6 +19,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
     public DbSet<MaintenanceInterval> MaintenanceIntervals { get; set; }
     public DbSet<MaintenanceHistory> MaintenanceHistory => Set<MaintenanceHistory>();
+    public DbSet<ClientTask> ClientTasks => Set<ClientTask>();
+
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -117,6 +119,25 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(h => h.MaintenanceScheduleId);
             entity.HasIndex(h => h.CompletedAt);
         });
+
+        modelBuilder.Entity<ClientTask>(entity =>
+        {
+            entity.HasOne(t => t.Client)
+                .WithMany()
+                .HasForeignKey(t => t.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(t => t.Site)
+                .WithMany()
+                .HasForeignKey(t => t.SiteId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(t => t.ClientId);
+            entity.HasIndex(t => t.SiteId);
+            entity.HasIndex(t => t.Status);
+            entity.HasIndex(t => t.DueDateUtc);
+        });
+
 
     }
 
