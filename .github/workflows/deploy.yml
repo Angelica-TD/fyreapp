@@ -41,15 +41,6 @@ jobs:
       - name: Build (show real errors)
         run: dotnet build ./FyreApp.csproj -c Release -r linux-x64 -v normal -bl:build.binlog
 
-      - name: Upload build log (binlog)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-binlog
-          path: build.binlog
-
-
-
       - name: Build EF migration bundle (linux-x64)
         run: >
           dotnet ef migrations bundle
