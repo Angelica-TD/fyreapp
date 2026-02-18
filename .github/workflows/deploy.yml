@@ -32,6 +32,18 @@ jobs:
       - name: Restore
         run: dotnet restore
 
+      - name: Install dotnet-ef
+        run: dotnet tool install --global dotnet-ef
+
+      - name: Build EF migration bundle (linux-x64)
+        run: dotnet ef migrations bundle \
+              --project ./FyreApp.csproj \
+              --startup-project ./FyreApp.csproj \
+              --configuration Release \
+              --runtime linux-x64 \
+              --self-contained true \
+              --output out/db/migrate
+
       - name: Publish Web (self-contained linux-x64)
         run: dotnet publish ./FyreApp.csproj -c Release -r linux-x64 --self-contained true -o out/web
 
@@ -50,10 +62,14 @@ jobs:
           ssh -p ${{ secrets.VPS_PORT }} ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "\
             set -e; \
             mkdir -p /var/www/fyreapp/releases/$RELEASE; \
+            mkdir -p /var/www/fyreapp/releases/$RELEASE/db; \
           "
 
           rsync -az --delete -e "ssh -p ${{ secrets.VPS_PORT }}" out/web/ \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/fyreapp/releases/$RELEASE/
+
+          rsync -az -e "ssh -p ${{ secrets.VPS_PORT }}" out/db/ \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/fyreapp/releases/$RELEASE/db/
 
       - name: Switch current + restart (safe)
         run: |
@@ -63,6 +79,26 @@ jobs:
             \
             test -f /var/www/fyreapp/releases/$RELEASE/FyreApp; \
             chmod +x /var/www/fyreapp/releases/$RELEASE/FyreApp; \
+            \
+            test -f /var/www/fyreapp/releases/$RELEASE/db/migrate; \
+            chmod +x /var/www/fyreapp/releases/$RELEASE/db/migrate; \
+            \
+            # Load app env (expects ConnectionStrings__DefaultConnection inside) \
+            if [ ! -f /etc/fyreapp.env ]; then \
+              echo 'Missing /etc/fyreapp.env'; \
+              exit 1; \
+            fi; \
+            set -a; \
+            source /etc/fyreapp.env; \
+            set +a; \
+            \
+            if [ -z \"\${ConnectionStrings__DefaultConnection:-}\" ]; then \
+              echo 'Missing ConnectionStrings__DefaultConnection in /etc/fyreapp.env'; \
+              exit 1; \
+            fi; \
+            \
+            echo 'Applying EF migrations...'; \
+            /var/www/fyreapp/releases/$RELEASE/db/migrate --connection \"\$ConnectionStrings__DefaultConnection\"; \
             \
             PREV=\$(readlink -f /var/www/fyreapp/current || true); \
             echo \"Previous current: \$PREV\"; \
@@ -86,4 +122,5 @@ jobs:
             ls -1dt /var/www/fyreapp/releases/release-* | tail -n +6 | xargs -r rm -rf; \
             sudo -n /usr/bin/systemctl --no-pager --full status fyreapp | head -n 40; \
           "
+
 
