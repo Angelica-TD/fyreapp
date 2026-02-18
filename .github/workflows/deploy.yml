@@ -35,8 +35,13 @@ jobs:
       - name: Install dotnet-ef
         run: dotnet tool install --global dotnet-ef
 
+      - name: Build (show errors)
+        run: dotnet build ./FyreApp.csproj -c Release -r linux-x64 -v normal
+
+
       - name: Build EF migration bundle (linux-x64)
         run: dotnet ef migrations bundle \
+              --verbose \
               --project ./FyreApp.csproj \
               --startup-project ./FyreApp.csproj \
               --configuration Release \
