@@ -47,6 +47,7 @@ namespace FyreApp.Controllers
             var vm = new ClientIndexVm
             {
                 Clients = await _context.Clients
+                    .Where(c => c.Active)
                     .Include(c => c.Sites)
                     .OrderBy(c => c.Name)
                     .ToListAsync()
@@ -157,9 +158,9 @@ namespace FyreApp.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, UpdateClientRequest request, CancellationToken ct)
+        public async Task<IActionResult> Update(int id, ClientDetailsVm request, CancellationToken ct)
         {
-            var result = await _clients.UpdateAsync(id, request, ct);
+            var result = await _clients.UpdateAsync(id, request.Edit, ct);
 
             return result.Status switch
             {
@@ -192,7 +193,7 @@ namespace FyreApp.Controllers
 
             TempData["Success"] = hardDelete
                 ? "Client deleted."
-                : "Client deactivated.";
+                : "Client has been archived.";
 
             return RedirectToAction(nameof(Index));
         }

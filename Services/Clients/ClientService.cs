@@ -31,6 +31,7 @@ public sealed class ClientService : IClientService
         client.Active = request.Active;
 
         client.PrimaryContactName = request.PrimaryContactName?.Trim();
+        client.PrimaryContactAddress = request.PrimaryContactAddress?.Trim();
         client.PrimaryContactEmail = request.PrimaryContactEmail?.Trim();
         client.PrimaryContactMobile = request.PrimaryContactMobile?.Trim();
         client.PrimaryContactCcEmail = request.PrimaryContactCcEmail?.Trim();
