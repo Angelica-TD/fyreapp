@@ -3,6 +3,7 @@ using FyreApp.Models;
 using FyreApp.ViewModels.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Controllers;
@@ -15,18 +16,46 @@ public class TaskController : Controller
     public TaskController(AppDbContext db) => _db = db;
 
     [HttpGet]
-    public async Task<IActionResult> Create(int clientId, int siteId)
+    public async Task<IActionResult> Index()
     {
-        // Validate the site belongs to the client
-        var valid = await _db.Sites.AsNoTracking()
-            .AnyAsync(s => s.Id == siteId && s.ClientId == clientId);
+        var tasks = await _db.ClientTasks
+            // .Where(c => c.Active)
+            .AsNoTracking()
+            .OrderBy(c => c.DueDateUtc)
+            // .Select(c => new SelectListItem
+            // {
+            //     Value = c.Id.ToString(),
+            //     Text = c.Name
+            // })
+            .ToListAsync();
 
-        if (!valid) return NotFound();
+        // var vm = new CreateClientTaskFormVm
+        // {
+        //     Clients = clients,
+        //     Sites = new List<SelectListItem>()
+        // };
 
-        var vm = new CreateClientTaskVm
+        return View(tasks);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Create()
+    {
+        var clients = await _db.Clients
+            .Where(c => c.Active)
+            .AsNoTracking()
+            .OrderBy(c => c.Name)
+            .Select(c => new SelectListItem
+            {
+                Value = c.Id.ToString(),
+                Text = c.Name
+            })
+            .ToListAsync();
+
+        var vm = new CreateClientTaskFormVm
         {
-            ClientId = clientId,
-            SiteId = siteId
+            Clients = clients,
+            Sites = new List<SelectListItem>()
         };
 
         return View(vm);
@@ -34,40 +63,88 @@ public class TaskController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(CreateClientTaskVm vm)
+    public async Task<IActionResult> Create(CreateClientTaskVm task)
     {
+        // Validate client/site relationship (don’t trust posted IDs)
+        var siteExists = await _db.Sites
+            .AsNoTracking()
+            .AnyAsync(s => s.Id == task.SiteId && s.ClientId == task.ClientId);
+
+        if (!siteExists)
+            ModelState.AddModelError(nameof(CreateClientTaskVm.SiteId), "Selected site does not belong to selected client.");
+
         if (!ModelState.IsValid)
-            return View(vm);
-
-        var site = await _db.Sites
-            .Include(s => s.Client)
-            .FirstOrDefaultAsync(s => s.Id == vm.SiteId && s.ClientId == vm.ClientId);
-
-        if (site == null) return NotFound();
-
-        DateTime? dueUtc = null;
-        if (vm.DueDateLocal.HasValue)
-            dueUtc = DateTime.SpecifyKind(vm.DueDateLocal.Value, DateTimeKind.Local).ToUniversalTime();
-
-        var task = new ClientTask
         {
-            ClientId = vm.ClientId,
-            SiteId = vm.SiteId,
-            Title = vm.Title.Trim(),
-            Description = string.IsNullOrWhiteSpace(vm.Description) ? null : vm.Description.Trim(),
-            Priority = vm.Priority,
+            // Rebuild dropdowns for the form (required when returning the view)
+            var vm = new CreateClientTaskFormVm
+            {
+                Task = task,
+                Clients = await _db.Clients
+                    .AsNoTracking()
+                    .OrderBy(c => c.Name)
+                    .Select(c => new SelectListItem
+                    {
+                        Value = c.Id.ToString(),
+                        Text = c.Name
+                    })
+                    .ToListAsync(),
+                Sites = await _db.Sites
+                    .AsNoTracking()
+                    .Where(s => s.ClientId == task.ClientId)
+                    .OrderBy(s => s.Name)
+                    .Select(s => new SelectListItem
+                    {
+                        Value = s.Id.ToString(),
+                        Text = s.Name
+                    })
+                    .ToListAsync()
+            };
+
+            return View(vm);
+        }
+
+        // Convert local due date to UTC (if provided)
+        DateTime? dueUtc = null;
+        if (task.DueDateLocal.HasValue)
+        {
+            // If your users are AU/Sydney, you can convert using that timezone.
+            // Better: store timezone per user later.
+            var tz = TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
+            dueUtc = TimeZoneInfo.ConvertTimeToUtc(task.DueDateLocal.Value, tz);
+        }
+
+        var entity = new ClientTask
+        {
+            ClientId = task.ClientId,
+            SiteId = task.SiteId,
+            Title = task.Title.Trim(),
+            Description = string.IsNullOrWhiteSpace(task.Description) ? null : task.Description.Trim(),
+            Priority = task.Priority,
             Status = ClientTaskStatus.Open,
             DueDateUtc = dueUtc,
-            CreatedUtc = DateTime.UtcNow,
-            CreatedByUserId = User?.Identity?.Name // swap to user id claim if you store it
+            CreatedUtc = DateTime.UtcNow
         };
 
-        _db.ClientTasks.Add(task);
+        _db.ClientTasks.Add(entity);
         await _db.SaveChangesAsync();
 
-        // Nice UX: redirect back to the client or site details page
-        return RedirectToAction("Details", "Sites", new { id = vm.SiteId });
+        return RedirectToAction("Details", "Property", new { id = task.SiteId });
     }
+
+
+    [HttpGet]
+    public async Task<IActionResult> PropertiesForClient(int clientId)
+    {
+        var sites = await _db.Sites
+            .AsNoTracking()
+            .Where(s => s.ClientId == clientId)
+            .OrderBy(s => s.Name)
+            .Select(s => new { id = s.Id, name = s.Name })
+            .ToListAsync();
+
+        return Json(sites);
+    }
+
 
     [HttpPost]
     [ValidateAntiForgeryToken]

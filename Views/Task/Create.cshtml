@@ -1,0 +1,214 @@
+@model FyreApp.ViewModels.Tasks.CreateClientTaskFormVm
+
+@{
+    ViewData["Title"] = "Create Task";
+}
+
+<h1>Create Task</h1>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label class="form-label" asp-for="Task.ClientId">Client</label>
+                <select class="form-select" asp-for="Task.ClientId" asp-items="Model.Clients" id="ClientId">
+                    <option value="">Select a client…</option>
+                </select>
+                <span class="text-danger" asp-validation-for="Task.ClientId"></span>
+            </div>
+
+            <div id="noSitesPanel" class="alert alert-info d-none">
+                This client has no properties yet. Add one below to continue.
+            </div>
+
+            <div id="addSitePanel" class="card d-none">
+                <div class="card-body">
+                    <div class="mb-2">
+                        <label class="form-label" for="NewSiteName">New property name</label>
+                        <input class="form-control" id="NewSiteName" type="text" maxlength="120" />
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary" type="button" id="btnCreateSite">Create property</button>
+                        <button class="btn btn-outline-secondary" type="button" id="btnCancelCreateSite">Cancel</button>
+                    </div>
+
+                    <div id="siteCreateError" class="text-danger mt-2 d-none"></div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="SiteId">Property / Site</label>
+                <select class="form-select" id="SiteId" name="SiteId" required disabled>
+                    <option value="">Select a property…</option>
+                    <option value="__new__">+ Add new property…</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary" disabled>Create (coming soon)</button>
+        </form>
+
+        
+    </div>
+</div>
+
+@section Scripts {
+
+<script>
+(function () {
+  const NEW_VALUE = "__new__";
+
+  const clientSel = document.getElementById("ClientId");
+  const siteSel = document.getElementById("SiteId");
+  const noSitesPanel = document.getElementById("noSitesPanel");
+  const addSitePanel = document.getElementById("addSitePanel");
+  const btnCreateSite = document.getElementById("btnCreateSite");
+  const btnCancelCreateSite = document.getElementById("btnCancelCreateSite");
+  const newSiteName = document.getElementById("NewSiteName");
+  const siteCreateError = document.getElementById("siteCreateError");
+
+  function showAddSitePanel(show) {
+    addSitePanel.classList.toggle("d-none", !show);
+    if (show) {
+      siteCreateError.classList.add("d-none");
+      siteCreateError.textContent = "";
+      newSiteName.value = "";
+      newSiteName.focus();
+    }
+  }
+
+  function ensureAddNewOption() {
+    const has = Array.from(siteSel.options).some(o => o.value === NEW_VALUE);
+    if (!has) {
+      const opt = document.createElement("option");
+      opt.value = NEW_VALUE;
+      opt.textContent = "+ Add new property…";
+      siteSel.appendChild(opt);
+    }
+  }
+
+  function setSiteOptions(sites) {
+    const current = siteSel.value;
+
+    siteSel.innerHTML = '<option value="">Select a property…</option>';
+    for (const s of sites) {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.name;
+      siteSel.appendChild(opt);
+    }
+    ensureAddNewOption();
+
+    siteSel.disabled = false;
+
+    // Keep selection if still present; otherwise reset.
+    const stillExists = Array.from(siteSel.options).some(o => o.value === current);
+    siteSel.value = stillExists ? current : "";
+    showAddSitePanel(siteSel.value === NEW_VALUE);
+  }
+
+  async function loadSites(clientId) {
+    if (!clientId) {
+      siteSel.innerHTML = '<option value="">Select a property…</option>';
+      ensureAddNewOption();
+      siteSel.disabled = true;
+      showAddSitePanel(false);
+      return;
+    }
+    const res = await fetch(`/Task/PropertiesForClient?clientId=${encodeURIComponent(clientId)}`, {
+      headers: { "Accept": "application/json" }
+    });
+
+    const data = res.ok ? await res.json() : { sites: [] };
+    setSiteOptions(data ?? []);
+  }
+
+  function getAntiForgeryToken() {
+    const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+    return tokenInput ? tokenInput.value : "";
+  }
+
+  async function createSite(clientId, name) {
+    siteCreateError.classList.add("d-none");
+    siteCreateError.textContent = "";
+
+    const body = new URLSearchParams();
+    body.append("__RequestVerificationToken", getAntiForgeryToken());
+    body.append("ClientId", clientId);
+    body.append("Name", name);
+
+    const res = await fetch("/Property/CreateAjax", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    });
+
+    if (res.status === 409) {
+      const msg = await res.text();
+      throw new Error(msg || "Duplicate property name.");
+    }
+
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(msg || "Could not create property.");
+    }
+
+    return await res.json();
+  }
+
+  clientSel.addEventListener("change", async () => {
+    await loadSites(clientSel.value);
+  });
+
+  siteSel.addEventListener("change", () => {
+    showAddSitePanel(siteSel.value === NEW_VALUE);
+  });
+
+  btnCancelCreateSite.addEventListener("click", () => {
+    showAddSitePanel(false);
+    // return dropdown to "no selection"
+    siteSel.value = "";
+  });
+
+  btnCreateSite.addEventListener("click", async () => {
+    const clientId = clientSel.value;
+    const name = (newSiteName.value || "").trim();
+
+    if (!clientId) return;
+
+    if (!name) {
+      siteCreateError.textContent = "Property name is required.";
+      siteCreateError.classList.remove("d-none");
+      return;
+    }
+
+    btnCreateSite.disabled = true;
+
+    try {
+      const created = await createSite(clientId, name);
+
+      const newOpt = document.createElement("option");
+      newOpt.value = String(created.id);
+      newOpt.textContent = created.name;
+
+      const addNewOpt = Array.from(siteSel.options).find(o => o.value === NEW_VALUE);
+      if (addNewOpt) siteSel.insertBefore(newOpt, addNewOpt);
+      else siteSel.appendChild(newOpt);siteSel.value = String(created.id);
+      showAddSitePanel(false);
+    } catch (e) {
+      siteCreateError.textContent = e.message || "Could not create property.";
+      siteCreateError.classList.remove("d-none");
+    } finally {
+      btnCreateSite.disabled = false;
+    }
+
+
+  });
+
+  ensureAddNewOption();
+})();
+</script>
+
+}

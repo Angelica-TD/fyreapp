@@ -1,0 +1,23 @@
+@model List<FyreApp.Models.ClientTask>
+
+@{
+    ViewData["Title"] = "All Tasks";
+}
+
+<h1>Tasks</h1>
+
+<table>
+
+@foreach (var t in Model){
+  <tr>
+    <td>
+      @t.Title
+    </td>
+  </tr>
+}
+
+</table>
+
+@section Scripts {
+
+}
