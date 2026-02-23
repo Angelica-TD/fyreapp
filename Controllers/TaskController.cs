@@ -65,7 +65,7 @@ public class TaskController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateClientTaskVm task)
     {
-        // Validate client/site relationship (don’t trust posted IDs)
+        // Validate client/site relationship (don't trust posted IDs)
         var siteExists = await _db.Sites
             .AsNoTracking()
             .AnyAsync(s => s.Id == task.SiteId && s.ClientId == task.ClientId);
@@ -103,11 +103,11 @@ public class TaskController : Controller
             return View(vm);
         }
 
-        // Convert local due date to UTC (if provided)
+        // Convert local due date to UTC
         DateTime? dueUtc = null;
         if (task.DueDateLocal.HasValue)
         {
-            // If your users are AU/Sydney, you can convert using that timezone.
+            // users are AU/Sydney, convert using that timezone.
             // Better: store timezone per user later.
             var tz = TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
             dueUtc = TimeZoneInfo.ConvertTimeToUtc(task.DueDateLocal.Value, tz);
@@ -128,7 +128,7 @@ public class TaskController : Controller
         _db.ClientTasks.Add(entity);
         await _db.SaveChangesAsync();
 
-        return RedirectToAction("Details", "Property", new { id = task.SiteId });
+        return RedirectToAction("Details", "Task", new { id = task.SiteId });
     }
 
 
@@ -161,5 +161,23 @@ public class TaskController : Controller
         }
 
         return RedirectToAction("Details", "Sites", new { id = task.SiteId });
+    }
+
+    // GET: /Task/Details/5
+    public async Task<IActionResult> Details(int id)
+    {
+        var clientTask = await _db.ClientTasks
+            .Include(s => s.Client)
+            // .Include(s => s.Assets)
+            //     .ThenInclude(a => a.AssetTypes)
+            // .Include(s => s.MaintenanceSchedules)
+            .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (clientTask == null)
+            return NotFound();
+
+        // ViewBag.Intervals = await _db.MaintenanceIntervals.ToListAsync();
+
+        return View(clientTask);
     }
 }

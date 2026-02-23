@@ -8,7 +8,7 @@
 
 <div class="card">
     <div class="card-body">
-        <form method="post">
+        <form method="post" asp-controller="Task" asp-action="Create">
             @Html.AntiForgeryToken()
 
             <div class="mb-3">
@@ -40,14 +40,15 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label" for="SiteId">Property / Site</label>
-                <select class="form-select" id="SiteId" name="SiteId" required disabled>
+                <label class="form-label" asp-for="Task.SiteId">Property / Site</label>
+                <select class="form-select" id="SiteId" asp-for="Task.SiteId" required disabled>
                     <option value="">Select a property…</option>
                     <option value="__new__">+ Add new property…</option>
                 </select>
+                <span class="text-danger" asp-validation-for="Task.SiteId"></span>
             </div>
 
-            <button type="submit" class="btn btn-primary" disabled>Create (coming soon)</button>
+            <button type="submit" class="btn btn-primary">Create Task</button>
         </form>
 
         
