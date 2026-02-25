@@ -39,6 +39,8 @@ namespace FyreApp.Controllers
                 CreateSiteStatus.Success => RedirectToAction("Details", "Clients", new { id = request.ClientId }),
                 CreateSiteStatus.NotFound => NotFound(),
                 CreateSiteStatus.GeocodeFailed => RedirectWithError(request.ClientId, result.Error ?? "Address lookup failed."),
+                CreateSiteStatus.DuplicateName => Conflict(result.Error ?? "A property with this name already exists for this client."),
+                CreateSiteStatus.DuplicateAddress => Conflict(result.Error ?? "A property with this address already exists for this client."),
                 _ => RedirectWithError(request.ClientId, result.Error ?? "Could not create property.")
             };
 
@@ -54,34 +56,30 @@ namespace FyreApp.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> CreateAjax(int clientId, string name)
+        public async Task<IActionResult> CreateAjax(CreateSiteRequest request, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(name))
-                return BadRequest("Site name is required.");
+            if (!ModelState.IsValid)
+                return ValidationProblem(ModelState);
 
-            var trimmed = name.Trim();
+            var result = await _sites.CreateAsync(request, ct);
 
-            var clientExists = await _context.Clients.AnyAsync(c => c.Id == clientId);
-            if (!clientExists)
-                return NotFound();
-
-            // prevent duplicate site names per client
-            var duplicate = await _context.Sites.AnyAsync(s =>
-                s.ClientId == clientId && s.Name.ToLower() == trimmed.ToLower());
-
-            if (duplicate)
-                return Conflict("A property with this name already exists for this client.");
-
-            var site = new Site
+            return result.Status switch
             {
-                Name = trimmed,
-                ClientId = clientId
+                CreateSiteStatus.Success => Json(new
+                {
+                    id = result.site?.Id,
+                    name = result.SiteName 
+                }),
+
+                CreateSiteStatus.NotFound => NotFound(),
+
+                CreateSiteStatus.GeocodeFailed => BadRequest(result.Error ?? "Address lookup failed."),
+
+                CreateSiteStatus.DuplicateName => Conflict(result.Error ?? "A property with this name already exists for this client."),
+                CreateSiteStatus.DuplicateAddress => Conflict(result.Error ?? "A property with this address already exists for this client."),
+
+                _ => BadRequest(result.Error ?? "Could not create property.")
             };
-
-            _context.Sites.Add(site);
-            await _context.SaveChangesAsync();
-
-            return Json(new { id = site.Id, name = site.Name });
         }
 
 

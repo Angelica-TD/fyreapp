@@ -73,3 +73,8 @@ body {
 .sub-nav .btn-link.nav-link:focus {
     text-decoration: none;
 }
+
+
+.pac-container {
+    z-index: 2000 !important;
+}

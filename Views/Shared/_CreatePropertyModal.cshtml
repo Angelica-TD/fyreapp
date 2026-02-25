@@ -1,0 +1,199 @@
+@model FyreApp.ViewModels.Sites.CreatePropertyModalVm
+
+@{
+    var modalId = Model.ModalId;
+    var p = Model.IdPrefix;
+
+    var placeIdId = $"{p}_GooglePlaceId";
+    var formattedId = $"{p}_GoogleFormattedAddress";
+    var addressSearchId = $"{p}_SiteAddressSearch";
+    var manualBtnId = $"{p}_btnManualAddress";
+    var manualPanelId = $"{p}_manualAddressPanel";
+
+    var addr1Id = $"{p}_AddressLine1";
+    var addr2Id = $"{p}_AddressLine2";
+    var suburbId = $"{p}_Suburb";
+    var stateId = $"{p}_State";
+    var postcodeId = $"{p}_Postcode";
+}
+
+<div class="modal fade" id="@modalId" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <form class="js-create-site-form"
+                  asp-controller="@Model.FormController"
+                  asp-action="@Model.FormAction"
+                  method="post">
+                @Html.AntiForgeryToken()
+
+                <input type="hidden" name="ClientId" value="@(Model.ClientId ?? 0)" data-role="client-id" />
+
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Add a New Property
+                        @if (Model.ShowClientNameInTitle && !string.IsNullOrWhiteSpace(Model.ClientName))
+                        {
+                            <span>for @Model.ClientName</span>
+                        }
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Property Name</label>
+                        <input name="Name" class="form-control" required data-role="site-name" />
+                    </div>
+
+                    <input type="hidden" id="@placeIdId" name="Google.PlaceId" />
+                    <input type="hidden" id="@formattedId" name="Google.FormattedAddress" />
+
+                    <div class="mb-3">
+                        <label class="form-label" for="@addressSearchId">Address</label>
+                        <input class="form-control"
+                               id="@addressSearchId"
+                               type="text"
+                               placeholder="Start typing an Australian address…"
+                               autocomplete="off" />
+                    </div>
+
+                    <button type="button" class="btn btn-link px-0" id="@manualBtnId">
+                        Can't find the address? Enter manually
+                    </button>
+
+                    <div id="@manualPanelId" class="mt-2 d-none">
+                        <div class="mb-2">
+                            <label class="form-label" for="@addr1Id">Address line 1</label>
+                            <input class="form-control" id="@addr1Id" name="Manual.AddressLine1" maxlength="200" />
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label" for="@addr2Id">Address line 2</label>
+                            <input class="form-control" id="@addr2Id" name="Manual.AddressLine2" maxlength="200" />
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <label class="form-label" for="@suburbId">Suburb</label>
+                                <input class="form-control" id="@suburbId" name="Manual.Suburb" maxlength="80" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="@stateId">State</label>
+                                <input class="form-control" id="@stateId" name="Manual.State" maxlength="20" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="@postcodeId">Postcode</label>
+                                <input class="form-control" id="@postcodeId" name="Manual.Postcode" maxlength="10" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-danger mt-2 d-none" data-role="error"></div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+  const modalId = "@modalId";
+  const p = "@p";
+  const googleKey = "@(Model.GoogleBrowserKey ?? "")";
+
+  const modalEl = document.getElementById(modalId);
+  if (!modalEl) return;
+
+  const addressInput = document.getElementById(`${p}_SiteAddressSearch`);
+  const placeIdEl = document.getElementById(`${p}_GooglePlaceId`);
+  const formattedEl = document.getElementById(`${p}_GoogleFormattedAddress`);
+  const manualBtn = document.getElementById(`${p}_btnManualAddress`);
+  const manualPanel = document.getElementById(`${p}_manualAddressPanel`);
+
+  if (manualBtn && manualPanel) {
+    manualBtn.addEventListener("click", () => {
+      manualPanel.classList.remove("d-none");
+      if (placeIdEl) placeIdEl.value = "";
+      if (formattedEl) formattedEl.value = "";
+    });
+  }
+
+  @* // Load Google Places once per page. *@
+  function loadGooglePlacesOnce(key) {
+    if (!key) return Promise.reject(new Error("Google Maps BrowserKey is missing."));
+
+    @* // If already loaded, resolve immediately. *@
+    if (window.google?.maps?.places) return Promise.resolve();
+
+    @* // Create/reuse a single global promise. *@
+    if (window.__fyreGooglePlacesPromise) return window.__fyreGooglePlacesPromise;
+
+    window.__fyreGooglePlacesPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-fyre-google-places="1"]');
+      if (existing) {
+        @* // Script tag exists; wait until it yields google.maps.places. *@
+        const start = Date.now();
+        const t = setInterval(() => {
+          if (window.google?.maps?.places) {
+            clearInterval(t);
+            resolve();
+          } else if (Date.now() - start > 15000) {
+            clearInterval(t);
+            reject(new Error("Timed out loading Google Places."));
+          }
+        }, 50);
+        return;
+      }
+
+      const cbName = "__fyreGooglePlacesOnLoad";
+      window[cbName] = () => resolve();
+
+      const s = document.createElement("script");
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&callback=${cbName}`;
+      s.async = true;
+      s.defer = true;
+      s.dataset.fyreGooglePlaces = "1";
+      s.onerror = () => reject(new Error("Failed to load Google Places script."));
+      document.head.appendChild(s);
+    });
+
+    return window.__fyreGooglePlacesPromise;
+  }
+
+  let ac;
+
+  modalEl.addEventListener("shown.bs.modal", async () => {
+    @* // Safe even if opened multiple times. *@
+    if (ac) return;
+
+    try {
+      await loadGooglePlacesOnce(googleKey);
+      if (!addressInput || !placeIdEl || !formattedEl) return;
+
+      ac = new google.maps.places.Autocomplete(addressInput, {
+        fields: ["place_id", "formatted_address"],
+        types: ["address"]
+      });
+
+      ac.setComponentRestrictions({ country: ["au"] });
+
+      ac.addListener("place_changed", () => {
+        const place = ac.getPlace();
+        if (!place?.place_id) return;
+
+        placeIdEl.value = place.place_id;
+        formattedEl.value = place.formatted_address ?? "";
+      });
+    } catch (e) {
+      console.warn(e);
+    }
+  });
+})();
+</script>

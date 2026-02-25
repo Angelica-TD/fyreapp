@@ -19,18 +19,76 @@ public sealed class SitesService
     public async Task<CreateSiteResult> CreateAsync(CreateSiteRequest req, CancellationToken ct)
     {
         if (req.ClientId <= 0)
-            return new(CreateSiteStatus.ValidationError, Error: "Client is required.");
+            return new(CreateSiteStatus.ValidationError, null, Error: "Client is required.");
 
         var name = (req.Name ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(name))
-            return new(CreateSiteStatus.ValidationError, Error: "Property name is required.");
+            return new(CreateSiteStatus.ValidationError, null, Error: "Property name is required.");
 
         var clientExists = await _db.Clients.AnyAsync(c => c.Id == req.ClientId, ct);
         if (!clientExists)
-            return new(CreateSiteStatus.NotFound);
+            return new(CreateSiteStatus.NotFound, null, Error: "Client not found");
 
-        // Prefer Google place id if present
-        var placeId = (req.Google.PlaceId ?? string.Empty).Trim();
+        var siteNameExists = await _db.Sites.AnyAsync(s =>
+            s.ClientId == req.ClientId &&
+            s.Name.ToLower() == name.ToLower(),
+            ct);
+            
+        if (siteNameExists)
+            return new(CreateSiteStatus.DuplicateName, null, Error: "A Property with this name already exists");
+
+        // Prefer Google place ID when provided (most reliable)
+        var placeId = NT(req.Google?.PlaceId);
+        if (placeId is not null)
+        {
+            var existing = await _db.Sites
+                .FirstOrDefaultAsync(s =>
+                    s.ClientId == req.ClientId &&
+                    s.GooglePlaceId == placeId,
+                    ct);
+
+            if (existing != null)
+                return new(CreateSiteStatus.Success, existing);
+
+        }
+        else
+        {
+            // Manual address duplicate -> return existing site (treat as success)
+            var line1 = req.Manual?.AddressLine1?.Trim();
+            var line2 = req.Manual?.AddressLine2?.Trim();
+            var suburb = req.Manual?.Suburb?.Trim();
+            var state = req.Manual?.State?.Trim();
+            var postcode = req.Manual?.Postcode?.Trim();
+
+            // Only attempt duplicate detection if we have a meaningful manual address
+            if (!string.IsNullOrWhiteSpace(line1) &&
+                !string.IsNullOrWhiteSpace(suburb) &&
+                !string.IsNullOrWhiteSpace(state) &&
+                !string.IsNullOrWhiteSpace(postcode))
+            {
+                var line1Norm = line1.ToLower();
+                var line2Norm = (line2 ?? string.Empty).ToLower();
+                var suburbNorm = suburb.ToLower();
+                var stateNorm = state.ToLower();
+                var postcodeNorm = postcode.ToLower();
+
+                var existing = await _db.Sites.FirstOrDefaultAsync(s =>
+                    s.ClientId == req.ClientId &&
+                    s.AddressLine1 != null &&
+                    s.Suburb != null &&
+                    s.State != null &&
+                    s.Postcode != null &&
+                    s.AddressLine1.Trim().ToLower() == line1Norm &&
+                    (s.AddressLine2 ?? string.Empty).Trim().ToLower() == line2Norm &&
+                    s.Suburb.Trim().ToLower() == suburbNorm &&
+                    s.State.Trim().ToLower() == stateNorm &&
+                    s.Postcode.Trim().ToLower() == postcodeNorm,
+                    ct);
+
+                if (existing is not null)
+                    return new(CreateSiteStatus.Success, existing);
+            }
+        }
 
         var site = new Site
         {
@@ -50,7 +108,7 @@ public sealed class SitesService
         {
             var g = await _geo.GeocodePlaceIdAsync(placeId, ct);
             if (g is null)
-                return new(CreateSiteStatus.GeocodeFailed, Error: "Could not validate the selected address. Please enter it manually.");
+                return new(CreateSiteStatus.GeocodeFailed, null, Error: "Could not validate the selected address. Please enter it manually.");
 
             site.GooglePlaceId = placeId;
             site.AddressDisplay = g.AddressDisplay?.Trim();
@@ -61,16 +119,13 @@ public sealed class SitesService
         }
         else
         {
-            // Manual fallback (minimal validation)
             var line1 = (req.Manual.AddressLine1 ?? string.Empty).Trim();
             if (!string.IsNullOrWhiteSpace(req.Google.FormattedAddress))
             {
-                // Optional: allow "free-typed" address to seed manual line1 if they didn't select a suggestion
                 if (string.IsNullOrWhiteSpace(line1))
                     line1 = req.Google.FormattedAddress.Trim();
             }
 
-            // If they provided *any* manual data, accept it.
             site.AddressLine1 = string.IsNullOrWhiteSpace(line1) ? null : line1;
             site.AddressLine2 = string.IsNullOrWhiteSpace(req.Manual.AddressLine2) ? null : req.Manual.AddressLine2.Trim();
             site.Suburb = string.IsNullOrWhiteSpace(req.Manual.Suburb) ? null : req.Manual.Suburb.Trim();
@@ -83,7 +138,7 @@ public sealed class SitesService
         _db.Sites.Add(site);
         await _db.SaveChangesAsync(ct);
 
-        return new(CreateSiteStatus.Success, SiteId: site.Id);
+        return new(CreateSiteStatus.Success, site, SiteName: site.Name);
     }
 
     private static string? BuildDisplay(Site s)
@@ -100,4 +155,7 @@ public sealed class SitesService
 
         return parts.Count == 0 ? null : string.Join(", ", parts);
     }
+
+    private static string N(string? s) => (s ?? string.Empty).Trim().ToUpperInvariant();
+    private static string? NT(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

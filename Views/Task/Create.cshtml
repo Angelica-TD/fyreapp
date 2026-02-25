@@ -1,3 +1,4 @@
+@inject IConfiguration Config
 @model FyreApp.ViewModels.Tasks.CreateClientTaskFormVm
 
 @{
@@ -51,6 +52,17 @@
             <button type="submit" class="btn btn-primary">Create Task</button>
         </form>
 
+        @await Html.PartialAsync("_CreatePropertyModal",
+        new FyreApp.ViewModels.Sites.CreatePropertyModalVm
+        {
+            ClientId = null,
+            ClientName = "",
+            ModalId = "taskCreateSiteModal",
+            IdPrefix = "taskCreateSite",
+            ShowClientNameInTitle = false,
+            GoogleBrowserKey = Config["GoogleMaps:BrowserKey"] ?? ""
+        })
+
         
     </div>
 </div>
@@ -69,6 +81,15 @@
   const btnCancelCreateSite = document.getElementById("btnCancelCreateSite");
   const newSiteName = document.getElementById("NewSiteName");
   const siteCreateError = document.getElementById("siteCreateError");
+
+  const modalId = "taskCreateSiteModal";
+  const modalEl = document.getElementById(modalId);
+  const modalForm = modalEl?.querySelector("form.js-create-site-form");
+  const modalClientId = modalEl?.querySelector('input[data-role="client-id"]');
+  const modalSiteName = modalEl?.querySelector('input[data-role="site-name"]');
+
+  let bsModal = null;
+  if (modalEl) bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
   function showAddSitePanel(show) {
     addSitePanel.classList.toggle("d-none", !show);
@@ -131,14 +152,8 @@
     return tokenInput ? tokenInput.value : "";
   }
 
-  async function createSite(clientId, name) {
-    siteCreateError.classList.add("d-none");
-    siteCreateError.textContent = "";
-
-    const body = new URLSearchParams();
-    body.append("__RequestVerificationToken", getAntiForgeryToken());
-    body.append("ClientId", clientId);
-    body.append("Name", name);
+  async function createSiteFromForm(form) {
+    const body = new URLSearchParams(new FormData(form));
 
     const res = await fetch("/Property/CreateAjax", {
       method: "POST",
@@ -146,30 +161,56 @@
       body
     });
 
-    if (res.status === 409) {
-      const msg = await res.text();
-      throw new Error(msg || "Duplicate property name.");
+    if (res.status === 409) throw new Error(await res.text() || "Duplicate property name.");
+    if (res.status === 400) {
+      @* // handle validation problem *@
+      let msg = "Please fix the errors and try again.";
+      try {
+        const problem = await res.json();
+        if (problem?.errors) {
+          @* // flatten first error message *@
+          const firstKey = Object.keys(problem.errors)[0];
+          const firstMsg = problem.errors[firstKey]?.[0];
+          if (firstMsg) msg = firstMsg;
+        } else {
+          msg = await res.text();
+        }
+      } catch {
+        msg = await res.text();
+      }
+      throw new Error(msg || "Validation failed.");
     }
-
-    if (!res.ok) {
-      const msg = await res.text();
-      throw new Error(msg || "Could not create property.");
-    }
+    if (!res.ok) throw new Error(await res.text() || "Could not create property.");
 
     return await res.json();
   }
 
   clientSel.addEventListener("change", async () => {
+    if (modalClientId) modalClientId.value = clientSel.value || "0";
     await loadSites(clientSel.value);
   });
 
   siteSel.addEventListener("change", () => {
-    showAddSitePanel(siteSel.value === NEW_VALUE);
+    if (siteSel.value === NEW_VALUE) {
+      @* Must have a client selected *@
+      if (!clientSel.value) {
+        siteSel.value = "";
+        return;
+      }
+
+      if (modalClientId) modalClientId.value = clientSel.value;
+
+      @* Clear modal inputs *@
+      if (modalSiteName) modalSiteName.value = "";
+
+      @* Open modal *@
+      bsModal?.show();
+    }
   });
 
   btnCancelCreateSite.addEventListener("click", () => {
     showAddSitePanel(false);
-    // return dropdown to "no selection"
+    @* // return dropdown to "no selection" *@
     siteSel.value = "";
   });
 
@@ -206,6 +247,41 @@
     }
 
 
+  });
+
+  modalForm?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const clientId = clientSel.value;
+    const hiddenClientId = modalForm.querySelector('input[name="ClientId"]');
+    if (hiddenClientId) hiddenClientId.value = clientId || "0";
+
+    if (!clientId) return;
+
+    const submitBtn = modalForm.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      const created = await createSiteFromForm(modalForm);
+
+      @* // Insert into dropdown before "+ Add new..." *@
+      const newOpt = document.createElement("option");
+      newOpt.value = String(created.id);
+      newOpt.textContent = created.name;
+
+      const addNewOpt = Array.from(siteSel.options).find(o => o.value === NEW_VALUE);
+      if (addNewOpt) siteSel.insertBefore(newOpt, addNewOpt);
+      else siteSel.appendChild(newOpt);
+
+      siteSel.disabled = false;
+      siteSel.value = String(created.id);
+
+      bsModal?.hide();
+    } catch (err) {
+      alert(err?.message || "Could not create property.");
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
   });
 
   ensureAddNewOption();
