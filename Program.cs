@@ -45,6 +45,15 @@ builder.Services
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
+builder.Services.Configure<FyreApp.Services.Sites.GoogleMapsOptions>(
+    builder.Configuration.GetSection("GoogleMaps"));
+
+builder.Services.AddHttpClient<FyreApp.Services.Sites.GoogleGeocodingClient>();
+
+builder.Services.AddScoped<FyreApp.Services.Sites.SitesService>();
+
+
+
 if (!authEnabled)
 {
     // Override the default auth scheme to always authenticate as Admin in dev

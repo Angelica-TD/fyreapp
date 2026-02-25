@@ -4,39 +4,50 @@ using FyreApp.Data;
 using FyreApp.Models;
 using Microsoft.AspNetCore.Authorization;
 
+using FyreApp.Services.Sites;
+using FyreApp.ViewModels.Sites;
+
 namespace FyreApp.Controllers
 {
     public class PropertyController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly SitesService _sites;
 
-        public PropertyController(AppDbContext context)
+        public PropertyController(AppDbContext context, SitesService sites)
         {
             _context = context;
+            _sites = sites;
         }
         
 
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create(int clientId, string name)
+        public async Task<IActionResult> Create(CreateSiteRequest request, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(name))
-                return BadRequest("Site name is required.");
-
-            var clientExists = await _context.Clients.AnyAsync(c => c.Id == clientId);
-            if (!clientExists)
-                return NotFound();
-
-            var site = new Site
+            if (!ModelState.IsValid)
             {
-                Name = name.Trim(),
-                ClientId = clientId
+                TempData["Error"] = "Please fix the errors and try again.";
+                return RedirectToAction("Details", "Clients", new { id = request.ClientId });
+            }
+
+            var result = await _sites.CreateAsync(request, ct);
+
+            return result.Status switch
+            {
+                CreateSiteStatus.Success => RedirectToAction("Details", "Clients", new { id = request.ClientId }),
+                CreateSiteStatus.NotFound => NotFound(),
+                CreateSiteStatus.GeocodeFailed => RedirectWithError(request.ClientId, result.Error ?? "Address lookup failed."),
+                _ => RedirectWithError(request.ClientId, result.Error ?? "Could not create property.")
             };
 
-            _context.Sites.Add(site);
-            await _context.SaveChangesAsync();
+            
+        }
 
+        private IActionResult RedirectWithError(int clientId, string message)
+        {
+            TempData["Error"] = message;
             return RedirectToAction("Details", "Clients", new { id = clientId });
         }
 

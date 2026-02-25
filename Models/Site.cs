@@ -27,7 +27,7 @@ public class Site
     [StringLength(20)]
     public string? State { get; set; }
 
-    [StringLength(64)]
+    [StringLength(300)]
     public string? GooglePlaceId { get; set; }
 
     // FK → Client

@@ -79,3 +79,5 @@ appsettings.Development.json
 /node_modules/
 /wwwroot/css/bootstrap.custom.css.map
 .vscode
+
+appsettings.Prod*

@@ -1,10 +1,23 @@
 @using FyreApp.Infrastructure
 @model FyreApp.ViewModels.Clients.ClientDetailsVm
 
+@inject IConfiguration Config
+@{
+    var googleKey = Config["GoogleMaps:BrowserKey"];
+}
+
 @{
     ViewData["Title"] = "Client Details";
     var c = Model.Client;
     var showEdit = Model.OpenEdit;
+}
+
+@section Styles{
+    <style>
+    .pac-container {
+        z-index: 2000 !important;
+    }
+    </style>
 }
 
 <div class="card">
@@ -180,7 +193,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
 
-            <form asp-controller="Sites"
+            <form asp-controller="Property"
                   asp-action="Create"
                   method="post">
                 @Html.AntiForgeryToken()
@@ -188,7 +201,7 @@
                 <input type="hidden" name="clientId" value="@Model.Client.Id" />
 
                 <div class="modal-header">
-                    <h5 class="modal-title">Add Site</h5>
+                    <h5 class="modal-title">Add a New Property for @c.Name</h5>
                     <button type="button"
                             class="btn-close"
                             data-bs-dismiss="modal"></button>
@@ -202,6 +215,51 @@
                                required
                                autofocus />
                     </div>
+
+                    <input type="hidden" id="GooglePlaceId" name="Google.PlaceId" />
+                    <input type="hidden" id="GoogleFormattedAddress" name="Google.FormattedAddress" />
+
+                    <div class="mb-3">
+                        <label class="form-label" for="SiteAddressSearch">Address</label>
+                        <input class="form-control"
+                            id="SiteAddressSearch"
+                            type="text"
+                            placeholder="Start typing an Australian address…"
+                            autocomplete="off" />
+                    </div>
+
+                    <button type="button" class="btn btn-link px-0" id="btnManualAddress">
+                        Can't find the address? Enter manually
+                    </button>
+
+                    <div id="manualAddressPanel" class="mt-2 d-none">
+                        <div class="mb-2">
+                            <label class="form-label" for="AddressLine1">Address line 1</label>
+                            <input class="form-control" id="AddressLine1" name="Manual.AddressLine1" maxlength="200" />
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label" for="AddressLine2">Address line 2</label>
+                            <input class="form-control" id="AddressLine2" name="Manual.AddressLine2" maxlength="200" />
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-md-5">
+                                <label class="form-label" for="Suburb">Suburb</label>
+                                <input class="form-control" id="Suburb" name="Manual.Suburb" maxlength="80" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="State">State</label>
+                                <input class="form-control" id="State" name="Manual.State" maxlength="20" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="Postcode">Postcode</label>
+                                <input class="form-control" id="Postcode" name="Manual.Postcode" maxlength="10" />
+                            </div>
+                        </div>
+
+                    </div>
+                    
                 </div>
 
                 <div class="modal-footer">
@@ -247,4 +305,52 @@ else
         }
         </tbody>
     </table>
+}
+@section Scripts {
+
+<script>
+    document.getElementById("btnManualAddress")?.addEventListener("click", () => {
+    document.getElementById("manualAddressPanel")?.classList.remove("d-none");
+    document.getElementById("GooglePlaceId").value = "";
+    document.getElementById("GoogleFormattedAddress").value = "";
+    });
+  function initGooglePlaces() {
+    console.log("initGooglePlaces called", !!window.google?.maps?.places);
+
+    const modalEl = document.getElementById("createSiteModal");
+    const addressInput = document.getElementById("SiteAddressSearch");
+    const googleFormattedAddress = document.getElementById("GoogleFormattedAddress");
+    const googlePlaceId = document.getElementById("GooglePlaceId");
+
+    if (!modalEl || !addressInput) return;
+
+    let ac;
+    modalEl.addEventListener("shown.bs.modal", () => {
+      console.log("modal shown, attaching autocomplete");
+
+      if (ac) return;
+
+      ac = new google.maps.places.Autocomplete(addressInput, {
+        fields: ["place_id", "formatted_address"],
+        types: ["address"]
+        });
+
+        ac.setComponentRestrictions({ country: ["au"] });
+
+        ac.addListener("place_changed", () => {
+            const place = ac.getPlace();
+            if (!place?.place_id) return;
+
+            googlePlaceId.value = place.place_id;
+            googleFormattedAddress.value = place.formatted_address ?? "";
+        });
+    });
+  }
+</script>
+
+<script
+  src="https://maps.googleapis.com/maps/api/js?key=@googleKey&libraries=places&callback=initGooglePlaces"
+  async defer>
+</script>
+
 }
