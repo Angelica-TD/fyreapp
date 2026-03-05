@@ -71,4 +71,42 @@ public sealed class ClientService : IClientService
         await _db.SaveChangesAsync(ct);
         return new(ClientDeleteStatus.Success);
     }
+
+    public async Task<List<Client>> GetAllAsync(bool activeOnly = true)
+    {
+        var query = _db.Clients.Include(c => c.Sites).OrderBy(c => c.Name);
+
+        return activeOnly
+            ? await query.Where(c => c.Active).ToListAsync()
+            : await query.ToListAsync();
+    }
+
+    public async Task<ClientCreateResult> CreateAsync(string name, CancellationToken ct = default)
+    {
+        name = (name ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+            return new(ClientCreateStatus.ValidationError, ErrorMessage: "Client name is required.");
+
+        var existing = await _db.Clients
+            .FirstOrDefaultAsync(c => c.Name.ToLower() == name.ToLower(), ct);
+
+        if (existing is not null)
+            return new(ClientCreateStatus.DuplicateName, Existing: existing);
+
+        var client = new Client { Name = name };
+        _db.Clients.Add(client);
+        await _db.SaveChangesAsync(ct);
+
+        return new(ClientCreateStatus.Success, ClientId: client.Id);
+    }
+
+    public async Task<Client?> GetByIdAsync(int id, CancellationToken ct = default)
+    {
+        return await _db.Clients
+            .Include(c => c.Sites)
+                .ThenInclude(s => s.Assets)
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
+    }
+
 }

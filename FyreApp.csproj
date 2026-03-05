@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 
     <!-- <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained> -->
@@ -31,6 +32,13 @@
     <Folder Include="ViewModels\Auth\" />
     <Folder Include="ViewModels\Clients\" />
     <Folder Include="ViewModels\Home\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="FyreApp.Tests/**" />
+    <Content Remove="FyreApp.Tests/**" />
+    <EmbeddedResource Remove="FyreApp.Tests/**" />
+    <None Remove="FyreApp.Tests/**" />
   </ItemGroup>
 
   <Target Name="BuildFrontendCss" BeforeTargets="Build" Condition="'$(Configuration)'=='Release'">

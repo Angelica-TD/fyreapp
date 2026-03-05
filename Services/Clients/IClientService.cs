@@ -1,3 +1,6 @@
+using FyreApp.Models;
+using FyreApp.ViewModels.Clients;
+
 namespace FyreApp.Services.Clients;
 
 public enum ClientUpdateStatus
@@ -13,6 +16,20 @@ public enum ClientDeleteStatus
     Success = 1,
     NotFound = 2,
 }
+
+public enum ClientCreateStatus
+{
+    Success = 1,
+    DuplicateName = 2,
+    ValidationError = 3
+}
+
+public sealed record ClientCreateResult(
+    ClientCreateStatus Status,
+    int? ClientId = null,
+    string? ErrorMessage = null,
+    Client? Existing = null
+);
 
 public sealed record UpdateClientRequest
 {
@@ -53,4 +70,7 @@ public interface IClientService
 {
     Task<UpdateClientResult> UpdateAsync(int id, UpdateClientRequest request, CancellationToken ct = default);
     Task<DeleteClientResult> DeleteAsync(int id, bool hardDelete = false, CancellationToken ct = default);
+    Task<List<Client>> GetAllAsync(bool activeOnly = true);
+    Task<ClientCreateResult> CreateAsync(string name, CancellationToken ct = default);
+    Task<Client?> GetByIdAsync(int id, CancellationToken ct = default);
 }

@@ -14,7 +14,6 @@ namespace FyreApp.Controllers
     [Authorize]
     public class ClientsController : Controller
     {
-        private readonly AppDbContext _context;
         private readonly IClientImportService _importService;
         private readonly IHubContext<ImportProgressHub> _hub;
         private readonly IImportTracker _tracker;
@@ -23,7 +22,6 @@ namespace FyreApp.Controllers
 
 
         public ClientsController(
-            AppDbContext context,
             IClientImportService importService,
             IHubContext<ImportProgressHub> hub,
             IImportTracker tracker,
@@ -32,7 +30,6 @@ namespace FyreApp.Controllers
         )
 
         {
-            _context = context;
             _importService = importService;
             _hub = hub;
             _tracker = tracker;
@@ -46,11 +43,7 @@ namespace FyreApp.Controllers
         {
             var vm = new ClientIndexVm
             {
-                Clients = await _context.Clients
-                    .Where(c => c.Active)
-                    .Include(c => c.Sites)
-                    .OrderBy(c => c.Name)
-                    .ToListAsync()
+                Clients = await _clients.GetAllAsync(activeOnly: true)
             };
 
             return View(vm);
@@ -59,12 +52,9 @@ namespace FyreApp.Controllers
         // GET: /Clients/Details/5
         public async Task<IActionResult> Details(int id, CancellationToken ct)
         {
-            var client = await _context.Clients
-                .Include(c => c.Sites)
-                    .ThenInclude(s => s.Assets)
-                .FirstOrDefaultAsync(c => c.Id == id);
+            var client = await _clients.GetByIdAsync(id, ct);
 
-            if (client == null)
+            if (client is null)
                 return NotFound();
 
             var vm = new ClientDetailsVm
@@ -74,19 +64,16 @@ namespace FyreApp.Controllers
                 {
                     Name = client.Name,
                     Active = client.Active,
-
                     PrimaryContactName = client.PrimaryContactName,
                     PrimaryContactEmail = client.PrimaryContactEmail,
                     PrimaryContactMobile = client.PrimaryContactMobile,
                     PrimaryContactCcEmail = client.PrimaryContactCcEmail,
                     PrimaryContactAddress = client.PrimaryContactAddress,
-
                     BillingName = client.BillingName,
                     BillingAttentionTo = client.BillingAttentionTo,
                     BillingEmail = client.BillingEmail,
                     BillingCcEmail = client.BillingCcEmail,
                     BillingAddress = client.BillingAddress,
-
                     Updated = client.Updated
                 },
                 OpenEdit = TempData["OpenEdit"] as bool? ?? false
@@ -103,52 +90,17 @@ namespace FyreApp.Controllers
         {
 
             if (!ModelState.IsValid)
+                return await RebuildIndexView(vm);
+
+            var result = await _clients.CreateAsync(vm.Name!.Trim());
+
+            return result.Status switch
             {
-                var indexVm = new ClientIndexVm
-                {
-                    Clients = await _context.Clients
-                        .Include(c => c.Sites)
-                        .OrderBy(c => c.Name)
-                        .ToListAsync(),
-                    OpenCreateModal = true,
-                    Create = vm
-                };
-
-                return View("Index", indexVm);
-            }
-
-            var name = vm.Name!.Trim();
-
-            var exists = await _context.Clients
-                .FirstOrDefaultAsync(c => c.Name == vm.Name);
-
-            if (exists != null)
-            {
-
-                vm.ExistingClient = new ClientVm
-                    {
-                    ClientId = exists.Id,
-                    ClientName = exists.Name  
-                    };
-
-                var indexVm = new ClientIndexVm
-                {
-                    Clients = await _context.Clients
-                        .Include(c => c.Sites)
-                        .OrderBy(c => c.Name)
-                        .ToListAsync(),
-                    OpenCreateModal = true,
-                    Create = vm
-                };
-
-                return View("Index", indexVm);
-            }
-
-            _context.Clients.Add(new Client { Name = name });
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = $"Client “{name}” created.";
-            return RedirectToAction(nameof(Index));
+                ClientCreateStatus.Success => TempDataRedirect($"Client \"{vm.Name!.Trim()}\" created."),
+                ClientCreateStatus.DuplicateName => await RebuildIndexView(vm, result.Existing),
+                ClientCreateStatus.ValidationError => await RebuildIndexView(vm),
+                _ => BadRequest()
+            };
         }
 
         [HttpGet]
@@ -244,13 +196,11 @@ namespace FyreApp.Controllers
             {
                 try
                 {
-                    // ✅ create a brand new DI scope for this background job
                     using var scope = _scopeFactory.CreateScope();
                     var importService = scope.ServiceProvider.GetRequiredService<IClientImportService>();
 
                     await using var readStream = System.IO.File.OpenRead(tempPath);
 
-                    // Build a FormFile backed by the temp stream
                     var bgFile = new FormFile(readStream, 0, readStream.Length, "file", file.FileName)
                     {
                         Headers = new HeaderDictionary(),
@@ -304,6 +254,25 @@ namespace FyreApp.Controllers
             return p == null ? NotFound() : Json(p);
         }
 
+
+        private IActionResult TempDataRedirect(string successMsg)
+        {
+            TempData["Success"] = successMsg;
+            return RedirectToAction(nameof(Index));
+        }
+
+        private async Task<IActionResult> RebuildIndexView(CreateClientVm vm, Client? existing = null)
+        {
+            if (existing is not null)
+                vm.ExistingClient = new ClientVm { ClientId = existing.Id, ClientName = existing.Name };
+
+            return View("Index", new ClientIndexVm
+            {
+                Clients = await _clients.GetAllAsync(activeOnly: true),
+                OpenCreateModal = true,
+                Create = vm
+            });
+        }
 
     }
 }
