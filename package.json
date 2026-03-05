@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "npm run css:build",
+    "build": "npm run css:build && npm run react:build",
     "css:watch": "sass --watch FyreFrontend/scss/bootstrap.custom.scss:wwwroot/css/bootstrap.custom.css --load-path=node_modules --style=expanded --source-map",
-    "css:build": "sass FyreFrontend/scss/bootstrap.custom.scss:wwwroot/css/bootstrap.custom.css --load-path=node_modules --style=compressed --no-source-map"
+    "css:build": "sass FyreFrontend/scss/bootstrap.custom.scss:wwwroot/css/bootstrap.custom.css --load-path=node_modules --style=compressed --no-source-map",
+    "react:build": "vite build",
+    "react:dev": "vite build --watch"
   },
   "repository": {
     "type": "git",

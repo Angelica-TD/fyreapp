@@ -34,46 +34,7 @@
 
 <div class="card">
     <div class="card-body">
-        <div class="toolbar">
-            @* toolbar: search bar, filters, etc will go here *@
-        </div>
-
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Client</th>
-                        <th>Primary contact</th>
-                        <th>Phone (BH)</th>
-                        <th>No. of properties</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                @foreach (var c in Model.Clients)
-                {
-                    <tr class="table-row-link"
-                        data-href="@Url.Action("Details", "Clients", new { id = c.Id })">
-                        <td>@c.Id</td>
-                        <td>@c.Name</td>
-                        <td>@c.PrimaryContactName</td>
-                        <td>@c.PrimaryContactMobile</td>
-                        <td>@((c.Sites?.Count ?? 0))</td>
-                        <td>
-                            <a asp-controller="Clients"
-                            asp-action="Details"
-                            asp-route-id="@c.Id"
-                            class="btn btn-sm btn-outline-primary">
-                                Details
-                            </a>
-                        </td>
-                    </tr>
-                }
-                </tbody>
-
-            </table>
-        </div>
+        <div id="client-search-root"></div>
     </div>
 </div>
 
@@ -116,4 +77,6 @@
 
         }
     </script>
+
+    <script type="module" src="~/js/react/assets/clientSearch-Fz3HAZzx.js"></script>
 }

@@ -150,6 +150,27 @@ namespace FyreApp.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [HttpGet("/api/clients")]
+        public async Task<IActionResult> ApiList(string? search = null)
+        {
+            var clients = await _clients.GetAllAsync(activeOnly: false);
+
+            if (!string.IsNullOrWhiteSpace(search))
+                clients = clients.Where(c =>
+                    c.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    (c.PrimaryContactName ?? "").Contains(search, StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+
+            return Json(clients.Select(c => new {
+                c.Id,
+                c.Name,
+                c.PrimaryContactName,
+                c.PrimaryContactMobile,
+                siteCount = c.Sites?.Count ?? 0,
+                c.Active
+            }));
+        }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
