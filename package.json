@@ -20,9 +20,13 @@
   "homepage": "https://github.com/Angelica-TD/fyreapp#readme",
   "description": "",
   "dependencies": {
-    "bootstrap": "^5.3.8"
+    "bootstrap": "^5.3.8",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "sass": "^1.97.2"
+    "@vitejs/plugin-react": "^5.1.4",
+    "sass": "^1.97.2",
+    "vite": "^7.3.1"
   }
 }

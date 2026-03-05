@@ -32,8 +32,8 @@ jobs:
       - name: Install dotnet-ef
         run: dotnet tool install --global dotnet-ef --version 10.0.3
 
-      - name: Restore (RID-specific)
-        run: dotnet restore ./FyreApp.csproj -r linux-x64
+      - name: Restore
+        run: dotnet restore ./FyreApp.csproj
 
       - name: Build (show real errors)
         run: dotnet build ./FyreApp.csproj -c Release -r linux-x64 -v normal -bl:build.binlog
