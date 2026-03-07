@@ -1,4 +1,5 @@
 @model FyreApp.Models.ClientTask
+@using FyreApp.Infrastructure
 @using FyreApp.Models
 
 @{
@@ -36,7 +37,7 @@
             <dd class="col-sm-9">
                 @if (Model.DueDateUtc.HasValue)
                 {
-                    @Model.DueDateUtc.Value.ToLocalTime().ToString("f")
+                    @Model.DueDateUtc?.ToSydney().ToString("f")
                 }
                 else
                 {
@@ -45,12 +46,12 @@
             </dd>
 
             <dt class="col-sm-3">Created</dt>
-            <dd class="col-sm-9">@Model.CreatedUtc.ToLocalTime().ToString("f")</dd>
+            <dd class="col-sm-9">@Model.CreatedUtc.ToSydney().ToString("f")</dd>
 
             @if (Model.CompletedUtc.HasValue)
             {
                 <dt class="col-sm-3">Completed</dt>
-                <dd class="col-sm-9">@Model.CompletedUtc.Value.ToLocalTime().ToString("f")</dd>
+                <dd class="col-sm-9">@Model.CompletedUtc.Value.ToSydney().ToString("f")</dd>
             }
         </dl>
     </div>
