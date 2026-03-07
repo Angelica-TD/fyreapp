@@ -45,7 +45,7 @@ public class ClientTaskService : IClientTaskService
                 Id = t.Id,
                 Title = t.Title,
                 ClientName = t.Client.Name,
-                SiteName = t.Site.Name,
+                AddressDisplay = t.Site.AddressDisplay ?? t.Site.Name,
                 Priority = t.Priority,
                 Status = t.Status,
                 DueDate = t.DueDateUtc,

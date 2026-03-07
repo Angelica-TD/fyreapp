@@ -13,30 +13,20 @@
 }
 
 <div class="card">
-
     <div class="card-header">
         <div class="d-flex align-items-center justify-content-between">
             <h5>@c.Name</h5>
-
-            
             <button class="btn text-uppercase text-primary"
                     type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#editClientCollapse"
-                    aria-expanded="@(showEdit.ToString().ToLowerInvariant())"
-                    aria-controls="editClientCollapse">
-                    <i class="bi bi-pencil-square"></i>
-                Edit
+                    data-bs-toggle="modal"
+                    data-bs-target="#editClientModal">
+                <i class="bi bi-pencil-square"></i> Edit
             </button>
-
         </div>
     </div>
 
     @await Html.PartialAsync("_FieldList", UiFieldBuilder.Build(c))
-    
 </div>
-
-
 
 @if (TempData["Success"] is string okMsg)
 {
@@ -54,20 +44,15 @@
     </div>
 }
 
-
-<div class="d-flex justify-content-between">
+<div class="d-flex justify-content-between mt-3">
     <div class="d-flex gap-2 mb-3">
         <a asp-action="Index" class="btn btn-secondary">← Back to Clients</a>
-
         <button class="btn btn-primary"
                 type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#editClientCollapse"
-                aria-expanded="@(showEdit.ToString().ToLowerInvariant())"
-                aria-controls="editClientCollapse">
+                data-bs-toggle="modal"
+                data-bs-target="#editClientModal">
             Edit client
         </button>
-
     </div>
     <form asp-action="Delete" asp-controller="Clients" asp-route-id="@c.Id" method="post">
         <button class="icon-link text-danger" type="submit">
@@ -76,93 +61,92 @@
     </form>
 </div>
 
-<div class="collapse @(showEdit ? "show" : "")" id="editClientCollapse">
-    <div class="card mb-4">
-        <div class="card-body">
-
-            <h5 class="card-title mb-3">Edit client</h5>
-
+<div class="modal fade" id="editClientModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
             <form asp-action="Update" asp-controller="Clients" asp-route-id="@c.Id" method="post">
                 @Html.AntiForgeryToken()
 
-                <div class="mb-3">
-                    <label class="form-label" asp-for="Edit.Name">Name</label>
-                    <input class="form-control" asp-for="Edit.Name" required />
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit client</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
 
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" asp-for="Edit.Active" />
-                    <label class="form-check-label" asp-for="Edit.Active">Active</label>
+                <div class="modal-body">
+
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="Edit.Name">Name</label>
+                        <input class="form-control" asp-for="Edit.Name" required />
+                        <span class="text-danger" asp-validation-for="Edit.Name"></span>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" asp-for="Edit.Active" />
+                        <label class="form-check-label" asp-for="Edit.Active">Active</label>
+                    </div>
+
+                    <hr />
+
+                    <h6>Primary contact</h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Edit.PrimaryContactName">Contact name</label>
+                            <input class="form-control" asp-for="Edit.PrimaryContactName" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Edit.PrimaryContactEmail">Email</label>
+                            <input class="form-control" asp-for="Edit.PrimaryContactEmail" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Edit.PrimaryContactMobile">Mobile</label>
+                            <input class="form-control" asp-for="Edit.PrimaryContactMobile" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Edit.PrimaryContactCcEmail">CC email</label>
+                            <input class="form-control" asp-for="Edit.PrimaryContactCcEmail" />
+                        </div>
+                    </div>
+
+                    <h6>Primary address</h6>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label" asp-for="Edit.PrimaryContactAddress">Address</label>
+                            <input class="form-control" asp-for="Edit.PrimaryContactAddress" />
+                        </div>
+                    </div>
+
+                    <h6>Billing</h6>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Edit.BillingName">Billing name</label>
+                            <input class="form-control" asp-for="Edit.BillingName" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Edit.BillingAttentionTo">Attention to</label>
+                            <input class="form-control" asp-for="Edit.BillingAttentionTo" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Edit.BillingEmail">Billing email</label>
+                            <input class="form-control" asp-for="Edit.BillingEmail" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" asp-for="Edit.BillingCcEmail">Billing CC email</label>
+                            <input class="form-control" asp-for="Edit.BillingCcEmail" />
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label" asp-for="Edit.BillingAddress">Billing address</label>
+                            <input class="form-control" asp-for="Edit.BillingAddress" />
+                        </div>
+                    </div>
+
                 </div>
 
-                <hr />
-
-                <h6 class="mt-3">Primary contact</h6>
-                <div class="row g-2">
-                    <div class="col-md-6">
-                        <label class="form-label" asp-for="Edit.PrimaryContactName">Contact name</label>
-                        <input class="form-control" asp-for="Edit.PrimaryContactName" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" asp-for="Edit.PrimaryContactEmail">Email</label>
-                        <input class="form-control" asp-for="Edit.PrimaryContactEmail" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" asp-for="Edit.PrimaryContactMobile">Mobile</label>
-                        <input class="form-control" asp-for="Edit.PrimaryContactMobile" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" asp-for="Edit.PrimaryContactCcEmail">CC email</label>
-                        <input class="form-control" asp-for="Edit.PrimaryContactCcEmail" />
-                    </div>
-                </div>
-
-                <h6 class="mt-4">Primary address</h6>
-                <div class="row g-2">
-                    <div class="col-md-12">
-                        <label class="form-label" asp-for="Edit.PrimaryContactAddress">Address</label>
-                        <input class="form-control" asp-for="Edit.PrimaryContactAddress" />
-                    </div>
-                </div>
-
-                <h6 class="mt-4">Billing</h6>
-                <div class="row g-2">
-                    <div class="col-md-6">
-                        <label class="form-label" asp-for="Edit.BillingName">Billing name</label>
-                        <input class="form-control" asp-for="Edit.BillingName" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" asp-for="Edit.BillingAttentionTo">Attention to</label>
-                        <input class="form-control" asp-for="Edit.BillingAttentionTo" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" asp-for="Edit.BillingEmail">Billing email</label>
-                        <input class="form-control" asp-for="Edit.BillingEmail" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" asp-for="Edit.BillingCcEmail">Billing CC email</label>
-                        <input class="form-control" asp-for="Edit.BillingCcEmail" />
-                    </div>
-
-                    <div class="col-md-12">
-                        <label class="form-label" asp-for="Edit.BillingAddress">Billing address</label>
-                        <input class="form-control" asp-for="Edit.BillingAddress" />
-                    </div>
-                </div>
-
-                <div class="d-flex gap-2 mt-4">
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-success">Save changes</button>
-
-                    <button type="button"
-                            class="btn btn-outline-secondary"
-                            data-bs-toggle="collapse"
-                            data-bs-target="#editClientCollapse">
-                        Cancel
-                    </button>
                 </div>
 
             </form>
-
         </div>
     </div>
 </div>
@@ -180,7 +164,6 @@
     </button>
 }
 
-
 @await Html.PartialAsync("_CreatePropertyModal",
     new FyreApp.ViewModels.Sites.CreatePropertyModalVm
     {
@@ -191,7 +174,6 @@
         ShowClientNameInTitle = true,
         GoogleBrowserKey = googleKey
     })
-
 
 @if (!c.Sites.Any())
 {
@@ -222,4 +204,17 @@ else
         }
         </tbody>
     </table>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+
+    @if (showEdit)
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                bootstrap.Modal.getOrCreateInstance(document.getElementById("editClientModal")).show();
+            });
+        </script>
+    }
 }

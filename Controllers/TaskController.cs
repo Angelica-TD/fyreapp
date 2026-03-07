@@ -44,7 +44,7 @@ public class TaskController : Controller
                 Id = t.Id,
                 Title = t.Title,
                 ClientName = t.Client.Name,
-                SiteName = t.Site.Name,
+                AddressDisplay = t.Site.AddressDisplay ?? t.Site.Name,
                 Priority = t.Priority,
                 Status = t.Status,
                 DueDate = t.DueDateUtc,
@@ -143,7 +143,7 @@ public class TaskController : Controller
         _db.ClientTasks.Add(entity);
         await _db.SaveChangesAsync();
 
-        return RedirectToAction("Details", "Task", new { id = task.SiteId });
+        return RedirectToAction("Details", "Task", new { id = entity.Id });
     }
 
     [HttpGet]
@@ -230,8 +230,10 @@ public class TaskController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, EditClientTaskVm input)
+    public async Task<IActionResult> Edit(int id, EditClientTaskFormVm formVm)
     {
+        var input = formVm.Task;
+
         if (id != input.Id) return BadRequest();
 
         var siteExists = await _db.Sites
@@ -239,7 +241,7 @@ public class TaskController : Controller
             .AnyAsync(s => s.Id == input.SiteId && s.ClientId == input.ClientId);
 
         if (!siteExists)
-            ModelState.AddModelError(nameof(input.SiteId), "Selected site does not belong to selected client.");
+            ModelState.AddModelError("Task.SiteId", "Selected site does not belong to selected client.");
 
         if (!ModelState.IsValid)
         {
@@ -289,4 +291,43 @@ public class TaskController : Controller
         TempData["Success"] = "Task deleted.";
         return RedirectToAction(nameof(Index));
     }
+
+    [HttpGet("/api/tasks")]
+    public async Task<IActionResult> ApiSearch(string? search, string? status)
+    {
+        var q = _db.ClientTasks
+            .Include(t => t.Client)
+            .Include(t => t.Site)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<ClientTaskStatus>(status, out var statusEnum))
+            q = q.Where(t => t.Status == statusEnum);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            q = q.Where(t =>
+                t.Title.ToLower().Contains(term) ||
+                t.Client.Name.ToLower().Contains(term));
+        }
+
+        var results = await q
+            .OrderBy(t => t.DueDateUtc)
+            .Select(t => new
+            {
+                id         = t.Id,
+                title      = t.Title,
+                clientName = t.Client.Name,
+                siteAddress = t.Site.AddressDisplay ?? t.Site.Name,
+                priority   = t.Priority.ToString(),
+                status     = t.Status.ToString(),
+                dueDateUtc = t.DueDateUtc
+            })
+            .ToListAsync();
+
+        return Json(results);
+    }
+
 }

@@ -96,7 +96,7 @@ namespace FyreApp.Controllers
 
             return result.Status switch
             {
-                ClientCreateStatus.Success => TempDataRedirect($"Client \"{vm.Name!.Trim()}\" created."),
+                ClientCreateStatus.Success => TempDataSuccess($"Client \"{vm.Name!.Trim()}\" created.", RedirectToAction("Details", new { id = result.ClientId })),
                 ClientCreateStatus.DuplicateName => await RebuildIndexView(vm, result.Existing),
                 ClientCreateStatus.ValidationError => await RebuildIndexView(vm),
                 _ => BadRequest()
@@ -276,10 +276,10 @@ namespace FyreApp.Controllers
         }
 
 
-        private IActionResult TempDataRedirect(string successMsg)
+        private IActionResult TempDataSuccess(string successMsg, IActionResult redirect)
         {
             TempData["Success"] = successMsg;
-            return RedirectToAction(nameof(Index));
+            return redirect;
         }
 
         private async Task<IActionResult> RebuildIndexView(CreateClientVm vm, Client? existing = null)
