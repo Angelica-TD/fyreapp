@@ -1,0 +1,106 @@
+@model FyreApp.ViewModels.Tasks.EditClientTaskFormVm
+
+@{
+    ViewData["Title"] = "Edit Task";
+}
+
+<h1>Edit Task</h1>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" asp-controller="Task" asp-action="Edit" asp-route-id="@Model.Task.Id">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Task.Id" />
+
+            <div class="mb-3">
+                <label class="form-label" asp-for="Task.ClientId">Client</label>
+                <select class="form-select" asp-for="Task.ClientId" asp-items="Model.Clients" id="ClientId">
+                    <option value="">Select a client…</option>
+                </select>
+                <span class="text-danger" asp-validation-for="Task.ClientId"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" asp-for="Task.SiteId">Property / Site</label>
+                <select class="form-select" asp-for="Task.SiteId" asp-items="Model.Sites" id="SiteId">
+                    <option value="">Select a property…</option>
+                </select>
+                <span class="text-danger" asp-validation-for="Task.SiteId"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" asp-for="Task.Title">Title</label>
+                <input class="form-control" asp-for="Task.Title" maxlength="120" />
+                <span class="text-danger" asp-validation-for="Task.Title"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" asp-for="Task.Description">Description</label>
+                <textarea class="form-control" asp-for="Task.Description" rows="4" maxlength="4000"></textarea>
+                <span class="text-danger" asp-validation-for="Task.Description"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" asp-for="Task.Priority">Priority</label>
+                <select class="form-select" asp-for="Task.Priority"
+                        asp-items="Html.GetEnumSelectList<FyreApp.Models.ClientTaskPriority>()">
+                </select>
+                <span class="text-danger" asp-validation-for="Task.Priority"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" asp-for="Task.Status">Status</label>
+                <select class="form-select" asp-for="Task.Status"
+                        asp-items="Html.GetEnumSelectList<FyreApp.Models.ClientTaskStatus>()">
+                </select>
+                <span class="text-danger" asp-validation-for="Task.Status"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" asp-for="Task.DueDateLocal">Due Date</label>
+                <input class="form-control" asp-for="Task.DueDateLocal" type="datetime-local" />
+                <span class="text-danger" asp-validation-for="Task.DueDateLocal"></span>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a asp-action="Details" asp-route-id="@Model.Task.Id" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+  const clientSel = document.getElementById("ClientId");
+  const siteSel   = document.getElementById("SiteId");
+
+  // On client change, reload sites but keep current selection if still valid
+  clientSel.addEventListener("change", async () => {
+    const clientId = clientSel.value;
+    if (!clientId) {
+      siteSel.innerHTML = '<option value="">Select a property…</option>';
+      siteSel.disabled = true;
+      return;
+    }
+
+    const res  = await fetch(`/Task/PropertiesForClient?clientId=${encodeURIComponent(clientId)}`,
+                             { headers: { "Accept": "application/json" } });
+    const data = res.ok ? await res.json() : [];
+
+    const current = siteSel.value;
+    siteSel.innerHTML = '<option value="">Select a property…</option>';
+    for (const s of data) {
+      const opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.name;
+      siteSel.appendChild(opt);
+    }
+    siteSel.disabled = false;
+    const stillExists = Array.from(siteSel.options).some(o => o.value === current);
+    siteSel.value = stillExists ? current : "";
+  });
+})();
+</script>
+}

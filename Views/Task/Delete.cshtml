@@ -1,0 +1,40 @@
+@model FyreApp.Models.ClientTask
+
+@{
+    ViewData["Title"] = "Delete Task";
+}
+
+<h1>Delete Task</h1>
+
+<div class="alert alert-danger">
+    Are you sure you want to permanently delete this task?
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Title</dt>
+            <dd class="col-sm-9">@Model.Title</dd>
+
+            <dt class="col-sm-3">Client</dt>
+            <dd class="col-sm-9">@Model.Site.Client.Name</dd>
+
+            <dt class="col-sm-3">Property</dt>
+            <dd class="col-sm-9">@Model.Site.Name</dd>
+
+            <dt class="col-sm-3">Status</dt>
+            <dd class="col-sm-9">@Model.Status</dd>
+
+            <dt class="col-sm-3">Priority</dt>
+            <dd class="col-sm-9">@Model.Priority</dd>
+        </dl>
+    </div>
+</div>
+
+<form method="post" asp-action="Delete" asp-route-id="@Model.Id">
+    @Html.AntiForgeryToken()
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-danger">Yes, delete</button>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>

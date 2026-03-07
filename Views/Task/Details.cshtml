@@ -1,0 +1,92 @@
+@model FyreApp.Models.ClientTask
+@using FyreApp.Models
+
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <h1 class="mb-0">@Model.Title</h1>
+    <div class="d-flex gap-2">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Edit</a>
+        <a asp-action="Index" class="btn btn-outline-secondary">Back to list</a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Client</dt>
+            <dd class="col-sm-9">@Model.Client.Name</dd>
+
+            <dt class="col-sm-3">Property</dt>
+            <dd class="col-sm-9">@Model.Site.Name</dd>
+
+            <dt class="col-sm-3">Status</dt>
+            <dd class="col-sm-9">
+                <span class="badge @StatusBadge(Model.Status)">@Model.Status</span>
+            </dd>
+
+            <dt class="col-sm-3">Priority</dt>
+            <dd class="col-sm-9">
+                <span class="badge @PriorityBadge(Model.Priority)">@Model.Priority</span>
+            </dd>
+
+            <dt class="col-sm-3">Due Date</dt>
+            <dd class="col-sm-9">
+                @if (Model.DueDateUtc.HasValue)
+                {
+                    @Model.DueDateUtc.Value.ToLocalTime().ToString("f")
+                }
+                else
+                {
+                    <span class="text-muted">Not set</span>
+                }
+            </dd>
+
+            <dt class="col-sm-3">Created</dt>
+            <dd class="col-sm-9">@Model.CreatedUtc.ToLocalTime().ToString("f")</dd>
+
+            @if (Model.CompletedUtc.HasValue)
+            {
+                <dt class="col-sm-3">Completed</dt>
+                <dd class="col-sm-9">@Model.CompletedUtc.Value.ToLocalTime().ToString("f")</dd>
+            }
+        </dl>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Description))
+{
+    <div class="card mb-3">
+        <div class="card-header">Description</div>
+        <div class="card-body">
+            <p class="mb-0" style="white-space: pre-wrap;">@Model.Description</p>
+        </div>
+    </div>
+}
+
+<form asp-action="Delete" asp-route-id="@Model.Id" method="get" class="d-inline">
+    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger">Delete task</a>
+</form>
+
+@functions {
+    static string PriorityBadge(ClientTaskPriority p) => p switch
+    {
+        ClientTaskPriority.Low    => "bg-secondary",
+        ClientTaskPriority.Normal => "bg-primary",
+        ClientTaskPriority.High   => "bg-warning text-dark",
+        ClientTaskPriority.Urgent => "bg-danger",
+        _                         => "bg-secondary"
+    };
+
+    static string StatusBadge(ClientTaskStatus s) => s switch
+    {
+        ClientTaskStatus.Open       => "bg-info text-dark",
+        ClientTaskStatus.InProgress => "bg-primary",
+        ClientTaskStatus.Blocked    => "bg-warning text-dark",
+        ClientTaskStatus.Completed  => "bg-success",
+        ClientTaskStatus.Cancelled  => "bg-secondary",
+        _                           => "bg-secondary"
+    };
+}

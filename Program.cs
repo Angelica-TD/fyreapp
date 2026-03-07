@@ -7,6 +7,7 @@ using FyreApp.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using FyreApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 var authEnabled = builder.Configuration.GetValue<bool>("Auth:Enabled", true);
@@ -21,6 +22,8 @@ builder.Services.AddScoped<IClientImportService, ClientImportService>();
 builder.Services.AddSignalR();
 
 builder.Services.AddScoped<IClientService, ClientService>();
+builder.Services.AddScoped<IClientTaskService, ClientTaskService>();
+
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add<BreadcrumbFilter>();

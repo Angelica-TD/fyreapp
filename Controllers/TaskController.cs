@@ -1,5 +1,6 @@
 using FyreApp.Data;
 using FyreApp.Models;
+using FyreApp.Services;
 using FyreApp.ViewModels.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,30 +13,51 @@ namespace FyreApp.Controllers;
 public class TaskController : Controller
 {
     private readonly AppDbContext _db;
+    private readonly IClientTaskService _taskService;
 
-    public TaskController(AppDbContext db) => _db = db;
+    public TaskController(AppDbContext db, IClientTaskService taskService)
+    {
+        _db = db;
+        _taskService = taskService;
+    }
+
 
     [HttpGet]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? status, string? client)
     {
-        var tasks = await _db.ClientTasks
-            // .Where(c => c.Active)
+        var q = _db.ClientTasks
+            .Include(t => t.Client)
+            .Include(t => t.Site)
             .AsNoTracking()
-            .OrderBy(c => c.DueDateUtc)
-            // .Select(c => new SelectListItem
-            // {
-            //     Value = c.Id.ToString(),
-            //     Text = c.Name
-            // })
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ClientTaskStatus>(status, out var statusEnum))
+            q = q.Where(t => t.Status == statusEnum);
+
+        if (!string.IsNullOrWhiteSpace(client) && int.TryParse(client, out var clientId))
+            q = q.Where(t => t.ClientId == clientId);
+
+        var tasks = await q
+            .OrderBy(t => t.DueDateUtc)
+            .Select(t => new ClientTaskListItemVm
+            {
+                Id = t.Id,
+                Title = t.Title,
+                ClientName = t.Client.Name,
+                SiteName = t.Site.Name,
+                Priority = t.Priority,
+                Status = t.Status,
+                DueDate = t.DueDateUtc,
+                CreatedAt = t.CreatedUtc
+            })
             .ToListAsync();
 
-        // var vm = new CreateClientTaskFormVm
-        // {
-        //     Clients = clients,
-        //     Sites = new List<SelectListItem>()
-        // };
-
-        return View(tasks);
+        return View(new TaskIndexVm
+        {
+            Tasks = tasks,
+            StatusFilter = status,
+            ClientFilter = client
+        });
     }
 
     [HttpGet]
@@ -65,7 +87,6 @@ public class TaskController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateClientTaskVm task)
     {
-        // Validate client/site relationship (don't trust posted IDs)
         var siteExists = await _db.Sites
             .AsNoTracking()
             .AnyAsync(s => s.Id == task.SiteId && s.ClientId == task.ClientId);
@@ -75,7 +96,6 @@ public class TaskController : Controller
 
         if (!ModelState.IsValid)
         {
-            // Rebuild dropdowns for the form (required when returning the view)
             var vm = new CreateClientTaskFormVm
             {
                 Task = task,
@@ -103,15 +123,10 @@ public class TaskController : Controller
             return View(vm);
         }
 
-        // Convert local due date to UTC
+        var tz = TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
         DateTime? dueUtc = null;
         if (task.DueDateLocal.HasValue)
-        {
-            // users are AU/Sydney, convert using that timezone.
-            // Better: store timezone per user later.
-            var tz = TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
             dueUtc = TimeZoneInfo.ConvertTimeToUtc(task.DueDateLocal.Value, tz);
-        }
 
         var entity = new ClientTask
         {
@@ -131,7 +146,6 @@ public class TaskController : Controller
         return RedirectToAction("Details", "Task", new { id = task.SiteId });
     }
 
-
     [HttpGet]
     public async Task<IActionResult> PropertiesForClient(int clientId)
     {
@@ -144,7 +158,6 @@ public class TaskController : Controller
 
         return Json(sites);
     }
-
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -163,21 +176,117 @@ public class TaskController : Controller
         return RedirectToAction("Details", "Sites", new { id = task.SiteId });
     }
 
-    // GET: /Task/Details/5
+    [HttpGet]
     public async Task<IActionResult> Details(int id)
     {
         var clientTask = await _db.ClientTasks
             .Include(s => s.Client)
-            // .Include(s => s.Assets)
-            //     .ThenInclude(a => a.AssetTypes)
-            // .Include(s => s.MaintenanceSchedules)
+            .Include(s => s.Site)
             .FirstOrDefaultAsync(s => s.Id == id);
 
         if (clientTask == null)
             return NotFound();
 
-        // ViewBag.Intervals = await _db.MaintenanceIntervals.ToListAsync();
-
         return View(clientTask);
+    }
+
+
+    [HttpGet]
+    public async Task<IActionResult> Edit(int id)
+    {
+        var task = await _db.ClientTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+        if (task is null) return NotFound();
+
+        var sydneyTz = TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
+
+        return View(new EditClientTaskFormVm
+        {
+            Task = new EditClientTaskVm
+            {
+                Id = task.Id,
+                ClientId = task.ClientId,
+                SiteId = task.SiteId,
+                Title = task.Title,
+                Description = task.Description,
+                Priority = task.Priority,
+                Status = task.Status,
+                DueDateLocal = task.DueDateUtc.HasValue
+                    ? TimeZoneInfo.ConvertTimeFromUtc(task.DueDateUtc.Value, sydneyTz)
+                    : null
+            },
+            Clients = await _db.Clients
+                .Where(c => c.Active)
+                .AsNoTracking()
+                .OrderBy(c => c.Name)
+                .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name })
+                .ToListAsync(),
+            Sites = await _db.Sites
+                .AsNoTracking()
+                .Where(s => s.ClientId == task.ClientId)
+                .OrderBy(s => s.Name)
+                .Select(s => new SelectListItem { Value = s.Id.ToString(), Text = s.Name })
+                .ToListAsync()
+        });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int id, EditClientTaskVm input)
+    {
+        if (id != input.Id) return BadRequest();
+
+        var siteExists = await _db.Sites
+            .AsNoTracking()
+            .AnyAsync(s => s.Id == input.SiteId && s.ClientId == input.ClientId);
+
+        if (!siteExists)
+            ModelState.AddModelError(nameof(input.SiteId), "Selected site does not belong to selected client.");
+
+        if (!ModelState.IsValid)
+        {
+            return View(new EditClientTaskFormVm
+            {
+                Task = input,
+                Clients = await _db.Clients
+                    .Where(c => c.Active)
+                    .AsNoTracking()
+                    .OrderBy(c => c.Name)
+                    .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name })
+                    .ToListAsync(),
+                Sites = await _db.Sites
+                    .AsNoTracking()
+                    .Where(s => s.ClientId == input.ClientId)
+                    .OrderBy(s => s.Name)
+                    .Select(s => new SelectListItem { Value = s.Id.ToString(), Text = s.Name })
+                    .ToListAsync()
+            });
+        }
+
+        var (found, title) = await _taskService.UpdateAsync(id, input);
+        if (!found) return NotFound();
+
+        TempData["Success"] = $"Task \"{title}\" updated.";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var task = await _db.ClientTasks
+            .Include(t => t.Client)
+            .Include(t => t.Site)
+            .FirstOrDefaultAsync(t => t.Id == id);
+
+        if (task is null) return NotFound();
+        return View(task);
+    }
+
+    [HttpPost, ActionName("Delete"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(int id)
+    {
+        var deleted = await _taskService.DeleteAsync(id);
+        if (!deleted) return NotFound();
+
+        TempData["Success"] = "Task deleted.";
+        return RedirectToAction(nameof(Index));
     }
 }
