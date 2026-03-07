@@ -8,7 +8,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        clientSearch: 'FyreFrontend/react/ClientSearch/index.jsx'
+        clientSearch: 'FyreFrontend/react/ClientSearch/index.jsx',
+        taskSearch: 'FyreFrontend/react/TaskSearch/index.jsx'
       }
     }
   }
