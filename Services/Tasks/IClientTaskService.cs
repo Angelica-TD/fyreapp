@@ -10,4 +10,5 @@ public interface IClientTaskService
     Task<ClientTask> CreateAsync(CreateClientTaskVm vm, string createdByUserId);
     Task<(bool Found, string Title)> UpdateAsync(int id, EditClientTaskVm vm);
     Task<bool> DeleteAsync(int id);
+    Task<(bool Found, bool TechValid)> AssignTechAsync(int taskId, string? techUserId);
 }

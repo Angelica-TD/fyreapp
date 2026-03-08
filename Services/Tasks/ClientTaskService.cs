@@ -2,19 +2,22 @@ using FyreApp.Data;
 using FyreApp.Models;
 using FyreApp.ViewModels.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 
 namespace FyreApp.Services;
 
 public class ClientTaskService : IClientTaskService
 {
     private readonly AppDbContext _db;
+    private readonly UserManager<ApplicationUser> _userManager;
     
     private static readonly TimeZoneInfo SydneyTz =
         TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
 
-    public ClientTaskService(AppDbContext db)
+    public ClientTaskService(AppDbContext db, UserManager<ApplicationUser> userManager)
     {
         _db = db;
+        _userManager = userManager;
     }
 
     public async Task<IReadOnlyList<ClientTaskListItemVm>> GetAllAsync(
@@ -95,6 +98,7 @@ public class ClientTaskService : IClientTaskService
         task.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
         task.Priority = input.Priority;
         task.Status = input.Status;
+        task.AssignedToUserId = input.AssignedToUserId;
         task.DueDateUtc = input.DueDateLocal.HasValue
             ? TimeZoneInfo.ConvertTimeToUtc(input.DueDateLocal.Value, SydneyTz)
             : null;
@@ -116,5 +120,22 @@ public class ClientTaskService : IClientTaskService
         _db.ClientTasks.Remove(task);
         await _db.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<(bool Found, bool TechValid)> AssignTechAsync(int taskId, string? techUserId)
+    {
+        var task = await _db.ClientTasks.FindAsync(taskId);
+        if (task is null) return (false, true);
+
+        if (techUserId != null)
+        {
+            var user = await _userManager.FindByIdAsync(techUserId);
+            if (user == null || !await _userManager.IsInRoleAsync(user, "Tech"))
+                return (true, false);
+        }
+
+        task.AssignedToUserId = techUserId;
+        await _db.SaveChangesAsync();
+        return (true, true);
     }
 }

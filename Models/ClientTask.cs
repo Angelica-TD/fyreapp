@@ -45,5 +45,6 @@ public class ClientTask
     public DateTime? CompletedUtc { get; set; }
 
     public string? AssignedToUserId { get; set; }
+    public ApplicationUser? AssignedTo { get; set; }
     public string? CreatedByUserId { get; set; }
 }

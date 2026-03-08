@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+
 
 namespace FyreApp.Controllers;
 
@@ -14,11 +16,13 @@ public class TaskController : Controller
 {
     private readonly AppDbContext _db;
     private readonly IClientTaskService _taskService;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public TaskController(AppDbContext db, IClientTaskService taskService)
+    public TaskController(AppDbContext db, IClientTaskService taskService, UserManager<ApplicationUser> userManager)
     {
         _db = db;
         _taskService = taskService;
+        _userManager = userManager;
     }
 
 
@@ -182,6 +186,7 @@ public class TaskController : Controller
         var clientTask = await _db.ClientTasks
             .Include(s => s.Client)
             .Include(s => s.Site)
+            .Include(t => t.AssignedTo)
             .FirstOrDefaultAsync(s => s.Id == id);
 
         if (clientTask == null)
@@ -210,6 +215,7 @@ public class TaskController : Controller
                 Description = task.Description,
                 Priority = task.Priority,
                 Status = task.Status,
+                AssignedToUserId = task.AssignedToUserId,
                 DueDateLocal = task.DueDateUtc.HasValue
                     ? TimeZoneInfo.ConvertTimeFromUtc(task.DueDateUtc.Value, sydneyTz)
                     : null
@@ -225,7 +231,8 @@ public class TaskController : Controller
                 .Where(s => s.ClientId == task.ClientId)
                 .OrderBy(s => s.Name)
                 .Select(s => new SelectListItem { Value = s.Id.ToString(), Text = s.Name })
-                .ToListAsync()
+                .ToListAsync(),
+            Techs = await GetTechSelectListAsync(task.AssignedToUserId)
         });
     }
 
@@ -259,7 +266,8 @@ public class TaskController : Controller
                     .Where(s => s.ClientId == input.ClientId)
                     .OrderBy(s => s.Name)
                     .Select(s => new SelectListItem { Value = s.Id.ToString(), Text = s.Name })
-                    .ToListAsync()
+                    .ToListAsync(),
+                Techs = await GetTechSelectListAsync(input.AssignedToUserId)
             });
         }
 
@@ -328,6 +336,24 @@ public class TaskController : Controller
             .ToListAsync();
 
         return Json(results);
+    }
+
+    private async Task<List<SelectListItem>> GetTechSelectListAsync(string? selectedId = null)
+    {
+        var techs = await _userManager.GetUsersInRoleAsync("Tech");
+        var items = techs
+            .Where(t => t.IsActive)
+            .OrderBy(t => t.LastName)
+            .Select(t => new SelectListItem
+            {
+                Value = t.Id,
+                Text = $"{t.FirstName} {t.LastName}",
+                Selected = t.Id == selectedId
+            })
+            .ToList();
+
+        items.Insert(0, new SelectListItem { Value = "", Text = "— Unassigned —" });
+        return items;
     }
 
 }

@@ -138,6 +138,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(t => t.DueDateUtc);
         });
 
+        modelBuilder.Entity<ClientTask>()
+            .HasOne(t => t.AssignedTo)
+            .WithMany()
+            .HasForeignKey(t => t.AssignedToUserId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
 
     }
 

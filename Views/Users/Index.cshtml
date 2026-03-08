@@ -1,0 +1,63 @@
+@model IEnumerable<FyreApp.Services.Techs.TechViewModel>
+
+@{
+    ViewData["Title"] = "Users";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Techs</h1>
+    <a asp-action="Create" class="btn btn-primary">+ Add Tech</a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var tech in Model)
+        {
+            <tr>
+                <td>@tech.FullName</td>
+                <td>@tech.Email</td>
+                <td>@tech.PhoneNumber</td>
+                <td>
+                    @if (tech.IsActive)
+                    {
+                        <span class="badge bg-success">Active</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">Inactive</span>
+                    }
+                </td>
+                <td class="text-end">
+                    <a asp-action="Edit" asp-route-id="@tech.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+
+                    @if (tech.IsActive)
+                    {
+                        <form asp-action="Deactivate" asp-route-id="@tech.Id" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-warning"
+                                    onclick="return confirm('Deactivate this tech?')">Deactivate</button>
+                        </form>
+                    }
+
+                    <form asp-action="Delete" asp-route-id="@tech.Id" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Permanently delete this tech?')">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

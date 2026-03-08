@@ -55,6 +55,27 @@
 
         </li>
 
+        @if (User.IsInRole("Admin"))
+        {
+            <li class="nav-item has-subnav">
+                <a class="nav-link" asp-controller="Users" asp-action="Index" nav-active nav-active-controller-only>
+                    <i class="bi bi-person-circle"></i>
+                    <span class="label">Users</span>
+                </a>
+
+                <ul class="nav flex-column ms-4 mt-1 sub-nav">
+                    <li class="nav-item">
+                        <a type="button" class="nav-link small btn btn-link text-start w-100"
+                            asp-controller="Users"
+                            asp-action="Create">
+                            <i class="bi bi-plus-circle"></i>
+                            <span class="label">Add new</span>
+                        </a>
+                    </li>
+                </ul>
+
+            </li>
+        }
 
 
     </ul>

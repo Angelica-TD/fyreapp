@@ -17,8 +17,13 @@ public static class IdentitySeed
         const string adminEmail = "office@fyrepower.com.au";
         const string adminPassword = "ChangeMe!12345";
 
+        const string techRole = "Tech";
+
         if (!await roleManager.RoleExistsAsync(adminRole))
             await roleManager.CreateAsync(new IdentityRole(adminRole));
+        
+        if (!await roleManager.RoleExistsAsync(techRole))
+            await roleManager.CreateAsync(new IdentityRole(techRole));
 
         var user = await userManager.FindByEmailAsync(adminEmail);
         if (user == null)
