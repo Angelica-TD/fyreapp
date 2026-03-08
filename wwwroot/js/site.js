@@ -1,14 +1,43 @@
-﻿// Please see documentation at https://learn.microsoft.com/aspnet/core/client-side/bundling-and-minification
-// for details on configuring this project to bundle and minify static web assets.
+document.addEventListener("DOMContentLoaded", function () {
 
-// Write your JavaScript code.
-// document.addEventListener("DOMContentLoaded", function () {
-//     document.querySelectorAll("tr.table-row-link").forEach(row => {
-//         row.addEventListener("click", function (e) {
-//             // Ignore clicks on links or buttons
-//             if (e.target.closest("a, button")) return;
+    // =========================================================
+    // SIDEBAR TOGGLE (desktop)
+    // Toggles .sidebar-collapsed on the <aside id="appSidebar">
+    // State is persisted in localStorage so it survives page loads.
+    // =========================================================
+    const sidebar = document.getElementById("appSidebar");
 
-//             window.location = row.dataset.href;
-//         });
-//     });
-// });
+    const toggleBtn = sidebar ? sidebar.querySelector("#sidebarToggle") : null;
+
+    if (sidebar && toggleBtn) {
+        // Restore saved state
+        if (localStorage.getItem("sidebarCollapsed") === "true") {
+            sidebar.classList.add("sidebar-collapsed");
+        }
+
+        toggleBtn.addEventListener("click", function () {
+            const isCollapsed = sidebar.classList.toggle("sidebar-collapsed");
+            localStorage.setItem("sidebarCollapsed", isCollapsed);
+        });
+    }
+
+
+    document.querySelectorAll(".has-subnav").forEach(function (item) {
+        const activeLink = item.querySelector(".sidebar-link.active");
+        if (activeLink) {
+            item.classList.add("subnav-open");
+        }
+    });
+
+    const offcanvasEl = document.getElementById("offcanvasNav");
+    if (offcanvasEl) {
+        offcanvasEl.addEventListener("click", function (e) {
+            const link = e.target.closest("a.sidebar-link");
+            if (link && !link.classList.contains("disabled")) {
+                const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (bsOffcanvas) bsOffcanvas.hide();
+            }
+        });
+    }
+
+});

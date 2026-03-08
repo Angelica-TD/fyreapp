@@ -1,80 +1,314 @@
-/* CSS normalisation = override styles that are causing problems */
-/*! modern-normalize v3.0.0 | MIT License | https://github.com/sindresorhus/modern-normalize */
-*,::after,::before{box-sizing:border-box}html{font-family:system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji';line-height:1.4;-webkit-text-size-adjust:100%;tab-size:4}body{margin:0}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{border-color:currentcolor}button,input,optgroup,select,textarea{font-family:inherit;font-size:100%;line-height:1.4;margin:0}[type=button],[type=reset],[type=submit],button{appearance:button;-webkit-appearance:button;border:0}legend{padding:0}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{appearance:textfield;-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}
-
-* {
-  box-sizing: border-box;
-}
-
-/* :root {
-  font-size: .875rem;
-} */
-
-/* html {
-  font-size: 14px;
-}
-
-@media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
-} */
-
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
+/* ============================================================
+   CSS RESET / NORMALISATION
+   ============================================================ */
+*,::after,::before { box-sizing: border-box; }
 html {
-  position: relative;
-  min-height: 100%;
+    font-family: system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji';
+    line-height: 1.4;
+    -webkit-text-size-adjust: 100%;
+    tab-size: 4;
+}
+body { margin: 0; }
+b, strong { font-weight: bolder; }
+code, kbd, pre, samp { font-family: ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace; font-size: 1em; }
+small { font-size: 80%; }
+sub, sup { font-size: 75%; line-height: 0; position: relative; vertical-align: baseline; }
+sub { bottom: -.25em; }
+sup { top: -.5em; }
+table { border-color: currentcolor; }
+button, input, optgroup, select, textarea { font-family: inherit; font-size: 100%; line-height: 1.4; margin: 0; }
+[type=button],[type=reset],[type=submit],button { appearance: button; -webkit-appearance: button; border: 0; }
+legend { padding: 0; }
+progress { vertical-align: baseline; }
+::-webkit-inner-spin-button,::-webkit-outer-spin-button { height: auto; }
+[type=search] { appearance: textfield; -webkit-appearance: textfield; outline-offset: -2px; }
+::-webkit-search-decoration { -webkit-appearance: none; }
+::-webkit-file-upload-button { -webkit-appearance: button; font: inherit; }
+summary { display: list-item; }
+
+
+/* ============================================================
+   FOCUS STYLES
+   ============================================================ */
+.btn:focus,
+.btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+
+/* ============================================================
+   LAYOUT: top-level structure
+   ============================================================ */
+
+/*
+  The page is split into three vertical zones:
+    1. .app-header  — fixed-height top bar
+    2. .app-body    — flex row: sidebar + main, fills remaining viewport height
+    3. .app-footer  — sits at the bottom
+
+  The sidebar and main both live inside .app-body as flex children.
+*/
+
+html, body {
+    height: 100%;
 }
 
 body {
-  margin-bottom: 60px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
 }
 
-.bi::before, [class^="bi-"]::before, [class*=" bi-"]::before{
-  font-weight: bold!important;
+/* Top bar */
+.app-header {
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 1030; /* above most content, below modals (1055) */
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+/* Body zone — flex row, grows to fill space between header and footer */
+.app-body {
+    display: flex;
+    flex: 1 0 auto;
+    background-color: var(--bs-light, #f8f9fa);
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-  text-align: start;
+/* Footer */
+.app-footer {
+    flex-shrink: 0;
+    padding: 0.75rem 0;
+    font-size: 0.8125rem;
 }
 
-/* .table-row-link {
-  cursor: pointer;
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+
+/*
+  Sidebar variables — tweak these to change the whole sidebar in one place.
+  --sidebar-width:           full expanded width
+  --sidebar-collapsed-width: icon-only width
+  --sidebar-transition:      animation speed
+*/
+:root {
+    --sidebar-width: 150px;
+    --sidebar-collapsed-width: 56px;
+    --sidebar-transition: 0.2s ease;
+    --sidebar-bg: #fff;
+    --sidebar-border: var(--bs-border-color, #dee2e6);
+}
+
+/* The <aside> wrapper that holds the sidebar at desktop */
+.app-sidebar {
+    flex-shrink: 0;
+    width: var(--sidebar-width);
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--sidebar-border);
+    overflow-x: hidden;
+    overflow-y: auto;
+    transition: width var(--sidebar-transition);
+    align-items: flex-start;
+
+    /* Stick to the top alongside the main content */
+    position: sticky;
+    align-self: flex-start;
+    max-height: calc(100vh - 57px);
+    padding: .5rem;
+    gap: 1rem;
+    height: 100%;
+}
+
+/* Collapsed state — icon only */
+/* .app-sidebar.sidebar-collapsed {
+    width: var(--sidebar-collapsed-width);
 } */
 
-.table-row-link:hover td {
-  background-color: rgba(51, 122, 183, 0.03);
+/* The <nav> inside the sidebar (also used inside the offcanvas on mobile) */
+.sidebar-nav {
+    width: var(--sidebar-width); 
+    /* min-width: var(--sidebar-width); */
 }
 
+/* .sidebar-nav .nav{
+  width: var(--sidebar-width);
+} */
+
+/* Individual nav links */
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--bs-border-radius, 0.375rem);
+    white-space: nowrap;
+    color: var(--bs-body-color, #212529);
+    font-size: 0.875rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    text-decoration: none;
+}
+
+.sidebar-link:hover,
+.sidebar-link:focus {
+    background-color: rgba(51, 122, 183, 0.08);
+    color: var(--bs-primary, #337ab7);
+    text-decoration: none;
+}
+
+.sidebar-link.active {
+    background-color: rgba(51, 122, 183, 0.12);
+    color: var(--bs-primary, #337ab7);
+    font-weight: 500;
+}
+
+/* Icon inside each link */
+.sidebar-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    width: 1.125rem;
+    text-align: center;
+}
+
+/* Label text — hidden when sidebar is collapsed */
+.sidebar-label {
+    transition: opacity var(--sidebar-transition);
+    opacity: 1;
+}
+
+/* Sub-nav items are slightly smaller */
+.sidebar-sublink {
+    font-size: 0.8125rem;
+    padding: 0.375rem 0.75rem;
+}
+
+/* ---- Collapsed sidebar: hide labels and sub-navs ---- */
+.app-sidebar.sidebar-collapsed .sidebar-label {
+    /* opacity: 0;
+    pointer-events: none; */
+    display: none;
+    /* width goes to 0 via the parent shrink — no need to set display:none */
+}
+
+.app-sidebar.sidebar-collapsed .sub-nav {
+    display: none !important;
+}
+
+.app-sidebar.sidebar-collapsed .sidebar-link {
+    justify-content: center;
+    padding: 0.5rem;
+    gap: 0;
+}
+
+
+/* ---- Sub-nav show/hide (expanded sidebar) ---- */
 /* Hidden by default */
 .has-subnav > .sub-nav {
     display: none;
 }
 
-/* Show only when parent nav-link is active */
-.has-subnav > .nav-link.active + .sub-nav {
+/* Visible when the parent link is active */
+.has-subnav > .sidebar-link.active + .sub-nav,
+.has-subnav.subnav-open > .sub-nav {
     display: block;
 }
 
-.sub-nav .btn-link.nav-link {
-    text-decoration: none;
-    padding: .25rem .75rem;
+.sub-nav .sidebar-link {
+    color: var(--bs-secondary-color, #6b7785);
 }
 
-.sub-nav .btn-link.nav-link:hover,
-.sub-nav .btn-link.nav-link:focus {
+.sub-nav .sidebar-link:hover {
+    color: var(--bs-primary, #337ab7);
+}
+
+/* btn-link reset so sidebar sub-nav buttons look like links */
+.sub-nav .btn-link {
     text-decoration: none;
+    font-weight: inherit;
 }
 
 
+/* ============================================================
+   MAIN CONTENT AREA
+   ============================================================ */
+
+.app-main {
+    flex: 1 1 auto;
+    min-width: 0;  /* prevents flex children from overflowing */
+    padding: 1rem;
+}
+
+/* Inner wrapper — max width so content doesn't stretch too wide on ultrawide screens */
+.app-main-inner {
+    max-width: 1400px;
+    width: 100%;
+}
+
+/* On smaller screens remove the horizontal padding so content uses full width */
+@media (max-width: 575.98px) {
+    .app-main {
+        padding: 0.75rem 0.5rem;
+    }
+}
+
+
+/* ============================================================
+   OFFCANVAS (mobile sidebar)
+   ============================================================ */
+
+/* On very small screens, offcanvas fills most of the screen */
+@media (max-width: 575.98px) {
+    .offcanvas {
+        --bs-offcanvas-width: 85vw;
+    }
+}
+
+/* The sidebar-nav inside the offcanvas doesn't need a fixed width */
+.offcanvas-body .sidebar-nav {
+    width: 100%;
+    min-width: unset;
+}
+
+
+/* ============================================================
+   BOOTSTRAP ICON WEIGHT FIX
+   ============================================================ */
+.bi::before,
+[class^="bi-"]::before,
+[class*=" bi-"]::before {
+    font-weight: bold !important;
+}
+
+
+/* ============================================================
+   FORM FLOATING PLACEHOLDER ALIGNMENT
+   ============================================================ */
+.form-floating > .form-control-plaintext::placeholder,
+.form-floating > .form-control::placeholder {
+    color: var(--bs-secondary-color);
+    text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder,
+.form-floating > .form-control:focus::placeholder {
+    text-align: start;
+}
+
+
+/* ============================================================
+   TABLES
+   ============================================================ */
+.table-row-link:hover td {
+    background-color: rgba(51, 122, 183, 0.03);
+}
+
+
+/* ============================================================
+   GOOGLE MAPS AUTOCOMPLETE
+   ============================================================ */
 .pac-container {
     z-index: 2000 !important;
 }

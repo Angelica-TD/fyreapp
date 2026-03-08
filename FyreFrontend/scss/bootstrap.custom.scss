@@ -37,6 +37,9 @@ $card-cap-bg: #fff;
 // 2) Import Bootstrap (full build)
 @import "bootstrap/scss/bootstrap";
 
+.btn-ghost {
+  --bs-btn-bg: #e2e2e2;
+}
 
 @media (max-width: 575.98px) {
   .offcanvas {

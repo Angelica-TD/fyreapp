@@ -13,98 +13,109 @@
     <link rel="stylesheet" href="~/css/bootstrap.custom.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/FyreApp.styles.css" asp-append-version="true" />
-
     <link rel="icon" type="image/x-icon" href="~/logo.png" />
     <link rel="icon" type="image/png" href="~/logo.png" />
-
     @await RenderSectionAsync("Styles", required: false)
-
 </head>
 <body>
-    <header class="bg-white">
-        <div class="container-fluid">
-            <nav class="navbar navbar-expand-sm navbar-toggleable-sm">
-                <div class="container-fluid">
 
-                    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-label="Toggle navigation">
+    @* =====================================================================
+         TOP NAVBAR
+         - Always visible at all breakpoints
+         - On mobile/tablet (< lg): shows hamburger that opens offcanvas
+         - On desktop (>= lg):      shows brand + sidebar toggle button
+         ===================================================================== *@
+    <header class="app-header bg-white border-bottom">
+        <div class="container-fluid px-3">
+            <nav class="navbar navbar-expand-lg px-0">
+
+                @* Offcanvas toggle: visible only below lg *@
+                @if (User.Identity?.IsAuthenticated ?? false)
+                {
+                    <button class="navbar-toggler border-0 me-2"
+                            type="button"
+                            data-bs-toggle="offcanvas"
+                            data-bs-target="#offcanvasNav"
+                            aria-controls="offcanvasNav"
+                            aria-label="Toggle navigation">
                         <span class="navbar-toggler-icon"></span>
                     </button>
+                }
 
-                    <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">FyreApp</a>
-                    
+                <a class="navbar-brand fw-semibold" asp-area="" asp-controller="Home" asp-action="Index">
+                    FyreApp
+                </a>
 
-                    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
-                        <div class="offcanvas-header">
-                            <h5 class="offcanvas-title" id="offcanvasNavbarLabel">FyreApp</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-                        </div>
-
-                        <div class="offcanvas-body">
-                            <ul class="navbar-nav flex-grow-1">
-                                                    
-                            @if (User.Identity?.IsAuthenticated ?? false)
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                                </li>
-
-                                <li class="nav-item">
-                                    <a class="nav-link text-dark" asp-area="" asp-controller="Clients" asp-action="Index">Clients</a>
-                                </li>
-
-                                <hr />
-
-                                <partial name="_LogoutButton" />
-                            }
-                            else
-                            {
-                                <a class="btn btn-link" asp-area="Identity" asp-page="/Account/Login">Login</a>
-                            }
-
-                            </ul>
-                        </div>
-                    
-                    </div>
+                @* Right-side items in the top bar at desktop *@
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    @if (User.Identity?.IsAuthenticated ?? false)
+                    {
+                        <span class="text-muted small d-none d-lg-inline">@User.Identity.Name</span>
+                        <partial name="_LogoutButton" />
+                    }
+                    else
+                    {
+                        <a class="btn btn-primary btn-sm" asp-area="Identity" asp-page="/Account/Login">Login</a>
+                    }
                 </div>
+
             </nav>
         </div>
 
-        @if (!(ViewData["HideBreadcrumb"] as bool? ?? false))
-        {
-        <div class="container-fluid">
-            @await Html.PartialAsync("_Breadcrumbs", crumbs ?? Array.Empty<(string, string?)>())
+    </header>
+
+    @* =====================================================================
+         OFFCANVAS NAV (mobile/tablet < lg)
+         Renders the same _Sidebar partial so nav is always in sync
+         ===================================================================== *@
+    @if (User.Identity?.IsAuthenticated ?? false)
+    {
+        <div class="offcanvas offcanvas-start"
+             tabindex="-1"
+             id="offcanvasNav"
+             aria-labelledby="offcanvasNavLabel">
+            <div class="offcanvas-header border-bottom">
+                <span class="fw-semibold" id="offcanvasNavLabel">FyreApp</span>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body p-0">
+                <partial name="~/Views/Components/_Sidebar.cshtml" />
+            </div>
         </div>
+    }
+
+    @* =====================================================================
+         PAGE BODY: sidebar + main content side by side
+         ===================================================================== *@
+    <div class="app-body">
+
+        @if (User.Identity?.IsAuthenticated ?? false)
+        {
+            @* Sidebar: only rendered (and visible) at lg+ *@
+            <aside id="appSidebar" class="app-sidebar d-none d-lg-flex">
+                <partial name="~/Views/Components/_Sidebar.cshtml" />
+            </aside>
         }
 
+        <main role="main" class="app-main">
+            <div class="app-main-inner d-flex flex-column gap-3">
+                @if (!(ViewData["HideBreadcrumb"] as bool? ?? false))
+                {
+                    @await Html.PartialAsync("_Breadcrumbs", crumbs ?? Array.Empty<(string, string?)>())
+                }
+                @RenderBody()
+            </div>
+        </main>
 
-    </header>
-    <div class="bg-light py-3">
-        <div class="d-flex">
-            @if (User.Identity?.IsAuthenticated ?? false)
-            {
-                <div class="d-none d-lg-block">
-                    <partial name="~/Views/Components/_Sidebar.cshtml" />
-                </div>
-            }
-            <main role="main" class="pb-3 flex-grow-1 w-100">
-                <div class="container d-flex flex-column gap-3">
-                    @RenderBody()
-                </div>
-                @* <small>
-                    ENV: @Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-                </small> *@
-
-            </main>
-        </div>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; @DateTime.Now.Year - FyreApp -
+    <footer class="app-footer border-top text-muted">
+        <div class="container-fluid px-3">
+            &copy; @DateTime.Now.Year FyreApp &mdash;
             <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
         </div>
-
     </footer>
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
