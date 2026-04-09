@@ -1,0 +1,261 @@
+@model FyreApp.ViewModels.Dev.DevIndexVm
+
+@{
+    ViewData["Title"] = "Dev Tools";
+    var success = TempData["Success"] as string;
+    var info = TempData["Info"] as string;
+    var error = TempData["Error"] as string;
+}
+
+<div class="d-flex align-items-center gap-2 mb-3">
+    <h1 class="mb-0">Dev Tools</h1>
+    <span class="badge bg-warning text-dark">Development only</span>
+</div>
+
+@if (success != null)
+{
+    <div class="alert alert-success">@success</div>
+}
+@if (info != null)
+{
+    <div class="alert alert-info">@info</div>
+}
+@if (error != null)
+{
+    <div class="alert alert-danger">@error</div>
+}
+
+<ul class="nav nav-tabs mb-3" id="devTabs">
+    <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-clients">
+            Clients <span class="badge bg-secondary">@Model.Clients.Count</span>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-sites">
+            Properties <span class="badge bg-secondary">@Model.Sites.Count</span>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-assets">
+            Assets <span class="badge bg-secondary">@Model.Assets.Count</span>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-tasks">
+            Tasks <span class="badge bg-secondary">@Model.Tasks.Count</span>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-catalogue">
+            Asset Catalogue <span class="badge bg-secondary">@Model.Catalogue.Count</span>
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+
+    @* ── Clients ── *@
+    <div class="tab-pane fade show active" id="tab-clients">
+        <form method="post" asp-action="BulkDelete" class="js-bulk-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="entityType" value="Client" />
+            <div class="d-flex gap-2 mb-2">
+                <button type="submit" class="btn btn-danger btn-sm js-delete-btn" disabled>Delete selected</button>
+                <span class="text-muted small align-self-center js-selected-count"></span>
+            </div>
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" class="js-select-all" /></th>
+                        <th>Name</th>
+                        <th>Sites</th>
+                        <th>Tasks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Clients)
+                    {
+                        <tr>
+                            <td><input type="checkbox" name="ids" value="@c.Id" class="js-row-check" /></td>
+                            <td>@c.Name</td>
+                            <td>@c.SiteCount</td>
+                            <td>@c.TaskCount</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </form>
+    </div>
+
+    @* ── Sites ── *@
+    <div class="tab-pane fade" id="tab-sites">
+        <form method="post" asp-action="BulkDelete" class="js-bulk-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="entityType" value="Site" />
+            <div class="d-flex gap-2 mb-2">
+                <button type="submit" class="btn btn-danger btn-sm js-delete-btn" disabled>Delete selected</button>
+                <span class="text-muted small align-self-center js-selected-count"></span>
+            </div>
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" class="js-select-all" /></th>
+                        <th>Name</th>
+                        <th>Client</th>
+                        <th>Address</th>
+                        <th>Assets</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Sites)
+                    {
+                        <tr>
+                            <td><input type="checkbox" name="ids" value="@s.Id" class="js-row-check" /></td>
+                            <td>@s.Name</td>
+                            <td>@s.ClientName</td>
+                            <td class="text-muted small">@(s.Address ?? "—")</td>
+                            <td>@s.AssetCount</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </form>
+    </div>
+
+    @* ── Assets ── *@
+    <div class="tab-pane fade" id="tab-assets">
+        <form method="post" asp-action="BulkDelete" class="js-bulk-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="entityType" value="Asset" />
+            <div class="d-flex gap-2 mb-2">
+                <button type="submit" class="btn btn-danger btn-sm js-delete-btn" disabled>Delete selected</button>
+                <span class="text-muted small align-self-center js-selected-count"></span>
+            </div>
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" class="js-select-all" /></th>
+                        <th>Name</th>
+                        <th>Property</th>
+                        <th>Client</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Model.Assets)
+                    {
+                        <tr>
+                            <td><input type="checkbox" name="ids" value="@a.Id" class="js-row-check" /></td>
+                            <td>@a.Name</td>
+                            <td>@a.SiteName</td>
+                            <td>@a.ClientName</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </form>
+    </div>
+
+    @* ── Tasks ── *@
+    <div class="tab-pane fade" id="tab-tasks">
+        <form method="post" asp-action="BulkDelete" class="js-bulk-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="entityType" value="Task" />
+            <div class="d-flex gap-2 mb-2">
+                <button type="submit" class="btn btn-danger btn-sm js-delete-btn" disabled>Delete selected</button>
+                <span class="text-muted small align-self-center js-selected-count"></span>
+            </div>
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" class="js-select-all" /></th>
+                        <th>Title</th>
+                        <th>Client</th>
+                        <th>Property</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model.Tasks)
+                    {
+                        <tr>
+                            <td><input type="checkbox" name="ids" value="@t.Id" class="js-row-check" /></td>
+                            <td>@t.Title</td>
+                            <td>@t.ClientName</td>
+                            <td>@(t.SiteName ?? "—")</td>
+                            <td>@t.Status</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </form>
+    </div>
+
+    @* ── Asset Catalogue ── *@
+    <div class="tab-pane fade" id="tab-catalogue">
+        <form asp-action="CatalogueCreate" method="post" class="d-flex gap-2 mb-3">
+            @Html.AntiForgeryToken()
+            <input type="text" name="name" class="form-control" placeholder="New asset name…" required maxlength="200" style="max-width:400px" />
+            <button type="submit" class="btn btn-primary">Add</button>
+        </form>
+        <table class="table table-sm table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Catalogue)
+                {
+                    <tr>
+                        <td class="align-middle">@item.Name</td>
+                        <td class="text-end">
+                            <a asp-controller="AssetCatalogue" asp-action="Edit" asp-route-id="@item.Id"
+                               class="btn btn-sm btn-outline-secondary">Edit</a>
+                            <form asp-action="CatalogueDelete" asp-route-id="@item.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Delete \'@item.Name\' from the catalogue?')">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+@section Scripts {
+<script>
+document.querySelectorAll('.js-bulk-form').forEach(form => {
+    const selectAll = form.querySelector('.js-select-all');
+    const deleteBtn = form.querySelector('.js-delete-btn');
+    const countLabel = form.querySelector('.js-selected-count');
+
+    const updateState = () => {
+        const checked = form.querySelectorAll('.js-row-check:checked');
+        deleteBtn.disabled = checked.length === 0;
+        countLabel.textContent = checked.length > 0 ? `${checked.length} selected` : '';
+        selectAll.indeterminate = checked.length > 0 && checked.length < form.querySelectorAll('.js-row-check').length;
+        selectAll.checked = checked.length > 0 && checked.length === form.querySelectorAll('.js-row-check').length;
+    };
+
+    selectAll?.addEventListener('change', () => {
+        form.querySelectorAll('.js-row-check').forEach(cb => cb.checked = selectAll.checked);
+        updateState();
+    });
+
+    form.querySelectorAll('.js-row-check').forEach(cb => cb.addEventListener('change', updateState));
+
+    form.addEventListener('submit', e => {
+        const checked = form.querySelectorAll('.js-row-check:checked');
+        const entityType = form.querySelector('[name="entityType"]').value;
+        if (!confirm(`Permanently delete ${checked.length} ${entityType}(s) and all related data?`)) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+}
