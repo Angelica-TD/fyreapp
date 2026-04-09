@@ -146,7 +146,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             .OnDelete(DeleteBehavior.SetNull)
             .IsRequired(false);
 
-
+        modelBuilder.Entity<AssetCatalogue>()
+            .HasIndex(a => a.Name)
+            .IsUnique();
     }
 
 }
