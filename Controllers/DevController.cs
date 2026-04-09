@@ -7,22 +7,18 @@ using FyreApp.ViewModels.Dev;
 
 namespace FyreApp.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Developer")]
 public class DevController : Controller
 {
     private readonly AppDbContext _db;
-    private readonly IWebHostEnvironment _env;
 
-    public DevController(AppDbContext db, IWebHostEnvironment env)
+    public DevController(AppDbContext db)
     {
         _db = db;
-        _env = env;
     }
 
     public async Task<IActionResult> Index()
     {
-        if (!_env.IsDevelopment()) return NotFound();
-
         var vm = new DevIndexVm
         {
             Clients = await _db.Clients
@@ -67,8 +63,6 @@ public class DevController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> BulkDelete(string entityType, int[] ids, CancellationToken ct)
     {
-        if (!_env.IsDevelopment()) return NotFound();
-
         if (ids is null || ids.Length == 0)
         {
             TempData["Info"] = "Nothing selected.";
@@ -116,8 +110,6 @@ public class DevController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CatalogueCreate(string name, CancellationToken ct)
     {
-        if (!_env.IsDevelopment()) return NotFound();
-
         name = name?.Trim() ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(name))
@@ -143,8 +135,6 @@ public class DevController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CatalogueDelete(int id, CancellationToken ct)
     {
-        if (!_env.IsDevelopment()) return NotFound();
-
         await _db.AssetCatalogue.Where(a => a.Id == id).ExecuteDeleteAsync(ct);
         TempData["Success"] = "Item deleted from catalogue.";
         return RedirectToAction(nameof(Index));

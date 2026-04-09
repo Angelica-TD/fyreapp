@@ -13,27 +13,31 @@ public static class IdentitySeed
         var roleManager = sp.GetRequiredService<RoleManager<IdentityRole>>();
         var userManager = sp.GetRequiredService<UserManager<ApplicationUser>>();
 
-        const string adminRole = "Admin";
-        const string adminEmail = "office@fyrepower.com.au";
-        const string adminPassword = "ChangeMe!12345";
+        // Roles
+        foreach (var role in new[] { "Admin", "Tech", "Developer" })
+            if (!await roleManager.RoleExistsAsync(role))
+                await roleManager.CreateAsync(new IdentityRole(role));
 
-        const string techRole = "Tech";
+        // Admin user
+        await EnsureUser(userManager, "office@fyrepower.com.au", "ChangeMe!12345", "Admin");
 
-        if (!await roleManager.RoleExistsAsync(adminRole))
-            await roleManager.CreateAsync(new IdentityRole(adminRole));
-        
-        if (!await roleManager.RoleExistsAsync(techRole))
-            await roleManager.CreateAsync(new IdentityRole(techRole));
+        // Developer user
+        await EnsureUser(userManager, "hello@techsea.com.au", "D3v@Fyre9kXm!2q", "Developer");
+    }
 
-        var user = await userManager.FindByEmailAsync(adminEmail);
+    private static async Task EnsureUser(
+        UserManager<ApplicationUser> userManager,
+        string email, string password, string role)
+    {
+        var user = await userManager.FindByEmailAsync(email);
         if (user == null)
         {
-            user = new ApplicationUser { UserName = adminEmail, Email = adminEmail, EmailConfirmed = true };
-            var created = await userManager.CreateAsync(user, adminPassword);
-            if (!created.Succeeded) return; // can log created.Errors if wanted
+            user = new ApplicationUser { UserName = email, Email = email, EmailConfirmed = true };
+            var result = await userManager.CreateAsync(user, password);
+            if (!result.Succeeded) return;
         }
 
-        if (!await userManager.IsInRoleAsync(user, adminRole))
-            await userManager.AddToRoleAsync(user, adminRole);
+        if (!await userManager.IsInRoleAsync(user, role))
+            await userManager.AddToRoleAsync(user, role);
     }
 }
