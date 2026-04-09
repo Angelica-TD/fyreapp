@@ -1,4 +1,5 @@
 using FyreApp.Models;
+using FyreApp.ViewModels.Auth;
 using FyreApp.ViewModels.Home;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -69,6 +70,33 @@ public class AuthController : Controller
 
         vm.Login.Password = string.Empty;
         return View("~/Views/Home/Index.cshtml", vm);
+    }
+
+    [HttpGet]
+    [Authorize]
+    public IActionResult ChangePassword() => View(new ChangePasswordVm());
+
+    [HttpPost]
+    [Authorize]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword(ChangePasswordVm vm)
+    {
+        if (!ModelState.IsValid) return View(vm);
+
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        var result = await _userManager.ChangePasswordAsync(user, vm.CurrentPassword, vm.NewPassword);
+        if (!result.Succeeded)
+        {
+            foreach (var error in result.Errors)
+                ModelState.AddModelError(string.Empty, error.Description);
+            return View(vm);
+        }
+
+        await _signInManager.RefreshSignInAsync(user);
+        TempData["Success"] = "Password changed successfully.";
+        return RedirectToAction(nameof(ChangePassword));
     }
 
     [HttpPost]

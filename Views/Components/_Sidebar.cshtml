@@ -1,4 +1,3 @@
-@inject IWebHostEnvironment _sidebarEnv
 <nav class="sidebar-nav">
     <ul class="nav nav-pills flex-column gap-1">
 
@@ -71,23 +70,23 @@
             </ul>
         </li>
 
+        @if (User.IsInRole("Developer"))
+        {
+            <!-- Dev Tools -->
+            <li class="nav-item">
+                <a class="nav-link sidebar-link"
+                   asp-controller="Dev"
+                   asp-action="Index"
+                   nav-active
+                   nav-active-controller-only>
+                    <i class="bi bi-bug-fill sidebar-icon"></i>
+                    <span class="sidebar-label">Dev Tools</span>
+                </a>
+            </li>
+        }
+
         @if (User.IsInRole("Admin"))
         {
-            @if (_sidebarEnv.IsDevelopment())
-            {
-                <!-- Dev Tools (Development only) -->
-                <li class="nav-item">
-                    <a class="nav-link sidebar-link"
-                       asp-controller="Dev"
-                       asp-action="Index"
-                       nav-active
-                       nav-active-controller-only>
-                        <i class="bi bi-bug-fill sidebar-icon"></i>
-                        <span class="sidebar-label">Dev Tools</span>
-                    </a>
-                </li>
-            }
-
             <!-- Users (Admin only) -->
             <li class="nav-item has-subnav">
                 <a class="nav-link sidebar-link"
@@ -110,6 +109,17 @@
                 </ul>
             </li>
         }
+
+        <!-- Change Password (all users) -->
+        <li class="nav-item mt-auto">
+            <a class="nav-link sidebar-link"
+               asp-controller="Auth"
+               asp-action="ChangePassword"
+               nav-active>
+                <i class="bi bi-key-fill sidebar-icon"></i>
+                <span class="sidebar-label">Change Password</span>
+            </a>
+        </li>
 
     </ul>
 </nav>
