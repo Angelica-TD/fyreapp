@@ -11,4 +11,8 @@ public sealed class ClientDetailsVm
     public required UpdateClientRequest Edit { get; init; }
 
     public bool OpenEdit { get; init; }
+
+    public IList<ClientTask> Tasks { get; init; } = [];
+
+    public IList<MaintenanceInterval> Intervals { get; init; } = [];
 }

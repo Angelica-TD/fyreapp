@@ -1,4 +1,5 @@
 @using FyreApp.Infrastructure
+@using FyreApp.Models
 @model FyreApp.ViewModels.Clients.ClientDetailsVm
 
 @inject IConfiguration Config
@@ -10,23 +11,15 @@
     ViewData["Title"] = "Client Details";
     var c = Model.Client;
     var showEdit = Model.OpenEdit;
+
+    var allAssets = c.Sites.SelectMany(s => s.Assets).ToList();
+    var allSchedules = c.Sites
+        .SelectMany(s => s.MaintenanceSchedules.Select(ms => (ms, SiteName: s.Name, AssetName: (string?)null)))
+        .Concat(c.Sites.SelectMany(s => s.Assets
+            .SelectMany(a => a.MaintenanceSchedules.Select(ms => (ms, SiteName: s.Name, AssetName: (string?)a.Name)))))
+        .OrderBy(x => x.ms.NextRunDate)
+        .ToList();
 }
-
-<div class="card">
-    <div class="card-header">
-        <div class="d-flex align-items-center justify-content-between">
-            <h5>@c.Name</h5>
-            <button class="btn text-uppercase text-primary"
-                    type="button"
-                    data-bs-toggle="modal"
-                    data-bs-target="#editClientModal">
-                <i class="bi bi-pencil-square"></i> Edit
-            </button>
-        </div>
-    </div>
-
-    @await Html.PartialAsync("_FieldList", UiFieldBuilder.Build(c))
-</div>
 
 @if (TempData["Success"] is string okMsg)
 {
@@ -44,23 +37,419 @@
     </div>
 }
 
-<div class="d-flex justify-content-between mt-3">
-    <div class="d-flex gap-2 mb-3">
-        <a asp-action="Index" class="btn btn-secondary">← Back to Clients</a>
-        <button class="btn btn-primary"
-                type="button"
-                data-bs-toggle="modal"
-                data-bs-target="#editClientModal">
-            Edit client
-        </button>
+<div class="row g-4">
+
+    @* ── Left column: client details ── *@
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h5 class="mb-0">@c.Name</h5>
+                    <button class="btn btn-sm text-uppercase text-primary"
+                            type="button"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editClientModal">
+                        <i class="bi bi-pencil-square"></i> Edit
+                    </button>
+                </div>
+            </div>
+
+            @await Html.PartialAsync("_FieldList", UiFieldBuilder.Build(c))
+        </div>
+
+        <div class="d-flex justify-content-between mt-3">
+            <div class="d-flex gap-2">
+                <a asp-action="Index" class="btn btn-secondary btn-sm">← Back to Clients</a>
+                <button class="btn btn-primary btn-sm"
+                        type="button"
+                        data-bs-toggle="modal"
+                        data-bs-target="#editClientModal">
+                    Edit client
+                </button>
+            </div>
+            <form asp-action="Delete" asp-controller="Clients" asp-route-id="@c.Id" method="post">
+                <button class="icon-link text-danger" type="submit">
+                    <i class="bi bi-trash3"></i> Delete
+                </button>
+            </form>
+        </div>
     </div>
-    <form asp-action="Delete" asp-controller="Clients" asp-route-id="@c.Id" method="post">
-        <button class="icon-link text-danger" type="submit">
-            <i class="bi bi-trash3"></i> Delete
-        </button>
-    </form>
+
+    @* ── Right column: nav tabs ── *@
+    <div class="col-lg-8">
+
+        <ul class="nav nav-tabs mb-3" id="clientTabs">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-properties">
+                    Properties <span class="badge bg-secondary">@c.Sites.Count</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-assets">
+                    Assets <span class="badge bg-secondary">@allAssets.Count</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-tasks">
+                    Tasks <span class="badge bg-secondary">@Model.Tasks.Count</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-schedules">
+                    Schedules <span class="badge bg-secondary">@allSchedules.Count</span>
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+
+            @* ── Properties ── *@
+            <div class="tab-pane fade show active" id="tab-properties">
+                @if (User.IsInRole("Admin"))
+                {
+                    <button class="btn btn-primary btn-sm mb-3"
+                            data-bs-toggle="modal"
+                            data-bs-target="#createSiteModal">
+                        <i class="bi bi-plus-lg"></i> Add Property
+                    </button>
+                }
+
+                @if (!c.Sites.Any())
+                {
+                    <p class="text-muted">No properties found for this client.</p>
+                }
+                else
+                {
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Property Name</th>
+                                <th>Assets</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var site in c.Sites)
+                            {
+                                <tr>
+                                    <td>@site.Name</td>
+                                    <td>@site.Assets.Count</td>
+                                    <td>
+                                        <a asp-controller="Property" asp-action="Details" asp-route-id="@site.Id" class="btn btn-sm btn-outline-secondary">
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+
+            @* ── Assets ── *@
+            <div class="tab-pane fade" id="tab-assets">
+                @if (User.IsInRole("Admin"))
+                {
+                    <button class="btn btn-primary btn-sm mb-3"
+                            data-bs-toggle="modal"
+                            data-bs-target="#createAssetModal">
+                        <i class="bi bi-plus-lg"></i> Add Asset
+                    </button>
+                }
+
+                @if (!allAssets.Any())
+                {
+                    <p class="text-muted">No assets found for this client.</p>
+                }
+                else
+                {
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Property</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var site in c.Sites)
+                            {
+                                @foreach (var asset in site.Assets)
+                                {
+                                    <tr>
+                                        <td>@asset.Name</td>
+                                        <td class="text-muted">@site.Name</td>
+                                        <td>
+                                            <a asp-controller="Assets" asp-action="Details" asp-route-id="@asset.Id" class="btn btn-sm btn-outline-secondary">
+                                                View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+
+            @* ── Tasks ── *@
+            <div class="tab-pane fade" id="tab-tasks">
+                <button class="btn btn-primary btn-sm mb-3"
+                        data-bs-toggle="modal"
+                        data-bs-target="#createTaskModal">
+                    <i class="bi bi-plus-lg"></i> Add Task
+                </button>
+
+                @if (!Model.Tasks.Any())
+                {
+                    <p class="text-muted">No tasks found for this client.</p>
+                }
+                else
+                {
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Property</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var task in Model.Tasks)
+                            {
+                                <tr>
+                                    <td>@task.Title</td>
+                                    <td class="text-muted">@(task.Site?.Name ?? "—")</td>
+                                    <td>@task.Status</td>
+                                    <td>@task.Priority</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+
+            @* ── Schedules ── *@
+            <div class="tab-pane fade" id="tab-schedules">
+                @if (User.IsInRole("Admin"))
+                {
+                    <button class="btn btn-primary btn-sm mb-3"
+                            data-bs-toggle="modal"
+                            data-bs-target="#createScheduleModal">
+                        <i class="bi bi-plus-lg"></i> Add Schedule
+                    </button>
+                }
+
+                @if (!allSchedules.Any())
+                {
+                    <p class="text-muted">No maintenance schedules found for this client.</p>
+                }
+                else
+                {
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Property</th>
+                                <th>Asset</th>
+                                <th>Interval</th>
+                                <th>Next Run</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var (ms, siteName, assetName) in allSchedules)
+                            {
+                                <tr>
+                                    <td>@siteName</td>
+                                    <td class="text-muted">@(assetName ?? "—")</td>
+                                    <td>@(ms.MaintenanceInterval?.Name ?? "—")</td>
+                                    <td>@ms.NextRunDate.ToShortDateString()</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+
+        </div>
+    </div>
+
 </div>
 
+@* ── Modals ── *@
+
+@await Html.PartialAsync("_CreatePropertyModal",
+    new FyreApp.ViewModels.Sites.CreatePropertyModalVm
+    {
+        ClientId = c.Id,
+        ClientName = c.Name,
+        ModalId = "createSiteModal",
+        IdPrefix = "clientDetailsCreateSite",
+        ShowClientNameInTitle = true,
+        GoogleBrowserKey = googleKey
+    })
+
+@* Add Asset *@
+<div class="modal fade" id="createAssetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="CreateAsset" asp-controller="Clients" asp-route-id="@c.Id" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Asset</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Property</label>
+                        <select name="siteId" class="form-select" required>
+                            <option value="">— Select property —</option>
+                            @foreach (var site in c.Sites)
+                            {
+                                <option value="@site.Id">@site.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Asset name</label>
+                        <div style="position:relative">
+                            <input type="text" name="name" id="createAssetName" class="form-control"
+                                   autocomplete="off" placeholder="Type to search catalogue…" required />
+                            <ul id="createAssetSuggestions" class="list-group shadow-sm"
+                                style="display:none; position:absolute; z-index:1055; width:100%; max-height:260px; overflow-y:auto"></ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create asset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@* Add Task *@
+<div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="CreateTask" asp-controller="Clients" asp-route-id="@c.Id" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="ClientId" value="@c.Id" />
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Property <span class="text-danger">*</span></label>
+                        <select name="SiteId" class="form-select" required>
+                            <option value="">— Select property —</option>
+                            @foreach (var site in c.Sites)
+                            {
+                                <option value="@site.Id">@site.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Title <span class="text-danger">*</span></label>
+                        <input type="text" name="Title" class="form-control" maxlength="120" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="Description" class="form-control" rows="3" maxlength="4000"></textarea>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Priority</label>
+                            <select name="Priority" class="form-select">
+                                @foreach (ClientTaskPriority p in Enum.GetValues(typeof(ClientTaskPriority)))
+                                {
+                                    <option value="@((int)p)" selected="@(p == ClientTaskPriority.Normal ? "selected" : null)">@p</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Due date</label>
+                            <input type="date" name="DueDateLocal" class="form-control" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@* Add Schedule *@
+<div class="modal fade" id="createScheduleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="CreateSchedule" asp-controller="Clients" asp-route-id="@c.Id" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Schedule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Target type</label>
+                        <select name="targetType" id="schedTargetType" class="form-select" required>
+                            <option value="1">Property</option>
+                            <option value="2">Asset</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="schedSiteGroup">
+                        <label class="form-label">Property</label>
+                        <select name="targetId" id="schedSiteSelect" class="form-select" required>
+                            @foreach (var site in c.Sites)
+                            {
+                                <option value="@site.Id">@site.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="schedAssetGroup">
+                        <label class="form-label">Asset</label>
+                        <select name="targetId" id="schedAssetSelect" class="form-select" disabled>
+                            @foreach (var site in c.Sites)
+                            {
+                                @foreach (var asset in site.Assets)
+                                {
+                                    <option value="@asset.Id">@asset.Name (@site.Name)</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Start date</label>
+                            <input type="date" name="startDate" class="form-control"
+                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Interval</label>
+                            <select name="intervalId" class="form-select" required>
+                                @foreach (var interval in Model.Intervals)
+                                {
+                                    <option value="@interval.Id">@interval.Name</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@* Edit Client *@
 <div class="modal fade" id="editClientModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -151,61 +540,6 @@
     </div>
 </div>
 
-<hr />
-
-<h3>Properties</h3>
-
-@if (User.IsInRole("Admin"))
-{
-    <button class="btn btn-primary"
-            data-bs-toggle="modal"
-            data-bs-target="#createSiteModal">
-        <i class="bi bi-plus-lg"></i> Add Property
-    </button>
-}
-
-@await Html.PartialAsync("_CreatePropertyModal",
-    new FyreApp.ViewModels.Sites.CreatePropertyModalVm
-    {
-        ClientId = Model.Client.Id,
-        ClientName = Model.Client.Name,
-        ModalId = "createSiteModal",
-        IdPrefix = "clientDetailsCreateSite",
-        ShowClientNameInTitle = true,
-        GoogleBrowserKey = googleKey
-    })
-
-@if (!c.Sites.Any())
-{
-    <p class="text-muted">No sites found for this client.</p>
-}
-else
-{
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Property Name</th>
-                <th>Assets</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach (var site in c.Sites)
-        {
-            <tr>
-                <td>@site.Name</td>
-                <td>@site.Assets.Count</td>
-                <td>
-                    <a asp-controller="Property" asp-action="Details" asp-route-id="@site.Id">
-                        View Property
-                    </a>
-                </td>
-            </tr>
-        }
-        </tbody>
-    </table>
-}
-
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 
@@ -217,4 +551,78 @@ else
             });
         </script>
     }
+
+    <script>
+    (function () {
+        // ── Asset name autocomplete ──
+        const input = document.getElementById('createAssetName');
+        const list  = document.getElementById('createAssetSuggestions');
+        if (input && list) {
+            let activeIndex = -1, debounceTimer;
+
+            const showSuggestions = items => {
+                list.innerHTML = '';
+                activeIndex = -1;
+                if (!items.length) { list.style.display = 'none'; return; }
+                items.forEach(name => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item list-group-item-action py-2';
+                    li.textContent = name;
+                    li.addEventListener('mousedown', e => { e.preventDefault(); input.value = name; list.style.display = 'none'; });
+                    list.appendChild(li);
+                });
+                list.style.display = 'block';
+            };
+
+            const setActive = index => {
+                list.querySelectorAll('.list-group-item').forEach((el, i) => el.classList.toggle('active', i === index));
+                activeIndex = index;
+            };
+
+            input.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const q = input.value.trim();
+                if (!q) { list.style.display = 'none'; return; }
+                debounceTimer = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`/api/assets/suggestions?q=${encodeURIComponent(q)}`);
+                        showSuggestions(await res.json());
+                    } catch { list.style.display = 'none'; }
+                }, 150);
+            });
+
+            input.addEventListener('keydown', e => {
+                const items = list.querySelectorAll('.list-group-item');
+                if (!items.length) return;
+                if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(activeIndex + 1, items.length - 1)); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(activeIndex - 1, 0)); }
+                else if (e.key === 'Enter' && activeIndex >= 0) { e.preventDefault(); input.value = items[activeIndex].textContent; list.style.display = 'none'; }
+                else if (e.key === 'Escape') { list.style.display = 'none'; }
+            });
+
+            document.addEventListener('click', e => {
+                if (!input.contains(e.target) && !list.contains(e.target)) list.style.display = 'none';
+            });
+        }
+
+        // ── Schedule target type toggle ──
+        const schedTargetType  = document.getElementById('schedTargetType');
+        const schedSiteGroup   = document.getElementById('schedSiteGroup');
+        const schedSiteSelect  = document.getElementById('schedSiteSelect');
+        const schedAssetGroup  = document.getElementById('schedAssetGroup');
+        const schedAssetSelect = document.getElementById('schedAssetSelect');
+
+        if (schedTargetType) {
+            schedTargetType.addEventListener('change', () => {
+                const isSite = schedTargetType.value === '1';
+                schedSiteGroup.classList.toggle('d-none', !isSite);
+                schedSiteSelect.disabled = !isSite;
+                schedSiteSelect.required = isSite;
+                schedAssetGroup.classList.toggle('d-none', isSite);
+                schedAssetSelect.disabled = isSite;
+                schedAssetSelect.required = !isSite;
+            });
+        }
+    })();
+    </script>
 }

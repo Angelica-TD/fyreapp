@@ -20,9 +20,10 @@ namespace FyreApp.Controllers
 
             var matches = await _context.AssetCatalogue
                 .Where(a => EF.Functions.ILike(a.Name, pattern))
-                .OrderBy(a => a.Name)
-                .Take(20)
                 .Select(a => a.Name)
+                .Distinct()
+                .OrderBy(a => a)
+                .Take(20)
                 .ToListAsync(ct);
 
             var results = matches

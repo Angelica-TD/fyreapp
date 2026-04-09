@@ -113,7 +113,23 @@ public sealed class ClientService : IClientService
         return await _db.Clients
             .Include(c => c.Sites)
                 .ThenInclude(s => s.Assets)
+                    .ThenInclude(a => a.MaintenanceSchedules)
+                        .ThenInclude(ms => ms.MaintenanceInterval)
+            .Include(c => c.Sites)
+                .ThenInclude(s => s.MaintenanceSchedules)
+                    .ThenInclude(ms => ms.MaintenanceInterval)
             .FirstOrDefaultAsync(c => c.Id == id, ct);
+    }
+
+    public async Task<List<ClientTask>> GetTasksByClientAsync(int clientId, CancellationToken ct = default)
+    {
+        return await _db.ClientTasks
+            .Where(t => t.ClientId == clientId)
+            .Include(t => t.Site)
+            .OrderBy(t => t.Status)
+                .ThenByDescending(t => t.Priority)
+                    .ThenBy(t => t.Title)
+            .ToListAsync(ct);
     }
 
 }

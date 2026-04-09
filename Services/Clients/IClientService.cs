@@ -73,4 +73,5 @@ public interface IClientService
     Task<List<Client>> GetAllAsync(bool activeOnly = true);
     Task<ClientCreateResult> CreateAsync(CreateClientVm vm, CancellationToken ct = default);
     Task<Client?> GetByIdAsync(int id, CancellationToken ct = default);
+    Task<List<ClientTask>> GetTasksByClientAsync(int clientId, CancellationToken ct = default);
 }

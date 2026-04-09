@@ -4,6 +4,7 @@ using FyreApp.Models;
 using FyreApp.Hubs;
 using FyreApp.Services.Clients;
 using FyreApp.ViewModels.Clients;
+using FyreApp.ViewModels.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
@@ -19,6 +20,7 @@ namespace FyreApp.Controllers
         private readonly IImportTracker _tracker;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IClientService _clients;
+        private readonly AppDbContext _db;
 
 
         public ClientsController(
@@ -26,15 +28,16 @@ namespace FyreApp.Controllers
             IHubContext<ImportProgressHub> hub,
             IImportTracker tracker,
             IServiceScopeFactory scopeFactory,
-            IClientService clients
+            IClientService clients,
+            AppDbContext db
         )
-
         {
             _importService = importService;
             _hub = hub;
             _tracker = tracker;
             _scopeFactory = scopeFactory;
             _clients = clients;
+            _db = db;
         }
 
         // GET: ClientsController
@@ -53,13 +56,17 @@ namespace FyreApp.Controllers
         public async Task<IActionResult> Details(int id, CancellationToken ct)
         {
             var client = await _clients.GetByIdAsync(id, ct);
-
             if (client is null)
                 return NotFound();
+
+            var tasks = await _clients.GetTasksByClientAsync(id, ct);
+            var intervals = await _db.MaintenanceIntervals.OrderBy(i => i.Months).ToListAsync(ct);
 
             var vm = new ClientDetailsVm
             {
                 Client = client,
+                Tasks = tasks,
+                Intervals = intervals,
                 Edit = new UpdateClientRequest
                 {
                     Name = client.Name,
@@ -148,6 +155,105 @@ namespace FyreApp.Controllers
                 : "Client has been archived.";
 
             return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateAsset(int id, int siteId, string name, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                TempData["Error"] = "Asset name is required.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var site = await _db.Sites.FirstOrDefaultAsync(s => s.Id == siteId && s.ClientId == id, ct);
+            if (site is null)
+                return NotFound();
+
+            _db.Assets.Add(new Asset { SiteId = siteId, Name = name.Trim() });
+            await _db.SaveChangesAsync(ct);
+
+            TempData["Success"] = $"Asset \"{name.Trim()}\" created.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateTask(int id, CreateClientTaskVm task, CancellationToken ct)
+        {
+            task.ClientId = id;
+
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Please check the form and try again.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var siteExists = await _db.Sites.AnyAsync(s => s.Id == task.SiteId && s.ClientId == id, ct);
+            if (!siteExists)
+            {
+                TempData["Error"] = "Selected property does not belong to this client.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var tz = TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
+            DateTime? dueUtc = task.DueDateLocal.HasValue
+                ? TimeZoneInfo.ConvertTimeToUtc(task.DueDateLocal.Value, tz)
+                : null;
+
+            _db.ClientTasks.Add(new ClientTask
+            {
+                ClientId = id,
+                SiteId = task.SiteId,
+                Title = task.Title.Trim(),
+                Description = string.IsNullOrWhiteSpace(task.Description) ? null : task.Description.Trim(),
+                Priority = task.Priority,
+                Status = ClientTaskStatus.Open,
+                DueDateUtc = dueUtc,
+                CreatedUtc = DateTime.UtcNow
+            });
+            await _db.SaveChangesAsync(ct);
+
+            TempData["Success"] = $"Task \"{task.Title.Trim()}\" created.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateSchedule(int id, ScheduleTargetType targetType, int targetId, DateTime startDate, int intervalId, CancellationToken ct)
+        {
+            var interval = await _db.MaintenanceIntervals.FindAsync([intervalId], ct);
+            if (interval is null)
+            {
+                TempData["Error"] = "Invalid interval selected.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            bool targetValid = targetType == ScheduleTargetType.Site
+                ? await _db.Sites.AnyAsync(s => s.Id == targetId && s.ClientId == id, ct)
+                : await _db.Assets.AnyAsync(a => a.Id == targetId && a.Site.ClientId == id, ct);
+
+            if (!targetValid)
+                return NotFound();
+
+            var startUtc = DateTime.SpecifyKind(startDate, DateTimeKind.Utc);
+
+            _db.MaintenanceSchedules.Add(new MaintenanceSchedule
+            {
+                TargetType = targetType,
+                SiteId = targetType == ScheduleTargetType.Site ? targetId : null,
+                AssetId = targetType == ScheduleTargetType.Asset ? targetId : null,
+                MaintenanceIntervalId = interval.Id,
+                StartDate = startUtc,
+                NextRunDate = startUtc.AddMonths(interval.Months)
+            });
+            await _db.SaveChangesAsync(ct);
+
+            TempData["Success"] = "Maintenance schedule created.";
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         [HttpGet("/api/clients")]
