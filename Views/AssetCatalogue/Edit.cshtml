@@ -1,0 +1,26 @@
+@model FyreApp.Models.AssetCatalogue
+
+@{
+    ViewData["Title"] = "Edit Asset";
+}
+
+<h1>Edit Asset</h1>
+
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post" style="max-width:400px">
+    @Html.AntiForgeryToken()
+
+    <div class="mb-3">
+        <label class="form-label">Name</label>
+        <input type="text" name="name" class="form-control @(ViewData.ModelState["name"]?.Errors.Any() == true ? "is-invalid" : "")"
+               value="@Model.Name" required maxlength="200" />
+        @if (ViewData.ModelState["name"]?.Errors.Any() == true)
+        {
+            <div class="invalid-feedback">@ViewData.ModelState["name"]!.Errors[0].ErrorMessage</div>
+        }
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>

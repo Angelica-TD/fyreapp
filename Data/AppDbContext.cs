@@ -20,6 +20,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<MaintenanceInterval> MaintenanceIntervals { get; set; }
     public DbSet<MaintenanceHistory> MaintenanceHistory => Set<MaintenanceHistory>();
     public DbSet<ClientTask> ClientTasks => Set<ClientTask>();
+    public DbSet<AssetCatalogue> AssetCatalogue => Set<AssetCatalogue>();
 
 
 
