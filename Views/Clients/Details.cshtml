@@ -552,6 +552,16 @@
         </script>
     }
 
+    @if (TempData["ActiveTab"] is string activeTab)
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const tabEl = document.querySelector('[data-bs-target="#@activeTab"]');
+                if (tabEl) bootstrap.Tab.getOrCreateInstance(tabEl).show();
+            });
+        </script>
+    }
+
     <script>
     (function () {
         // ── Asset name autocomplete ──

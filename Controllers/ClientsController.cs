@@ -162,6 +162,8 @@ namespace FyreApp.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateAsset(int id, int siteId, string name, CancellationToken ct)
         {
+            TempData["ActiveTab"] = "tab-assets";
+
             if (string.IsNullOrWhiteSpace(name))
             {
                 TempData["Error"] = "Asset name is required.";
@@ -183,6 +185,7 @@ namespace FyreApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateTask(int id, CreateClientTaskVm task, CancellationToken ct)
         {
+            TempData["ActiveTab"] = "tab-tasks";
             task.ClientId = id;
 
             if (!ModelState.IsValid)
@@ -225,6 +228,8 @@ namespace FyreApp.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateSchedule(int id, ScheduleTargetType targetType, int targetId, DateTime startDate, int intervalId, CancellationToken ct)
         {
+            TempData["ActiveTab"] = "tab-schedules";
+
             var interval = await _db.MaintenanceIntervals.FindAsync([intervalId], ct);
             if (interval is null)
             {
