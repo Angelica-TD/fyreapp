@@ -92,7 +92,7 @@ namespace FyreApp.Controllers
             if (!ModelState.IsValid)
                 return await RebuildIndexView(vm);
 
-            var result = await _clients.CreateAsync(vm.Name!.Trim());
+            var result = await _clients.CreateAsync(vm);
 
             return result.Status switch
             {

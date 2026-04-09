@@ -1,8 +1,7 @@
 @model FyreApp.Models.Site
 
 @{
-    ViewData["Title"] = "Site Details";
-    var intervals = ViewBag.Intervals as List<FyreApp.Models.MaintenanceInterval>;
+    ViewData["Title"] = "Property Details";
 }
 
 <h1>@Model.Name</h1>
@@ -16,86 +15,44 @@
     </a>
 </p>
 
-<hr />
+<p>
+    <strong>Address:</strong>
+    @if (!string.IsNullOrWhiteSpace(Model.AddressDisplay))
+    {
+        @Model.AddressDisplay
+    }
+    else if (!string.IsNullOrWhiteSpace(Model.AddressLine1))
+    {
+        @Model.AddressLine1
+        if (!string.IsNullOrWhiteSpace(Model.AddressLine2))
+        {
+            <br />@Model.AddressLine2
+        }
+        <br />@($"{Model.Suburb} {Model.State} {Model.Postcode}".Trim())
+    }
+    else
+    {
+        <span class="text-muted">No address on file</span>
+    }
+</p>
 
-<h2>Maintenance Schedule</h2>
+<hr />
 
 <a class="btn btn-primary"
    asp-controller="Task"
    asp-action="Create"
    asp-route-clientId="@Model.ClientId"
    asp-route-siteId="@Model.Id">
-    Add task
+    Add Task
 </a>
-
-
-@if (Model.MaintenanceSchedules.Any())
-{
-    var schedule = Model.MaintenanceSchedules.First();
-
-    <form asp-controller="MaintenanceSchedules" asp-action="Upsert" method="post" class="row g-3">
-        <input type="hidden" name="scheduleId" value="@schedule.Id" />
-        <input type="hidden" name="targetType" value="Site" />
-        <input type="hidden" name="targetId" value="@Model.Id" />
-
-        <div class="col-md-4">
-            <label class="form-label">Start Date</label>
-            <input type="date" name="startDate" class="form-control" value="@schedule.StartDate.ToString("yyyy-MM-dd")" required />
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Interval</label>
-            <select name="intervalId" class="form-select" required>
-                @foreach(var interval in intervals)
-                {
-                    <option value="@interval.Id" selected="@(interval.Id == schedule.MaintenanceIntervalId ? "selected" : null)">
-                        @interval.Name
-                    </option>
-                }
-            </select>
-        </div>
-
-        <div class="col-md-4 align-self-end">
-            <button type="submit" class="btn btn-primary">Save Schedule</button>
-        </div>
-    </form>
-    
-    <p class="mt-2"><strong>Next Maintenance:</strong> @schedule.NextRunDate.ToShortDateString()</p>
-}
-else
-{
-    <form asp-controller="MaintenanceSchedules" asp-action="Upsert" method="post" class="row g-3">
-        <input type="hidden" name="scheduleId" value="0" />
-        <input type="hidden" name="targetType" value="Site" />
-        <input type="hidden" name="targetId" value="@Model.Id" />
-        <div class="col-md-4">
-            <label class="form-label">Start Date</label>
-            <input type="date" name="startDate" class="form-control" value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" required />
-        </div>
-
-        <div class="col-md-4">
-            <label class="form-label">Interval</label>
-            <select name="intervalId" class="form-select" required>
-                @foreach(var interval in intervals)
-                {
-                    <option value="@interval.Id">@interval.Name</option>
-                }
-            </select>
-        </div>
-
-        <div class="col-md-4 align-self-end">
-            <button type="submit" class="btn btn-success">Create Schedule</button>
-        </div>
-    </form>
-}
 
 <hr />
 
-
-<h3>Assets</h3>
+<h2>Assets</h2>
 
 @if (!Model.Assets.Any())
 {
-    <p class="text-muted">No assets found for this site.</p>
+    <p class="text-muted">No assets found for this property.</p>
 }
 else
 {
@@ -108,27 +65,127 @@ else
             </tr>
         </thead>
         <tbody>
-@foreach (var asset in Model.Assets)
-{
-            <tr>
-                <td>@asset.Name</td>
-                <td>
-@foreach (var type in asset.AssetTypes)
-{
-                    <span class="badge bg-secondary me-1">@type.Name</span>
-}
-                </td>
-                <td>
-                    <a asp-controller="Assets"
-                       asp-action="Details"
-                       asp-route-id="@asset.Id">
-                        View Asset
-                    </a>
-                </td>
-            </tr>
-}
+            @foreach (var asset in Model.Assets)
+            {
+                <tr>
+                    <td>@asset.Name</td>
+                    <td>
+                        @foreach (var type in asset.AssetTypes)
+                        {
+                            <span class="badge bg-secondary me-1">@type.Name</span>
+                        }
+                    </td>
+                    <td>
+                        <a asp-controller="Assets"
+                           asp-action="Details"
+                           asp-route-id="@asset.Id">
+                            View Asset
+                        </a>
+                    </td>
+                </tr>
+            }
         </tbody>
     </table>
+}
+
+<form asp-action="CreateAsset" method="post">
+    <input type="hidden" name="siteId" value="@Model.Id" />
+    <div class="form-group" style="position:relative">
+        <label for="assetNameInput">Asset name</label>
+        <input type="text"
+               class="form-control"
+               id="assetNameInput"
+               name="name"
+               autocomplete="off"
+               placeholder="Type to search fire protection assets…"
+               required />
+        <ul id="assetSuggestions"
+            class="list-group shadow-sm"
+            style="display:none; position:absolute; z-index:1000; width:100%; max-height:260px; overflow-y:auto"></ul>
+    </div>
+    <button type="submit" class="btn btn-primary mt-2">Create asset</button>
+</form>
+
+@section Scripts {
+<script>
+(function () {
+    const input = document.getElementById('assetNameInput');
+    const list  = document.getElementById('assetSuggestions');
+    if (!input || !list) return;
+
+    let activeIndex = -1;
+    let lastQuery   = '';
+    let debounceTimer;
+
+    function showSuggestions(items) {
+        list.innerHTML = '';
+        activeIndex = -1;
+
+        if (!items.length) { list.style.display = 'none'; return; }
+
+        items.forEach((name, i) => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action py-2';
+            li.textContent = name;
+            li.addEventListener('mousedown', e => {
+                e.preventDefault();
+                input.value = name;
+                list.style.display = 'none';
+            });
+            list.appendChild(li);
+        });
+
+        list.style.display = 'block';
+    }
+
+    function setActive(index) {
+        const items = list.querySelectorAll('.list-group-item');
+        items.forEach((el, i) => el.classList.toggle('active', i === index));
+        activeIndex = index;
+    }
+
+    input.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        const q = input.value.trim();
+        if (q === lastQuery) return;
+        lastQuery = q;
+
+        if (!q) { list.style.display = 'none'; return; }
+
+        debounceTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`/api/assets/suggestions?q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                showSuggestions(data);
+            } catch { list.style.display = 'none'; }
+        }, 150);
+    });
+
+    input.addEventListener('keydown', e => {
+        const items = list.querySelectorAll('.list-group-item');
+        if (!items.length) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setActive(Math.min(activeIndex + 1, items.length - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setActive(Math.max(activeIndex - 1, 0));
+        } else if (e.key === 'Enter' && activeIndex >= 0) {
+            e.preventDefault();
+            input.value = items[activeIndex].textContent;
+            list.style.display = 'none';
+        } else if (e.key === 'Escape') {
+            list.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !list.contains(e.target))
+            list.style.display = 'none';
+    });
+})();
+</script>
 }
 
 <a asp-controller="Clients"

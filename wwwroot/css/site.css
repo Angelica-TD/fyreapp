@@ -123,6 +123,10 @@ body {
     height: 100%;
 }
 
+/* .app-sidebar.sidebar-collapsed{
+    width: unset;
+} */
+
 /* Collapsed state — icon only */
 /* .app-sidebar.sidebar-collapsed {
     width: var(--sidebar-collapsed-width);
@@ -132,6 +136,11 @@ body {
 .sidebar-nav {
     width: var(--sidebar-width); 
     /* min-width: var(--sidebar-width); */
+}
+
+.app-sidebar.sidebar-collapsed .sidebar-nav,
+.app-sidebar.sidebar-collapsed{
+    width: unset;
 }
 
 /* .sidebar-nav .nav{

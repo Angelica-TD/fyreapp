@@ -117,6 +117,20 @@
   const manualBtn = document.getElementById(`${p}_btnManualAddress`);
   const manualPanel = document.getElementById(`${p}_manualAddressPanel`);
 
+  const addr1El = document.getElementById(`${p}_AddressLine1`);
+  const errorEl = modalEl.querySelector('[data-role="error"]');
+
+  const showError = (msg) => {
+    if (!errorEl) return;
+    errorEl.textContent = msg;
+    errorEl.classList.remove("d-none");
+  };
+  const clearError = () => {
+    if (!errorEl) return;
+    errorEl.textContent = "";
+    errorEl.classList.add("d-none");
+  };
+
   if (manualBtn && manualPanel) {
     manualBtn.addEventListener("click", () => {
       manualPanel.classList.remove("d-none");
@@ -124,6 +138,31 @@
       if (formattedEl) formattedEl.value = "";
     });
   }
+
+  const form = modalEl.querySelector("form");
+  if (form) {
+    form.addEventListener("submit", (e) => {
+      const isManual = manualPanel && !manualPanel.classList.contains("d-none");
+      if (isManual) {
+        if (!addr1El || !addr1El.value.trim()) {
+          e.preventDefault();
+          showError("Address line 1 is required.");
+          addr1El?.focus();
+          return;
+        }
+      } else {
+        if (!placeIdEl || !placeIdEl.value.trim()) {
+          e.preventDefault();
+          showError("Please select an address or enter one manually.");
+          addressInput?.focus();
+          return;
+        }
+      }
+      clearError();
+    });
+  }
+
+  modalEl.addEventListener("hidden.bs.modal", () => clearError());
 
   @* // Load Google Places once per page. *@
   function loadGooglePlacesOnce(key) {

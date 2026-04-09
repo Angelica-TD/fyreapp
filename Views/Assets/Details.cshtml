@@ -1,86 +1,121 @@
-@model Asset
+@model FyreApp.Models.Asset
+
 @{
     ViewData["Title"] = "Asset Details";
     var intervals = ViewBag.Intervals as List<FyreApp.Models.MaintenanceInterval>;
+    var schedule = Model.MaintenanceSchedules?.FirstOrDefault();
 }
 
-<h2>@Model.Name</h2>
-<p>Site: <a asp-controller="Sites" asp-action="Details" asp-route-id="@Model.SiteId">@Model.Site.Name</a></p>
-<p>Client: <a asp-controller="Clients" asp-action="Details" asp-route-id="@Model.Site.ClientId">@Model.Site.Client.Name</a></p>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a asp-controller="Clients" asp-action="Details" asp-route-id="@Model.Site.Client.Id">@Model.Site.Client.Name</a>
+        </li>
+        <li class="breadcrumb-item">
+            <a asp-controller="Property" asp-action="Details" asp-route-id="@Model.SiteId">@Model.Site.Name</a>
+        </li>
+        <li class="breadcrumb-item active">@Model.Name</li>
+    </ol>
+</nav>
 
-<hr>
+<h1>@Model.Name</h1>
 
-<h2>Maintenance Schedule</h2>
-
-@if (Model.MaintenanceSchedules.Any())
+@if (Model.AssetTypes.Any())
 {
-    var schedule = Model.MaintenanceSchedules.First();
-
-    <form asp-controller="MaintenanceSchedules" asp-action="Upsert" method="post" class="row g-3">
-        <input type="hidden" name="scheduleId" value="@schedule.Id" />
-        <input type="hidden" name="targetType" value="Asset" />
-        <input type="hidden" name="targetId" value="@Model.Id" />
-
-        <div class="col-md-4">
-            <label class="form-label">Start Date</label>
-            <input type="date" name="startDate" class="form-control" 
-                   value="@schedule.StartDate.ToString("yyyy-MM-dd")" required />
-        </div>
-        <div class="col-md-4">
-            <label class="form-label">Interval</label>
-            <select name="intervalId" class="form-select" required>
-                @foreach(var interval in intervals)
-                {
-                    <option value="@interval.Id" selected="@(interval.Id == schedule.MaintenanceIntervalId ? "selected" : null)">
-                        @interval.Name
-                    </option>
-                }
-            </select>
-        </div>
-
-        <div class="col-md-4 align-self-end">
-            <button type="submit" class="btn btn-primary">Save Schedule</button>
-        </div>
-    </form>
-
-    <p class="mt-2"><strong>Next Maintenance:</strong> @schedule.NextRunDate.ToShortDateString()</p>
-}
-else
-{
-    <form asp-controller="MaintenanceSchedules" asp-action="Upsert" method="post" class="row g-3">
-        <input type="hidden" name="scheduleId" value="0" />
-        <input type="hidden" name="targetType" value="Asset" />
-        <input type="hidden" name="targetId" value="@Model.Id" />
-
-        <div class="col-md-4">
-            <label class="form-label">Start Date</label>
-            <input type="date" name="startDate" class="form-control" 
-                   value="@DateTime.UtcNow.ToString("yyyy-MM-dd")" required />
-        </div>
-
-        <div class="col-md-4">
-            <label class="form-label">Interval</label>
-            <select name="intervalId" class="form-select" required>
-                @foreach(var interval in intervals)
-                {
-                    <option value="@interval.Id">@interval.Name</option>
-                }
-            </select>
-        </div>
-
-        <div class="col-md-4 align-self-end">
-            <button type="submit" class="btn btn-success">Create Schedule</button>
-        </div>
-    </form>
+    <div class="d-flex flex-wrap gap-1 mb-3">
+        @foreach (var type in Model.AssetTypes)
+        {
+            <span class="badge bg-secondary">@type.Name</span>
+        }
+    </div>
 }
 
 <hr />
 
+<h2>Maintenance Schedule</h2>
 
-<h3>Types</h3>
-<ul>
-@foreach(var type in Model.AssetTypes)
+<form asp-controller="MaintenanceSchedules" asp-action="Upsert" method="post" class="row g-3">
+    <input type="hidden" name="scheduleId" value="@(schedule?.Id ?? 0)" />
+    <input type="hidden" name="targetType" value="Asset" />
+    <input type="hidden" name="targetId" value="@Model.Id" />
+
+    <div class="col-md-4">
+        <label class="form-label">Start Date</label>
+        <input type="date" name="startDate" class="form-control"
+               value="@(schedule?.StartDate.ToString("yyyy-MM-dd") ?? DateTime.UtcNow.ToString("yyyy-MM-dd"))"
+               required />
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label">Interval</label>
+        <select name="intervalId" class="form-select" required>
+            @foreach (var interval in intervals)
+            {
+                <option value="@interval.Id"
+                        selected="@(interval.Id == schedule?.MaintenanceIntervalId ? "selected" : null)">
+                    @interval.Name
+                </option>
+            }
+        </select>
+    </div>
+
+    <div class="col-md-4 align-self-end">
+        <button type="submit" class="btn @(schedule != null ? "btn-primary" : "btn-success")">
+            @(schedule != null ? "Save Schedule" : "Create Schedule")
+        </button>
+    </div>
+</form>
+
+@if (schedule != null)
 {
-    <li>@type.Name</li>
+    <p class="mt-2"><strong>Next Maintenance:</strong> @schedule.NextRunDate.ToShortDateString()</p>
+
+    <hr />
+
+    <h2>Maintenance History</h2>
+
+    @if (!schedule.MaintenanceHistory.Any())
+    {
+        <p class="text-muted">No maintenance history recorded yet.</p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Completed</th>
+                    <th>Due Date</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in schedule.MaintenanceHistory.OrderByDescending(h => h.CompletedAt))
+                {
+                    <tr>
+                        <td>@entry.CompletedAt.ToShortDateString()</td>
+                        <td>@entry.DueDateAtCompletion.ToShortDateString()</td>
+                        <td>@(entry.Notes ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <form asp-controller="MaintenanceSchedules" asp-action="Complete" method="post" class="row g-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@schedule.Id" />
+            <div class="col-md-6">
+                <label class="form-label">Notes (optional)</label>
+                <input type="text" name="notes" class="form-control" placeholder="e.g. Replaced valve, all clear" />
+            </div>
+            <div class="col-md-3 align-self-end">
+                <button type="submit" class="btn btn-success">Mark Complete</button>
+            </div>
+        </form>
+    }
 }
-</ul>
+
+<hr />
+
+<a asp-controller="Property" asp-action="Details" asp-route-id="@Model.SiteId" class="btn btn-secondary">
+    ← Back to Property
+</a>

@@ -82,6 +82,32 @@ namespace FyreApp.Controllers
             };
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CreateAsset(int siteId, string name, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                TempData["Error"] = "Asset name is required.";
+                return RedirectToAction("Details", new { id = siteId });
+            }
+
+            var site = await _context.Sites.FindAsync(new object[] { siteId }, ct);
+            if (site == null)
+                return NotFound();
+
+            var asset = new Asset
+            {
+                SiteId = siteId,
+                Name = name
+            };
+
+            _context.Assets.Add(asset);
+            await _context.SaveChangesAsync(ct);
+
+            return RedirectToAction("Details", new { id = siteId });
+        }
 
         // GET: /Sites/Details/5
         public async Task<IActionResult> Details(int id)

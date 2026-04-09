@@ -71,6 +71,6 @@ public interface IClientService
     Task<UpdateClientResult> UpdateAsync(int id, UpdateClientRequest request, CancellationToken ct = default);
     Task<DeleteClientResult> DeleteAsync(int id, bool hardDelete = false, CancellationToken ct = default);
     Task<List<Client>> GetAllAsync(bool activeOnly = true);
-    Task<ClientCreateResult> CreateAsync(string name, CancellationToken ct = default);
+    Task<ClientCreateResult> CreateAsync(CreateClientVm vm, CancellationToken ct = default);
     Task<Client?> GetByIdAsync(int id, CancellationToken ct = default);
 }

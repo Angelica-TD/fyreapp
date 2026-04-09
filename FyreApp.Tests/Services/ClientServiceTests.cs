@@ -1,6 +1,7 @@
 using FyreApp.Models;
 using FyreApp.Services.Clients;
 using FyreApp.Tests.Helpers;
+using FyreApp.ViewModels.Clients;
 using Xunit;
 
 namespace FyreApp.Tests.Services;
@@ -17,7 +18,7 @@ public class ClientServiceTests
         using var db = DbContextFactory.Create();
         var sut = new ClientService(db);
 
-        var result = await sut.CreateAsync("Acme Corp");
+        var result = await sut.CreateAsync(new CreateClientVm { Name = "Acme Corp", PrimaryContactName = "Jane", PrimaryContactMobile = "0400000000" });
 
         Assert.Equal(ClientCreateStatus.Success, result.Status);
         Assert.NotNull(result.ClientId);
@@ -31,7 +32,7 @@ public class ClientServiceTests
         await db.SaveChangesAsync();
 
         var sut = new ClientService(db);
-        var result = await sut.CreateAsync("Acme Corp");
+        var result = await sut.CreateAsync(new CreateClientVm { Name = "Acme Corp", PrimaryContactName = "Jane", PrimaryContactMobile = "0400000000" });
 
         Assert.Equal(ClientCreateStatus.DuplicateName, result.Status);
         Assert.NotNull(result.Existing);
@@ -43,7 +44,7 @@ public class ClientServiceTests
         using var db = DbContextFactory.Create();
         var sut = new ClientService(db);
 
-        var result = await sut.CreateAsync("   ");
+        var result = await sut.CreateAsync(new CreateClientVm { Name = "   ", PrimaryContactName = "Jane", PrimaryContactMobile = "0400000000" });
 
         Assert.Equal(ClientCreateStatus.ValidationError, result.Status);
     }

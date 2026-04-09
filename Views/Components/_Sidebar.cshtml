@@ -1,3 +1,4 @@
+@inject IWebHostEnvironment _sidebarEnv
 <nav class="sidebar-nav">
     <ul class="nav nav-pills flex-column gap-1">
 
@@ -72,6 +73,21 @@
 
         @if (User.IsInRole("Admin"))
         {
+            @if (_sidebarEnv.IsDevelopment())
+            {
+                <!-- Dev Tools (Development only) -->
+                <li class="nav-item">
+                    <a class="nav-link sidebar-link"
+                       asp-controller="Dev"
+                       asp-action="Index"
+                       nav-active
+                       nav-active-controller-only>
+                        <i class="bi bi-bug-fill sidebar-icon"></i>
+                        <span class="sidebar-label">Dev Tools</span>
+                    </a>
+                </li>
+            }
+
             <!-- Users (Admin only) -->
             <li class="nav-item has-subnav">
                 <a class="nav-link sidebar-link"

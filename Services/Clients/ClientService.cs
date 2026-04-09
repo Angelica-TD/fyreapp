@@ -1,5 +1,6 @@
 using FyreApp.Data;
 using FyreApp.Models;
+using FyreApp.ViewModels.Clients;
 using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Clients;
@@ -81,9 +82,9 @@ public sealed class ClientService : IClientService
             : await query.ToListAsync();
     }
 
-    public async Task<ClientCreateResult> CreateAsync(string name, CancellationToken ct = default)
+    public async Task<ClientCreateResult> CreateAsync(CreateClientVm vm, CancellationToken ct = default)
     {
-        name = (name ?? string.Empty).Trim();
+        var name = (vm.Name ?? string.Empty).Trim();
 
         if (string.IsNullOrWhiteSpace(name))
             return new(ClientCreateStatus.ValidationError, ErrorMessage: "Client name is required.");
@@ -94,7 +95,13 @@ public sealed class ClientService : IClientService
         if (existing is not null)
             return new(ClientCreateStatus.DuplicateName, Existing: existing);
 
-        var client = new Client { Name = name };
+        var client = new Client
+        {
+            Name = name,
+            PrimaryContactName = vm.PrimaryContactName?.Trim(),
+            PrimaryContactEmail = vm.PrimaryContactEmail?.Trim(),
+            PrimaryContactMobile = vm.PrimaryContactMobile?.Trim(),
+        };
         _db.Clients.Add(client);
         await _db.SaveChangesAsync(ct);
 

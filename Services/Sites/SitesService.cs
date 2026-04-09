@@ -25,6 +25,11 @@ public sealed class SitesService
         if (string.IsNullOrWhiteSpace(name))
             return new(CreateSiteStatus.ValidationError, null, Error: "Property name is required.");
 
+        var hasGoogle = !string.IsNullOrWhiteSpace(NT(req.Google?.PlaceId));
+        var hasManual = !string.IsNullOrWhiteSpace(req.Manual?.AddressLine1?.Trim());
+        if (!hasGoogle && !hasManual)
+            return new(CreateSiteStatus.ValidationError, null, Error: "Address is required.");
+
         var clientExists = await _db.Clients.AnyAsync(c => c.Id == req.ClientId, ct);
         if (!clientExists)
             return new(CreateSiteStatus.NotFound, null, Error: "Client not found");

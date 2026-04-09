@@ -46,10 +46,27 @@
 
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label asp-for="Name" class="form-label"></label>
+                            <label asp-for="Name" class="form-label">Client Name</label>
                             <input asp-for="Name" class="form-control" autocomplete="off" id="createClientName" />
                             <span asp-validation-for="Name" class="text-danger"></span>
                         </div>
+                        <div class="mb-3">
+                            <label asp-for="PrimaryContactName" class="form-label">Primary Contact Name</label>
+                            <input asp-for="PrimaryContactName" class="form-control" autocomplete="off" />
+                            <span asp-validation-for="PrimaryContactName" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="PrimaryContactMobile" class="form-label">Mobile</label>
+                            <input asp-for="PrimaryContactMobile" class="form-control" type="tel" autocomplete="off" />
+                            <span asp-validation-for="PrimaryContactMobile" class="text-danger"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label asp-for="PrimaryContactEmail" class="form-label">Email</label>
+                            <input asp-for="PrimaryContactEmail" class="form-control" type="email" autocomplete="off" />
+                            <span asp-validation-for="PrimaryContactEmail" class="text-danger small"></span>
+                            <div class="form-text">Mobile or email is required.</div>
+                        </div>
+                        <div class="text-danger small d-none js-contact-error">Please provide a mobile number or email address.</div>
                     </div>
 
                     <div class="modal-footer">
@@ -58,6 +75,34 @@
                     </div>
 
                 </form>
+                <script>
+                (function () {
+                    const form = document.querySelector('#createClientModal form');
+                    if (!form) return;
+                    const emailInput  = form.querySelector('[name="PrimaryContactEmail"]');
+                    const mobileInput = form.querySelector('[name="PrimaryContactMobile"]');
+
+                    form.addEventListener('submit', e => {
+                        const hasEmail  = emailInput?.value.trim();
+                        const hasMobile = mobileInput?.value.trim();
+                        if (!hasEmail && !hasMobile) {
+                            e.preventDefault();
+                            emailInput?.classList.add('is-invalid');
+                            mobileInput?.classList.add('is-invalid');
+                            const msg = form.querySelector('.js-contact-error');
+                            if (msg) msg.classList.remove('d-none');
+                        }
+                    });
+
+                    [emailInput, mobileInput].forEach(el => el?.addEventListener('input', () => {
+                        if (emailInput?.value.trim() || mobileInput?.value.trim()) {
+                            emailInput?.classList.remove('is-invalid');
+                            mobileInput?.classList.remove('is-invalid');
+                            form.querySelector('.js-contact-error')?.classList.add('d-none');
+                        }
+                    }));
+                })();
+                </script>
             }
 
 
