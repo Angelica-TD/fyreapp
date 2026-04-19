@@ -1,0 +1,49 @@
+@model FyreApp.Models.Site
+
+<form asp-action="SiteUpdate" asp-controller="Dev" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="Id" value="@Model.Id" />
+
+    <div class="row g-2">
+        <div class="col-12">
+            <label class="form-label fw-semibold">Client</label>
+            <input type="text" class="form-control form-control-sm" value="@Model.Client.Name" disabled />
+        </div>
+        <div class="col-12">
+            <label class="form-label fw-semibold">Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" name="Name" value="@Model.Name" required maxlength="200" />
+        </div>
+
+        <div class="col-12 mt-1"><h6 class="text-muted border-bottom pb-1 mb-1">Address</h6></div>
+
+        <div class="col-12">
+            <label class="form-label fw-semibold">Display Address</label>
+            <input type="text" class="form-control form-control-sm" name="AddressDisplay" value="@Model.AddressDisplay" maxlength="300" />
+        </div>
+        <div class="col-12">
+            <label class="form-label fw-semibold">Line 1</label>
+            <input type="text" class="form-control form-control-sm" name="AddressLine1" value="@Model.AddressLine1" maxlength="200" />
+        </div>
+        <div class="col-12">
+            <label class="form-label fw-semibold">Line 2</label>
+            <input type="text" class="form-control form-control-sm" name="AddressLine2" value="@Model.AddressLine2" maxlength="200" />
+        </div>
+        <div class="col-md-5">
+            <label class="form-label fw-semibold">Suburb</label>
+            <input type="text" class="form-control form-control-sm" name="Suburb" value="@Model.Suburb" maxlength="80" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold">State</label>
+            <input type="text" class="form-control form-control-sm" name="State" value="@Model.State" maxlength="20" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-semibold">Postcode</label>
+            <input type="text" class="form-control form-control-sm" name="Postcode" value="@Model.Postcode" maxlength="10" />
+        </div>
+
+        <div class="col-12 d-flex justify-content-end gap-2 pt-2 border-top mt-1">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sm btn-primary">Save changes</button>
+        </div>
+    </div>
+</form>

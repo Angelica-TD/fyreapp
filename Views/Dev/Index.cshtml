@@ -51,6 +51,16 @@
             Asset Catalogue <span class="badge bg-secondary">@Model.Catalogue.Count</span>
         </button>
     </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-techs">
+            Techs <span class="badge bg-secondary">@Model.Techs.Count</span>
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-admins">
+            Admins <span class="badge bg-secondary">@Model.Admins.Count</span>
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content">
@@ -76,7 +86,9 @@
                 <tbody>
                     @foreach (var c in Model.Clients)
                     {
-                        <tr>
+                        <tr class="js-detail-row" style="cursor:pointer"
+                            data-detail-url="@Url.Action("ClientDetail", "Dev", new { id = c.Id })"
+                            data-detail-title="@c.Name">
                             <td><input type="checkbox" name="ids" value="@c.Id" class="js-row-check" /></td>
                             <td>@c.Name</td>
                             <td>@c.SiteCount</td>
@@ -110,7 +122,9 @@
                 <tbody>
                     @foreach (var s in Model.Sites)
                     {
-                        <tr>
+                        <tr class="js-detail-row" style="cursor:pointer"
+                            data-detail-url="@Url.Action("SiteDetail", "Dev", new { id = s.Id })"
+                            data-detail-title="@s.Name">
                             <td><input type="checkbox" name="ids" value="@s.Id" class="js-row-check" /></td>
                             <td>@s.Name</td>
                             <td>@s.ClientName</td>
@@ -144,7 +158,9 @@
                 <tbody>
                     @foreach (var a in Model.Assets)
                     {
-                        <tr>
+                        <tr class="js-detail-row" style="cursor:pointer"
+                            data-detail-url="@Url.Action("AssetDetail", "Dev", new { id = a.Id })"
+                            data-detail-title="@a.Name">
                             <td><input type="checkbox" name="ids" value="@a.Id" class="js-row-check" /></td>
                             <td>@a.Name</td>
                             <td>@a.SiteName</td>
@@ -178,7 +194,9 @@
                 <tbody>
                     @foreach (var t in Model.Tasks)
                     {
-                        <tr>
+                        <tr class="js-detail-row" style="cursor:pointer"
+                            data-detail-url="@Url.Action("TaskDetail", "Dev", new { id = t.Id })"
+                            data-detail-title="@t.Title">
                             <td><input type="checkbox" name="ids" value="@t.Id" class="js-row-check" /></td>
                             <td>@t.Title</td>
                             <td>@t.ClientName</td>
@@ -225,10 +243,116 @@
         </table>
     </div>
 
+    @* ── Techs ── *@
+    <div class="tab-pane fade" id="tab-techs">
+        <form method="post" asp-action="BulkDeleteUsers" class="js-bulk-form">
+            <input type="hidden" name="role" value="Tech" />
+            @Html.AntiForgeryToken()
+            <div class="d-flex gap-2 mb-2">
+                <button type="submit" class="btn btn-danger btn-sm js-delete-btn" disabled>Delete selected</button>
+                <span class="text-muted small align-self-center js-selected-count"></span>
+            </div>
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" class="js-select-all" /></th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model.Techs)
+                    {
+                        <tr class="js-detail-row" style="cursor:pointer"
+                            data-detail-url="@Url.Action("UserDetail", "Dev", new { id = t.Id })"
+                            data-detail-title="@t.FullName">
+                            <td><input type="checkbox" name="ids" value="@t.Id" class="js-row-check" /></td>
+                            <td>@t.FullName</td>
+                            <td class="text-muted small">@t.Email</td>
+                            <td>
+                                @if (t.IsActive)
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Inactive</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </form>
+    </div>
+
+    @* ── Admins ── *@
+    <div class="tab-pane fade" id="tab-admins">
+        <form method="post" asp-action="BulkDeleteUsers" class="js-bulk-form">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="role" value="Admin" />
+            <div class="d-flex gap-2 mb-2">
+                <button type="submit" class="btn btn-danger btn-sm js-delete-btn" disabled>Delete selected</button>
+                <span class="text-muted small align-self-center js-selected-count"></span>
+            </div>
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" class="js-select-all" /></th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Model.Admins)
+                    {
+                        <tr class="js-detail-row" style="cursor:pointer"
+                            data-detail-url="@Url.Action("UserDetail", "Dev", new { id = a.Id })"
+                            data-detail-title="@a.FullName">
+                            <td><input type="checkbox" name="ids" value="@a.Id" class="js-row-check" /></td>
+                            <td>@a.FullName</td>
+                            <td class="text-muted small">@a.Email</td>
+                            <td>
+                                @if (a.IsActive)
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Inactive</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </form>
+    </div>
+
+</div>
+
+@* ── Detail modal ── *@
+<div class="modal fade" id="devDetailModal" tabindex="-1" aria-labelledby="devDetailModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title" id="devDetailModalTitle"></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="devDetailModalBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-secondary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @section Scripts {
 <script>
+// ── Bulk select / delete ──
 document.querySelectorAll('.js-bulk-form').forEach(form => {
     const selectAll = form.querySelector('.js-select-all');
     const deleteBtn = form.querySelector('.js-delete-btn');
@@ -251,11 +375,43 @@ document.querySelectorAll('.js-bulk-form').forEach(form => {
 
     form.addEventListener('submit', e => {
         const checked = form.querySelectorAll('.js-row-check:checked');
-        const entityType = form.querySelector('[name="entityType"]').value;
-        if (!confirm(`Permanently delete ${checked.length} ${entityType}(s) and all related data?`)) {
+        const entityTypeEl = form.querySelector('[name="entityType"]') ?? form.querySelector('[name="role"]');
+        const label = entityTypeEl ? entityTypeEl.value : 'item';
+        if (!confirm(`Permanently delete ${checked.length} ${label}(s) and all related data?`)) {
             e.preventDefault();
         }
     });
+});
+
+// ── Detail modal ──
+const detailModalEl = document.getElementById('devDetailModal');
+const detailModal = new bootstrap.Modal(detailModalEl);
+
+document.querySelectorAll('.js-detail-row').forEach(row => {
+    row.addEventListener('click', async e => {
+        if (e.target.closest('input[type=checkbox]')) return;
+        document.getElementById('devDetailModalTitle').textContent = row.dataset.detailTitle || 'Details';
+        document.getElementById('devDetailModalBody').innerHTML =
+            '<div class="text-center py-4"><div class="spinner-border spinner-border-sm text-secondary"></div></div>';
+        detailModal.show();
+        try {
+            const res = await fetch(row.dataset.detailUrl);
+            document.getElementById('devDetailModalBody').innerHTML = await res.text();
+        } catch {
+            document.getElementById('devDetailModalBody').innerHTML =
+                '<div class="alert alert-danger">Failed to load details.</div>';
+        }
+    });
+});
+
+// ── Tab persistence ──
+const savedTab = sessionStorage.getItem('devActiveTab');
+if (savedTab) {
+    const btn = document.querySelector(`[data-bs-target="${savedTab}"]`);
+    if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
+}
+document.querySelectorAll('#devTabs button').forEach(btn => {
+    btn.addEventListener('shown.bs.tab', () => sessionStorage.setItem('devActiveTab', btn.dataset.bsTarget));
 });
 </script>
 }

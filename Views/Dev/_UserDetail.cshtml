@@ -1,0 +1,59 @@
+@model FyreApp.Models.ApplicationUser
+
+<form asp-action="UserUpdate" asp-controller="Dev" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="Id" value="@Model.Id" />
+
+    <div class="row g-2">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">First Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" name="FirstName" value="@Model.FirstName" required maxlength="100" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Last Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" name="LastName" value="@Model.LastName" required maxlength="100" />
+        </div>
+        <div class="col-md-8">
+            <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+            <input type="email" class="form-control form-control-sm" name="Email" value="@Model.Email" required maxlength="320" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold">Phone</label>
+            <input type="text" class="form-control form-control-sm" name="PhoneNumber" value="@Model.PhoneNumber" />
+        </div>
+        <div class="col-12">
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" name="IsActive" value="true" id="userIsActive" @(Model.IsActive ? "checked" : "") />
+                <input type="hidden" name="IsActive" value="false" />
+                <label class="form-check-label" for="userIsActive">Active</label>
+            </div>
+        </div>
+
+        <div class="col-12 mt-1"><h6 class="text-muted border-bottom pb-1 mb-1">Password</h6></div>
+
+        <div class="col-12">
+            <label class="form-label fw-semibold">Set New Password <span class="text-muted fw-normal">(leave blank to keep current)</span></label>
+            <div class="input-group input-group-sm">
+                <input type="text" class="form-control" name="NewPassword" id="newPasswordField"
+                       autocomplete="new-password" maxlength="256" placeholder="Enter new password…" />
+                <button type="button" class="btn btn-outline-secondary" id="togglePasswordBtn" title="Show/hide">
+                    👁
+                </button>
+            </div>
+        </div>
+
+        <div class="col-12 d-flex justify-content-end gap-2 pt-2 border-top mt-1">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-sm btn-primary">Save changes</button>
+        </div>
+    </div>
+</form>
+
+<script>
+(function () {
+    const field = document.getElementById('newPasswordField');
+    document.getElementById('togglePasswordBtn').addEventListener('click', () => {
+        field.type = field.type === 'text' ? 'password' : 'text';
+    });
+})();
+</script>
