@@ -296,7 +296,7 @@
                     </div>
 
                     <div class="row g-2 mb-2">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Amount ($)</label>
                             <div class="input-group">
                                 <span class="input-group-text">$</span>
@@ -304,19 +304,19 @@
                                        type="number" min="0" step="0.01" value="@Model.Create.Amount" />
                             </div>
                         </div>
-                        <div class="col-md-6" id="createExpiryCol">
+                        <div class="col-md-4">
                             <label class="form-label">Quote Expiry</label>
                             <input name="Create.ExpiryDate" id="quoteExpiry" class="form-control" type="date"
                                    value="@(Model.Create.ExpiryDate.HasValue ? Model.Create.ExpiryDate.Value.ToString("yyyy-MM-dd") : "")" />
                         </div>
-                        <div class="col-md-6 d-none" id="createIntervalCol">
+                        <div class="col-md-4 @(Model.Create.QuoteType == ServiceQuoteType.Routine ? "" : "d-none")" id="createIntervalCol">
                             <label class="form-label">Interval</label>
                             <select name="Create.MaintenanceIntervalId" class="form-select">
                                 <option value="">-- Select interval --</option>
                                 @foreach (var interval in Model.Intervals)
                                 {
                                     <option value="@interval.Id"
-                                            selected="@(Model.Create.MaintenanceIntervalId == interval.Id)">
+                                            selected="@(Model.Create.MaintenanceIntervalId == interval.Id ? "selected" : null)">
                                         @interval.Name
                                     </option>
                                 }
@@ -357,20 +357,16 @@
 
     const preselectedClientId = @(Model.Create.ClientId.HasValue ? Model.Create.ClientId.Value.ToString() : "null");
     const preselectedSiteId   = @(Model.Create.SiteId.HasValue   ? Model.Create.SiteId.Value.ToString()   : "null");
-    const routineValue        = '@((int)ServiceQuoteType.Routine)';
-
-    // ── Quote type toggle (expiry ↔ interval) ────────────────────────────
+    // ── Interval visibility (only shown for Routine) ─────────────────────
     const createQuoteTypeSel = document.getElementById('createQuoteType');
-    const createExpiryCol    = document.getElementById('createExpiryCol');
     const createIntervalCol  = document.getElementById('createIntervalCol');
+    const routineValue       = '@((int)ServiceQuoteType.Routine)';
 
-    function toggleCreateTypeFields() {
-        const isRoutine = createQuoteTypeSel.value === routineValue;
-        createExpiryCol.classList.toggle('d-none', isRoutine);
-        createIntervalCol.classList.toggle('d-none', !isRoutine);
+    function toggleCreateInterval() {
+        createIntervalCol.classList.toggle('d-none', createQuoteTypeSel.value !== routineValue);
     }
-    createQuoteTypeSel.addEventListener('change', toggleCreateTypeFields);
-    toggleCreateTypeFields();
+    createQuoteTypeSel.addEventListener('change', toggleCreateInterval);
+    toggleCreateInterval();
 
     // ── Site-group enable/disable ─────────────────────────────────────────
     // Both site forms share the same field names (NewSite.*).

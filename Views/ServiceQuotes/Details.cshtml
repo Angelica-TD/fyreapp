@@ -189,21 +189,17 @@
                                 <input asp-for="Edit.Amount" class="form-control" type="number" min="0" step="0.01" />
                                 <span asp-validation-for="Edit.Amount" class="text-danger small"></span>
                             </div>
-                            <div class="col-md-4" id="editExpiryCol">
+                            <div class="col-md-4">
                                 <label asp-for="Edit.ExpiryDate" class="form-label">Quote Expiry</label>
                                 <input asp-for="Edit.ExpiryDate" class="form-control" type="date" />
                             </div>
-                            <div class="col-md-4 d-none" id="editIntervalCol">
+                        </div>
+                        <div class="row g-2 mb-2 @(Model.Edit.QuoteType == ServiceQuoteType.Routine ? "" : "d-none")" id="editIntervalRow">
+                            <div class="col-md-4">
                                 <label asp-for="Edit.MaintenanceIntervalId" class="form-label">Interval</label>
-                                <select asp-for="Edit.MaintenanceIntervalId" class="form-select">
+                                <select asp-for="Edit.MaintenanceIntervalId" class="form-select"
+                                        asp-items="@(new SelectList(Model.Intervals, "Id", "Name"))">
                                     <option value="">-- Select interval --</option>
-                                    @foreach (var interval in Model.Intervals)
-                                    {
-                                        <option value="@interval.Id"
-                                                selected="@(Model.Edit.MaintenanceIntervalId == interval.Id)">
-                                            @interval.Name
-                                        </option>
-                                    }
                                 </select>
                             </div>
                         </div>
@@ -242,19 +238,15 @@
 
     <script>
     (function () {
-        const quoteTypeSel  = document.getElementById('Edit_QuoteType');
-        const expiryCol     = document.getElementById('editExpiryCol');
-        const intervalCol   = document.getElementById('editIntervalCol');
-        const routineValue  = '@((int)ServiceQuoteType.Routine)';
+        const quoteTypeSel = document.getElementById('Edit_QuoteType');
+        const intervalRow  = document.getElementById('editIntervalRow');
+        const routineValue = '@((int)ServiceQuoteType.Routine)';
 
-        function toggleEditTypeFields() {
-            const isRoutine = quoteTypeSel.value === routineValue;
-            expiryCol.classList.toggle('d-none', isRoutine);
-            intervalCol.classList.toggle('d-none', !isRoutine);
+        function toggleEditInterval() {
+            intervalRow.classList.toggle('d-none', quoteTypeSel.value !== routineValue);
         }
-
-        quoteTypeSel.addEventListener('change', toggleEditTypeFields);
-        toggleEditTypeFields();
+        quoteTypeSel.addEventListener('change', toggleEditInterval);
+        toggleEditInterval();
     })();
     </script>
 
