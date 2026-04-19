@@ -283,8 +283,13 @@ public class DevController : Controller
 
         if (!string.IsNullOrWhiteSpace(vm.NewPassword))
         {
-            var token = await _users.GeneratePasswordResetTokenAsync(user);
-            await _users.ResetPasswordAsync(user, token, vm.NewPassword);
+            await _users.RemovePasswordAsync(user);
+            var pwResult = await _users.AddPasswordAsync(user, vm.NewPassword);
+            if (!pwResult.Succeeded)
+            {
+                TempData["Error"] = "Password not updated: " + string.Join(" ", pwResult.Errors.Select(e => e.Description));
+                return RedirectToAction(nameof(Index));
+            }
         }
 
         TempData["Success"] = $"{user.FullName} updated.";

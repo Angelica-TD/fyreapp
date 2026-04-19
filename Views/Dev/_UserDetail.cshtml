@@ -34,7 +34,7 @@
         <div class="col-12">
             <label class="form-label fw-semibold">Set New Password <span class="text-muted fw-normal">(leave blank to keep current)</span></label>
             <div class="input-group input-group-sm">
-                <input type="text" class="form-control" name="NewPassword" id="newPasswordField"
+                <input type="password" class="form-control" name="NewPassword" id="newPasswordField"
                        autocomplete="new-password" maxlength="256" placeholder="Enter new password…" />
                 <button type="button" class="btn btn-outline-secondary" id="togglePasswordBtn" title="Show/hide">
                     👁
@@ -49,11 +49,3 @@
     </div>
 </form>
 
-<script>
-(function () {
-    const field = document.getElementById('newPasswordField');
-    document.getElementById('togglePasswordBtn').addEventListener('click', () => {
-        field.type = field.type === 'text' ? 'password' : 'text';
-    });
-})();
-</script>

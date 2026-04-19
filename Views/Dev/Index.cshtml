@@ -404,6 +404,14 @@ document.querySelectorAll('.js-detail-row').forEach(row => {
     });
 });
 
+// ── Password toggle (delegated — partial scripts don't execute when injected via innerHTML) ──
+detailModalEl.addEventListener('click', e => {
+    if (e.target.id === 'togglePasswordBtn') {
+        const field = document.getElementById('newPasswordField');
+        if (field) field.type = field.type === 'password' ? 'text' : 'password';
+    }
+});
+
 // ── Tab persistence ──
 const savedTab = sessionStorage.getItem('devActiveTab');
 if (savedTab) {
