@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using FyreApp.Services;
 using FyreApp.Services.Techs;
+using FyreApp.Services.ServiceQuotes;
 
 var builder = WebApplication.CreateBuilder(args);
 var authEnabled = builder.Configuration.GetValue<bool>("Auth:Enabled", true);
@@ -25,6 +26,7 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IClientTaskService, ClientTaskService>();
 builder.Services.AddScoped<ITechService, TechService>();
+builder.Services.AddScoped<IServiceQuoteService, ServiceQuoteService>();
 
 builder.Services.AddControllersWithViews(options =>
 {

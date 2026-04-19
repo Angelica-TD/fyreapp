@@ -1,0 +1,110 @@
+@model FyreApp.ViewModels.ServiceQuotes.ServiceQuoteIndexVm
+@using FyreApp.Models
+
+@{
+    ViewData["Title"] = "Service Quotes";
+}
+
+<h1 class="m-0">Service Quotes</h1>
+
+@if (User.IsInRole("Admin"))
+{
+    <div>
+        <button class="btn btn-primary"
+                type="button"
+                data-bs-toggle="modal"
+                data-bs-target="#createQuoteModal">
+            <i class="bi bi-plus-lg"></i> New quote
+        </button>
+    </div>
+}
+
+@if (TempData["Success"] is string successMsg)
+{
+    <div class="alert alert-success">@successMsg</div>
+}
+
+@if (TempData["Error"] is string errorMsg)
+{
+    <div class="alert alert-danger">@errorMsg</div>
+}
+
+<div class="card">
+    <div class="card-body p-0">
+        @if (Model.Quotes.Count == 0)
+        {
+            <div class="p-4 text-muted">No quotes yet.</div>
+        }
+        else
+        {
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Quote #</th>
+                        <th>Client</th>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th class="text-end">Amount</th>
+                        <th>Expiry</th>
+                        <th>Created</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var q in Model.Quotes)
+                    {
+                        <tr>
+                            <td class="text-nowrap">
+                                <a asp-action="Details" asp-route-id="@q.Id">@q.QuoteNumber</a>
+                            </td>
+                            <td>@q.Client?.Name</td>
+                            <td>@q.Title</td>
+                            <td>
+                                <span class="badge @StatusBadgeClass(q.Status)">@q.Status</span>
+                            </td>
+                            <td class="text-end">@q.Amount.ToString("C")</td>
+                            <td>@(q.ExpiryDate.HasValue ? q.ExpiryDate.Value.ToString("dd MMM yyyy") : "—")</td>
+                            <td class="text-nowrap">@q.CreatedUtc.ToString("dd MMM yyyy")</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-secondary"
+                                   asp-action="Details"
+                                   asp-route-id="@q.Id">View</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@if (User.IsInRole("Admin"))
+{
+    @await Html.PartialAsync("_CreateServiceQuoteModal", Model)
+}
+
+@functions {
+    string StatusBadgeClass(ServiceQuoteStatus status) => status switch
+    {
+        ServiceQuoteStatus.Draft    => "bg-secondary",
+        ServiceQuoteStatus.Sent     => "bg-info text-dark",
+        ServiceQuoteStatus.Accepted => "bg-success",
+        ServiceQuoteStatus.Declined => "bg-danger",
+        ServiceQuoteStatus.Expired  => "bg-warning text-dark",
+        _                           => "bg-secondary"
+    };
+}
+
+@section Scripts
+{
+    <partial name="_ValidationScriptsPartial" />
+
+    @if (Model.OpenCreateModal)
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                new bootstrap.Modal(document.getElementById("createQuoteModal")).show();
+            });
+        </script>
+    }
+}

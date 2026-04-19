@@ -21,6 +21,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<MaintenanceHistory> MaintenanceHistory => Set<MaintenanceHistory>();
     public DbSet<ClientTask> ClientTasks => Set<ClientTask>();
     public DbSet<AssetCatalogue> AssetCatalogue => Set<AssetCatalogue>();
+    public DbSet<ServiceQuote> ServiceQuotes => Set<ServiceQuote>();
 
 
 
@@ -149,6 +150,35 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<AssetCatalogue>()
             .HasIndex(a => a.Name)
             .IsUnique();
+
+        modelBuilder.Entity<ServiceQuote>(entity =>
+        {
+            entity.HasOne(q => q.Client)
+                .WithMany()
+                .HasForeignKey(q => q.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(q => q.QuoteNumber).IsRequired().HasMaxLength(20);
+            entity.HasIndex(q => q.QuoteNumber).IsUnique();
+
+            entity.Property(q => q.Title).IsRequired().HasMaxLength(200);
+            entity.Property(q => q.Description).HasMaxLength(4000);
+            entity.Property(q => q.Notes).HasMaxLength(4000);
+
+            entity.Property(q => q.Amount)
+                .HasColumnType("numeric(10,2)");
+
+            entity.Property(q => q.CreatedUtc)
+                .HasColumnType("timestamptz")
+                .HasDefaultValueSql("now()")
+                .ValueGeneratedOnAdd();
+
+            entity.Property(q => q.UpdatedUtc).HasColumnType("timestamptz");
+            entity.Property(q => q.ExpiryDate).HasColumnType("timestamptz");
+
+            entity.HasIndex(q => q.ClientId);
+            entity.HasIndex(q => q.Status);
+        });
     }
 
 }
