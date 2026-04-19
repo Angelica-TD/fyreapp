@@ -1,0 +1,130 @@
+@model FyreApp.Models.ServiceQuote
+@using FyreApp.Models
+
+@{
+    Layout = "~/Views/Shared/_LayoutPublic.cshtml";
+    ViewData["Title"] = $"Quote {Model.QuoteNumber}";
+
+    var action = TempData["QuoteAction"] as string;
+    var isSent = Model.Status == ServiceQuoteStatus.Sent;
+    var isAccepted = Model.Status == ServiceQuoteStatus.Accepted;
+    var isDeclined = Model.Status == ServiceQuoteStatus.Declined;
+    var quoteTypeName = Model.QuoteType == ServiceQuoteType.OneTime ? "One-Time" : "Routine / Contract";
+}
+
+<div class="card shadow-sm mx-auto" style="max-width:640px;">
+    <div class="card-header py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <div class="fw-semibold fs-5">@Model.QuoteNumber</div>
+                <div class="text-muted small">For @Model.Client?.Name</div>
+            </div>
+            <span class="badge fs-6 @StatusBadgeClass(Model.Status)">@Model.Status</span>
+        </div>
+    </div>
+
+    <div class="card-body">
+
+        @if (action == "approved")
+        {
+            <div class="alert alert-success">You have <strong>approved</strong> this quote. Thank you!</div>
+        }
+        else if (action == "declined")
+        {
+            <div class="alert alert-secondary">You have <strong>declined</strong> this quote.</div>
+        }
+
+        @if (isAccepted && action != "approved")
+        {
+            <div class="alert alert-success">This quote has been accepted.</div>
+        }
+        else if (isDeclined && action != "declined")
+        {
+            <div class="alert alert-secondary">This quote has been declined.</div>
+        }
+        else if (Model.Status == ServiceQuoteStatus.Draft || Model.Status == ServiceQuoteStatus.Expired)
+        {
+            <div class="alert alert-warning">This quote is no longer available for review.</div>
+        }
+
+        <table class="table table-sm mb-4">
+            <tbody>
+                <tr>
+                    <th class="text-muted fw-normal" style="width:40%;">Title</th>
+                    <td>@Model.Title</td>
+                </tr>
+                @if (Model.Site is not null)
+                {
+                    <tr>
+                        <th class="text-muted fw-normal">Property</th>
+                        <td>@Model.Site.Name</td>
+                    </tr>
+                }
+                <tr>
+                    <th class="text-muted fw-normal">Type</th>
+                    <td>@quoteTypeName</td>
+                </tr>
+                <tr>
+                    <th class="text-muted fw-normal">Amount</th>
+                    <td class="fw-semibold">@Model.Amount.ToString("C")</td>
+                </tr>
+                @if (Model.ExpiryDate.HasValue)
+                {
+                    <tr>
+                        <th class="text-muted fw-normal">Quote expires</th>
+                        <td>@Model.ExpiryDate.Value.ToString("dd MMM yyyy")</td>
+                    </tr>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Description))
+                {
+                    <tr>
+                        <th class="text-muted fw-normal">Description</th>
+                        <td style="white-space:pre-line;">@Model.Description</td>
+                    </tr>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Notes))
+                {
+                    <tr>
+                        <th class="text-muted fw-normal">Notes</th>
+                        <td style="white-space:pre-line;">@Model.Notes</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        @if (isSent)
+        {
+            <hr />
+            <p class="text-muted small mb-3">Please review the details above, then accept or decline this quote.</p>
+            <div class="d-flex gap-3">
+                <form asp-action="Approve" asp-controller="ServiceQuotes" asp-route-token="@Model.ClientToken" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-success px-4"
+                            onclick="return confirm('Accept this quote?')">
+                        <i class="bi bi-check-lg"></i> Accept quote
+                    </button>
+                </form>
+                <form asp-action="Decline" asp-controller="ServiceQuotes" asp-route-token="@Model.ClientToken" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-danger px-4"
+                            onclick="return confirm('Decline this quote?')">
+                        <i class="bi bi-x-lg"></i> Decline
+                    </button>
+                </form>
+            </div>
+        }
+
+    </div>
+</div>
+
+@functions {
+    string StatusBadgeClass(ServiceQuoteStatus status) => status switch
+    {
+        ServiceQuoteStatus.Draft    => "bg-secondary",
+        ServiceQuoteStatus.Sent     => "bg-info text-dark",
+        ServiceQuoteStatus.Accepted => "bg-success",
+        ServiceQuoteStatus.Declined => "bg-danger",
+        ServiceQuoteStatus.Expired  => "bg-warning text-dark",
+        _                           => "bg-secondary"
+    };
+}

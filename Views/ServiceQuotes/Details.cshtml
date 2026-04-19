@@ -3,27 +3,39 @@
 
 @{
     ViewData["Title"] = $"Quote {Model.Quote.QuoteNumber}";
+    var q = Model.Quote;
+    var canSend = q.Status is ServiceQuoteStatus.Draft or ServiceQuoteStatus.Sent;
 }
 
-<div class="d-flex justify-content-between align-items-start">
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
     <div>
-        <h1 class="m-0">@Model.Quote.QuoteNumber</h1>
+        <h1 class="m-0">@q.QuoteNumber</h1>
         <p class="text-muted mb-0">
-            <a asp-controller="Clients" asp-action="Details" asp-route-id="@Model.Quote.ClientId">
-                @Model.Quote.Client?.Name
-            </a>
+            <a asp-controller="Clients" asp-action="Details" asp-route-id="@q.ClientId">@q.Client?.Name</a>
         </p>
     </div>
+
     @if (User.IsInRole("Admin"))
     {
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+            @if (canSend)
+            {
+                <form asp-action="Send" asp-route-id="@q.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-success"
+                            onclick="return confirm('Send this quote to @Html.Raw(q.Client?.PrimaryContactEmail ?? q.Client?.Name ?? "the client")?')">
+                        <i class="bi bi-send"></i>
+                        @(q.Status == ServiceQuoteStatus.Sent ? "Re-send to client" : "Send to client")
+                    </button>
+                </form>
+            }
             <button class="btn btn-outline-primary"
                     type="button"
                     data-bs-toggle="modal"
                     data-bs-target="#editQuoteModal">
                 <i class="bi bi-pencil"></i> Edit
             </button>
-            <form asp-action="Delete" asp-route-id="@Model.Quote.Id" method="post"
+            <form asp-action="Delete" asp-route-id="@q.Id" method="post"
                   onsubmit="return confirm('Delete this quote? This cannot be undone.');">
                 @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-outline-danger">
@@ -47,47 +59,75 @@
 <div class="card">
     <div class="card-body">
         <div class="row g-3">
-            <div class="col-md-6">
+            <div class="col-md-5">
                 <div class="text-muted small">Title</div>
-                <div>@Model.Quote.Title</div>
+                <div>@q.Title</div>
             </div>
+            @if (q.Site is not null)
+            {
+                <div class="col-md-4">
+                    <div class="text-muted small">Property</div>
+                    <div>
+                        <a asp-controller="Property" asp-action="Details" asp-route-id="@q.Site.Id">
+                            @q.Site.Name
+                        </a>
+                    </div>
+                </div>
+            }
             <div class="col-md-3">
+                <div class="text-muted small">Type</div>
+                <div>@(q.QuoteType == ServiceQuoteType.OneTime ? "One-Time" : "Routine / Contract")</div>
+            </div>
+            <div class="col-md-2">
                 <div class="text-muted small">Status</div>
                 <div>
-                    <span class="badge @StatusBadgeClass(Model.Quote.Status)">@Model.Quote.Status</span>
+                    <span class="badge @StatusBadgeClass(q.Status)">@q.Status</span>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="text-muted small">Amount</div>
-                <div class="fw-semibold">@Model.Quote.Amount.ToString("C")</div>
+                <div class="fw-semibold">@q.Amount.ToString("C")</div>
             </div>
-            @if (!string.IsNullOrWhiteSpace(Model.Quote.Description))
+
+            @if (!string.IsNullOrWhiteSpace(q.Description))
             {
                 <div class="col-12">
                     <div class="text-muted small">Description</div>
-                    <div class="white-space-pre-line">@Model.Quote.Description</div>
+                    <div style="white-space:pre-line;">@q.Description</div>
                 </div>
             }
-            @if (!string.IsNullOrWhiteSpace(Model.Quote.Notes))
+
+            @if (!string.IsNullOrWhiteSpace(q.Notes))
             {
                 <div class="col-12">
                     <div class="text-muted small">Notes</div>
-                    <div class="white-space-pre-line">@Model.Quote.Notes</div>
+                    <div style="white-space:pre-line;">@q.Notes</div>
                 </div>
             }
+
             <div class="col-md-4">
                 <div class="text-muted small">Expiry Date</div>
-                <div>@(Model.Quote.ExpiryDate.HasValue ? Model.Quote.ExpiryDate.Value.ToString("dd MMM yyyy") : "—")</div>
+                <div>@(q.ExpiryDate.HasValue ? q.ExpiryDate.Value.ToString("dd MMM yyyy") : "—")</div>
             </div>
+
             <div class="col-md-4">
                 <div class="text-muted small">Created</div>
-                <div>@Model.Quote.CreatedUtc.ToString("dd MMM yyyy HH:mm") UTC</div>
+                <div>@q.CreatedUtc.ToString("dd MMM yyyy HH:mm") UTC</div>
             </div>
-            @if (Model.Quote.UpdatedUtc.HasValue)
+
+            @if (q.SentUtc.HasValue)
             {
                 <div class="col-md-4">
-                    <div class="text-muted small">Last Updated</div>
-                    <div>@Model.Quote.UpdatedUtc.Value.ToString("dd MMM yyyy HH:mm") UTC</div>
+                    <div class="text-muted small">Sent to client</div>
+                    <div>@q.SentUtc.Value.ToString("dd MMM yyyy HH:mm") UTC</div>
+                </div>
+            }
+
+            @if (q.UpdatedUtc.HasValue)
+            {
+                <div class="col-md-4">
+                    <div class="text-muted small">Last updated</div>
+                    <div>@q.UpdatedUtc.Value.ToString("dd MMM yyyy HH:mm") UTC</div>
                 </div>
             }
         </div>
@@ -100,7 +140,7 @@
     <div class="modal fade" id="editQuoteModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <form asp-action="Update" asp-route-id="@Model.Quote.Id" asp-controller="ServiceQuotes" method="post">
+                <form asp-action="Update" asp-route-id="@q.Id" asp-controller="ServiceQuotes" method="post">
                     @Html.AntiForgeryToken()
 
                     <div class="modal-header">
@@ -109,43 +149,48 @@
                     </div>
 
                     <div class="modal-body">
-                        <div class="mb-3">
-                            <label asp-for="Edit.Title" class="form-label">Title</label>
-                            <input asp-for="Edit.Title" class="form-control" />
-                            <span asp-validation-for="Edit.Title" class="text-danger"></span>
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-8">
+                                <label asp-for="Edit.Title" class="form-label">Title</label>
+                                <input asp-for="Edit.Title" class="form-control" />
+                                <span asp-validation-for="Edit.Title" class="text-danger small"></span>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Edit.QuoteType" class="form-label">Type</label>
+                                <select asp-for="Edit.QuoteType"
+                                        class="form-select"
+                                        asp-items="Html.GetEnumSelectList<FyreApp.Models.ServiceQuoteType>()">
+                                </select>
+                            </div>
                         </div>
 
-                        <div class="mb-3">
+                        <div class="mb-2">
                             <label asp-for="Edit.Description" class="form-label">Description</label>
-                            <textarea asp-for="Edit.Description" class="form-control" rows="3"></textarea>
-                            <span asp-validation-for="Edit.Description" class="text-danger"></span>
+                            <textarea asp-for="Edit.Description" class="form-control" rows="2"></textarea>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-4 mb-3">
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-4">
                                 <label asp-for="Edit.Status" class="form-label">Status</label>
                                 <select asp-for="Edit.Status"
                                         class="form-select"
                                         asp-items="Html.GetEnumSelectList<FyreApp.Models.ServiceQuoteStatus>()">
                                 </select>
-                                <span asp-validation-for="Edit.Status" class="text-danger"></span>
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-4">
                                 <label asp-for="Edit.Amount" class="form-label">Amount ($)</label>
                                 <input asp-for="Edit.Amount" class="form-control" type="number" min="0" step="0.01" />
-                                <span asp-validation-for="Edit.Amount" class="text-danger"></span>
+                                <span asp-validation-for="Edit.Amount" class="text-danger small"></span>
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-4">
                                 <label asp-for="Edit.ExpiryDate" class="form-label">Expiry Date</label>
                                 <input asp-for="Edit.ExpiryDate" class="form-control" type="date" />
-                                <span asp-validation-for="Edit.ExpiryDate" class="text-danger"></span>
                             </div>
                         </div>
 
-                        <div class="mb-3">
+                        <div class="mb-2">
                             <label asp-for="Edit.Notes" class="form-label">Notes</label>
                             <textarea asp-for="Edit.Notes" class="form-control" rows="2"></textarea>
-                            <span asp-validation-for="Edit.Notes" class="text-danger"></span>
                         </div>
                     </div>
 

@@ -1,10 +1,18 @@
 @model FyreApp.ViewModels.ServiceQuotes.ServiceQuoteIndexVm
+@using FyreApp.Models
+@inject IConfiguration Config
+
+@{
+    var googleKey = Config["GoogleMaps:BrowserKey"] ?? "";
+}
 
 <div class="modal fade" id="createQuoteModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form asp-action="Create" asp-controller="ServiceQuotes" method="post">
+            <form asp-action="Create" asp-controller="ServiceQuotes" method="post" id="createQuoteForm">
                 @Html.AntiForgeryToken()
+
+                <input type="hidden" name="CreateNewClient" id="createNewClientFlag" value="false" />
 
                 <div class="modal-header">
                     <h5 class="modal-title">New Service Quote</h5>
@@ -12,58 +20,403 @@
                 </div>
 
                 <div class="modal-body">
-                    @if (TempData["Error"] is string errMsg)
+
+                    @if (!ViewData.ModelState.IsValid && ViewData.ModelState.Values.Any(v => v.Errors.Count > 0))
                     {
-                        <div class="alert alert-danger">@errMsg</div>
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                                {
+                                    <li>@error.ErrorMessage</li>
+                                }
+                            </ul>
+                        </div>
                     }
 
+                    <!-- ── Client section ─────────────────────────────── -->
                     <div class="mb-3">
-                        <label asp-for="Create.ClientId" class="form-label">Client</label>
-                        <select asp-for="Create.ClientId"
-                                class="form-select"
-                                asp-items="@(new SelectList(Model.Clients, "Id", "Name"))">
-                            <option value="">-- Select client --</option>
-                        </select>
-                        <span asp-validation-for="Create.ClientId" class="text-danger"></span>
-                    </div>
+                        <label class="form-label fw-semibold">Client</label>
 
-                    <div class="mb-3">
-                        <label asp-for="Create.Title" class="form-label">Title</label>
-                        <input asp-for="Create.Title" class="form-control" autocomplete="off" />
-                        <span asp-validation-for="Create.Title" class="text-danger"></span>
-                    </div>
+                        <!-- Existing client select -->
+                        <div id="sectionExistingClient">
+                            <select name="Create.ClientId" id="clientSelect" class="form-select mb-2">
+                                <option value="">-- Select client --</option>
+                                @foreach (var c in Model.Clients)
+                                {
+                                    <option value="@c.Id" selected="@(Model.Create.ClientId == c.Id)">@c.Name</option>
+                                }
+                                <option value="__new__">＋ Create new client...</option>
+                            </select>
+                            <span class="text-danger small">
+                                @(ViewData.ModelState["Create.ClientId"]?.Errors.FirstOrDefault()?.ErrorMessage)
+                            </span>
 
-                    <div class="mb-3">
-                        <label asp-for="Create.Description" class="form-label">Description</label>
-                        <textarea asp-for="Create.Description" class="form-control" rows="3"></textarea>
-                        <span asp-validation-for="Create.Description" class="text-danger"></span>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="Create.Amount" class="form-label">Amount ($)</label>
-                            <input asp-for="Create.Amount" class="form-control" type="number" min="0" step="0.01" />
-                            <span asp-validation-for="Create.Amount" class="text-danger"></span>
+                            <!-- Property dropdown — shown after a client is chosen -->
+                            <div id="sectionSiteSelect" class="d-none mt-2">
+                                <label class="form-label fw-semibold">Property</label>
+                                <select name="Create.SiteId" id="siteSelect" class="form-select">
+                                    <option value="">-- Select property --</option>
+                                </select>
+                                <div id="siteSelectMsg" class="text-muted small mt-1 d-none">
+                                    This client has no properties. Add one from the client page first.
+                                </div>
+                                <span class="text-danger small">
+                                    @(ViewData.ModelState["Create.SiteId"]?.Errors.FirstOrDefault()?.ErrorMessage)
+                                </span>
+                            </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label asp-for="Create.ExpiryDate" class="form-label">Expiry Date</label>
-                            <input asp-for="Create.ExpiryDate" class="form-control" type="date" />
-                            <span asp-validation-for="Create.ExpiryDate" class="text-danger"></span>
+
+                        <!-- New client form (hidden initially) -->
+                        <div id="sectionNewClient" class="d-none border rounded p-3 bg-light">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-semibold small text-muted text-uppercase">New Client</span>
+                                <button type="button" class="btn btn-sm btn-link p-0 text-secondary" id="btnCancelNewClient">
+                                    ← Select existing
+                                </button>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <input name="NewClient.Name" class="form-control form-control-sm"
+                                           placeholder="Client name *" value="@Model.NewClient.Name" />
+                                    <span class="text-danger small">
+                                        @(ViewData.ModelState["NewClient.Name"]?.Errors.FirstOrDefault()?.ErrorMessage)
+                                    </span>
+                                </div>
+                                <div class="col-md-6">
+                                    <input name="NewClient.PrimaryContactName" class="form-control form-control-sm"
+                                           placeholder="Contact name" value="@Model.NewClient.PrimaryContactName" />
+                                </div>
+                                <div class="col-md-6">
+                                    <input name="NewClient.PrimaryContactMobile" class="form-control form-control-sm"
+                                           placeholder="Mobile" type="tel" value="@Model.NewClient.PrimaryContactMobile" />
+                                </div>
+                                <div class="col-12">
+                                    <input name="NewClient.PrimaryContactEmail" class="form-control form-control-sm"
+                                           placeholder="Email *" type="email" value="@Model.NewClient.PrimaryContactEmail" />
+                                    <span class="text-danger small">
+                                        @(ViewData.ModelState["NewClient.PrimaryContactEmail"]?.Errors.FirstOrDefault()?.ErrorMessage)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- ── Property (required for new client) ─── -->
+                            <hr class="my-3" />
+                            <div class="fw-semibold small text-muted text-uppercase mb-2">Property</div>
+
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <input name="NewSite.Name" class="form-control form-control-sm"
+                                           placeholder="Property name *" value="@Model.NewSite.Name" />
+                                    <span class="text-danger small">
+                                        @(ViewData.ModelState["NewSite.Name"]?.Errors.FirstOrDefault()?.ErrorMessage)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Hidden Google fields -->
+                            <input type="hidden" id="cqSitePlaceId" name="NewSite.Google.PlaceId"
+                                   value="@Model.NewSite.Google.PlaceId" />
+                            <input type="hidden" id="cqSiteFormattedAddress" name="NewSite.Google.FormattedAddress"
+                                   value="@Model.NewSite.Google.FormattedAddress" />
+
+                            <div class="mt-2">
+                                <input class="form-control form-control-sm" id="cqSiteAddressSearch"
+                                       type="text" placeholder="Start typing an Australian address…"
+                                       autocomplete="one-time-code" />
+                            </div>
+
+                            <button type="button" class="btn btn-link btn-sm px-0 mt-1" id="cqBtnManualAddress">
+                                Can't find the address? Enter manually
+                            </button>
+
+                            <div id="cqManualAddressPanel" class="mt-2 d-none">
+                                <div class="mb-2">
+                                    <input class="form-control form-control-sm" id="cqAddr1"
+                                           name="NewSite.Manual.AddressLine1" placeholder="Address line 1"
+                                           maxlength="200" value="@Model.NewSite.Manual.AddressLine1" />
+                                </div>
+                                <div class="mb-2">
+                                    <input class="form-control form-control-sm" name="NewSite.Manual.AddressLine2"
+                                           placeholder="Address line 2" maxlength="200"
+                                           value="@Model.NewSite.Manual.AddressLine2" />
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-5">
+                                        <input class="form-control form-control-sm" name="NewSite.Manual.Suburb"
+                                               placeholder="Suburb" maxlength="80"
+                                               value="@Model.NewSite.Manual.Suburb" />
+                                    </div>
+                                    <div class="col-3">
+                                        <input class="form-control form-control-sm" name="NewSite.Manual.State"
+                                               placeholder="State" maxlength="20"
+                                               value="@Model.NewSite.Manual.State" />
+                                    </div>
+                                    <div class="col-4">
+                                        <input class="form-control form-control-sm" name="NewSite.Manual.Postcode"
+                                               placeholder="Postcode" maxlength="10"
+                                               value="@Model.NewSite.Manual.Postcode" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="text-danger small mt-1 d-none" id="cqSiteAddressError"></div>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Create.Notes" class="form-label">Notes</label>
-                        <textarea asp-for="Create.Notes" class="form-control" rows="2"></textarea>
-                        <span asp-validation-for="Create.Notes" class="text-danger"></span>
+                    <!-- ── Quote details ──────────────────────────────── -->
+                    <label class="form-label fw-semibold">Quote Details</label>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-8">
+                            <input name="Create.Title" class="form-control" placeholder="Title *"
+                                   value="@Model.Create.Title" />
+                            <span class="text-danger small">
+                                @(ViewData.ModelState["Create.Title"]?.Errors.FirstOrDefault()?.ErrorMessage)
+                            </span>
+                        </div>
+                        <div class="col-md-4">
+                            <select name="Create.QuoteType" class="form-select">
+                                <option value="@((int)ServiceQuoteType.OneTime)"
+                                        selected="@(Model.Create.QuoteType == ServiceQuoteType.OneTime)">
+                                    One-Time
+                                </option>
+                                <option value="@((int)ServiceQuoteType.Routine)"
+                                        selected="@(Model.Create.QuoteType == ServiceQuoteType.Routine)">
+                                    Routine / Contract
+                                </option>
+                            </select>
+                        </div>
                     </div>
+
+                    <div class="mb-2">
+                        <textarea name="Create.Description" class="form-control" rows="2"
+                                  placeholder="Description">@Model.Create.Description</textarea>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input name="Create.Amount" class="form-control" placeholder="Amount"
+                                       type="number" min="0" step="0.01" value="@Model.Create.Amount" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <input name="Create.ExpiryDate" id="quoteExpiry" class="form-control" type="date"
+                                   value="@(Model.Create.ExpiryDate.HasValue ? Model.Create.ExpiryDate.Value.ToString("yyyy-MM-dd") : "")" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <textarea name="Create.Notes" class="form-control" rows="2"
+                                  placeholder="Notes">@Model.Create.Notes</textarea>
+                    </div>
+
                 </div>
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Create Quote</button>
                 </div>
+
             </form>
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    const modal          = document.getElementById('createQuoteModal');
+    const select         = document.getElementById('clientSelect');
+    const secExisting    = document.getElementById('sectionExistingClient');
+    const secNew         = document.getElementById('sectionNewClient');
+    const btnCancel      = document.getElementById('btnCancelNewClient');
+    const flagClient     = document.getElementById('createNewClientFlag');
+    const expiryInput    = document.getElementById('quoteExpiry');
+    const googleKey      = @Json.Serialize(googleKey);
+    const siteSection    = document.getElementById('sectionSiteSelect');
+    const siteSelect     = document.getElementById('siteSelect');
+    const siteMsg        = document.getElementById('siteSelectMsg');
+    const preselectedSiteId = @(Model.Create.SiteId.HasValue ? Model.Create.SiteId.Value.ToString() : "null");
+    const preselectedClientId = @(Model.Create.ClientId.HasValue ? Model.Create.ClientId.Value.ToString() : "null");
+
+    // Address elements
+    const addressInput  = document.getElementById('cqSiteAddressSearch');
+    const placeIdEl     = document.getElementById('cqSitePlaceId');
+    const formattedEl   = document.getElementById('cqSiteFormattedAddress');
+    const manualBtn     = document.getElementById('cqBtnManualAddress');
+    const manualPanel   = document.getElementById('cqManualAddressPanel');
+    const addr1El       = document.getElementById('cqAddr1');
+    const addressErrEl  = document.getElementById('cqSiteAddressError');
+
+    // Default expiry = today + 30 days when field is empty
+    modal.addEventListener('shown.bs.modal', function () {
+        if (!expiryInput.value) {
+            const d = new Date();
+            d.setDate(d.getDate() + 30);
+            expiryInput.value = d.toISOString().split('T')[0];
+        }
+        initGooglePlaces();
+    });
+
+    function showAddressError(msg) {
+        if (!addressErrEl) return;
+        addressErrEl.textContent = msg;
+        addressErrEl.classList.remove('d-none');
+    }
+    function clearAddressError() {
+        if (!addressErrEl) return;
+        addressErrEl.textContent = '';
+        addressErrEl.classList.add('d-none');
+    }
+
+    // Manual address toggle
+    if (manualBtn && manualPanel) {
+        manualBtn.addEventListener('click', () => {
+            manualPanel.classList.remove('d-none');
+            manualBtn.classList.add('d-none');
+            if (placeIdEl) placeIdEl.value = '';
+            if (formattedEl) formattedEl.value = '';
+        });
+    }
+
+    // Client mode toggle
+    function showNewClient() {
+        secExisting.classList.add('d-none');
+        secNew.classList.remove('d-none');
+        flagClient.value = 'true';
+    }
+    function showExistingClient() {
+        secNew.classList.add('d-none');
+        secExisting.classList.remove('d-none');
+        flagClient.value = 'false';
+        select.value = '';
+    }
+
+    async function loadSites(clientId, preselectId) {
+        siteSelect.innerHTML = '<option value="">-- Select property --</option>';
+        siteMsg.classList.add('d-none');
+        siteSection.classList.remove('d-none');
+
+        try {
+            const res = await fetch(`/api/client-sites/${clientId}`);
+            const sites = await res.json();
+
+            if (sites.length === 0) {
+                siteSection.classList.remove('d-none');
+                siteMsg.classList.remove('d-none');
+                return;
+            }
+
+            sites.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.name;
+                if (preselectId && s.id === preselectId) opt.selected = true;
+                siteSelect.appendChild(opt);
+            });
+        } catch (e) {
+            console.warn('Failed to load sites', e);
+        }
+    }
+
+    select.addEventListener('change', function () {
+        if (this.value === '__new__') {
+            showNewClient();
+            siteSection.classList.add('d-none');
+        } else if (this.value) {
+            loadSites(this.value, null);
+        } else {
+            siteSection.classList.add('d-none');
+        }
+    });
+    btnCancel.addEventListener('click', () => {
+        showExistingClient();
+        siteSection.classList.add('d-none');
+    });
+
+    // Client-side address validation on submit
+    const form = document.getElementById('createQuoteForm');
+    form.addEventListener('submit', function (e) {
+        if (flagClient.value !== 'true') return; // only validate when creating new client
+
+        const isManual = manualPanel && !manualPanel.classList.contains('d-none');
+        if (isManual) {
+            if (!addr1El || !addr1El.value.trim()) {
+                e.preventDefault();
+                showAddressError('Address line 1 is required.');
+                addr1El?.focus();
+            }
+        } else {
+            if (!placeIdEl || !placeIdEl.value.trim()) {
+                e.preventDefault();
+                showAddressError('Please select an address from the list or enter one manually.');
+                addressInput?.focus();
+            }
+        }
+    });
+
+    modal.addEventListener('hidden.bs.modal', clearAddressError);
+
+    // Google Places autocomplete (shared loader)
+    let ac;
+    function initGooglePlaces() {
+        if (ac || !googleKey) return;
+        loadGooglePlacesOnce(googleKey).then(() => {
+            if (!addressInput || !placeIdEl || !formattedEl) return;
+            ac = new google.maps.places.Autocomplete(addressInput, {
+                fields: ['place_id', 'formatted_address'],
+                types: ['address']
+            });
+            ac.setComponentRestrictions({ country: ['au'] });
+            ac.addListener('place_changed', () => {
+                const place = ac.getPlace();
+                if (!place?.place_id) return;
+                placeIdEl.value = place.place_id;
+                formattedEl.value = place.formatted_address ?? '';
+                clearAddressError();
+            });
+        }).catch(e => console.warn('Google Places failed to load:', e));
+    }
+
+    function loadGooglePlacesOnce(key) {
+        if (window.google?.maps?.places) return Promise.resolve();
+        if (window.__fyreGooglePlacesPromise) return window.__fyreGooglePlacesPromise;
+        window.__fyreGooglePlacesPromise = new Promise((resolve, reject) => {
+            const existing = document.querySelector('script[data-fyre-google-places="1"]');
+            if (existing) {
+                const start = Date.now();
+                const t = setInterval(() => {
+                    if (window.google?.maps?.places) { clearInterval(t); resolve(); }
+                    else if (Date.now() - start > 15000) { clearInterval(t); reject(new Error('Timeout')); }
+                }, 50);
+                return;
+            }
+            const cbName = '__fyreGooglePlacesOnLoad';
+            window[cbName] = () => resolve();
+            const s = document.createElement('script');
+            s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&callback=${cbName}`;
+            s.async = true; s.defer = true; s.dataset.fyreGooglePlaces = '1';
+            s.onerror = () => reject(new Error('Failed to load Google Places'));
+            document.head.appendChild(s);
+        });
+        return window.__fyreGooglePlacesPromise;
+    }
+
+    // Restore state after a failed form submission
+    if (preselectedClientId && !@(Model.CreateNewClient ? "true" : "false")) {
+        loadSites(preselectedClientId, preselectedSiteId);
+    }
+
+    @if (Model.CreateNewClient)
+    {
+        <text>showNewClient();</text>
+        if (!string.IsNullOrWhiteSpace(Model.NewSite?.Manual?.AddressLine1))
+        {
+            <text>
+            if (manualPanel) { manualPanel.classList.remove('d-none'); manualBtn.classList.add('d-none'); }
+            </text>
+        }
+    }
+})();
+</script>

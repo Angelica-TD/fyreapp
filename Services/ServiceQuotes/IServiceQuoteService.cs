@@ -23,6 +23,13 @@ public enum ServiceQuoteDeleteStatus
     NotFound = 2
 }
 
+public enum PrepareQuoteForSendStatus
+{
+    Success = 1,
+    NotFound = 2,
+    NoClientEmail = 3
+}
+
 public sealed record ServiceQuoteCreateResult(
     ServiceQuoteCreateStatus Status,
     int? QuoteId = null,
@@ -38,12 +45,25 @@ public sealed record ServiceQuoteDeleteResult(
     ServiceQuoteDeleteStatus Status
 );
 
+public sealed record PrepareQuoteForSendResult(
+    PrepareQuoteForSendStatus Status,
+    Guid? Token = null,
+    string? ClientEmail = null,
+    string? ClientName = null,
+    ServiceQuote? Quote = null,
+    string? ErrorMessage = null
+);
+
 public interface IServiceQuoteService
 {
     Task<List<ServiceQuote>> GetAllAsync(CancellationToken ct = default);
     Task<List<ServiceQuote>> GetByClientAsync(int clientId, CancellationToken ct = default);
     Task<ServiceQuote?> GetByIdAsync(int id, CancellationToken ct = default);
-    Task<ServiceQuoteCreateResult> CreateAsync(CreateServiceQuoteVm vm, CancellationToken ct = default);
+    Task<ServiceQuote?> GetByTokenAsync(Guid token, CancellationToken ct = default);
+    Task<ServiceQuoteCreateResult> CreateAsync(CreateServiceQuoteVm vm, int clientId, int? siteId, CancellationToken ct = default);
     Task<ServiceQuoteUpdateResult> UpdateAsync(int id, UpdateServiceQuoteRequest request, CancellationToken ct = default);
     Task<ServiceQuoteDeleteResult> DeleteAsync(int id, CancellationToken ct = default);
+    Task<PrepareQuoteForSendResult> PrepareForSendAsync(int id, CancellationToken ct = default);
+    Task<ServiceQuoteUpdateResult> ApproveAsync(Guid token, CancellationToken ct = default);
+    Task<ServiceQuoteUpdateResult> DeclineAsync(Guid token, CancellationToken ct = default);
 }

@@ -3,6 +3,7 @@ using System;
 using FyreApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FyreApp.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260419104850_AddServiceQuoteTypeAndToken")]
+    partial class AddServiceQuoteTypeAndToken
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -454,9 +457,6 @@ namespace FyreApp.Migrations
                     b.Property<DateTime?>("SentUtc")
                         .HasColumnType("timestamptz");
 
-                    b.Property<int?>("SiteId")
-                        .HasColumnType("integer");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -477,8 +477,6 @@ namespace FyreApp.Migrations
 
                     b.HasIndex("QuoteNumber")
                         .IsUnique();
-
-                    b.HasIndex("SiteId");
 
                     b.HasIndex("Status");
 
@@ -763,14 +761,7 @@ namespace FyreApp.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("FyreApp.Models.Site", "Site")
-                        .WithMany()
-                        .HasForeignKey("SiteId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Client");
-
-                    b.Navigation("Site");
                 });
 
             modelBuilder.Entity("FyreApp.Models.Site", b =>

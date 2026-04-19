@@ -42,11 +42,12 @@
                     <tr>
                         <th>Quote #</th>
                         <th>Client</th>
+                        <th>Property</th>
                         <th>Title</th>
+                        <th>Type</th>
                         <th>Status</th>
                         <th class="text-end">Amount</th>
                         <th>Expiry</th>
-                        <th>Created</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -58,17 +59,21 @@
                                 <a asp-action="Details" asp-route-id="@q.Id">@q.QuoteNumber</a>
                             </td>
                             <td>@q.Client?.Name</td>
+                            <td>@(q.Site?.Name ?? "—")</td>
                             <td>@q.Title</td>
+                            <td class="text-nowrap">
+                                @(q.QuoteType == ServiceQuoteType.OneTime ? "One-Time" : "Routine")
+                            </td>
                             <td>
                                 <span class="badge @StatusBadgeClass(q.Status)">@q.Status</span>
                             </td>
                             <td class="text-end">@q.Amount.ToString("C")</td>
-                            <td>@(q.ExpiryDate.HasValue ? q.ExpiryDate.Value.ToString("dd MMM yyyy") : "—")</td>
-                            <td class="text-nowrap">@q.CreatedUtc.ToString("dd MMM yyyy")</td>
+                            <td class="text-nowrap">
+                                @(q.ExpiryDate.HasValue ? q.ExpiryDate.Value.ToString("dd MMM yyyy") : "—")
+                            </td>
                             <td class="text-end">
                                 <a class="btn btn-sm btn-outline-secondary"
-                                   asp-action="Details"
-                                   asp-route-id="@q.Id">View</a>
+                                   asp-action="Details" asp-route-id="@q.Id">View</a>
                             </td>
                         </tr>
                     }

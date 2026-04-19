@@ -158,6 +158,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .HasForeignKey(q => q.ClientId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasOne(q => q.Site)
+                .WithMany()
+                .HasForeignKey(q => q.SiteId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
+            entity.HasIndex(q => q.SiteId);
+
             entity.Property(q => q.QuoteNumber).IsRequired().HasMaxLength(20);
             entity.HasIndex(q => q.QuoteNumber).IsUnique();
 
@@ -175,9 +183,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
             entity.Property(q => q.UpdatedUtc).HasColumnType("timestamptz");
             entity.Property(q => q.ExpiryDate).HasColumnType("timestamptz");
+            entity.Property(q => q.SentUtc).HasColumnType("timestamptz");
 
             entity.HasIndex(q => q.ClientId);
             entity.HasIndex(q => q.Status);
+            entity.HasIndex(q => q.ClientToken).IsUnique();
         });
     }
 
