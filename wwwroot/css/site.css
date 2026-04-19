@@ -96,7 +96,7 @@ body {
   --sidebar-transition:      animation speed
 */
 :root {
-    --sidebar-width: 150px;
+    --sidebar-width: minmax(150px, 250px);
     --sidebar-collapsed-width: 56px;
     --sidebar-transition: 0.2s ease;
     --sidebar-bg: #fff;

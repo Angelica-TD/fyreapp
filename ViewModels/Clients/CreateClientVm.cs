@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.ViewModels.Clients;
 
-public class CreateClientVm : IValidatableObject
+public class CreateClientVm
 {
     [Required]
     [StringLength(200)]
@@ -12,7 +12,7 @@ public class CreateClientVm : IValidatableObject
     [Display(Name = "Primary Contact Name")]
     public string? PrimaryContactName { get; set; }
 
-    [StringLength(320), EmailAddress]
+    [Required, StringLength(320), EmailAddress]
     [Display(Name = "Email")]
     public string? PrimaryContactEmail { get; set; }
 
@@ -21,12 +21,4 @@ public class CreateClientVm : IValidatableObject
     public string? PrimaryContactMobile { get; set; }
 
     public ClientVm? ExistingClient { get; set; }
-
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-    {
-        if (string.IsNullOrWhiteSpace(PrimaryContactEmail) && string.IsNullOrWhiteSpace(PrimaryContactMobile))
-            yield return new ValidationResult(
-                "Please provide either a mobile number or an email address.",
-                [nameof(PrimaryContactEmail), nameof(PrimaryContactMobile)]);
-    }
 }

@@ -23,7 +23,8 @@ public sealed class DevAuthHandler : AuthenticationHandler<AuthenticationSchemeO
             new Claim(ClaimTypes.NameIdentifier, "dev-user"),
             new Claim(ClaimTypes.Name, "Developer"),
             new Claim(ClaimTypes.Email, "dev@local"),
-            new Claim(ClaimTypes.Role, "Developer")
+            new Claim(ClaimTypes.Role, "Developer"),
+            new Claim(ClaimTypes.Role, "Admin")
         };
 
         var identity = new ClaimsIdentity(claims, SchemeName);
