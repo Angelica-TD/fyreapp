@@ -30,6 +30,9 @@ public class ServiceQuote
     public int? SiteId { get; set; }
     public Site? Site { get; set; }
 
+    public int? MaintenanceIntervalId { get; set; }
+    public MaintenanceInterval? MaintenanceInterval { get; set; }
+
     [Required, StringLength(20)]
     public string QuoteNumber { get; set; } = string.Empty;
 

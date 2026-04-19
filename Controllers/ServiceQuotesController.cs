@@ -43,7 +43,8 @@ public class ServiceQuotesController : Controller
         var vm = new ServiceQuoteIndexVm
         {
             Quotes = await _quotes.GetAllAsync(ct),
-            Clients = await _db.Clients.Where(c => c.Active).OrderBy(c => c.Name).ToListAsync(ct)
+            Clients = await _db.Clients.Where(c => c.Active).OrderBy(c => c.Name).ToListAsync(ct),
+            Intervals = await _db.MaintenanceIntervals.OrderBy(i => i.Months).ToListAsync(ct)
         };
         return View(vm);
     }
@@ -66,10 +67,12 @@ public class ServiceQuotesController : Controller
                 Description = quote.Description,
                 Status = quote.Status,
                 QuoteType = quote.QuoteType,
+                MaintenanceIntervalId = quote.MaintenanceIntervalId,
                 Amount = quote.Amount,
                 Notes = quote.Notes,
                 ExpiryDate = quote.ExpiryDate
             },
+            Intervals = await _db.MaintenanceIntervals.OrderBy(i => i.Months).ToListAsync(ct),
             OpenEdit = TempData["OpenEdit"] as bool? ?? false
         };
 
@@ -183,6 +186,61 @@ public class ServiceQuotesController : Controller
             }
 
             // Use the newly created site's ID for the quote
+            vm.Create.SiteId = siteResult.site?.Id;
+        }
+        else if (vm.CreateNewSite)
+        {
+            // Existing client, but creating their first property inline
+            if (vm.Create.ClientId is null or 0)
+            {
+                ModelState.AddModelError("Create.ClientId", "Client is required.");
+                return await RebuildIndexView(vm, ct);
+            }
+
+            clientId = vm.Create.ClientId.Value;
+            ModelState.Remove("Create.SiteId");
+
+            var siteName = vm.NewSite?.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(siteName))
+            {
+                ModelState.AddModelError("NewSite.Name", "Property name is required.");
+                return await RebuildIndexView(vm, ct);
+            }
+
+            var hasGoogle = !string.IsNullOrWhiteSpace(vm.NewSite?.Google?.PlaceId);
+            var hasManual = !string.IsNullOrWhiteSpace(vm.NewSite?.Manual?.AddressLine1);
+            if (!hasGoogle && !hasManual)
+            {
+                ModelState.AddModelError("NewSite.Name", "Property address is required. Select from the autocomplete or enter manually.");
+                return await RebuildIndexView(vm, ct);
+            }
+
+            var siteReq = new CreateSiteRequest
+            {
+                ClientId = clientId,
+                Name = siteName,
+                Google = new GoogleAddressInput
+                {
+                    PlaceId = vm.NewSite!.Google.PlaceId,
+                    FormattedAddress = vm.NewSite.Google.FormattedAddress
+                },
+                Manual = new ManualAddressInput
+                {
+                    AddressLine1 = vm.NewSite.Manual.AddressLine1,
+                    AddressLine2 = vm.NewSite.Manual.AddressLine2,
+                    Suburb = vm.NewSite.Manual.Suburb,
+                    State = vm.NewSite.Manual.State,
+                    Postcode = vm.NewSite.Manual.Postcode
+                }
+            };
+
+            var siteResult = await _sites.CreateAsync(siteReq, ct);
+            if (siteResult.Status is CreateSiteStatus.ValidationError or CreateSiteStatus.GeocodeFailed)
+            {
+                ModelState.AddModelError("NewSite.Name", siteResult.Error ?? "Could not save property. Please check the address.");
+                return await RebuildIndexView(vm, ct);
+            }
+
             vm.Create.SiteId = siteResult.site?.Id;
         }
         else
@@ -386,6 +444,7 @@ public class ServiceQuotesController : Controller
     {
         vm.Quotes = await _quotes.GetAllAsync(ct);
         vm.Clients = await _db.Clients.Where(c => c.Active).OrderBy(c => c.Name).ToListAsync(ct);
+        vm.Intervals = await _db.MaintenanceIntervals.OrderBy(i => i.Months).ToListAsync(ct);
         vm.OpenCreateModal = true;
         return View("Index", vm);
     }

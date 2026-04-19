@@ -15,6 +15,8 @@ public class UpdateServiceQuoteRequest
     public ServiceQuoteStatus Status { get; set; }
     public ServiceQuoteType QuoteType { get; set; }
 
+    public int? MaintenanceIntervalId { get; set; }
+
     [Range(0, 9_999_999.99, ErrorMessage = "Amount must be between 0 and 9,999,999.99.")]
     public decimal Amount { get; set; }
 

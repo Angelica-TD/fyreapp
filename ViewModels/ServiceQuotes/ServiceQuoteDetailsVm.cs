@@ -7,4 +7,5 @@ public class ServiceQuoteDetailsVm
     public ServiceQuote Quote { get; set; } = null!;
     public UpdateServiceQuoteRequest Edit { get; set; } = new();
     public bool OpenEdit { get; set; }
+    public List<MaintenanceInterval> Intervals { get; set; } = new();
 }

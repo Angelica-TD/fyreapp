@@ -78,6 +78,13 @@
                 <div class="text-muted small">Type</div>
                 <div>@(q.QuoteType == ServiceQuoteType.OneTime ? "One-Time" : "Routine / Contract")</div>
             </div>
+            @if (q.QuoteType == ServiceQuoteType.Routine)
+            {
+                <div class="col-md-3">
+                    <div class="text-muted small">Interval</div>
+                    <div>@(q.MaintenanceInterval is not null ? $"{q.MaintenanceInterval.Name} (every {q.MaintenanceInterval.Months} month{(q.MaintenanceInterval.Months == 1 ? "" : "s")})" : "—")</div>
+                </div>
+            }
             <div class="col-md-2">
                 <div class="text-muted small">Status</div>
                 <div>
@@ -106,7 +113,7 @@
             }
 
             <div class="col-md-4">
-                <div class="text-muted small">Expiry Date</div>
+                <div class="text-muted small">Quote Expiry</div>
                 <div>@(q.ExpiryDate.HasValue ? q.ExpiryDate.Value.ToString("dd MMM yyyy") : "—")</div>
             </div>
 
@@ -182,9 +189,22 @@
                                 <input asp-for="Edit.Amount" class="form-control" type="number" min="0" step="0.01" />
                                 <span asp-validation-for="Edit.Amount" class="text-danger small"></span>
                             </div>
-                            <div class="col-md-4">
-                                <label asp-for="Edit.ExpiryDate" class="form-label">Expiry Date</label>
+                            <div class="col-md-4" id="editExpiryCol">
+                                <label asp-for="Edit.ExpiryDate" class="form-label">Quote Expiry</label>
                                 <input asp-for="Edit.ExpiryDate" class="form-control" type="date" />
+                            </div>
+                            <div class="col-md-4 d-none" id="editIntervalCol">
+                                <label asp-for="Edit.MaintenanceIntervalId" class="form-label">Interval</label>
+                                <select asp-for="Edit.MaintenanceIntervalId" class="form-select">
+                                    <option value="">-- Select interval --</option>
+                                    @foreach (var interval in Model.Intervals)
+                                    {
+                                        <option value="@interval.Id"
+                                                selected="@(Model.Edit.MaintenanceIntervalId == interval.Id)">
+                                            @interval.Name
+                                        </option>
+                                    }
+                                </select>
                             </div>
                         </div>
 
@@ -219,6 +239,24 @@
 @section Scripts
 {
     <partial name="_ValidationScriptsPartial" />
+
+    <script>
+    (function () {
+        const quoteTypeSel  = document.getElementById('Edit_QuoteType');
+        const expiryCol     = document.getElementById('editExpiryCol');
+        const intervalCol   = document.getElementById('editIntervalCol');
+        const routineValue  = '@((int)ServiceQuoteType.Routine)';
+
+        function toggleEditTypeFields() {
+            const isRoutine = quoteTypeSel.value === routineValue;
+            expiryCol.classList.toggle('d-none', isRoutine);
+            intervalCol.classList.toggle('d-none', !isRoutine);
+        }
+
+        quoteTypeSel.addEventListener('change', toggleEditTypeFields);
+        toggleEditTypeFields();
+    })();
+    </script>
 
     @if (Model.OpenEdit)
     {

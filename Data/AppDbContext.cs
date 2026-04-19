@@ -166,6 +166,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
             entity.HasIndex(q => q.SiteId);
 
+            entity.HasOne(q => q.MaintenanceInterval)
+                .WithMany()
+                .HasForeignKey(q => q.MaintenanceIntervalId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
             entity.Property(q => q.QuoteNumber).IsRequired().HasMaxLength(20);
             entity.HasIndex(q => q.QuoteNumber).IsUnique();
 

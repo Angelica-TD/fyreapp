@@ -33,6 +33,7 @@ public sealed class ServiceQuoteService : IServiceQuoteService
         return await _db.ServiceQuotes
             .Include(q => q.Client)
             .Include(q => q.Site)
+            .Include(q => q.MaintenanceInterval)
             .FirstOrDefaultAsync(q => q.Id == id, ct);
     }
 
@@ -41,6 +42,7 @@ public sealed class ServiceQuoteService : IServiceQuoteService
         return await _db.ServiceQuotes
             .Include(q => q.Client)
             .Include(q => q.Site)
+            .Include(q => q.MaintenanceInterval)
             .FirstOrDefaultAsync(q => q.ClientToken == token, ct);
     }
 
@@ -68,9 +70,10 @@ public sealed class ServiceQuoteService : IServiceQuoteService
             Title = title,
             Description = string.IsNullOrWhiteSpace(vm.Description) ? null : vm.Description.Trim(),
             QuoteType = vm.QuoteType,
+            MaintenanceIntervalId = vm.QuoteType == ServiceQuoteType.Routine ? vm.MaintenanceIntervalId : null,
             Amount = vm.Amount,
             Notes = string.IsNullOrWhiteSpace(vm.Notes) ? null : vm.Notes.Trim(),
-            ExpiryDate = expiryUtc,
+            ExpiryDate = vm.QuoteType == ServiceQuoteType.OneTime ? expiryUtc : null,
             Status = ServiceQuoteStatus.Draft,
             CreatedUtc = DateTime.UtcNow
         };
@@ -95,9 +98,10 @@ public sealed class ServiceQuoteService : IServiceQuoteService
         quote.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
         quote.Status = request.Status;
         quote.QuoteType = request.QuoteType;
+        quote.MaintenanceIntervalId = request.QuoteType == ServiceQuoteType.Routine ? request.MaintenanceIntervalId : null;
         quote.Amount = request.Amount;
         quote.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
-        quote.ExpiryDate = request.ExpiryDate.HasValue
+        quote.ExpiryDate = request.QuoteType == ServiceQuoteType.OneTime && request.ExpiryDate.HasValue
             ? DateTime.SpecifyKind(request.ExpiryDate.Value, DateTimeKind.Utc)
             : null;
         quote.UpdatedUtc = DateTime.UtcNow;

@@ -64,17 +64,21 @@
                     <th class="text-muted fw-normal">Type</th>
                     <td>@quoteTypeName</td>
                 </tr>
+                @if (Model.QuoteType == ServiceQuoteType.Routine && Model.MaintenanceInterval is not null)
+                {
+                    <tr>
+                        <th class="text-muted fw-normal">Interval</th>
+                        <td>@Model.MaintenanceInterval.Name</td>
+                    </tr>
+                }
                 <tr>
                     <th class="text-muted fw-normal">Amount</th>
                     <td class="fw-semibold">@Model.Amount.ToString("C")</td>
                 </tr>
-                @if (Model.ExpiryDate.HasValue)
-                {
-                    <tr>
-                        <th class="text-muted fw-normal">Quote expires</th>
-                        <td>@Model.ExpiryDate.Value.ToString("dd MMM yyyy")</td>
-                    </tr>
-                }
+                <tr>
+                    <th class="text-muted fw-normal">Quote expires</th>
+                    <td>@(Model.ExpiryDate.HasValue ? Model.ExpiryDate.Value.ToString("dd MMM yyyy") : "—")</td>
+                </tr>
                 @if (!string.IsNullOrWhiteSpace(Model.Description))
                 {
                     <tr>
