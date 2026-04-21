@@ -82,6 +82,31 @@
             </ul>
         </li>
 
+        @if (User.IsInRole("Admin") || User.IsInRole("Developer"))
+        {
+            <!-- Service Offerings (Admin + Developer) -->
+            <li class="nav-item has-subnav">
+                <a class="nav-link sidebar-link"
+                   asp-controller="ServiceOfferings"
+                   asp-action="Index"
+                   nav-active
+                   nav-active-controller-only>
+                    <i class="bi bi-tools sidebar-icon"></i>
+                    <span class="sidebar-label">Services</span>
+                </a>
+                <ul class="nav flex-column sub-nav ps-4 mt-1">
+                    <li class="nav-item">
+                        <a class="nav-link sidebar-link sidebar-sublink"
+                           asp-controller="ServiceOfferings"
+                           asp-action="Create">
+                            <i class="bi bi-plus-circle sidebar-icon"></i>
+                            <span class="sidebar-label">Add new</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+        }
+
         @if (User.IsInRole("Developer"))
         {
             <!-- Dev Tools -->

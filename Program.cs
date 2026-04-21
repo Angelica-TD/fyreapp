@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using FyreApp.Services;
 using FyreApp.Services.Techs;
 using FyreApp.Services.ServiceQuotes;
+using FyreApp.Services.ServiceOfferings;
 using FyreApp.Services.Email;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,6 +29,7 @@ builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IClientTaskService, ClientTaskService>();
 builder.Services.AddScoped<ITechService, TechService>();
 builder.Services.AddScoped<IServiceQuoteService, ServiceQuoteService>();
+builder.Services.AddScoped<IServiceOfferingService, ServiceOfferingService>();
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailService, EmailService>();

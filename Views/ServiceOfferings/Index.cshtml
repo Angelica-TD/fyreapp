@@ -1,0 +1,69 @@
+@model IEnumerable<FyreApp.Services.ServiceOfferings.ServiceOfferingViewModel>
+
+@{
+    ViewData["Title"] = "Service Offerings";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Service Offerings</h1>
+    <a asp-action="Create" class="btn btn-primary">+ Add Offering</a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Intervals</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var offering in Model)
+        {
+            <tr>
+                <td>@offering.Name</td>
+                <td class="text-muted">@offering.Description</td>
+                <td>
+                    @if (offering.Intervals.Any())
+                    {
+                        @string.Join(", ", offering.Intervals.Select(i => i.Name))
+                    }
+                    else
+                    {
+                        <span class="text-muted">—</span>
+                    }
+                </td>
+                <td>
+                    @if (offering.IsActive)
+                    {
+                        <span class="badge bg-success">Active</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">Inactive</span>
+                    }
+                </td>
+                <td class="text-end">
+                    <a asp-action="Edit" asp-route-id="@offering.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    <form asp-action="Delete" asp-route-id="@offering.Id" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Delete this service offering?')">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        @if (!Model.Any())
+        {
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">No service offerings yet.</td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -22,6 +22,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<ClientTask> ClientTasks => Set<ClientTask>();
     public DbSet<AssetCatalogue> AssetCatalogue => Set<AssetCatalogue>();
     public DbSet<ServiceQuote> ServiceQuotes => Set<ServiceQuote>();
+    public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
 
 
 
@@ -150,6 +151,22 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<AssetCatalogue>()
             .HasIndex(a => a.Name)
             .IsUnique();
+
+        modelBuilder.Entity<MaintenanceInterval>()
+            .HasIndex(i => i.Name)
+            .IsUnique();
+
+        modelBuilder.Entity<ServiceOffering>(entity =>
+        {
+            entity.Property(s => s.Name).IsRequired().HasMaxLength(200);
+            entity.HasIndex(s => s.Name).IsUnique();
+            entity.Property(s => s.Description).HasMaxLength(1000);
+            entity.Property(s => s.IsActive).HasDefaultValue(true);
+
+            entity.HasMany(s => s.Intervals)
+                .WithMany(i => i.ServiceOfferings)
+                .UsingEntity(j => j.ToTable("ServiceOfferingIntervals"));
+        });
 
         modelBuilder.Entity<ServiceQuote>(entity =>
         {

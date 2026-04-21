@@ -12,4 +12,5 @@ public class MaintenanceInterval
     [Required]
     public int Months { get; set; }
     public ICollection<MaintenanceSchedule> MaintenanceSchedules { get; set; }
+    public ICollection<ServiceOffering> ServiceOfferings { get; set; } = new List<ServiceOffering>();
 }

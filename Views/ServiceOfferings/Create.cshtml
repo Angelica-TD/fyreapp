@@ -1,0 +1,62 @@
+@model FyreApp.Services.ServiceOfferings.ServiceOfferingFormDto
+@using FyreApp.Services.ServiceOfferings
+
+@{
+    ViewData["Title"] = "Add Service Offering";
+    var allIntervals = ViewBag.AllIntervals as List<IntervalSummary> ?? new();
+}
+
+<h1>Add Service Offering</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="Create" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="mb-3">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label"></label>
+                <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Intervals</label>
+                @if (allIntervals.Any())
+                {
+                    @foreach (var interval in allIntervals)
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   name="SelectedIntervalIds"
+                                   value="@interval.Id"
+                                   id="interval_@interval.Id"
+                                   @(Model.SelectedIntervalIds.Contains(interval.Id) ? "checked" : "") />
+                            <label class="form-check-label" for="interval_@interval.Id">
+                                @interval.Name <span class="text-muted">(@interval.Months mo)</span>
+                            </label>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-muted">No intervals defined yet.</div>
+                }
+            </div>
+
+            <div class="mb-3 form-check">
+                <input asp-for="IsActive" class="form-check-input" />
+                <label asp-for="IsActive" class="form-check-label">Active</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Create</button>
+            <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
+        </form>
+    </div>
+</div>

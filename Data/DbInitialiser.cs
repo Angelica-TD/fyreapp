@@ -88,33 +88,6 @@ public static class DbInitialiser
 
 
 
-        if (!context.MaintenanceIntervals.Any())
-        {
-            context.MaintenanceIntervals.AddRange(
-                new MaintenanceInterval
-                {
-                    Name = "Monthly",
-                    Months = 1
-                },
-                new MaintenanceInterval
-                {
-                    Name = "6-Monthly",
-                    Months = 6
-                },
-                new MaintenanceInterval
-                {
-                    Name = "Yearly",
-                    Months = 12
-                },
-                new MaintenanceInterval
-                {
-                    Name = "Five-Yearly",
-                    Months = 60
-                }
-            );
-
-        }
-
         context.SaveChanges();
     }
 }
