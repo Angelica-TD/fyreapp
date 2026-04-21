@@ -80,4 +80,4 @@ appsettings.Development.json
 /wwwroot/css/bootstrap.custom.css.map
 .vscode
 
-appsettings.Prod*
+appsettings.Prod*.claude/settings.local.json
