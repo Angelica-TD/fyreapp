@@ -188,61 +188,6 @@ public class ServiceQuotesController : Controller
             // Use the newly created site's ID for the quote
             vm.Create.SiteId = siteResult.site?.Id;
         }
-        else if (vm.CreateNewSite)
-        {
-            // Existing client, but creating their first property inline
-            if (vm.Create.ClientId is null or 0)
-            {
-                ModelState.AddModelError("Create.ClientId", "Client is required.");
-                return await RebuildIndexView(vm, ct);
-            }
-
-            clientId = vm.Create.ClientId.Value;
-            ModelState.Remove("Create.SiteId");
-
-            var siteName = vm.NewSite?.Name?.Trim();
-            if (string.IsNullOrWhiteSpace(siteName))
-            {
-                ModelState.AddModelError("NewSite.Name", "Property name is required.");
-                return await RebuildIndexView(vm, ct);
-            }
-
-            var hasGoogle = !string.IsNullOrWhiteSpace(vm.NewSite?.Google?.PlaceId);
-            var hasManual = !string.IsNullOrWhiteSpace(vm.NewSite?.Manual?.AddressLine1);
-            if (!hasGoogle && !hasManual)
-            {
-                ModelState.AddModelError("NewSite.Name", "Property address is required. Select from the autocomplete or enter manually.");
-                return await RebuildIndexView(vm, ct);
-            }
-
-            var siteReq = new CreateSiteRequest
-            {
-                ClientId = clientId,
-                Name = siteName,
-                Google = new GoogleAddressInput
-                {
-                    PlaceId = vm.NewSite!.Google.PlaceId,
-                    FormattedAddress = vm.NewSite.Google.FormattedAddress
-                },
-                Manual = new ManualAddressInput
-                {
-                    AddressLine1 = vm.NewSite.Manual.AddressLine1,
-                    AddressLine2 = vm.NewSite.Manual.AddressLine2,
-                    Suburb = vm.NewSite.Manual.Suburb,
-                    State = vm.NewSite.Manual.State,
-                    Postcode = vm.NewSite.Manual.Postcode
-                }
-            };
-
-            var siteResult = await _sites.CreateAsync(siteReq, ct);
-            if (siteResult.Status is CreateSiteStatus.ValidationError or CreateSiteStatus.GeocodeFailed)
-            {
-                ModelState.AddModelError("NewSite.Name", siteResult.Error ?? "Could not save property. Please check the address.");
-                return await RebuildIndexView(vm, ct);
-            }
-
-            vm.Create.SiteId = siteResult.site?.Id;
-        }
         else
         {
             if (vm.Create.ClientId is null or 0)

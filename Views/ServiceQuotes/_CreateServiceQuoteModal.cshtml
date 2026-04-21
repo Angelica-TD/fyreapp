@@ -5,12 +5,7 @@
 @{
     var googleKey = Config["GoogleMaps:BrowserKey"] ?? "";
 
-    // Which site-form context was active when the form was returned with errors?
-    // "new-client" = inside the new-client panel
-    // "existing-no-site" = below the existing-client select
-    var siteFormContext = Model.CreateNewClient ? "new-client"
-                        : Model.CreateNewSite   ? "existing-no-site"
-                        : "none";
+    var siteFormContext = Model.CreateNewClient ? "new-client" : "none";
 }
 
 <div class="modal fade" id="createQuoteModal" tabindex="-1" aria-hidden="true">
@@ -20,7 +15,6 @@
                 @Html.AntiForgeryToken()
 
                 <input type="hidden" name="CreateNewClient" id="createNewClientFlag" value="false" />
-                <input type="hidden" name="CreateNewSite"   id="createNewSiteFlag"   value="false" />
 
                 <div class="modal-header">
                     <h5 class="modal-title">New Service Quote</h5>
@@ -59,99 +53,16 @@
                                 @(ViewData.ModelState["Create.ClientId"]?.Errors.FirstOrDefault()?.ErrorMessage)
                             </span>
 
-                            <!-- Shown when client has existing sites -->
+                            <!-- Shown once a client is selected -->
                             <div id="sectionSiteSelect" class="d-none mt-2">
                                 <label class="form-label fw-semibold">Property</label>
                                 <select name="Create.SiteId" id="siteSelect" class="form-select">
                                     <option value="">-- Select property --</option>
+                                    <option value="__new__">+ Add new property…</option>
                                 </select>
                                 <span class="text-danger small">
                                     @(ViewData.ModelState["Create.SiteId"]?.Errors.FirstOrDefault()?.ErrorMessage)
                                 </span>
-                            </div>
-
-                            <!-- Shown when client has NO sites yet — inline property creation -->
-                            <div id="sectionNoSiteForm" class="d-none border rounded p-3 mt-2 bg-light">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="fw-semibold small text-muted text-uppercase">
-                                        <i class="bi bi-info-circle"></i> No properties yet — add one
-                                    </span>
-                                    <button type="button" class="btn btn-sm btn-link p-0 text-secondary"
-                                            id="btnCancelNoSite">← Choose different client</button>
-                                </div>
-
-                                @* Site name — disabled by default, enabled by JS when this panel is active *@
-                                <div class="mb-2">
-                                    <input name="NewSite.Name" data-site-group="ex"
-                                           class="form-control form-control-sm" placeholder="Property name *"
-                                           value="@(siteFormContext == "existing-no-site" ? Model.NewSite.Name : "")"
-                                           disabled />
-                                    <span class="text-danger small">
-                                        @(siteFormContext == "existing-no-site"
-                                            ? ViewData.ModelState["NewSite.Name"]?.Errors.FirstOrDefault()?.ErrorMessage
-                                            : null)
-                                    </span>
-                                </div>
-
-                                <input type="hidden" id="exSitePlaceId" name="NewSite.Google.PlaceId"
-                                       data-site-group="ex"
-                                       value="@(siteFormContext == "existing-no-site" ? Model.NewSite.Google.PlaceId : "")"
-                                       disabled />
-                                <input type="hidden" id="exSiteFormattedAddress" name="NewSite.Google.FormattedAddress"
-                                       data-site-group="ex"
-                                       value="@(siteFormContext == "existing-no-site" ? Model.NewSite.Google.FormattedAddress : "")"
-                                       disabled />
-
-                                <input class="form-control form-control-sm mb-1" id="exSiteAddressSearch"
-                                       type="text" placeholder="Start typing an Australian address…"
-                                       autocomplete="one-time-code" disabled />
-
-                                <button type="button" class="btn btn-link btn-sm px-0" id="exBtnManualAddress"
-                                        disabled>
-                                    Can't find the address? Enter manually
-                                </button>
-
-                                <div id="exManualAddressPanel" class="mt-2 d-none">
-                                    <div class="mb-2">
-                                        <input class="form-control form-control-sm" id="exAddr1"
-                                               name="NewSite.Manual.AddressLine1" data-site-group="ex"
-                                               placeholder="Address line 1" maxlength="200"
-                                               value="@(siteFormContext == "existing-no-site" ? Model.NewSite.Manual.AddressLine1 : "")"
-                                               disabled />
-                                    </div>
-                                    <div class="mb-2">
-                                        <input class="form-control form-control-sm"
-                                               name="NewSite.Manual.AddressLine2" data-site-group="ex"
-                                               placeholder="Address line 2" maxlength="200"
-                                               value="@(siteFormContext == "existing-no-site" ? Model.NewSite.Manual.AddressLine2 : "")"
-                                               disabled />
-                                    </div>
-                                    <div class="row g-2">
-                                        <div class="col-5">
-                                            <input class="form-control form-control-sm"
-                                                   name="NewSite.Manual.Suburb" data-site-group="ex"
-                                                   placeholder="Suburb" maxlength="80"
-                                                   value="@(siteFormContext == "existing-no-site" ? Model.NewSite.Manual.Suburb : "")"
-                                                   disabled />
-                                        </div>
-                                        <div class="col-3">
-                                            <input class="form-control form-control-sm"
-                                                   name="NewSite.Manual.State" data-site-group="ex"
-                                                   placeholder="State" maxlength="20"
-                                                   value="@(siteFormContext == "existing-no-site" ? Model.NewSite.Manual.State : "")"
-                                                   disabled />
-                                        </div>
-                                        <div class="col-4">
-                                            <input class="form-control form-control-sm"
-                                                   name="NewSite.Manual.Postcode" data-site-group="ex"
-                                                   placeholder="Postcode" maxlength="10"
-                                                   value="@(siteFormContext == "existing-no-site" ? Model.NewSite.Manual.Postcode : "")"
-                                                   disabled />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="text-danger small mt-1 d-none" id="exSiteAddressError"></div>
                             </div>
                         </div>
 
@@ -341,23 +252,42 @@
     </div>
 </div>
 
+@await Html.PartialAsync("_CreatePropertyModal",
+    new FyreApp.ViewModels.Sites.CreatePropertyModalVm
+    {
+        ClientId    = null,
+        ClientName  = "",
+        ModalId     = "sqAddPropertyModal",
+        IdPrefix    = "sqAddSite",
+        ShowClientNameInTitle = false,
+        FormController = "Property",
+        FormAction     = "CreateAjax",
+        GoogleBrowserKey = googleKey
+    })
+
 <script>
 (function () {
-    const modal       = document.getElementById('createQuoteModal');
+    const modal         = document.getElementById('createQuoteModal');
+    const propModalEl   = document.getElementById('sqAddPropertyModal');
+    const propModalForm = propModalEl?.querySelector('form.js-create-site-form');
+    function getPropModal() { return bootstrap.Modal.getOrCreateInstance(propModalEl); }
+    const propClientId  = propModalEl?.querySelector('input[data-role="client-id"]');
+
     const clientSel   = document.getElementById('clientSelect');
     const secExisting = document.getElementById('sectionExistingClient');
     const secNew      = document.getElementById('sectionNewClient');
     const secSiteSel  = document.getElementById('sectionSiteSelect');
     const siteSel     = document.getElementById('siteSelect');
-    const secNoSite   = document.getElementById('sectionNoSiteForm');
     const flagClient  = document.getElementById('createNewClientFlag');
-    const flagSite    = document.getElementById('createNewSiteFlag');
     const expiryInput = document.getElementById('quoteExpiry');
     const googleKey   = @Json.Serialize(googleKey);
 
     const preselectedClientId = @(Model.Create.ClientId.HasValue ? Model.Create.ClientId.Value.ToString() : "null");
     const preselectedSiteId   = @(Model.Create.SiteId.HasValue   ? Model.Create.SiteId.Value.ToString()   : "null");
-    // ── Interval visibility (only shown for Routine) ─────────────────────
+
+    const NEW_VALUE = '__new__';
+
+    // ── Interval visibility ──────────────────────────────────────────────────
     const createQuoteTypeSel = document.getElementById('createQuoteType');
     const createIntervalCol  = document.getElementById('createIntervalCol');
     const routineValue       = '@((int)ServiceQuoteType.Routine)';
@@ -368,27 +298,19 @@
     createQuoteTypeSel.addEventListener('change', toggleCreateInterval);
     toggleCreateInterval();
 
-    // ── Site-group enable/disable ─────────────────────────────────────────
-    // Both site forms share the same field names (NewSite.*).
-    // Only the active group is enabled so only its values get submitted.
-    function setSiteGroup(activeGroup /* "nc" | "ex" | null */) {
+    // ── Site-group enable/disable (new-client panel only) ────────────────────
+    function setSiteGroup(activeGroup /* "nc" | null */) {
         document.querySelectorAll('[data-site-group]').forEach(el => {
             el.disabled = (el.dataset.siteGroup !== activeGroup);
         });
-        // Also toggle the non-data-site-group interactives (autocomplete, manual btn)
         const cqInputs = [
             document.getElementById('cqSiteAddressSearch'),
             document.getElementById('cqBtnManualAddress'),
         ];
-        const exInputs = [
-            document.getElementById('exSiteAddressSearch'),
-            document.getElementById('exBtnManualAddress'),
-        ];
         cqInputs.forEach(el => { if (el) el.disabled = (activeGroup !== 'nc'); });
-        exInputs.forEach(el => { if (el) el.disabled = (activeGroup !== 'ex'); });
     }
 
-    // ── Default expiry ────────────────────────────────────────────────────
+    // ── Default expiry ───────────────────────────────────────────────────────
     modal.addEventListener('shown.bs.modal', () => {
         if (!expiryInput.value) {
             const d = new Date();
@@ -397,12 +319,11 @@
         }
     });
 
-    // ── Client select ─────────────────────────────────────────────────────
+    // ── Client select ────────────────────────────────────────────────────────
     function showNewClient() {
         secExisting.classList.add('d-none');
         secNew.classList.remove('d-none');
         flagClient.value = 'true';
-        flagSite.value   = 'false';
         setSiteGroup('nc');
         initGooglePlaces('nc');
     }
@@ -410,16 +331,14 @@
     function showExistingClient() {
         secNew.classList.add('d-none');
         secExisting.classList.remove('d-none');
-        secNoSite.classList.add('d-none');
         secSiteSel.classList.add('d-none');
         flagClient.value = 'false';
-        flagSite.value   = 'false';
         clientSel.value  = '';
         setSiteGroup(null);
     }
 
     clientSel.addEventListener('change', function () {
-        if (this.value === '__new__') {
+        if (this.value === NEW_VALUE) {
             showNewClient();
         } else if (this.value) {
             flagClient.value = 'false';
@@ -427,56 +346,107 @@
             loadSites(this.value, null);
         } else {
             secSiteSel.classList.add('d-none');
-            secNoSite.classList.add('d-none');
             setSiteGroup(null);
         }
     });
 
     document.getElementById('btnCancelNewClient').addEventListener('click', showExistingClient);
 
-    document.getElementById('btnCancelNoSite').addEventListener('click', () => {
-        secNoSite.classList.add('d-none');
-        secSiteSel.classList.add('d-none');
-        flagSite.value  = 'false';
-        clientSel.value = '';
-        setSiteGroup(null);
-    });
+    // ── Site AJAX loader ─────────────────────────────────────────────────────
+    function ensureAddNewOption() {
+        if (!Array.from(siteSel.options).some(o => o.value === NEW_VALUE)) {
+            const opt = document.createElement('option');
+            opt.value = NEW_VALUE;
+            opt.textContent = '+ Add new property…';
+            siteSel.appendChild(opt);
+        }
+    }
 
-    // ── Site AJAX loader ──────────────────────────────────────────────────
     async function loadSites(clientId, preselectId) {
         secSiteSel.classList.add('d-none');
-        secNoSite.classList.add('d-none');
         siteSel.innerHTML = '<option value="">-- Select property --</option>';
 
         try {
             const res   = await fetch(`/api/client-sites/${clientId}`);
             const sites = await res.json();
 
-            if (sites.length === 0) {
-                // No properties — show inline creation form
-                secNoSite.classList.remove('d-none');
-                flagSite.value = 'true';
-                setSiteGroup('ex');
-                initGooglePlaces('ex');
-                return;
-            }
-
             sites.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value       = s.id;
                 opt.textContent = s.name;
-                if (preselectId && s.id === preselectId) opt.selected = true;
+                if (preselectId && String(s.id) === String(preselectId)) opt.selected = true;
                 siteSel.appendChild(opt);
             });
+            ensureAddNewOption();
             secSiteSel.classList.remove('d-none');
-            flagSite.value = 'false';
-            setSiteGroup(null);
         } catch (e) {
             console.warn('Failed to load sites', e);
         }
     }
 
-    // ── Manual address toggles ────────────────────────────────────────────
+    // ── Add new property via modal ───────────────────────────────────────────
+    siteSel.addEventListener('change', function () {
+        if (this.value !== NEW_VALUE) return;
+        if (!clientSel.value) { this.value = ''; return; }
+        if (propClientId) propClientId.value = clientSel.value;
+        getPropModal().show();
+    });
+
+    // Fix z-index so property modal appears above the quote modal
+    propModalEl.addEventListener('show.bs.modal', function () {
+        setTimeout(() => {
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            if (backdrops.length > 0) backdrops[backdrops.length - 1].style.zIndex = '1055';
+            propModalEl.style.zIndex = '1056';
+        }, 0);
+    });
+
+    propModalEl.addEventListener('hidden.bs.modal', function () {
+        propModalEl.style.zIndex = '';
+        if (siteSel.value === NEW_VALUE) siteSel.value = '';
+    });
+
+    propModalForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        // Mirror the validation that _CreatePropertyModal already checks so we bail before fetch
+        const placeIdEl   = propModalEl.querySelector('[name="Google.PlaceId"]');
+        const manualPanel = propModalEl.querySelector('[id$="_manualAddressPanel"]');
+        const addr1El     = propModalEl.querySelector('[name="Manual.AddressLine1"]');
+        const isManual    = manualPanel && !manualPanel.classList.contains('d-none');
+        if (isManual  && (!addr1El   || !addr1El.value.trim()))   return;
+        if (!isManual && (!placeIdEl || !placeIdEl.value.trim())) return;
+
+        const submitBtn = propModalForm.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+
+        try {
+            const body = new URLSearchParams(new FormData(propModalForm));
+            const res  = await fetch('/Property/CreateAjax', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body
+            });
+            if (!res.ok) throw new Error(await res.text() || 'Could not create property.');
+            const created = await res.json();
+
+            const newOpt    = document.createElement('option');
+            newOpt.value    = String(created.id);
+            newOpt.textContent = created.name;
+            const addNewOpt = Array.from(siteSel.options).find(o => o.value === NEW_VALUE);
+            if (addNewOpt) siteSel.insertBefore(newOpt, addNewOpt);
+            else           siteSel.appendChild(newOpt);
+
+            siteSel.value = String(created.id);
+            getPropModal().hide();
+        } catch (err) {
+            const errEl = propModalEl.querySelector('[data-role="error"]');
+            if (errEl) { errEl.textContent = err?.message || 'Could not create property.'; errEl.classList.remove('d-none'); }
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    });
+
+    // ── Manual address toggle (new-client panel) ─────────────────────────────
     function wireManualToggle(btnId, panelId, placeIdElId, formattedElId) {
         const btn     = document.getElementById(btnId);
         const panel   = document.getElementById(panelId);
@@ -491,31 +461,20 @@
         });
     }
     wireManualToggle('cqBtnManualAddress', 'cqManualAddressPanel', 'cqSitePlaceId', 'cqSiteFormattedAddress');
-    wireManualToggle('exBtnManualAddress', 'exManualAddressPanel', 'exSitePlaceId', 'exSiteFormattedAddress');
 
-    // ── Address validation on submit ──────────────────────────────────────
+    // ── Address validation on submit (new-client path only) ──────────────────
     function validateSiteAddress(searchId, manualPanelId, addr1Id, errElId, placeIdElId) {
         const search  = document.getElementById(searchId);
         const panel   = document.getElementById(manualPanelId);
         const addr1   = document.getElementById(addr1Id);
         const errEl   = document.getElementById(errElId);
         const placeEl = document.getElementById(placeIdElId);
-
         const showErr = msg => { if (errEl) { errEl.textContent = msg; errEl.classList.remove('d-none'); } };
-
         const isManual = panel && !panel.classList.contains('d-none');
         if (isManual) {
-            if (!addr1 || !addr1.value.trim()) {
-                showErr('Address line 1 is required.');
-                addr1?.focus();
-                return false;
-            }
+            if (!addr1 || !addr1.value.trim()) { showErr('Address line 1 is required.'); addr1?.focus(); return false; }
         } else {
-            if (!placeEl || !placeEl.value.trim()) {
-                showErr('Please select an address from the list or enter one manually.');
-                search?.focus();
-                return false;
-            }
+            if (!placeEl || !placeEl.value.trim()) { showErr('Please select an address from the list or enter one manually.'); search?.focus(); return false; }
         }
         return true;
     }
@@ -524,33 +483,25 @@
         if (flagClient.value === 'true') {
             if (!validateSiteAddress('cqSiteAddressSearch', 'cqManualAddressPanel', 'cqAddr1', 'cqSiteAddressError', 'cqSitePlaceId'))
                 e.preventDefault();
-        } else if (flagSite.value === 'true') {
-            if (!validateSiteAddress('exSiteAddressSearch', 'exManualAddressPanel', 'exAddr1', 'exSiteAddressError', 'exSitePlaceId'))
-                e.preventDefault();
         }
     });
 
     modal.addEventListener('hidden.bs.modal', () => {
-        ['cqSiteAddressError', 'exSiteAddressError'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) { el.textContent = ''; el.classList.add('d-none'); }
-        });
+        const el = document.getElementById('cqSiteAddressError');
+        if (el) { el.textContent = ''; el.classList.add('d-none'); }
     });
 
-    // ── Google Places ─────────────────────────────────────────────────────
+    // ── Google Places ────────────────────────────────────────────────────────
     const autocompletes = {};
     function initGooglePlaces(group) {
         if (autocompletes[group] || !googleKey) return;
-        const searchId    = group === 'nc' ? 'cqSiteAddressSearch'    : 'exSiteAddressSearch';
-        const placeIdId   = group === 'nc' ? 'cqSitePlaceId'          : 'exSitePlaceId';
-        const formattedId = group === 'nc' ? 'cqSiteFormattedAddress' : 'exSiteFormattedAddress';
-        const errId       = group === 'nc' ? 'cqSiteAddressError'     : 'exSiteAddressError';
+        if (group !== 'nc') return;
 
         loadGooglePlacesOnce(googleKey).then(() => {
-            const searchEl    = document.getElementById(searchId);
-            const placeIdEl   = document.getElementById(placeIdId);
-            const formattedEl = document.getElementById(formattedId);
-            const errEl       = document.getElementById(errId);
+            const searchEl    = document.getElementById('cqSiteAddressSearch');
+            const placeIdEl   = document.getElementById('cqSitePlaceId');
+            const formattedEl = document.getElementById('cqSiteFormattedAddress');
+            const errEl       = document.getElementById('cqSiteAddressError');
             if (!searchEl) return;
 
             const ac = new google.maps.places.Autocomplete(searchEl, {
@@ -593,7 +544,7 @@
         return window.__fyreGooglePlacesPromise;
     }
 
-    // ── Restore state after failed submission ─────────────────────────────
+    // ── Restore state after failed submission ────────────────────────────────
     @if (siteFormContext == "new-client")
     {
         <text>
@@ -605,26 +556,6 @@
             const _b = document.getElementById('cqBtnManualAddress');
             if (_p) _p.classList.remove('d-none');
             if (_b) _b.classList.add('d-none');
-            </text>
-        }
-        </text>
-    }
-    else if (siteFormContext == "existing-no-site")
-    {
-        <text>
-        // Restore existing-client + no-site-form state
-        flagClient.value = 'false';
-        flagSite.value   = 'true';
-        setSiteGroup('ex');
-        secNoSite.classList.remove('d-none');
-        initGooglePlaces('ex');
-        @if (!string.IsNullOrWhiteSpace(Model.NewSite?.Manual?.AddressLine1))
-        {
-            <text>
-            const _ep = document.getElementById('exManualAddressPanel');
-            const _eb = document.getElementById('exBtnManualAddress');
-            if (_ep) _ep.classList.remove('d-none');
-            if (_eb) _eb.classList.add('d-none');
             </text>
         }
         </text>

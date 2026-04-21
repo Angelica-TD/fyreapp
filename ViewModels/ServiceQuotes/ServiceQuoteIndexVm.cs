@@ -12,7 +12,6 @@ public class ServiceQuoteIndexVm
 
     // Inline creation flags
     public bool CreateNewClient { get; set; }
-    public bool CreateNewSite { get; set; }   // true when existing client has no sites yet
     public InlineNewClientVm NewClient { get; set; } = new();
     public InlineNewSiteVm NewSite { get; set; } = new();
 }
