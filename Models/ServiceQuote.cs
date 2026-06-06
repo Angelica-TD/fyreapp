@@ -30,6 +30,9 @@ public class ServiceQuote
     public int? SiteId { get; set; }
     public Site? Site { get; set; }
 
+    public int? ServiceOfferingId { get; set; }
+    public ServiceOffering? ServiceOffering { get; set; }
+
     public int? MaintenanceIntervalId { get; set; }
     public MaintenanceInterval? MaintenanceInterval { get; set; }
 

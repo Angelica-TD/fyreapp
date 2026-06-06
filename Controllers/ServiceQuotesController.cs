@@ -44,7 +44,8 @@ public class ServiceQuotesController : Controller
         {
             Quotes = await _quotes.GetAllAsync(ct),
             Clients = await _db.Clients.Where(c => c.Active).OrderBy(c => c.Name).ToListAsync(ct),
-            Intervals = await _db.MaintenanceIntervals.OrderBy(i => i.Months).ToListAsync(ct)
+            Intervals = await _db.MaintenanceIntervals.OrderBy(i => i.Months).ToListAsync(ct),
+            ServiceOfferings = await _db.ServiceOfferings.Where(s => s.IsActive).OrderBy(s => s.Name).ToListAsync(ct)
         };
         return View(vm);
     }
@@ -203,6 +204,13 @@ public class ServiceQuotesController : Controller
                 ModelState.AddModelError("Create.SiteId", "Property is required.");
                 return await RebuildIndexView(vm, ct);
             }
+        }
+
+        // Validate service offering
+        if (vm.Create.ServiceOfferingId is null or 0)
+        {
+            ModelState.AddModelError("Create.ServiceOfferingId", "Service is required.");
+            return await RebuildIndexView(vm, ct);
         }
 
         // Validate quote fields
@@ -390,6 +398,7 @@ public class ServiceQuotesController : Controller
         vm.Quotes = await _quotes.GetAllAsync(ct);
         vm.Clients = await _db.Clients.Where(c => c.Active).OrderBy(c => c.Name).ToListAsync(ct);
         vm.Intervals = await _db.MaintenanceIntervals.OrderBy(i => i.Months).ToListAsync(ct);
+        vm.ServiceOfferings = await _db.ServiceOfferings.Where(s => s.IsActive).OrderBy(s => s.Name).ToListAsync(ct);
         vm.OpenCreateModal = true;
         return View("Index", vm);
     }

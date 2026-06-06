@@ -1,0 +1,220 @@
+@model FyreApp.ViewModels.Quotes.QuoteDetailsVm
+@using FyreApp.Models
+
+@{
+    ViewData["Title"] = $"Quote {Model.Quote.QuoteNumber}";
+    var q = Model.Quote;
+    var canAct = q.Status is QuoteStatus.Draft or QuoteStatus.Sent;
+    var total = q.LineItems.Sum(li => li.Quantity * li.UnitPrice);
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h1 class="mb-0">@q.QuoteNumber</h1>
+        <span class="text-muted">@q.Client.Name · @q.Site.Name</span>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        @{
+            var (badge, statusLabel) = q.Status switch
+            {
+                QuoteStatus.Draft    => ("bg-secondary", "Draft"),
+                QuoteStatus.Sent     => ("bg-primary", "Sent"),
+                QuoteStatus.Accepted => ("bg-success", "Accepted"),
+                QuoteStatus.Declined => ("bg-danger", "Declined"),
+                _                    => ("bg-secondary", q.Status.ToString())
+            };
+        }
+        <span class="badge @badge fs-6">@statusLabel</span>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">← Quotes</a>
+    </div>
+</div>
+
+<div class="row g-4">
+
+    <!-- Quote info -->
+    <div class="col-lg-8">
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Quote Details</span>
+                @if (canAct)
+                {
+                    <button class="btn btn-sm btn-outline-secondary" id="editToggleBtn"
+                            data-bs-toggle="collapse" data-bs-target="#editPanel">
+                        Edit
+                    </button>
+                }
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Created by</dt>
+                    <dd class="col-sm-8">@q.CreatedBy?.FirstName @q.CreatedBy?.LastName · @q.CreatedAt.ToString("dd MMM yyyy")</dd>
+
+                    <dt class="col-sm-4">Expiry</dt>
+                    <dd class="col-sm-8">
+                        @if (q.ExpiryDate.HasValue)
+                        {
+                            <span class="@(q.ExpiryDate < DateTime.UtcNow ? "text-danger" : "")">
+                                @q.ExpiryDate.Value.ToString("dd MMM yyyy")
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </dd>
+
+                    @if (!string.IsNullOrWhiteSpace(q.Notes))
+                    {
+                        <dt class="col-sm-4">Notes</dt>
+                        <dd class="col-sm-8">@q.Notes</dd>
+                    }
+                </dl>
+            </div>
+            @if (canAct)
+            {
+                <div class="collapse @(Model.OpenEdit ? "show" : "")" id="editPanel">
+                    <div class="card-body border-top">
+                        <form asp-action="Edit" asp-route-id="@q.Id" method="post">
+                            <div asp-validation-summary="All" class="alert alert-danger small" role="alert"></div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label asp-for="Edit.Status" class="form-label">Status</label>
+                                    <select asp-for="Edit.Status" class="form-select"
+                                            asp-items="Html.GetEnumSelectList<QuoteStatus>()"></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="Edit.ExpiryDate" class="form-label">Expiry Date</label>
+                                    <input asp-for="Edit.ExpiryDate" type="date" class="form-control" />
+                                </div>
+                                <div class="col-12">
+                                    <label asp-for="Edit.Notes" class="form-label">Notes</label>
+                                    <textarea asp-for="Edit.Notes" class="form-control" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <div class="mt-3 d-flex gap-2">
+                                <button type="submit" class="btn btn-primary btn-sm">Save</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm"
+                                        data-bs-toggle="collapse" data-bs-target="#editPanel">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Line Items -->
+        <div class="card">
+            <div class="card-header">Line Items</div>
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Asset</th>
+                        <th>Service Type</th>
+                        <th>Qty</th>
+                        <th>Unit Price</th>
+                        <th>Line Total</th>
+                        <th>Recurring</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var li in q.LineItems)
+                    {
+                        <tr>
+                            <td>@li.Asset.Name</td>
+                            <td>@li.ServiceType.Name</td>
+                            <td>@li.Quantity</td>
+                            <td>$@li.UnitPrice.ToString("N2")</td>
+                            <td>$@((li.Quantity * li.UnitPrice).ToString("N2"))</td>
+                            <td>
+                                @if (li.IsRecurring && li.RecurringInterval != null)
+                                {
+                                    <span class="badge bg-info text-dark">@li.RecurringInterval.Name</span>
+                                }
+                                else if (li.IsRecurring)
+                                {
+                                    <span class="badge bg-secondary">Yes</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">One-off</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!q.LineItems.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="text-muted text-center py-3">No line items.</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr class="fw-bold">
+                        <td colspan="4" class="text-end">Total</td>
+                        <td>$@total.ToString("N2")</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">Actions</div>
+            <div class="card-body d-grid gap-2">
+
+                @if (canAct)
+                {
+                    <form asp-action="Accept" asp-route-id="@q.Id" method="post">
+                        <button type="submit" class="btn btn-success w-100"
+                                onclick="return confirm('Accept this quote? This will create maintenance schedules and tasks.')">
+                            Accept Quote
+                        </button>
+                    </form>
+
+                    <form asp-action="Decline" asp-route-id="@q.Id" method="post">
+                        <button type="submit" class="btn btn-outline-danger w-100"
+                                onclick="return confirm('Decline this quote?')">
+                            Decline Quote
+                        </button>
+                    </form>
+                }
+
+                @if (q.Status == QuoteStatus.Draft)
+                {
+                    <form asp-action="Delete" asp-route-id="@q.Id" method="post">
+                        <button type="submit" class="btn btn-outline-secondary w-100 btn-sm"
+                                onclick="return confirm('Permanently delete this quote?')">
+                            Delete
+                        </button>
+                    </form>
+                }
+
+                @if (!canAct)
+                {
+                    <p class="text-muted small mb-0">
+                        This quote is @statusLabel and cannot be modified.
+                    </p>
+                }
+
+            </div>
+        </div>
+    </div>
+</div>

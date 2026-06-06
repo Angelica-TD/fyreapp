@@ -18,6 +18,9 @@ public class CreateServiceQuoteVm
     [StringLength(4000, ErrorMessage = "Description cannot exceed 4000 characters.")]
     public string? Description { get; set; }
 
+    [Required(ErrorMessage = "Service is required.")]
+    public int? ServiceOfferingId { get; set; }
+
     public ServiceQuoteType QuoteType { get; set; } = ServiceQuoteType.OneTime;
 
     public int? MaintenanceIntervalId { get; set; }

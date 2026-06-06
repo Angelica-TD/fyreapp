@@ -1,0 +1,82 @@
+@model IReadOnlyList<FyreApp.Services.Quotes.QuoteListItemVm>
+@using FyreApp.Models
+
+@{
+    ViewData["Title"] = "Quotes";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>Quotes</h1>
+    <a asp-action="Create" class="btn btn-primary">+ New Quote</a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["Success"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>Quote #</th>
+            <th>Client</th>
+            <th>Site</th>
+            <th>Status</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Expiry</th>
+            <th>Created</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var q in Model)
+        {
+            <tr>
+                <td><a asp-action="Details" asp-route-id="@q.Id">@q.QuoteNumber</a></td>
+                <td>@q.ClientName</td>
+                <td>@q.SiteName</td>
+                <td>
+                    @{
+                        var (badge, label) = q.Status switch
+                        {
+                            QuoteStatus.Draft    => ("bg-secondary", "Draft"),
+                            QuoteStatus.Sent     => ("bg-primary", "Sent"),
+                            QuoteStatus.Accepted => ("bg-success", "Accepted"),
+                            QuoteStatus.Declined => ("bg-danger", "Declined"),
+                            _                    => ("bg-secondary", q.Status.ToString())
+                        };
+                    }
+                    <span class="badge @badge">@label</span>
+                </td>
+                <td>@q.LineItemCount</td>
+                <td>$@q.Total.ToString("N2")</td>
+                <td>
+                    @if (q.ExpiryDate.HasValue)
+                    {
+                        <span class="@(q.ExpiryDate < DateTime.UtcNow ? "text-danger" : "")">
+                            @q.ExpiryDate.Value.ToString("dd MMM yyyy")
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="text-muted">—</span>
+                    }
+                </td>
+                <td class="text-muted small">@q.CreatedAt.ToString("dd MMM yyyy")</td>
+                <td class="text-end">
+                    <a asp-action="Details" asp-route-id="@q.Id" class="btn btn-sm btn-outline-secondary">View</a>
+                </td>
+            </tr>
+        }
+        @if (!Model.Any())
+        {
+            <tr>
+                <td colspan="9" class="text-center text-muted py-4">No quotes yet.</td>
+            </tr>
+        }
+    </tbody>
+</table>

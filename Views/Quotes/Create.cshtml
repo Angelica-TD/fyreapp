@@ -1,0 +1,239 @@
+@model FyreApp.ViewModels.Quotes.CreateQuoteVm
+
+@{
+    ViewData["Title"] = "New Quote";
+    var clients = (IEnumerable<dynamic>)ViewBag.Clients;
+    var serviceTypes = (IEnumerable<dynamic>)ViewBag.ServiceTypes;
+    var intervals = (IEnumerable<dynamic>)ViewBag.Intervals;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1>New Quote</h1>
+    <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+</div>
+
+<form asp-action="Create" method="post" id="createQuoteForm">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-6">
+            <label asp-for="ClientId" class="form-label">Client <span class="text-danger">*</span></label>
+            <select asp-for="ClientId" id="clientSelect" class="form-select">
+                <option value="">— Select client —</option>
+                @foreach (var c in clients)
+                {
+                    <option value="@c.Id">@c.Name</option>
+                }
+            </select>
+            <span asp-validation-for="ClientId" class="text-danger small"></span>
+        </div>
+
+        <div class="col-md-6">
+            <label asp-for="SiteId" class="form-label">Site <span class="text-danger">*</span></label>
+            <select asp-for="SiteId" id="siteSelect" class="form-select" disabled>
+                <option value="">— Select client first —</option>
+            </select>
+            <span asp-validation-for="SiteId" class="text-danger small"></span>
+        </div>
+
+        <div class="col-md-4">
+            <label asp-for="ExpiryDate" class="form-label">Expiry Date</label>
+            <input asp-for="ExpiryDate" type="date" class="form-control" />
+        </div>
+
+        <div class="col-12">
+            <label asp-for="Notes" class="form-label">Notes</label>
+            <textarea asp-for="Notes" class="form-control" rows="3" placeholder="Optional notes…"></textarea>
+            <span asp-validation-for="Notes" class="text-danger small"></span>
+        </div>
+
+    </div>
+
+    <!-- Line Items -->
+    <h5 class="mb-3">Line Items</h5>
+    <div id="lineItemsContainer">
+        <!-- rows injected by JS -->
+    </div>
+    <div id="noLineItemsMsg" class="text-muted small mb-3">No line items added yet.</div>
+
+    <button type="button" id="addLineItemBtn" class="btn btn-outline-secondary btn-sm mb-4" disabled>
+        + Add Line Item
+    </button>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Create Quote</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>
+
+<!-- Line item row template (hidden) -->
+<template id="lineItemTemplate">
+    <div class="line-item-row card mb-2">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Asset <span class="text-danger">*</span></label>
+                    <select name="LineItems[__idx__].AssetId" class="form-select form-select-sm asset-select" required>
+                        <option value="">— Select —</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Service Type <span class="text-danger">*</span></label>
+                    <select name="LineItems[__idx__].ServiceTypeId" class="form-select form-select-sm" required>
+                        <option value="">— Select —</option>
+                        @foreach (var st in serviceTypes)
+                        {
+                            <option value="@st.Id">@st.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Qty</label>
+                    <input type="number" name="LineItems[__idx__].Quantity" class="form-control form-control-sm" value="1" min="1" max="10000" required />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Unit Price</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text">$</span>
+                        <input type="number" name="LineItems[__idx__].UnitPrice" class="form-control form-control-sm unit-price" value="0" min="0" step="0.01" required />
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-check mt-3">
+                        <input type="checkbox" name="LineItems[__idx__].IsRecurring" class="form-check-input recurring-check" value="true" id="recurring__idx__" />
+                        <label class="form-check-label small" for="recurring__idx__">Recurring</label>
+                    </div>
+                </div>
+                <div class="col-md-1 text-end">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-line-item mt-3">✕</button>
+                </div>
+                <div class="col-12 recurring-interval-row" style="display:none">
+                    <label class="form-label small mb-1">Interval</label>
+                    <select name="LineItems[__idx__].RecurringIntervalId" class="form-select form-select-sm interval-select">
+                        <option value="">— Select interval —</option>
+                        @foreach (var iv in intervals)
+                        {
+                            <option value="@iv.Id">@iv.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+@section Scripts {
+    <script>
+        (function () {
+            const clientSelect = document.getElementById('clientSelect');
+            const siteSelect = document.getElementById('siteSelect');
+            const addBtn = document.getElementById('addLineItemBtn');
+            const container = document.getElementById('lineItemsContainer');
+            const noMsg = document.getElementById('noLineItemsMsg');
+            const template = document.getElementById('lineItemTemplate');
+            let rowIndex = 0;
+            let siteAssets = [];
+
+            // ── Client → Sites cascade ──────────────────────────────────────
+            clientSelect.addEventListener('change', async function () {
+                const clientId = this.value;
+                siteSelect.innerHTML = '<option value="">— Loading… —</option>';
+                siteSelect.disabled = true;
+                addBtn.disabled = true;
+                siteAssets = [];
+
+                if (!clientId) {
+                    siteSelect.innerHTML = '<option value="">— Select client first —</option>';
+                    return;
+                }
+
+                const res = await fetch(`/api/quotes/sites/${clientId}`);
+                const sites = await res.json();
+
+                siteSelect.innerHTML = '<option value="">— Select site —</option>';
+                sites.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = s.name;
+                    siteSelect.appendChild(opt);
+                });
+                siteSelect.disabled = false;
+            });
+
+            // ── Site → Assets load ──────────────────────────────────────────
+            siteSelect.addEventListener('change', async function () {
+                const siteId = this.value;
+                siteAssets = [];
+                addBtn.disabled = true;
+
+                if (!siteId) return;
+
+                const res = await fetch(`/api/quotes/assets/${siteId}`);
+                siteAssets = await res.json();
+                addBtn.disabled = false;
+
+                // Refresh asset dropdowns in existing rows
+                document.querySelectorAll('.asset-select').forEach(sel => populateAssetSelect(sel));
+            });
+
+            function populateAssetSelect(sel) {
+                const current = sel.value;
+                sel.innerHTML = '<option value="">— Select —</option>';
+                siteAssets.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.id;
+                    opt.textContent = a.name;
+                    if (a.id == current) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            }
+
+            // ── Add line item ───────────────────────────────────────────────
+            addBtn.addEventListener('click', function () {
+                const html = template.innerHTML.replaceAll('__idx__', rowIndex++);
+                const div = document.createElement('div');
+                div.innerHTML = html;
+                const row = div.firstElementChild;
+
+                populateAssetSelect(row.querySelector('.asset-select'));
+
+                row.querySelector('.remove-line-item').addEventListener('click', function () {
+                    row.remove();
+                    reindexRows();
+                    updateNoMsg();
+                });
+
+                row.querySelector('.recurring-check').addEventListener('change', function () {
+                    const ivRow = row.querySelector('.recurring-interval-row');
+                    ivRow.style.display = this.checked ? '' : 'none';
+                    row.querySelector('.interval-select').required = this.checked;
+                });
+
+                container.appendChild(row);
+                updateNoMsg();
+            });
+
+            function reindexRows() {
+                container.querySelectorAll('.line-item-row').forEach((row, i) => {
+                    row.querySelectorAll('[name]').forEach(el => {
+                        el.name = el.name.replace(/LineItems\[\d+\]/, `LineItems[${i}]`);
+                    });
+                    const cb = row.querySelector('.recurring-check');
+                    if (cb) {
+                        cb.id = `recurring${i}`;
+                        const lbl = row.querySelector(`label[for^="recurring"]`);
+                        if (lbl) lbl.setAttribute('for', `recurring${i}`);
+                    }
+                });
+                rowIndex = container.querySelectorAll('.line-item-row').length;
+            }
+
+            function updateNoMsg() {
+                noMsg.style.display = container.children.length === 0 ? '' : 'none';
+            }
+
+            updateNoMsg();
+        })();
+    </script>
+}

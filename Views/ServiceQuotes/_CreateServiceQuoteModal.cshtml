@@ -1,5 +1,6 @@
 @model FyreApp.ViewModels.ServiceQuotes.ServiceQuoteIndexVm
 @using FyreApp.Models
+@using FyreApp.Services.ServiceOfferings
 @inject IConfiguration Config
 
 @{
@@ -178,6 +179,23 @@
 
                     <!-- ── Quote details ──────────────────────────────── -->
                     <label class="form-label fw-semibold">Quote Details</label>
+
+                    <div class="mb-2">
+                        <label class="form-label">Service *</label>
+                        <select name="Create.ServiceOfferingId" class="form-select">
+                            <option value="">-- Select service --</option>
+                            @foreach (var offering in Model.ServiceOfferings)
+                            {
+                                <option value="@offering.Id"
+                                        selected="@(Model.Create.ServiceOfferingId == offering.Id ? "selected" : null)">
+                                    @offering.Name
+                                </option>
+                            }
+                        </select>
+                        <span class="text-danger small">
+                            @(ViewData.ModelState["Create.ServiceOfferingId"]?.Errors.FirstOrDefault()?.ErrorMessage)
+                        </span>
+                    </div>
 
                     <div class="row g-2 mb-2">
                         <div class="col-md-8">

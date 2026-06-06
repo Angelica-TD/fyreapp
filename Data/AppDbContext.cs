@@ -23,6 +23,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<AssetCatalogue> AssetCatalogue => Set<AssetCatalogue>();
     public DbSet<ServiceQuote> ServiceQuotes => Set<ServiceQuote>();
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
+    public DbSet<ServiceType> ServiceTypes => Set<ServiceType>();
+    public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
 
 
 
@@ -183,6 +186,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
             entity.HasIndex(q => q.SiteId);
 
+            entity.HasOne(q => q.ServiceOffering)
+                .WithMany()
+                .HasForeignKey(q => q.ServiceOfferingId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
+            entity.HasIndex(q => q.ServiceOfferingId);
+
             entity.HasOne(q => q.MaintenanceInterval)
                 .WithMany()
                 .HasForeignKey(q => q.MaintenanceIntervalId)
@@ -211,6 +222,79 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(q => q.ClientId);
             entity.HasIndex(q => q.Status);
             entity.HasIndex(q => q.ClientToken).IsUnique();
+        });
+
+        modelBuilder.Entity<ServiceType>(entity =>
+        {
+            entity.Property(s => s.Name).IsRequired().HasMaxLength(200);
+            entity.HasIndex(s => s.Name).IsUnique();
+            entity.Property(s => s.AS1851Section).HasMaxLength(50);
+            entity.Property(s => s.ComplianceFormReference).HasMaxLength(50);
+
+            entity.HasOne(s => s.DefaultInterval)
+                .WithMany()
+                .HasForeignKey(s => s.DefaultIntervalId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+        });
+
+        modelBuilder.Entity<Quote>(entity =>
+        {
+            entity.Property(q => q.QuoteNumber).IsRequired().HasMaxLength(20);
+            entity.HasIndex(q => q.QuoteNumber).IsUnique();
+            entity.Property(q => q.Notes).HasMaxLength(4000);
+            entity.Property(q => q.ExpiryDate).HasColumnType("timestamptz");
+            entity.Property(q => q.CreatedAt)
+                .HasColumnType("timestamptz")
+                .HasDefaultValueSql("now()")
+                .ValueGeneratedOnAdd();
+
+            entity.HasOne(q => q.Client)
+                .WithMany()
+                .HasForeignKey(q => q.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(q => q.Site)
+                .WithMany()
+                .HasForeignKey(q => q.SiteId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(q => q.CreatedBy)
+                .WithMany()
+                .HasForeignKey(q => q.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(q => q.ClientId);
+            entity.HasIndex(q => q.SiteId);
+            entity.HasIndex(q => q.Status);
+        });
+
+        modelBuilder.Entity<QuoteLineItem>(entity =>
+        {
+            entity.Property(li => li.UnitPrice).HasColumnType("numeric(10,2)");
+
+            entity.HasOne(li => li.Quote)
+                .WithMany(q => q.LineItems)
+                .HasForeignKey(li => li.QuoteId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(li => li.Asset)
+                .WithMany()
+                .HasForeignKey(li => li.AssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(li => li.ServiceType)
+                .WithMany()
+                .HasForeignKey(li => li.ServiceTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(li => li.RecurringInterval)
+                .WithMany()
+                .HasForeignKey(li => li.RecurringIntervalId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
+            entity.HasIndex(li => li.QuoteId);
         });
     }
 

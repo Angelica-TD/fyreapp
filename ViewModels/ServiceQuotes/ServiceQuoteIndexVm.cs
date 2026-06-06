@@ -9,6 +9,7 @@ public class ServiceQuoteIndexVm
     public bool OpenCreateModal { get; set; }
     public List<Client> Clients { get; set; } = new();
     public List<MaintenanceInterval> Intervals { get; set; } = new();
+    public List<ServiceOffering> ServiceOfferings { get; set; } = new();
 
     // Inline creation flags
     public bool CreateNewClient { get; set; }

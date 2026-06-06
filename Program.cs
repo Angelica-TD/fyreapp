@@ -12,6 +12,7 @@ using FyreApp.Services.Techs;
 using FyreApp.Services.ServiceQuotes;
 using FyreApp.Services.ServiceOfferings;
 using FyreApp.Services.Email;
+using FyreApp.Services.Quotes;
 
 var builder = WebApplication.CreateBuilder(args);
 var authEnabled = builder.Configuration.GetValue<bool>("Auth:Enabled", true);
@@ -30,6 +31,7 @@ builder.Services.AddScoped<IClientTaskService, ClientTaskService>();
 builder.Services.AddScoped<ITechService, TechService>();
 builder.Services.AddScoped<IServiceQuoteService, ServiceQuoteService>();
 builder.Services.AddScoped<IServiceOfferingService, ServiceOfferingService>();
+builder.Services.AddScoped<IQuoteService, QuoteService>();
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
 builder.Services.AddScoped<IEmailService, EmailService>();

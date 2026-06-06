@@ -66,6 +66,7 @@ public sealed class ServiceQuoteService : IServiceQuoteService
         {
             ClientId = clientId,
             SiteId = siteId,
+            ServiceOfferingId = vm.ServiceOfferingId,
             QuoteNumber = quoteNumber,
             Title = title,
             Description = string.IsNullOrWhiteSpace(vm.Description) ? null : vm.Description.Trim(),
