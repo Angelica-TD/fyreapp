@@ -1,12 +1,12 @@
-@model IEnumerable<FyreApp.Services.Techs.TechViewModel>
+@model IEnumerable<FyreApp.Services.UserManagement.UserViewModel>
 
 @{
     ViewData["Title"] = "Users";
 }
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1>Techs</h1>
-    <a asp-action="Create" class="btn btn-primary">+ Add Tech</a>
+    <h1>Users</h1>
+    <a asp-action="Create" class="btn btn-primary">+ Add User</a>
 </div>
 
 @if (TempData["Success"] != null)
@@ -20,19 +20,21 @@
             <th>Name</th>
             <th>Email</th>
             <th>Phone</th>
+            <th>Role</th>
             <th>Status</th>
             <th></th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var tech in Model)
+        @foreach (var user in Model)
         {
             <tr>
-                <td>@tech.FullName</td>
-                <td>@tech.Email</td>
-                <td>@tech.PhoneNumber</td>
+                <td>@user.FullName</td>
+                <td>@user.Email</td>
+                <td>@user.PhoneNumber</td>
+                <td><span class="badge bg-secondary">@user.Role</span></td>
                 <td>
-                    @if (tech.IsActive)
+                    @if (user.IsActive)
                     {
                         <span class="badge bg-success">Active</span>
                     }
@@ -42,19 +44,26 @@
                     }
                 </td>
                 <td class="text-end">
-                    <a asp-action="Edit" asp-route-id="@tech.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    <a asp-action="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
 
-                    @if (tech.IsActive)
+                    @if (user.IsActive)
                     {
-                        <form asp-action="Deactivate" asp-route-id="@tech.Id" method="post" class="d-inline">
+                        <form asp-action="Deactivate" asp-route-id="@user.Id" method="post" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-outline-warning"
-                                    onclick="return confirm('Deactivate this tech?')">Deactivate</button>
+                                    onclick="return confirm('Deactivate this user?')">Deactivate</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <form asp-action="Activate" asp-route-id="@user.Id" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-success"
+                                    onclick="return confirm('Reactivate this user?')">Activate</button>
                         </form>
                     }
 
-                    <form asp-action="Delete" asp-route-id="@tech.Id" method="post" class="d-inline">
+                    <form asp-action="Delete" asp-route-id="@user.Id" method="post" class="d-inline">
                         <button type="submit" class="btn btn-sm btn-outline-danger"
-                                onclick="return confirm('Permanently delete this tech?')">Delete</button>
+                                onclick="return confirm('Permanently delete this user?')">Delete</button>
                     </form>
                 </td>
             </tr>

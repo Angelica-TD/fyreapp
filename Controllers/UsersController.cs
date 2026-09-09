@@ -1,4 +1,4 @@
-using FyreApp.Services.Techs;
+using FyreApp.Services.UserManagement;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -7,43 +7,58 @@ namespace FyreApp.Controllers;
 [Authorize(Roles = "Admin")]
 public class UsersController : Controller
 {
-    private readonly ITechService _techService;
+    private readonly IUserManagementService _userService;
 
-    public UsersController(ITechService techService)
+    public UsersController(IUserManagementService userService)
     {
-        _techService = techService;
+        _userService = userService;
     }
 
     public async Task<IActionResult> Index()
     {
-        var techs = await _techService.GetAllAsync();
-        return View(techs);
+        var users = await _userService.GetAllAsync();
+        return View(users);
     }
 
     [HttpGet]
-    public IActionResult Create() => View(new TechCreateDto());
+    public IActionResult Create()
+    {
+        ViewBag.Roles = _userService.GetAvailableRoles();
+        return View(new UserCreateDto());
+    }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(TechCreateDto dto)
+    public async Task<IActionResult> Create(UserCreateDto dto)
     {
-        if (!ModelState.IsValid) return View(dto);
+        if (!ModelState.IsValid)
+        {
+            ViewBag.Roles = _userService.GetAvailableRoles();
+            return View(dto);
+        }
 
-        var result = await _techService.CreateAsync(dto);
+        var result = await _userService.CreateAsync(dto);
 
         switch (result.Status)
         {
-            case TechCreateStatus.Success:
-                TempData["Success"] = "Tech created successfully.";
+            case UserCreateStatus.Success:
+                TempData["Success"] = "User created successfully.";
                 return RedirectToAction(nameof(Index));
 
-            case TechCreateStatus.EmailAlreadyExists:
+            case UserCreateStatus.EmailAlreadyExists:
                 ModelState.AddModelError(nameof(dto.Email), "A user with this email already exists.");
+                ViewBag.Roles = _userService.GetAvailableRoles();
+                return View(dto);
+
+            case UserCreateStatus.InvalidRole:
+                ModelState.AddModelError(nameof(dto.Role), "Invalid role selected.");
+                ViewBag.Roles = _userService.GetAvailableRoles();
                 return View(dto);
 
             default:
                 foreach (var error in result.Errors ?? [])
                     ModelState.AddModelError(string.Empty, error);
+                ViewBag.Roles = _userService.GetAvailableRoles();
                 return View(dto);
         }
     }
@@ -51,51 +66,62 @@ public class UsersController : Controller
     [HttpGet]
     public async Task<IActionResult> Edit(string id)
     {
-        var tech = await _techService.GetByIdAsync(id);
-        if (tech == null) return NotFound();
+        var user = await _userService.GetByIdAsync(id);
+        if (user == null) return NotFound();
 
-        var dto = new TechEditDto
+        var dto = new UserEditDto
         {
-            FirstName = tech.FirstName,
-            LastName = tech.LastName,
-            Email = tech.Email,
-            PhoneNumber = tech.PhoneNumber
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            PhoneNumber = user.PhoneNumber,
+            Role = user.Role
         };
 
-        ViewBag.TechId = id;
+        ViewBag.UserId = id;
+        ViewBag.Roles = _userService.GetAvailableRoles();
         return View(dto);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(string id, TechEditDto dto)
+    public async Task<IActionResult> Edit(string id, UserEditDto dto)
     {
         if (!ModelState.IsValid)
         {
-            ViewBag.TechId = id;
+            ViewBag.UserId = id;
+            ViewBag.Roles = _userService.GetAvailableRoles();
             return View(dto);
         }
 
-        var result = await _techService.UpdateAsync(id, dto);
+        var result = await _userService.UpdateAsync(id, dto);
 
         switch (result.Status)
         {
-            case TechUpdateStatus.Success:
-                TempData["Success"] = "Tech updated successfully.";
+            case UserUpdateStatus.Success:
+                TempData["Success"] = "User updated successfully.";
                 return RedirectToAction(nameof(Index));
 
-            case TechUpdateStatus.NotFound:
+            case UserUpdateStatus.NotFound:
                 return NotFound();
 
-            case TechUpdateStatus.EmailAlreadyExists:
+            case UserUpdateStatus.EmailAlreadyExists:
                 ModelState.AddModelError(nameof(dto.Email), "A user with this email already exists.");
-                ViewBag.TechId = id;
+                ViewBag.UserId = id;
+                ViewBag.Roles = _userService.GetAvailableRoles();
+                return View(dto);
+
+            case UserUpdateStatus.InvalidRole:
+                ModelState.AddModelError(nameof(dto.Role), "Invalid role selected.");
+                ViewBag.UserId = id;
+                ViewBag.Roles = _userService.GetAvailableRoles();
                 return View(dto);
 
             default:
                 foreach (var error in result.Errors ?? [])
                     ModelState.AddModelError(string.Empty, error);
-                ViewBag.TechId = id;
+                ViewBag.UserId = id;
+                ViewBag.Roles = _userService.GetAvailableRoles();
                 return View(dto);
         }
     }
@@ -104,8 +130,17 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Deactivate(string id)
     {
-        await _techService.DeactivateAsync(id);
-        TempData["Success"] = "Tech deactivated.";
+        await _userService.DeactivateAsync(id);
+        TempData["Success"] = "User deactivated.";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Activate(string id)
+    {
+        await _userService.ActivateAsync(id);
+        TempData["Success"] = "User activated.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -113,8 +148,8 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(string id)
     {
-        await _techService.DeleteAsync(id);
-        TempData["Success"] = "Tech deleted.";
+        await _userService.DeleteAsync(id);
+        TempData["Success"] = "User deleted.";
         return RedirectToAction(nameof(Index));
     }
 }
