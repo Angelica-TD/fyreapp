@@ -181,12 +181,6 @@ app.MapControllerRoute(
 
 app.MapRazorPages();
 
-// --------------------------------------------------
-// Identity seeding
-// --------------------------------------------------
-
-await IdentitySeed.SeedAdminAsync(app.Services);
-
 app.Run();
 
 // --------------------------------------------------
