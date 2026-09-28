@@ -148,6 +148,20 @@ public class UserManagementService : IUserManagementService
         return new UserDeleteResult(UserDeleteStatus.Success);
     }
 
+    public async Task<UserResetPasswordResult> ResetPasswordAsync(string id, string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(id);
+        if (user == null)
+            return new UserResetPasswordResult(UserResetPasswordStatus.NotFound);
+
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+        if (!result.Succeeded)
+            return new UserResetPasswordResult(UserResetPasswordStatus.Failed, result.Errors.Select(e => e.Description));
+
+        return new UserResetPasswordResult(UserResetPasswordStatus.Success);
+    }
+
     private static UserViewModel Map(ApplicationUser u, string role) => new()
     {
         Id = u.Id,

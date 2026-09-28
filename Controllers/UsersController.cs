@@ -152,4 +152,48 @@ public class UsersController : Controller
         TempData["Success"] = "User deleted.";
         return RedirectToAction(nameof(Index));
     }
+
+    [HttpGet]
+    public async Task<IActionResult> ResetPassword(string id)
+    {
+        var user = await _userService.GetByIdAsync(id);
+        if (user == null) return NotFound();
+
+        ViewBag.UserId = id;
+        ViewBag.UserName = user.FullName;
+        return View(new UserResetPasswordDto());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(string id, UserResetPasswordDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            var user = await _userService.GetByIdAsync(id);
+            ViewBag.UserId = id;
+            ViewBag.UserName = user?.FullName ?? string.Empty;
+            return View(dto);
+        }
+
+        var result = await _userService.ResetPasswordAsync(id, dto.NewPassword);
+
+        switch (result.Status)
+        {
+            case UserResetPasswordStatus.Success:
+                TempData["Success"] = "Password updated.";
+                return RedirectToAction(nameof(Index));
+
+            case UserResetPasswordStatus.NotFound:
+                return NotFound();
+
+            default:
+                foreach (var error in result.Errors ?? [])
+                    ModelState.AddModelError(string.Empty, error);
+                var u = await _userService.GetByIdAsync(id);
+                ViewBag.UserId = id;
+                ViewBag.UserName = u?.FullName ?? string.Empty;
+                return View(dto);
+        }
+    }
 }

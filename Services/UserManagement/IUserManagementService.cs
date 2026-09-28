@@ -9,5 +9,6 @@ public interface IUserManagementService
     Task<UserDeactivateResult> DeactivateAsync(string id);
     Task<UserActivateResult> ActivateAsync(string id);
     Task<UserDeleteResult> DeleteAsync(string id);
+    Task<UserResetPasswordResult> ResetPasswordAsync(string id, string newPassword);
     IReadOnlyList<string> GetAvailableRoles();
 }

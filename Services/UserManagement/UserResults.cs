@@ -14,3 +14,6 @@ public record UserActivateResult(UserActivateStatus Status);
 
 public enum UserDeleteStatus { Success, NotFound, Failed }
 public record UserDeleteResult(UserDeleteStatus Status);
+
+public enum UserResetPasswordStatus { Success, NotFound, Failed }
+public record UserResetPasswordResult(UserResetPasswordStatus Status, IEnumerable<string>? Errors = null);
