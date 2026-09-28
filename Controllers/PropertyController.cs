@@ -127,5 +127,35 @@ namespace FyreApp.Controllers
             return View(site);
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Deactivate(int id)
+        {
+            var site = await _context.Sites.FindAsync(id);
+            if (site == null) return NotFound();
+
+            site.Active = false;
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Property deactivated.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Activate(int id)
+        {
+            var site = await _context.Sites.FindAsync(id);
+            if (site == null) return NotFound();
+
+            site.Active = true;
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Property activated.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
     }
 }

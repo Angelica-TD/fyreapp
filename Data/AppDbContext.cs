@@ -91,6 +91,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             .HasForeignKey(a => a.SiteId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<Site>()
+            .Property(s => s.Active)
+            .HasDefaultValue(true);
+
         // Asset ↔ AssetType (N:N)
         modelBuilder.Entity<Asset>()
             .HasMany(a => a.AssetTypes)
@@ -143,6 +147,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(t => t.Status);
             entity.HasIndex(t => t.DueDateUtc);
         });
+
+        modelBuilder.Entity<ClientTask>()
+            .HasOne(t => t.MaintenanceSchedule)
+            .WithMany(s => s.GeneratedTasks)
+            .HasForeignKey(t => t.MaintenanceScheduleId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<ClientTask>()
             .HasOne(t => t.AssignedTo)

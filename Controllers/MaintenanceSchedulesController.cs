@@ -1,19 +1,77 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FyreApp.Data;
 using FyreApp.Models;
+using FyreApp.Services.MaintenanceSchedules;
+using FyreApp.ViewModels.MaintenanceSchedules;
 
 namespace FyreApp.Controllers
 {
     public class MaintenanceSchedulesController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IMaintenanceScheduleService _scheduleService;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public MaintenanceSchedulesController(AppDbContext context)
+        public MaintenanceSchedulesController(
+            AppDbContext context,
+            IMaintenanceScheduleService scheduleService,
+            UserManager<ApplicationUser> userManager)
         {
             _context = context;
+            _scheduleService = scheduleService;
+            _userManager = userManager;
         }
-        
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public async Task<IActionResult> Index(string? window, string? targetType, string? status)
+        {
+            var filter = new MaintenanceScheduleFilter
+            {
+                Window = Enum.TryParse<ScheduleWindow>(window, true, out var w) ? w : ScheduleWindow.Month,
+                TargetType = Enum.TryParse<ScheduleTargetType>(targetType, true, out var t) ? t : null,
+                GenerationStatus = Enum.TryParse<ScheduleGenerationStatus>(status, true, out var s) ? s : ScheduleGenerationStatus.Pending
+            };
+
+            var schedules = await _scheduleService.GetDueListAsync(filter);
+
+            return View(new MaintenanceScheduleIndexVm
+            {
+                Schedules = schedules,
+                Window = filter.Window,
+                TargetType = filter.TargetType,
+                GenerationStatus = filter.GenerationStatus
+            });
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public async Task<IActionResult> Details(int id)
+        {
+            var schedule = await _scheduleService.GetDetailsAsync(id);
+            if (schedule == null) return NotFound();
+
+            ViewData["Intervals"] = await _context.MaintenanceIntervals.ToListAsync();
+            return View(schedule);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GenerateTask(int id, string? window, string? targetType, string? status)
+        {
+            var exists = await _context.MaintenanceSchedules.AnyAsync(s => s.Id == id);
+            if (!exists) return NotFound();
+
+            await _scheduleService.GenerateTaskAsync(id, _userManager.GetUserId(User)!);
+
+            TempData["Success"] = "Task generated.";
+            return RedirectToAction(nameof(Index), new { window, targetType, status });
+        }
+
         [HttpGet]
         public async Task<IActionResult> Upsert(ScheduleTargetType targetType, int targetId)
         {
@@ -49,7 +107,7 @@ namespace FyreApp.Controllers
 
         }
 
-        
+
         [HttpPost]
         public async Task<IActionResult> Upsert(int scheduleId, ScheduleTargetType targetType, int targetId, DateTime startDate, int intervalId)
         {
@@ -81,7 +139,7 @@ namespace FyreApp.Controllers
             await _context.SaveChangesAsync();
 
             if (targetType == ScheduleTargetType.Site)
-                return RedirectToAction("Details", "Sites", new { id = targetId });
+                return RedirectToAction("Details", "Property", new { id = targetId });
             else
                 return RedirectToAction("Details", "Assets", new { id = targetId });
         }
@@ -126,7 +184,7 @@ namespace FyreApp.Controllers
             await _context.SaveChangesAsync();
 
             return targetType == ScheduleTargetType.Site
-                ? RedirectToAction("Details", "Sites", new { id = targetId })
+                ? RedirectToAction("Details", "Property", new { id = targetId })
                 : RedirectToAction("Details", "Assets", new { id = targetId });
         }
 
@@ -134,33 +192,14 @@ namespace FyreApp.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Complete(int id, string? notes)
         {
-            var schedule = await _context.MaintenanceSchedules
-                .Include(ms => ms.MaintenanceInterval)
-                .FirstOrDefaultAsync(ms => ms.Id == id);
+            var status = await _scheduleService.CompleteAsync(id, notes);
 
-            if (schedule == null) return NotFound();
-            if (!schedule.IsActive) return BadRequest();
-
-            var now = DateTime.UtcNow;
-
-            var history = new MaintenanceHistory
+            return status switch
             {
-                MaintenanceScheduleId = schedule.Id,
-                CompletedAt = now,
-                DueDateAtCompletion = schedule.NextRunDate,
-                Notes = notes
+                ScheduleCompleteStatus.Success => RedirectToAction(nameof(Details), new { id }),
+                ScheduleCompleteStatus.NotFound => NotFound(),
+                _ => BadRequest()
             };
-
-            _context.MaintenanceHistory.Add(history);
-
-            var months = schedule.MaintenanceInterval?.Months ?? 0;
-            if (months <= 0) return BadRequest("Invalid interval.");
-
-            // Advance from due date (prevents drift)
-            schedule.NextRunDate = schedule.NextRunDate.Date.AddMonths(months);
-
-            await _context.SaveChangesAsync();
-            return RedirectToAction("Details", new { id = schedule.Id });
         }
 
 

@@ -167,17 +167,12 @@ public class TaskController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Complete(int id)
     {
-        var task = await _db.ClientTasks.FirstOrDefaultAsync(t => t.Id == id);
+        var task = await _db.ClientTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
         if (task == null) return NotFound();
 
-        if (task.Status != ClientTaskStatus.Completed)
-        {
-            task.Status = ClientTaskStatus.Completed;
-            task.CompletedUtc = DateTime.UtcNow;
-            await _db.SaveChangesAsync();
-        }
+        await _taskService.CompleteAsync(id);
 
-        return RedirectToAction("Details", "Sites", new { id = task.SiteId });
+        return RedirectToAction("Details", "Property", new { id = task.SiteId });
     }
 
     [HttpGet]

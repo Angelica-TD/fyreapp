@@ -124,6 +124,18 @@
 
         @if (User.IsInRole("Admin"))
         {
+            <!-- Schedules (Admin only) -->
+            <li class="nav-item">
+                <a class="nav-link sidebar-link"
+                   asp-controller="MaintenanceSchedules"
+                   asp-action="Index"
+                   nav-active
+                   nav-active-controller-only>
+                    <i class="bi bi-calendar2-check-fill sidebar-icon"></i>
+                    <span class="sidebar-label">Schedules</span>
+                </a>
+            </li>
+
             <!-- Users (Admin only) -->
             <li class="nav-item has-subnav">
                 <a class="nav-link sidebar-link"

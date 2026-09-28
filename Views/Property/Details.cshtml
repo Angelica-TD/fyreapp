@@ -4,7 +4,39 @@
     ViewData["Title"] = "Property Details";
 }
 
-<h1>@Model.Name</h1>
+<div class="d-flex justify-content-between align-items-center">
+    <h1 class="mb-0">
+        @Model.Name
+        @if (Model.Active)
+        {
+            <span class="badge bg-success align-middle">Active</span>
+        }
+        else
+        {
+            <span class="badge bg-secondary align-middle">Inactive</span>
+        }
+    </h1>
+
+    @if (Model.Active)
+    {
+        <form asp-action="Deactivate" asp-route-id="@Model.Id" method="post">
+            <button type="submit" class="btn btn-sm btn-outline-warning"
+                    onclick="return confirm('Deactivate this property?')">Deactivate</button>
+        </form>
+    }
+    else
+    {
+        <form asp-action="Activate" asp-route-id="@Model.Id" method="post">
+            <button type="submit" class="btn btn-sm btn-outline-success"
+                    onclick="return confirm('Reactivate this property?')">Activate</button>
+        </form>
+    }
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
 
 <p>
     <strong>Client:</strong>

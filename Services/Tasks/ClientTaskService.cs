@@ -1,5 +1,6 @@
 using FyreApp.Data;
 using FyreApp.Models;
+using FyreApp.Services.MaintenanceSchedules;
 using FyreApp.ViewModels.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
@@ -10,14 +11,16 @@ public class ClientTaskService : IClientTaskService
 {
     private readonly AppDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
-    
+    private readonly IMaintenanceScheduleService _scheduleService;
+
     private static readonly TimeZoneInfo SydneyTz =
         TimeZoneInfo.FindSystemTimeZoneById("Australia/Sydney");
 
-    public ClientTaskService(AppDbContext db, UserManager<ApplicationUser> userManager)
+    public ClientTaskService(AppDbContext db, UserManager<ApplicationUser> userManager, IMaintenanceScheduleService scheduleService)
     {
         _db = db;
         _userManager = userManager;
+        _scheduleService = scheduleService;
     }
 
     public async Task<IReadOnlyList<ClientTaskListItemVm>> GetAllAsync(
@@ -103,12 +106,17 @@ public class ClientTaskService : IClientTaskService
             ? TimeZoneInfo.ConvertTimeToUtc(input.DueDateLocal.Value, SydneyTz)
             : null;
 
-        if (input.Status == ClientTaskStatus.Completed && task.CompletedUtc is null)
+        var justCompleted = input.Status == ClientTaskStatus.Completed && task.CompletedUtc is null;
+        if (justCompleted)
             task.CompletedUtc = DateTime.UtcNow;
         else if (input.Status != ClientTaskStatus.Completed)
             task.CompletedUtc = null;
 
         await _db.SaveChangesAsync();
+
+        if (justCompleted)
+            await CompleteLinkedScheduleAsync(task);
+
         return (true, task.Title);
     }
 
@@ -120,6 +128,32 @@ public class ClientTaskService : IClientTaskService
         _db.ClientTasks.Remove(task);
         await _db.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<bool> CompleteAsync(int id)
+    {
+        var task = await _db.ClientTasks.FirstOrDefaultAsync(t => t.Id == id);
+        if (task is null) return false;
+
+        if (task.Status != ClientTaskStatus.Completed)
+        {
+            task.Status = ClientTaskStatus.Completed;
+            task.CompletedUtc = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            await CompleteLinkedScheduleAsync(task);
+        }
+
+        return true;
+    }
+
+    // Completing a task generated from a routine maintenance schedule also
+    // completes the schedule (advances NextRunDate, logs MaintenanceHistory)
+    // so techs never have to separately visit the schedule to close it out.
+    private async Task CompleteLinkedScheduleAsync(ClientTask task)
+    {
+        if (task.MaintenanceScheduleId is int scheduleId)
+            await _scheduleService.CompleteAsync(scheduleId, notes: null);
     }
 
     public async Task<(bool Found, bool TechValid)> AssignTechAsync(int taskId, string? techUserId)

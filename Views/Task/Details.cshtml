@@ -9,10 +9,24 @@
 <div class="d-flex justify-content-between align-items-start mb-3">
     <h1 class="mb-0">@Model.Title</h1>
     <div class="d-flex gap-2">
+        @if (Model.Status != ClientTaskStatus.Completed)
+        {
+            <form asp-action="Complete" asp-route-id="@Model.Id" method="post" class="d-inline">
+                <button type="submit" class="btn btn-success">Mark Complete</button>
+            </form>
+        }
         <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Edit</a>
         <a asp-action="Index" class="btn btn-outline-secondary">Back to list</a>
     </div>
 </div>
+
+@if (Model.MaintenanceScheduleId.HasValue)
+{
+    <p class="text-muted small">
+        Generated from a
+        <a asp-controller="MaintenanceSchedules" asp-action="Details" asp-route-id="@Model.MaintenanceScheduleId">routine maintenance schedule</a>.
+    </p>
+}
 
 <div class="card mb-3">
     <div class="card-body">
