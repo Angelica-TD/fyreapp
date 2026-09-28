@@ -36,4 +36,7 @@ public class MaintenanceSchedule
     public ICollection<MaintenanceHistory> MaintenanceHistory { get; set; }
     = new List<MaintenanceHistory>();
 
+    // ClientTasks generated from this schedule's due occurrences
+    public ICollection<ClientTask> GeneratedTasks { get; set; } = new List<ClientTask>();
+
 }

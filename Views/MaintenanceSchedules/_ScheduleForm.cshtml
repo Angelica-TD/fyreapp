@@ -1,0 +1,104 @@
+@model FyreApp.Models.MaintenanceSchedule
+@using FyreApp.Models
+
+@{
+    var intervals = ViewBag.Intervals as List<MaintenanceInterval>;
+    var schedule = Model;
+    var targetId = schedule.TargetType == ScheduleTargetType.Asset ? schedule.AssetId : schedule.SiteId;
+}
+
+<h2>Maintenance Schedule</h2>
+
+<form asp-controller="MaintenanceSchedules" asp-action="Upsert" method="post" class="row g-3">
+    <input type="hidden" name="scheduleId" value="@(schedule.Id > 0 ? schedule.Id : 0)" />
+    <input type="hidden" name="targetType" value="@schedule.TargetType" />
+    <input type="hidden" name="targetId" value="@targetId" />
+
+    <div class="col-md-4">
+        <label class="form-label">Start Date</label>
+        <input type="date" name="startDate" class="form-control"
+               value="@(schedule.Id > 0 ? schedule.StartDate.ToString("yyyy-MM-dd") : DateTime.UtcNow.ToString("yyyy-MM-dd"))"
+               required />
+    </div>
+
+    <div class="col-md-4">
+        <label class="form-label">Interval</label>
+        <select name="intervalId" class="form-select" required>
+            @foreach (var interval in intervals ?? [])
+            {
+                <option value="@interval.Id"
+                        selected="@(interval.Id == schedule.MaintenanceIntervalId ? "selected" : null)">
+                    @interval.Name
+                </option>
+            }
+        </select>
+    </div>
+
+    <div class="col-md-4 align-self-end">
+        <button type="submit" class="btn @(schedule.Id > 0 ? "btn-primary" : "btn-success")">
+            @(schedule.Id > 0 ? "Save Schedule" : "Create Schedule")
+        </button>
+    </div>
+</form>
+
+@if (schedule.Id > 0)
+{
+    <p class="mt-2"><strong>Next Maintenance:</strong> @schedule.NextRunDate.ToShortDateString()</p>
+
+    <form asp-controller="MaintenanceSchedules" asp-action="Complete" method="post" class="row g-3">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="id" value="@schedule.Id" />
+        <div class="col-md-6">
+            <label class="form-label">Notes (optional)</label>
+            <input type="text" name="notes" class="form-control" placeholder="e.g. Replaced valve, all clear" />
+        </div>
+        <div class="col-md-3 align-self-end">
+            <button type="submit" class="btn btn-success">Mark Complete</button>
+        </div>
+    </form>
+
+    <hr />
+
+    <h2>Maintenance History</h2>
+
+    @if (!schedule.MaintenanceHistory.Any())
+    {
+        <p class="text-muted">No maintenance history recorded yet.</p>
+    }
+    else
+    {
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Completed</th>
+                    <th>Due Date</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in schedule.MaintenanceHistory.OrderByDescending(h => h.CompletedAt))
+                {
+                    <tr>
+                        <td>@entry.CompletedAt.ToShortDateString()</td>
+                        <td>@entry.DueDateAtCompletion.ToShortDateString()</td>
+                        <td>@(entry.Notes ?? "—")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @if (schedule.GeneratedTasks.Any())
+    {
+        <h2>Generated Tasks</h2>
+        <ul class="list-group mb-3">
+            @foreach (var task in schedule.GeneratedTasks.OrderByDescending(t => t.CreatedUtc))
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <a asp-controller="Task" asp-action="Details" asp-route-id="@task.Id">@task.Title</a>
+                    <span class="badge bg-secondary">@task.Status</span>
+                </li>
+            }
+        </ul>
+    }
+}

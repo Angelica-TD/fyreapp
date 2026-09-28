@@ -30,6 +30,8 @@ public class Site
     [StringLength(300)]
     public string? GooglePlaceId { get; set; }
 
+    public bool Active { get; set; } = true;
+
     // FK → Client
     public int ClientId { get; set; }
     public Client Client { get; set; } = null!;

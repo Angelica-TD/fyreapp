@@ -47,4 +47,8 @@ public class ClientTask
     public string? AssignedToUserId { get; set; }
     public ApplicationUser? AssignedTo { get; set; }
     public string? CreatedByUserId { get; set; }
+
+    // Set when this task was auto-generated from a routine MaintenanceSchedule
+    public int? MaintenanceScheduleId { get; set; }
+    public MaintenanceSchedule? MaintenanceSchedule { get; set; }
 }

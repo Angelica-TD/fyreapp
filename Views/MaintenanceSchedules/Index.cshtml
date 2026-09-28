@@ -1,0 +1,109 @@
+@model FyreApp.ViewModels.MaintenanceSchedules.MaintenanceScheduleIndexVm
+@using FyreApp.Models
+@using FyreApp.ViewModels.MaintenanceSchedules
+
+@{
+    ViewData["Title"] = "Maintenance Schedules";
+}
+
+<h1 class="m-0 mb-3">Maintenance Schedules</h1>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-auto">
+        <label class="form-label mb-0">Due</label>
+        <select name="window" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="month" selected="@(Model.Window == ScheduleWindow.Month ? "selected" : null)">This month</option>
+            <option value="overdue" selected="@(Model.Window == ScheduleWindow.Overdue ? "selected" : null)">Overdue</option>
+            <option value="all" selected="@(Model.Window == ScheduleWindow.All ? "selected" : null)">All</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label mb-0">Target</label>
+        <select name="targetType" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="" selected="@(Model.TargetType == null ? "selected" : null)">All</option>
+            <option value="Site" selected="@(Model.TargetType == ScheduleTargetType.Site ? "selected" : null)">Property</option>
+            <option value="Asset" selected="@(Model.TargetType == ScheduleTargetType.Asset ? "selected" : null)">Asset</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <label class="form-label mb-0">Status</label>
+        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="pending" selected="@(Model.GenerationStatus == ScheduleGenerationStatus.Pending ? "selected" : null)">Pending</option>
+            <option value="generated" selected="@(Model.GenerationStatus == ScheduleGenerationStatus.Generated ? "selected" : null)">Generated</option>
+            <option value="all" selected="@(Model.GenerationStatus == ScheduleGenerationStatus.All ? "selected" : null)">All</option>
+        </select>
+    </div>
+</form>
+
+@if (!Model.Schedules.Any())
+{
+    <p class="text-muted">No schedules match these filters.</p>
+}
+else
+{
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Client</th>
+                <th>Property / Asset</th>
+                <th>Interval</th>
+                <th>Next Due</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var s in Model.Schedules)
+            {
+                <tr>
+                    <td>@s.ClientName</td>
+                    <td>
+                        <a asp-action="Details" asp-route-id="@s.Id">@s.TargetLabel</a>
+                    </td>
+                    <td>@s.IntervalName</td>
+                    <td>@s.NextRunDate.ToShortDateString()</td>
+                    <td>
+                        @{
+                            var isThisMonth = s.NextRunDate.Year == DateTime.UtcNow.Year && s.NextRunDate.Month == DateTime.UtcNow.Month;
+                        }
+                        @if (s.IsOverdue)
+                        {
+                            <span class="badge bg-danger">Overdue</span>
+                        }
+                        else if (isThisMonth)
+                        {
+                            <span class="badge bg-warning text-dark">Due this month</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Upcoming</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        @if (s.GeneratedTaskId.HasValue)
+                        {
+                            <a asp-controller="Task" asp-action="Details" asp-route-id="@s.GeneratedTaskId"
+                               class="btn btn-sm btn-outline-secondary">
+                                View Task (@s.GeneratedTaskStatus)
+                            </a>
+                        }
+                        else
+                        {
+                            <form asp-action="GenerateTask" asp-route-id="@s.Id" method="post" class="d-inline">
+                                <input type="hidden" name="window" value="@Model.Window" />
+                                <input type="hidden" name="targetType" value="@Model.TargetType" />
+                                <input type="hidden" name="status" value="@Model.GenerationStatus" />
+                                <button type="submit" class="btn btn-sm btn-primary">Generate Task</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
