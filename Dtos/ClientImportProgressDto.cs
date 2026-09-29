@@ -10,6 +10,9 @@ public class ClientImportProgressDto
 
     public int SkippedDuplicateExternalId { get; set; }
     public int SkippedDuplicateName { get; set; }
+
+    // Imported with " (Uptick <ID>)" appended because the name was already taken
+    public int RenamedDuplicateName { get; set; }
     public int SkippedMissingName { get; set; }
 
     public int SkippedInvalid { get; set; }

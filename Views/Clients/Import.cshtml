@@ -40,6 +40,7 @@
     <li>Would create: <span id="wouldCreate">0</span></li>
     <li>Skipped duplicate ExternalId: <span id="skipExt">0</span></li>
     <li>Skipped duplicate Name: <span id="skipName">0</span></li>
+    <li>Imported with renamed duplicate Name: <span id="renamedName">0</span></li>
     <li>Skipped missing Name: <span id="skipMissing">0</span></li>
 </ul>
 
@@ -60,6 +61,7 @@
         <li>Created / Would create: <strong id="sWouldCreate">0</strong></li>
         <li>Skipped duplicate ExternalId: <strong id="sSkipExt">0</strong></li>
         <li>Skipped duplicate Name: <strong id="sSkipName">0</strong></li>
+        <li>Imported with renamed duplicate Name: <strong id="sRenamedName">0</strong></li>
         <li>Skipped missing Name: <strong id="sSkipMissing">0</strong></li>
     </ul>
 
@@ -165,6 +167,7 @@
             document.getElementById("wouldCreate").textContent = p.wouldCreate ?? 0;
             document.getElementById("skipExt").textContent = p.skippedDuplicateExternalId ?? 0;
             document.getElementById("skipName").textContent = p.skippedDuplicateName ?? 0;
+            document.getElementById("renamedName").textContent = p.renamedDuplicateName ?? 0;
             document.getElementById("skipMissing").textContent = p.skippedMissingName ?? 0;
 
             const total = p.total || 0;
@@ -198,7 +201,9 @@
                 tdIds.textContent = ids || "—";
 
                 const tdName = document.createElement("td");
-                tdName.innerHTML = `<strong>${clientName}</strong>`;
+                const strong = document.createElement("strong");
+                strong.textContent = clientName;
+                tdName.appendChild(strong);
 
                 const tdMsg = document.createElement("td");
                 tdMsg.textContent = message;
@@ -250,6 +255,7 @@
             document.getElementById("sWouldCreate").textContent = p.wouldCreate ?? 0;
             document.getElementById("sSkipExt").textContent = p.skippedDuplicateExternalId ?? 0;
             document.getElementById("sSkipName").textContent = p.skippedDuplicateName ?? 0;
+            document.getElementById("sRenamedName").textContent = p.renamedDuplicateName ?? 0;
             document.getElementById("sSkipMissing").textContent = p.skippedMissingName ?? 0;
 
             // Only show issues table on dry-run
@@ -361,6 +367,7 @@
                 (p.skippedInvalid ?? 0) +
                 (p.skippedDuplicateExternalId ?? 0) +
                 (p.skippedDuplicateName ?? 0) +
+                (p.renamedDuplicateName ?? 0) +
                 (p.skippedMissingName ?? 0);
 
             bar.classList.add(warningsCount > 0 ? "bg-warning" : "bg-success");
