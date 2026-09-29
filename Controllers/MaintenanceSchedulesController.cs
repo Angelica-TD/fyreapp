@@ -13,16 +13,41 @@ namespace FyreApp.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IMaintenanceScheduleService _scheduleService;
+        private readonly IScheduleImportService _importService;
         private readonly UserManager<ApplicationUser> _userManager;
 
         public MaintenanceSchedulesController(
             AppDbContext context,
             IMaintenanceScheduleService scheduleService,
+            IScheduleImportService importService,
             UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _scheduleService = scheduleService;
+            _importService = importService;
             _userManager = userManager;
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public IActionResult Import() => View();
+
+        [Authorize(Roles = "Admin")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(20_000_000)]
+        public async Task<IActionResult> Import(IFormFile? file, bool dryRun, CancellationToken ct)
+        {
+            if (file == null || file.Length == 0)
+            {
+                ModelState.AddModelError("file", "Choose a CSV or XLSX file to import.");
+                return View();
+            }
+
+            await using var stream = file.OpenReadStream();
+            var result = await _importService.ImportUptickAsync(stream, file.FileName, dryRun, ct);
+
+            return View(result);
         }
 
         [Authorize(Roles = "Admin")]

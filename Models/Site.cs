@@ -7,7 +7,11 @@ public class Site
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
-    
+
+    // Used for import matching (maps from Uptick export "Property ref")
+    [StringLength(64)]
+    public string? ExternalId { get; set; }
+
     // Address (Google + manual)
     [StringLength(300)]
     public string? AddressDisplay { get; set; } 

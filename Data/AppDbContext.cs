@@ -95,6 +95,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             .Property(s => s.Active)
             .HasDefaultValue(true);
 
+        modelBuilder.Entity<Site>()
+            .HasIndex(s => s.ExternalId)
+            .IsUnique();
+
         // Asset ↔ AssetType (N:N)
         modelBuilder.Entity<Asset>()
             .HasMany(a => a.AssetTypes)
