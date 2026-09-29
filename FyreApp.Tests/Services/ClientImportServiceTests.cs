@@ -120,6 +120,19 @@ public class ClientImportServiceTests
     }
 
     [Fact]
+    public async Task ImportAsync_LongMobileWithSeveralNumbers_IsImported()
+    {
+        using var db = DbContextFactory.Create();
+        var mobile = "0412 345 678 / 0498 765 432 (after hours)"; // 41 chars, over the old 32 limit
+
+        var result = await new ClientImportService(db).ImportAsync(
+            Csv($"ID,Name,Primary Contact Mobile\r\n1,Acme,{mobile}\r\n"), dryRun: true);
+
+        Assert.Equal(1, result.Created);
+        Assert.Equal(0, result.SkippedInvalid);
+    }
+
+    [Fact]
     public void DisambiguatedName_FitsNameLimit()
     {
         Assert.Equal("Acme (Uptick 13827)", ClientImportService.DisambiguatedName("Acme", "13827"));

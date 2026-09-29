@@ -62,7 +62,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
             entity.Property(x => x.PrimaryContactName).HasMaxLength(200);
             entity.Property(x => x.PrimaryContactEmail).HasMaxLength(320);
-            entity.Property(x => x.PrimaryContactMobile).HasMaxLength(32);
+            entity.Property(x => x.PrimaryContactMobile).HasMaxLength(200); // Uptick exports can hold several numbers in one field
             entity.Property(x => x.PrimaryContactCcEmail).HasMaxLength(320);
 
             entity.Property(x => x.PrimaryContactAddress).HasMaxLength(320);

@@ -14,6 +14,9 @@ public class ClientImportService : IClientImportService
 
     private sealed record Candidate(Client Client, int PropertyCountTotal, int RowNumber);
 
+    // Matches Client.PrimaryContactMobile in AppDbContext
+    private const int MaxMobileLength = 200;
+
     public async Task<ClientImportResultDto> ImportAsync(
         IFormFile file,
         bool dryRun,
@@ -298,15 +301,15 @@ public class ClientImportService : IClientImportService
         var primaryMobile = Get("Primary Contact Mobile");
 
         // Max length checks (match EF config)
-        if (ExceedsMax(primaryMobile, 32))
+        if (ExceedsMax(primaryMobile, MaxMobileLength))
         {
             result.SkippedInvalid++;
 
             addIssue(
                 "ValueTooLong",
-                !string.IsNullOrWhiteSpace(name) ? name : externalId,
+                !string.IsNullOrWhiteSpace(name) ? name : externalId ?? "(blank)",
                 new[] { rowNumber },
-                "Primary Contact Mobile is longer than 32 characters. Row will be skipped.",
+                $"Primary Contact Mobile is longer than {MaxMobileLength} characters. Row will be skipped.",
                 string.IsNullOrWhiteSpace(externalId) ? null : new[] { externalId }
             );
 
