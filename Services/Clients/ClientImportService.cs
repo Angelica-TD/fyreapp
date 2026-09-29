@@ -130,6 +130,7 @@ public class ClientImportService : IClientImportService
             progress.WouldCreate = result.Created;
             progress.SkippedDuplicateExternalId = result.SkippedDuplicateExternalId;
             progress.SkippedDuplicateName = result.SkippedDuplicateName;
+            progress.RenamedDuplicateName = result.RenamedDuplicateName;
             progress.SkippedMissingName = result.SkippedMissingName;
             // progress.SkippedDuplicateExternalIdInFile = result.SkippedDuplicateExternalIdInFile;
             // progress.SkippedDuplicateExternalIdMultipleHighPropertyCount = result.SkippedDuplicateExternalIdMultipleHighPropertyCount;
@@ -325,19 +326,50 @@ public class ClientImportService : IClientImportService
             return;
         }
 
-        // Duplicate Name (DB or already selected in-file)
+        // Duplicate ExternalId in DB -> skip (checked before names so re-runs aren't reported as renames)
+        if (!string.IsNullOrWhiteSpace(externalId) && existingExternalIdsDb.Contains(externalId))
+        {
+            result.SkippedDuplicateExternalId++;
+            addIssue(
+                "DuplicateExternalIdInDatabase",
+                externalId,
+                new[] { rowNumber },
+                "Already exists in database. Row will be skipped.",
+                new[] { externalId });
+            return;
+        }
+
+        // Duplicate Name (DB or already selected in-file).
+        // Uptick allows different clients to share a name; Client.Name is unique here, so keep the data
+        // by importing the later ones as "Name (Uptick <ID>)" for review/merging later.
         if (dbNames.Contains(name) || selectedNames.Contains(name))
         {
-            result.SkippedDuplicateName++;
+            var renamed = string.IsNullOrWhiteSpace(externalId) ? null : DisambiguatedName(name, externalId);
+
+            if (renamed == null || dbNames.Contains(renamed) || selectedNames.Contains(renamed))
+            {
+                result.SkippedDuplicateName++;
+
+                addIssue(
+                    "DuplicateName",
+                    name,
+                    new[] { rowNumber },
+                    "Duplicate. Row will be skipped.",
+                    string.IsNullOrWhiteSpace(externalId) ? null : new[] { externalId });
+
+                return;
+            }
+
+            result.RenamedDuplicateName++;
 
             addIssue(
-                "DuplicateName",
+                "DuplicateNameRenamed",
                 name,
                 new[] { rowNumber },
-                "Duplicate. Row will be skipped.",
-                string.IsNullOrWhiteSpace(externalId) ? null : new[] { externalId });
+                $"Name is already used by another client. Imported as \"{name} (Uptick <ID>)\" — review and rename or merge later.",
+                new[] { externalId! });
 
-            return;
+            name = renamed;
         }
 
         // Property Count (Total)
@@ -373,19 +405,6 @@ public class ClientImportService : IClientImportService
         {
             selectedNames.Add(name);
             selectedByExternalId[$"__NOEXT__{rowNumber}"] = new Candidate(client, propertyCountTotal, rowNumber);
-            return;
-        }
-
-        // Duplicate ExternalId in DB -> skip
-        if (existingExternalIdsDb.Contains(externalId))
-        {
-            result.SkippedDuplicateExternalId++;
-            addIssue(
-                "DuplicateExternalIdInDatabase",
-                externalId,
-                new[] { rowNumber },
-                "Already exists in database. Row will be skipped.",
-                new[] { externalId });
             return;
         }
 
@@ -581,6 +600,17 @@ public class ClientImportService : IClientImportService
     }
 
     static bool ExceedsMax(string? s, int max) => !string.IsNullOrWhiteSpace(s) && s.Trim().Length > max;
+
+    // "Name (Uptick 13827)", trimming the base so it fits Client.Name's 200-character limit
+    public static string DisambiguatedName(string name, string externalId)
+    {
+        const int MaxNameLength = 200;
+        var suffix = $" (Uptick {externalId})";
+        var baseName = name.Length + suffix.Length > MaxNameLength
+            ? name[..Math.Max(0, MaxNameLength - suffix.Length)].TrimEnd()
+            : name;
+        return baseName + suffix;
+    }
 
 
 }
