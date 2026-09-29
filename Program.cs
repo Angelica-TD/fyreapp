@@ -30,6 +30,7 @@ builder.Services.AddSignalR();
 
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IMaintenanceScheduleService, MaintenanceScheduleService>();
+builder.Services.AddScoped<IScheduleImportService, ScheduleImportService>();
 builder.Services.AddScoped<IClientTaskService, ClientTaskService>();
 builder.Services.AddScoped<ITechService, TechService>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();

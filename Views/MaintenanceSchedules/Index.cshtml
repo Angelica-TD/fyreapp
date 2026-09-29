@@ -6,7 +6,10 @@
     ViewData["Title"] = "Maintenance Schedules";
 }
 
-<h1 class="m-0 mb-3">Maintenance Schedules</h1>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="m-0">Maintenance Schedules</h1>
+    <a asp-action="Import" class="btn btn-outline-primary btn-sm">Import from Uptick</a>
+</div>
 
 @if (TempData["Success"] != null)
 {

@@ -81,3 +81,4 @@ appsettings.Development.json
 .vscode
 
 appsettings.Prod*.claude/settings.local.json
+Export samples

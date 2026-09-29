@@ -1,0 +1,133 @@
+@model FyreApp.ViewModels.MaintenanceSchedules.ScheduleImportResultVm?
+
+@{
+    ViewData["Title"] = "Import Schedules";
+    const int MaxItemsShown = 500;
+}
+
+<h1 class="m-0 mb-3">Import Schedules from Uptick</h1>
+
+<p class="text-muted">
+    Upload an Uptick <strong>Routine schedules</strong> export (CSV or XLSX). Routine occurrences are grouped into one
+    property schedule per frequency, due on the next outstanding occurrence. Properties are matched on
+    <em>Property ref</em>, falling back to client name + property name. Properties that already have a schedule for
+    the same interval are skipped.
+</p>
+
+<form method="post" enctype="multipart/form-data" asp-action="Import" class="mb-4">
+    @Html.AntiForgeryToken()
+
+    <div class="mb-3">
+        <label class="form-label" for="file">CSV or XLSX file</label>
+        <input type="file" name="file" id="file" class="form-control" accept=".csv,.txt,.xlsx" required />
+        @Html.ValidationMessage("file", null, new { @class = "text-danger" })
+    </div>
+
+    <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" name="dryRun" id="dryRun" value="true" checked />
+        <label class="form-check-label" for="dryRun">
+            Dry-run (preview only, don't save)
+        </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Upload</button>
+    <a asp-action="Index" class="btn btn-outline-secondary">Back to schedules</a>
+</form>
+
+@if (Model != null)
+{
+    if (Model.Error != null)
+    {
+        <div class="alert alert-danger">@Model.Error</div>
+    }
+    else
+    {
+        <div class="alert @(Model.DryRun ? "alert-info" : "alert-success")">
+            <strong>@(Model.DryRun ? "Dry-run complete — nothing was saved." : "Import complete.")</strong>
+            <span class="text-muted small ms-2">@Model.FileName</span>
+            <ul class="mb-0 mt-2">
+                <li>Rows read: <strong>@Model.TotalRows</strong></li>
+                <li>Schedules @(Model.DryRun ? "to create" : "created"): <strong>@Model.Created</strong></li>
+                <li>Skipped (property already has a schedule for that interval): <strong>@Model.SkippedExisting</strong></li>
+                <li>Rows skipped — property not found: <strong>@Model.SkippedSiteNotFound</strong></li>
+                <li>Rows skipped — unsupported frequency: <strong>@Model.SkippedUnsupportedFrequency</strong></li>
+                <li>Rows skipped — invalid: <strong>@Model.SkippedInvalid</strong></li>
+                <li>Properties @(Model.DryRun ? "to link" : "linked") to their Uptick Property ref: <strong>@Model.SitesLinked</strong></li>
+                @if (Model.NewIntervals.Any())
+                {
+                    <li>New intervals @(Model.DryRun ? "to create" : "created"): <strong>@string.Join(", ", Model.NewIntervals)</strong></li>
+                }
+            </ul>
+        </div>
+
+        if (Model.Issues.Any())
+        {
+            <h2 class="h5">Issues</h2>
+            <div class="table-responsive mb-4">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>Type</th><th>Key</th><th>Message</th><th>Rows</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var issue in Model.Issues)
+                        {
+                            <tr>
+                                <td>@issue.Type</td>
+                                <td>@issue.Key</td>
+                                <td>@issue.Message</td>
+                                <td class="small">@string.Join(", ", issue.Rows)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        if (Model.Items.Any())
+        {
+            <h2 class="h5">Schedules</h2>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Client</th>
+                            <th>Property</th>
+                            <th>Ref</th>
+                            <th>Interval</th>
+                            <th>Next due</th>
+                            <th>Routines</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Items.Take(MaxItemsShown))
+                        {
+                            <tr>
+                                <td>@item.ClientName</td>
+                                <td>@item.SiteName</td>
+                                <td>@item.PropertyRef</td>
+                                <td>@item.IntervalName</td>
+                                <td>@item.NextRunDate.ToString("dd/MM/yyyy")</td>
+                                <td class="small">@string.Join("; ", item.Routines)</td>
+                                <td>
+                                    @if (item.WillCreate)
+                                    {
+                                        <span class="badge bg-success">@(Model.DryRun ? "Create" : "Created")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Exists — skipped</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            if (Model.Items.Count > MaxItemsShown)
+            {
+                <p class="text-muted small">Showing first @MaxItemsShown of @Model.Items.Count.</p>
+            }
+        }
+    }
+}
