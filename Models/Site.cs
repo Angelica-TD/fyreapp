@@ -43,4 +43,7 @@ public class Site
     // Navigation
     public ICollection<Asset> Assets { get; set; } = new List<Asset>();
     public ICollection<MaintenanceSchedule> MaintenanceSchedules { get; set; } = new List<MaintenanceSchedule>();
+    public ICollection<SiteContact> Contacts { get; set; } = new List<SiteContact>();
+    public ICollection<Defect> Defects { get; set; } = new List<Defect>();
+    public ICollection<ServiceReport> ServiceReports { get; set; } = new List<ServiceReport>();
 }

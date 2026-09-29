@@ -70,11 +70,23 @@ public static class TabularFileReader
         {
             var dict = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < headers.Count; i++)
-                dict[headers[i]] = row.Cell(i + 1).GetValue<string>();
+                dict[headers[i]] = CellText(row.Cell(i + 1));
 
             rows.Add(dict);
         }
 
         return rows;
+    }
+
+    // Date cells as ISO text so parsing doesn't depend on the server's culture
+    // (GetValue<string>() would give e.g. "1/02/2023 12:00:00 AM" on an en-AU machine).
+    private static string CellText(IXLCell cell)
+    {
+        if (cell.DataType == XLDataType.DateTime && cell.TryGetValue<DateTime>(out var dt))
+            return dt.TimeOfDay == TimeSpan.Zero
+                ? dt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                : dt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
+
+        return cell.GetValue<string>();
     }
 }

@@ -1,4 +1,5 @@
 @model FyreApp.Models.Site
+@using FyreApp.Infrastructure
 
 @{
     ViewData["Title"] = "Property Details";
@@ -88,25 +89,36 @@
 }
 else
 {
+    <div class="table-responsive">
     <table class="table table-striped">
         <thead>
             <tr>
                 <th>Asset Name</th>
                 <th>Types</th>
+                <th>Location</th>
+                <th>Last service</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var asset in Model.Assets)
+            @foreach (var asset in Model.Assets.OrderBy(a => !a.IsActive).ThenBy(a => a.Name))
             {
-                <tr>
-                    <td>@asset.Name</td>
+                <tr class="@(asset.IsActive ? "" : "text-muted")">
+                    <td>
+                        @asset.Name
+                        @if (!asset.IsActive)
+                        {
+                            <span class="badge bg-secondary ms-1">Inactive</span>
+                        }
+                    </td>
                     <td>
                         @foreach (var type in asset.AssetTypes)
                         {
                             <span class="badge bg-secondary me-1">@type.Name</span>
                         }
                     </td>
+                    <td>@asset.Location</td>
+                    <td class="text-nowrap">@asset.LastServiceDate?.ToString("dd/MM/yyyy")</td>
                     <td>
                         <a asp-controller="Assets"
                            asp-action="Details"
@@ -118,6 +130,7 @@ else
             }
         </tbody>
     </table>
+    </div>
 }
 
 <form asp-action="CreateAsset" method="post">
@@ -137,6 +150,160 @@ else
     </div>
     <button type="submit" class="btn btn-primary mt-2">Create asset</button>
 </form>
+
+<hr />
+
+<h2>Contacts</h2>
+
+@if (!Model.Contacts.Any())
+{
+    <p class="text-muted">No contacts for this property.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                    <th>Receives</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in Model.Contacts.OrderBy(c => !c.Active).ThenBy(c => c.Name))
+                {
+                    <tr class="@(c.Active ? "" : "text-muted")">
+                        <td>
+                            @c.Name
+                            @if (!string.IsNullOrWhiteSpace(c.Organisation))
+                            {
+                                <div class="small text-muted">@c.Organisation</div>
+                            }
+                        </td>
+                        <td>@c.Role</td>
+                        <td>@c.Email</td>
+                        <td class="text-nowrap">@c.Mobile</td>
+                        <td>
+                            @if (c.ReportRequired) { <span class="badge bg-light text-dark border me-1">Reports</span> }
+                            @if (c.InvoiceRequired) { <span class="badge bg-light text-dark border me-1">Invoices</span> }
+                            @if (c.QuoteRequired) { <span class="badge bg-light text-dark border me-1">Quotes</span> }
+                            @if (c.NotificationRequired) { <span class="badge bg-light text-dark border me-1">Notifications</span> }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<hr />
+
+<h2>Defects</h2>
+
+@if (!Model.Defects.Any())
+{
+    <p class="text-muted">No defects recorded for this property.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Raised</th>
+                    <th>Type</th>
+                    <th>Asset</th>
+                    <th>Description</th>
+                    <th>Severity</th>
+                    <th>Status</th>
+                    <th>Resolution</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var d in Model.Defects.OrderBy(d => !d.Active).ThenByDescending(d => d.RaisedUtc))
+                {
+                    <tr class="@(d.Active ? "" : "text-muted")">
+                        <td class="text-nowrap">@d.RaisedUtc.ToSydney()?.ToString("dd/MM/yyyy")</td>
+                        <td>@d.RemarkType</td>
+                        <td>
+                            @if (d.Asset != null)
+                            {
+                                <a asp-controller="Assets" asp-action="Details" asp-route-id="@d.Asset.Id">@d.Asset.Name</a>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(d.Location))
+                            {
+                                <div class="small text-muted">@d.Location</div>
+                            }
+                        </td>
+                        <td>@d.Description</td>
+                        <td>@(d.SeverityLabel ?? d.Severity?.ToString())</td>
+                        <td>
+                            @d.Status
+                            @if (!string.IsNullOrWhiteSpace(d.QuoteRef))
+                            {
+                                <div class="small text-muted">Quote @d.QuoteRef @d.QuoteStatus</div>
+                            }
+                        </td>
+                        <td>@d.Resolution</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<hr />
+
+<h2>Service Reports</h2>
+
+@if (!Model.ServiceReports.Any())
+{
+    <p class="text-muted">No service reports for this property.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Ref</th>
+                    <th>Type</th>
+                    <th>Inspected</th>
+                    <th>Issued</th>
+                    <th>Technician</th>
+                    <th>Task</th>
+                    <th>Compliant</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.ServiceReports.OrderByDescending(r => r.IssuedDate ?? r.InspectedDate))
+                {
+                    <tr>
+                        <td class="text-nowrap">@r.Ref</td>
+                        <td>@r.ReportType</td>
+                        <td class="text-nowrap">@r.InspectedDate?.ToString("dd/MM/yyyy")</td>
+                        <td class="text-nowrap">@r.IssuedDate?.ToString("dd/MM/yyyy")</td>
+                        <td>@r.Technician</td>
+                        <td>@r.TaskName</td>
+                        <td>
+                            @if (r.Compliant == true)
+                            {
+                                <span class="badge bg-success">Yes</span>
+                            }
+                            else if (r.Compliant == false)
+                            {
+                                <span class="badge bg-danger">No</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
 
 @section Scripts {
 <script>

@@ -120,6 +120,18 @@
                     <span class="sidebar-label">Dev Tools</span>
                 </a>
             </li>
+
+            <!-- Data reset toggle -->
+            <li class="nav-item">
+                <a class="nav-link sidebar-link"
+                   asp-controller="DataReset"
+                   asp-action="Index"
+                   nav-active
+                   nav-active-controller-only>
+                    <i class="bi bi-exclamation-octagon-fill sidebar-icon"></i>
+                    <span class="sidebar-label">Data Reset</span>
+                </a>
+            </li>
         }
 
         @if (User.IsInRole("Admin"))
@@ -133,6 +145,18 @@
                    nav-active-controller-only>
                     <i class="bi bi-calendar2-check-fill sidebar-icon"></i>
                     <span class="sidebar-label">Schedules</span>
+                </a>
+            </li>
+
+            <!-- Uptick import (Admin only) -->
+            <li class="nav-item">
+                <a class="nav-link sidebar-link"
+                   asp-controller="Imports"
+                   asp-action="Index"
+                   nav-active
+                   nav-active-controller-only>
+                    <i class="bi bi-cloud-upload-fill sidebar-icon"></i>
+                    <span class="sidebar-label">Import</span>
                 </a>
             </li>
 
