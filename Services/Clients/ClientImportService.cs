@@ -1,9 +1,8 @@
 using System.Globalization;
-using ClosedXML.Excel;
-using CsvHelper;
 using FyreApp.Data;
 using FyreApp.Dtos;
 using FyreApp.Models;
+using FyreApp.Services.Imports;
 using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Clients;
@@ -42,7 +41,30 @@ public class ClientImportService : IClientImportService
         }
 
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-        var totalRows = await EstimateTotalRowsAsync(file, ext, ct);
+        if (!TabularFileReader.IsSupported(file.FileName))
+        {
+            result.Failed++;
+            result.Messages.Add($"Unsupported file type: {ext}. Upload CSV or XLSX.");
+
+            reportProgress?.Invoke(new ClientImportProgressDto
+            {
+                ImportId = importId ?? "",
+                DryRun = dryRun,
+                Completed = true,
+                Failed = 1,
+                Message = $"Unsupported file type: {ext}."
+            });
+
+            return result;
+        }
+
+        List<Dictionary<string, string?>> rows;
+        await using (var stream = file.OpenReadStream())
+            rows = (await TabularFileReader.ReadAsync(stream, file.FileName, ct))
+                .Where(r => !r.Values.All(string.IsNullOrWhiteSpace))
+                .ToList();
+
+        var totalRows = rows.Count;
 
         const int MaxReportMessages = 50;
         const int MaxIssues = 500;
@@ -144,60 +166,26 @@ public class ClientImportService : IClientImportService
         {
             Push();
 
-            if (ext is ".csv" or ".txt")
+            foreach (var row in rows)
             {
-                await foreach (var row in ReadCsvRows(file, ct))
-                {
-                    result.TotalRows++;
+                result.TotalRows++;
 
-                    ProcessRow(
-                        row,
-                        rowNumber: result.TotalRows,
-                        existingExternalIdsDb: existingExternalIdsDb,
-                        dbNames: dbNames,
-                        selectedNames: selectedNames,
-                        selectedByExternalId: selectedByExternalId,
-                        conflictedExternalIds: conflictedExternalIds,
-                        result: result,
-                        addIssue: AddIssue);
+                ProcessRow(
+                    row,
+                    rowNumber: result.TotalRows,
+                    existingExternalIdsDb: existingExternalIdsDb,
+                    dbNames: dbNames,
+                    selectedNames: selectedNames,
+                    selectedByExternalId: selectedByExternalId,
+                    conflictedExternalIds: conflictedExternalIds,
+                    result: result,
+                    addIssue: AddIssue);
 
-                    progress.Processed++;
-                    result.Created = selectedByExternalId.Count;
+                progress.Processed++;
+                result.Created = selectedByExternalId.Count;
 
-                    if (progress.Processed % 25 == 0)
-                        Push();
-                }
-            }
-            else if (ext == ".xlsx")
-            {
-                foreach (var row in ReadExcelRows(file))
-                {
-                    result.TotalRows++;
-
-                    ProcessRow(
-                        row,
-                        rowNumber: result.TotalRows,
-                        existingExternalIdsDb: existingExternalIdsDb,
-                        dbNames: dbNames,
-                        selectedNames: selectedNames,
-                        selectedByExternalId: selectedByExternalId,
-                        conflictedExternalIds: conflictedExternalIds,
-                        result: result,
-                        addIssue: AddIssue);
-
-                    progress.Processed++;
-                    result.Created = selectedByExternalId.Count;
-
-                    if (progress.Processed % 25 == 0)
-                        Push();
-                }
-            }
-            else
-            {
-                result.Failed++;
-                result.Messages.Add($"Unsupported file type: {ext}. Upload CSV or XLSX.");
-                Push($"Unsupported file type: {ext}.", completed: true);
-                return result;
+                if (progress.Processed % 25 == 0)
+                    Push();
             }
 
             // Final create list
@@ -292,8 +280,8 @@ public class ClientImportService : IClientImportService
         {
             foreach (var k in keys)
             {
-                var nk = NormalizeHeader(k);
-                var match = row.Keys.FirstOrDefault(h => NormalizeHeader(h) == nk);
+                var nk = TabularFileReader.NormalizeHeader(k);
+                var match = row.Keys.FirstOrDefault(h => TabularFileReader.NormalizeHeader(h) == nk);
                 if (match != null)
                 {
                     var val = row[match];
@@ -363,8 +351,8 @@ public class ClientImportService : IClientImportService
             Name = name,
             ExternalId = externalId,
 
-            Created = ParseDate(Get("Created")) ?? DateTime.UtcNow,
-            Updated = ParseDate(Get("Updated")),
+            Created = UptickTime.ParseToUtc(Get("Created")) ?? DateTime.UtcNow,
+            Updated = UptickTime.ParseToUtc(Get("Updated")),
             Active = ParseBool(Get("Active")) ?? true,
 
             PrimaryContactName = Get("Primary Contact Name"),
@@ -472,32 +460,6 @@ public class ClientImportService : IClientImportService
 
 
 
-    private static DateTime? ParseDate(string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input)) return null;
-
-        var formats = new[]
-        {
-            "d/M/yyyy H:mm",
-            "dd/MM/yyyy HH:mm",
-            "d/M/yyyy",
-            "dd/MM/yyyy",
-            "yyyy-MM-dd",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-ddTHH:mm:ss",
-            "yyyy-MM-ddTHH:mm:ssZ"
-        };
-
-        if (DateTime.TryParseExact(input.Trim(), formats, CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeLocal, out var dt))
-            return dt;
-
-        if (DateTime.TryParse(input, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out dt))
-            return dt;
-
-        return null;
-    }
-
     private static bool? ParseBool(string? input)
     {
         if (string.IsNullOrWhiteSpace(input)) return null;
@@ -505,96 +467,6 @@ public class ClientImportService : IClientImportService
         if (v is "true" or "t" or "yes" or "y" or "1") return true;
         if (v is "false" or "f" or "no" or "n" or "0") return false;
         return null;
-    }
-
-    private static async IAsyncEnumerable<Dictionary<string, string?>> ReadCsvRows(
-        IFormFile file,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
-    {
-        using var stream = file.OpenReadStream();
-        using var reader = new StreamReader(stream);
-
-        var firstLine = await reader.ReadLineAsync(ct);
-        if (firstLine == null) yield break;
-
-        var delimiter = firstLine.Contains('\t') ? "\t" : ",";
-
-        var rest = await reader.ReadToEndAsync(ct);
-        using var sr = new StringReader(firstLine + "\n" + rest);
-
-        using var csv = new CsvReader(sr, CultureInfo.InvariantCulture);
-        csv.Context.Configuration.Delimiter = delimiter;
-        csv.Context.Configuration.BadDataFound = null;
-        csv.Context.Configuration.MissingFieldFound = null;
-        csv.Context.Configuration.HeaderValidated = null;
-
-        await csv.ReadAsync();
-        csv.ReadHeader();
-        var headers = csv.HeaderRecord ?? Array.Empty<string>();
-
-        while (await csv.ReadAsync())
-        {
-            var dict = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-            foreach (var h in headers)
-                dict[h] = csv.GetField(h);
-
-            if (dict.Values.All(v => string.IsNullOrWhiteSpace(v)))
-                continue;
-
-            yield return dict;
-        }
-    }
-
-    private static IEnumerable<Dictionary<string, string?>> ReadExcelRows(IFormFile file)
-    {
-        using var stream = file.OpenReadStream();
-        using var wb = new XLWorkbook(stream);
-        var ws = wb.Worksheets.First();
-
-        var headerRow = ws.FirstRowUsed();
-        if (headerRow == null) yield break;
-
-        var headers = headerRow.CellsUsed().Select(c => c.GetString()).ToList();
-
-        foreach (var row in ws.RowsUsed().Skip(1))
-        {
-            var dict = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-
-            for (int i = 0; i < headers.Count; i++)
-            {
-                var header = headers[i];
-                dict[header] = row.Cell(i + 1).GetValue<string>();
-            }
-
-            if (dict.Values.All(v => string.IsNullOrWhiteSpace(v)))
-                continue;
-
-            yield return dict;
-        }
-    }
-
-    private static string NormalizeHeader(string s)
-    {
-        var chars = s.Trim().ToLowerInvariant().Where(char.IsLetterOrDigit);
-        return new string(chars.ToArray());
-    }
-
-    private static async Task<int> EstimateTotalRowsAsync(IFormFile file, string ext, CancellationToken ct)
-    {
-        if (ext is ".xlsx")
-        {
-            using var stream = file.OpenReadStream();
-            using var wb = new XLWorkbook(stream);
-            var ws = wb.Worksheets.First();
-            var used = ws.RowsUsed().Count();
-            return Math.Max(0, used - 1);
-        }
-
-        int count = 0;
-        await foreach (var _ in ReadCsvRows(file, ct))
-            count++;
-
-        return count;
     }
 
     private async Task<int> InsertClientsIgnoreConflictsAsync(

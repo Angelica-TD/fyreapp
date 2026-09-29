@@ -1,0 +1,98 @@
+@model FyreApp.ViewModels.DataReset.DataResetVm
+@using FyreApp.Services.DataReset
+
+@{
+    ViewData["Title"] = "Data Reset";
+    var isDeveloper = User.IsInRole("Developer");
+}
+
+<h1 class="m-0 mb-3">Data Reset</h1>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">@TempData["Error"]</div>
+}
+
+@if (Model.Deleted != null)
+{
+    <div class="alert alert-success">
+        <strong>Reset complete.</strong> Data reset has been switched off again.
+        <ul class="mb-0 mt-2">
+            @foreach (var (table, count) in Model.Deleted)
+            {
+                <li>@table: @count deleted</li>
+            }
+        </ul>
+    </div>
+}
+
+<p>
+    Deletes <strong>every client</strong> and everything under them: properties, contacts, assets, schedules and history,
+    defects, service reports, tasks, service quotes and quotes. Users, intervals, asset types, service offerings and the
+    asset catalogue are kept. <strong>This can't be undone.</strong> Take a database backup first.
+</p>
+
+<div class="d-flex align-items-center gap-3 mb-3">
+    <span>
+        Status:
+        @if (Model.Enabled)
+        {
+            <span class="badge bg-danger">Enabled</span>
+        }
+        else
+        {
+            <span class="badge bg-secondary">Disabled</span>
+        }
+    </span>
+
+    @if (isDeveloper)
+    {
+        <form asp-action="Toggle" method="post" class="m-0">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="enabled" value="@(Model.Enabled ? "false" : "true")" />
+            <button type="submit" class="btn btn-sm @(Model.Enabled ? "btn-outline-secondary" : "btn-outline-danger")">
+                @(Model.Enabled ? "Disable" : "Enable")
+            </button>
+        </form>
+    }
+</div>
+
+@if (!Model.Enabled)
+{
+    <p class="text-muted">
+        @(isDeveloper
+            ? "Enable it to allow a reset. It switches itself off again once a reset has run."
+            : "A developer must enable data reset before it can be used.")
+    </p>
+}
+
+<h2 class="h5">Current data</h2>
+<table class="table table-sm w-auto">
+    <tbody>
+        @foreach (var (table, count) in Model.Counts)
+        {
+            <tr><td>@table</td><td class="text-end">@count</td></tr>
+        }
+    </tbody>
+</table>
+
+@if (Model.Enabled)
+{
+    <div class="card border-danger" style="max-width: 36rem;">
+        <div class="card-body">
+            <h2 class="h6 text-danger">Delete all client data</h2>
+            <form asp-action="Reset" method="post">
+                @Html.AntiForgeryToken()
+                <label class="form-label" for="confirmPhrase">
+                    Type <code>@DataResetService.ConfirmPhrase</code> to confirm
+                </label>
+                <input type="text" id="confirmPhrase" name="confirmPhrase" class="form-control mb-3" autocomplete="off" required />
+                <button type="submit" class="btn btn-danger">Delete everything</button>
+            </form>
+        </div>
+    </div>
+}

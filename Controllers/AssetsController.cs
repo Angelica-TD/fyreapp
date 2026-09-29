@@ -49,6 +49,8 @@ namespace FyreApp.Controllers
                     .ThenInclude(ms => ms.MaintenanceHistory)
                 .Include(a => a.MaintenanceSchedules)
                     .ThenInclude(ms => ms.GeneratedTasks)
+                .Include(a => a.Defects)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(a => a.Id == id);
 
             if (asset == null) return NotFound();

@@ -26,6 +26,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<ServiceType> ServiceTypes => Set<ServiceType>();
     public DbSet<Quote> Quotes => Set<Quote>();
     public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
+    public DbSet<SiteContact> SiteContacts => Set<SiteContact>();
+    public DbSet<Defect> Defects => Set<Defect>();
+    public DbSet<ServiceReport> ServiceReports => Set<ServiceReport>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
 
 
 
@@ -93,11 +97,70 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
         modelBuilder.Entity<Site>()
             .Property(s => s.Active)
-            .HasDefaultValue(true);
+            .HasDefaultValue(true)
+            .HasSentinel(true); // so an explicit false is sent on insert instead of the DB default
 
         modelBuilder.Entity<Site>()
             .HasIndex(s => s.ExternalId)
             .IsUnique();
+
+        modelBuilder.Entity<Asset>(entity =>
+        {
+            entity.HasIndex(a => a.ExternalId).IsUnique();
+            entity.Property(a => a.IsActive).HasDefaultValue(true).HasSentinel(true);
+            entity.Property(a => a.BaseDate).HasColumnType("timestamptz");
+            entity.Property(a => a.InstallationDate).HasColumnType("timestamptz");
+            entity.Property(a => a.LastServiceDate).HasColumnType("timestamptz");
+        });
+
+        modelBuilder.Entity<SiteContact>(entity =>
+        {
+            entity.HasOne(c => c.Site)
+                .WithMany(s => s.Contacts)
+                .HasForeignKey(c => c.SiteId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(c => c.ExternalId).IsUnique();
+            entity.HasIndex(c => c.SiteId);
+        });
+
+        modelBuilder.Entity<Defect>(entity =>
+        {
+            entity.HasOne(d => d.Site)
+                .WithMany(s => s.Defects)
+                .HasForeignKey(d => d.SiteId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.Asset)
+                .WithMany(a => a.Defects)
+                .HasForeignKey(d => d.AssetId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
+            entity.Property(d => d.RaisedUtc).HasColumnType("timestamptz");
+
+            entity.HasIndex(d => d.ExternalId).IsUnique();
+            entity.HasIndex(d => d.SiteId);
+            entity.HasIndex(d => d.AssetId);
+        });
+
+        modelBuilder.Entity<ServiceReport>(entity =>
+        {
+            entity.HasOne(r => r.Site)
+                .WithMany(s => s.ServiceReports)
+                .HasForeignKey(r => r.SiteId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(r => r.IssuedDate).HasColumnType("timestamptz");
+            entity.Property(r => r.InspectedDate).HasColumnType("timestamptz");
+
+            entity.HasIndex(r => r.ExternalId).IsUnique();
+            entity.HasIndex(r => r.SiteId);
+        });
+
+        modelBuilder.Entity<AppSetting>()
+            .Property(s => s.UpdatedUtc)
+            .HasColumnType("timestamptz");
 
         // Asset ↔ AssetType (N:N)
         modelBuilder.Entity<Asset>()

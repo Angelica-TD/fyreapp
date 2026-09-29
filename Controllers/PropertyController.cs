@@ -117,6 +117,11 @@ namespace FyreApp.Controllers
                 .Include(s => s.Assets)
                     .ThenInclude(a => a.AssetTypes)
                 .Include(s => s.MaintenanceSchedules)
+                .Include(s => s.Contacts)
+                .Include(s => s.Defects)
+                    .ThenInclude(d => d.Asset)
+                .Include(s => s.ServiceReports)
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(s => s.Id == id);
 
             if (site == null)
