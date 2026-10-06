@@ -51,6 +51,10 @@ public class Site
 
     public bool Active { get; set; } = true;
 
+    // Uptick property status: ACTIVE, ONHOLD, SETUP or INACTIVE (Active is false only for INACTIVE)
+    [StringLength(20)]
+    public string? Status { get; set; }
+
     // FK → Client
     public int ClientId { get; set; }
     public Client Client { get; set; } = null!;

@@ -84,7 +84,8 @@ public class PropertyImporter : UptickImporter
                 Suburb = row.Get("Address City"),
                 State = row.Get("Address State"),
                 Postcode = row.Get("Address Postcode"),
-                Active = !string.Equals(row.Get("Status"), "INACTIVE", StringComparison.OrdinalIgnoreCase)
+                Active = !string.Equals(row.Get("Status"), "INACTIVE", StringComparison.OrdinalIgnoreCase),
+                Status = row.Get("Status")?.ToUpperInvariant()
             };
 
             var tooLong = TooLong(site);
@@ -142,6 +143,7 @@ public class PropertyImporter : UptickImporter
                 s.State = from.State;
                 s.Postcode = from.Postcode;
                 s.Active = from.Active;
+                s.Status = from.Status;
                 s.IsPlaceholder = false;
             }
         }
