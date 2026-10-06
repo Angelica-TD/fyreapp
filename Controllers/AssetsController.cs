@@ -19,12 +19,10 @@ namespace FyreApp.Controllers
 
         // Without "f" (first visit, sidebar link) the Uptick-style defaults apply; once the filter form has been
         // submitted, what's in the query string is used as is, so a cleared filter means "any".
-        [HttpGet]
-        public async Task<IActionResult> Index(
-            string? search, string? active, List<int>? assetType, bool assetTypeIsNot,
-            List<string>? propertyStatus, int page = 1, bool f = false, CancellationToken ct = default)
+        private static AssetFilter Filter(
+            string? search, string? active, List<int>? assetType, bool assetTypeIsNot, List<string>? propertyStatus, bool f)
         {
-            var filter = new AssetFilter();
+            var filter = new AssetFilter { Search = search };
             if (f)
             {
                 filter.Active = active switch { "yes" => true, "no" => false, _ => null };
@@ -32,10 +30,56 @@ namespace FyreApp.Controllers
                 filter.AssetTypeIsNot = assetTypeIsNot;
                 filter.PropertyStatus = propertyStatus ?? new();
             }
-            filter.Search = search;
-            filter.Page = page;
+            return filter;
+        }
 
+        [HttpGet]
+        public async Task<IActionResult> Index(
+            string? search, string? active, List<int>? assetType, bool assetTypeIsNot,
+            List<string>? propertyStatus, int page = 1, bool f = false, CancellationToken ct = default)
+        {
+            var filter = Filter(search, active, assetType, assetTypeIsNot, propertyStatus, f);
+            filter.Page = page;
             return View(await _assetList.SearchAsync(filter, ct));
+        }
+
+        // Every asset matching the current filters, as CSV
+        [HttpGet]
+        public async Task<IActionResult> Download(
+            string? search, string? active, List<int>? assetType, bool assetTypeIsNot,
+            List<string>? propertyStatus, bool f = false, CancellationToken ct = default) =>
+            File(await _assetList.CsvAsync(Filter(search, active, assetType, assetTypeIsNot, propertyStatus, f), ct),
+                "text/csv", FyreApp.Infrastructure.CsvExport.FileName("assets"));
+
+        // Edit: set active / inactive, or generate a task per property, for the ticked assets or all matching
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+        public async Task<IActionResult> BulkEdit(
+            string bulkAction, [Bind(Prefix = "task")] FyreApp.ViewModels.Lists.BulkTaskInput task,
+            List<int>? ids, bool allMatching, string? returnUrl,
+            string? search, string? active, List<int>? assetType, bool assetTypeIsNot,
+            List<string>? propertyStatus, bool f = false, CancellationToken ct = default)
+        {
+            var selection = FyreApp.ViewModels.Lists.BulkSelection.From(ids, allMatching);
+            var filter = Filter(search, active, assetType, assetTypeIsNot, propertyStatus, f);
+
+            switch (bulkAction)
+            {
+                case "activate":
+                case "deactivate":
+                    var makeActive = bulkAction == "activate";
+                    var changed = await _assetList.SetActiveAsync(selection, filter, makeActive, ct);
+                    return FyreApp.Infrastructure.ListControllerExtensions.BackToList(this, returnUrl,
+                        $"Set {FyreApp.Infrastructure.ListControllerExtensions.Plural(changed, "asset", "assets")} {(makeActive ? "active" : "inactive")}.");
+                case "tasks":
+                    var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    var created = await _assetList.GenerateTasksAsync(selection, filter, task, userId, ct);
+                    return FyreApp.Infrastructure.ListControllerExtensions.BackToList(this, returnUrl,
+                        $"Generated {FyreApp.Infrastructure.ListControllerExtensions.Plural(created, "task", "tasks")}, one per property.");
+                default:
+                    return FyreApp.Infrastructure.ListControllerExtensions.BackToList(this, returnUrl, "Nothing changed: choose what to do.");
+            }
         }
 
         [HttpGet("/api/assets/suggestions")]

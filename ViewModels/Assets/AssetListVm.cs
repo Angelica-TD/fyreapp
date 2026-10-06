@@ -18,6 +18,16 @@ public class AssetFilter
 
     public int Page { get; set; } = 1;
 
+    public IEnumerable<KeyValuePair<string, string>> QueryValues()
+    {
+        yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("f", "true");
+        yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("search", Search);
+        yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("active", FyreApp.ViewModels.Lists.FilterQuery.YesNoAny(Active));
+        yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("assetTypeIsNot", AssetTypeIsNot ? "true" : "false");
+        foreach (var id in AssetTypeIds) yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("assetType", id.ToString());
+        foreach (var s in PropertyStatus) yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("propertyStatus", s);
+    }
+
     // How many filters narrow the list (shown on the Filters button, as Uptick does)
     public int ActiveCount =>
         (Active != null ? 1 : 0) +

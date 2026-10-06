@@ -8,6 +8,13 @@ public class PropertyFilter
     public int Page { get; set; } = 1;
 
     public int ActiveCount => Status.Count > 0 ? 1 : 0;
+
+    public IEnumerable<KeyValuePair<string, string>> QueryValues()
+    {
+        yield return FilterQuery.Kv("f", "true");
+        yield return FilterQuery.Kv("search", Search);
+        foreach (var s in Status) yield return FilterQuery.Kv("status", s);
+    }
 }
 
 public class PropertyListItemVm

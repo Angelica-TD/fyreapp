@@ -27,6 +27,17 @@ public class RoutineFilter
         return new RoutineFilter { DueFrom = monthStart, DueTo = monthStart.AddMonths(1).AddDays(-1) };
     }
 
+    public IEnumerable<KeyValuePair<string, string>> QueryValues()
+    {
+        yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("f", "true");
+        yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("search", Search);
+        yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("clientActive", FyreApp.ViewModels.Lists.FilterQuery.YesNoAny(ClientActive));
+        yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("dueFrom", DueFrom?.ToString("yyyy-MM-dd"));
+        yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("dueTo", DueTo?.ToString("yyyy-MM-dd"));
+        foreach (var s in PropertyStatus) yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("propertyStatus", s);
+        foreach (var s in Status) yield return FyreApp.ViewModels.Lists.FilterQuery.Kv("status", s.ToString());
+    }
+
     // How many filters narrow the list (shown on the Filters button, as Uptick does)
     public int ActiveCount =>
         (ClientActive != null ? 1 : 0) +

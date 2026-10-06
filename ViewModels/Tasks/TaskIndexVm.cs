@@ -14,9 +14,9 @@ public class ClientTaskListItemVm
     public DateTime CreatedAt { get; set; }
 }
 
+// The Tasks page; the list itself is the React TaskSearch (/api/tasks)
 public class TaskIndexVm
 {
-    public IReadOnlyList<ClientTaskListItemVm> Tasks { get; set; } = [];
-    public string? StatusFilter { get; set; }
-    public string? ClientFilter { get; set; }
+    // Technicians for the bulk "Assign technician" action
+    public IReadOnlyList<(string Id, string Name)> Techs { get; set; } = [];
 }

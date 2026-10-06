@@ -1,0 +1,20 @@
+@model FyreApp.ViewModels.Lists.SelectionToolbarVm
+
+@* Count, Edit N / Clear selection / Select all N once rows are ticked (list-selection.js), and Download (N) *@
+<div class="d-flex flex-wrap align-items-center gap-2 mb-2" data-list-selection data-total="@Model.Total">
+    <span class="text-muted js-count">@Model.Total.ToString("N0") @(Model.Total == 1 ? Model.NounSingular.ToLowerInvariant() : Model.Noun.ToLowerInvariant())</span>
+    @if (Model.EditModalId != null)
+    {
+        <button type="button" class="btn btn-primary btn-sm d-none js-edit" data-bs-toggle="modal" data-bs-target="#@Model.EditModalId">
+            Edit <span class="js-selected-count">0</span> @Model.Noun
+        </button>
+        <button type="button" class="btn btn-link btn-sm d-none js-clear">Clear selection</button>
+        @if (Model.Total > Model.PageCount)
+        {
+            <button type="button" class="btn btn-link btn-sm d-none js-select-all">Select all @Model.Total.ToString("N0") @Model.Noun.ToLowerInvariant()</button>
+        }
+    }
+    <a class="btn btn-link btn-sm ms-auto @(Model.Total == 0 ? "disabled" : "")" href="@Model.DownloadUrl">
+        <i class="bi bi-download"></i> Download (@Model.Total.ToString("N0"))
+    </a>
+</div>

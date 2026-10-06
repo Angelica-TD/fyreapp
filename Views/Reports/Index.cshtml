@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Reports";
     var f = Model.Filter;
+    var filterValues = f.QueryValues().ToList();
 }
 
 <div class="card">
@@ -15,7 +16,11 @@
             <input type="search" name="search" value="@f.Search" class="form-control" placeholder="Search ref, title, task, property or client" />
         </form>
 
-        <p class="text-muted mb-2">@Model.Total.ToString("N0") report@(Model.Total == 1 ? "" : "s")</p>
+        @await Html.PartialAsync("_SelectionToolbar", new FyreApp.ViewModels.Lists.SelectionToolbarVm
+        {
+            Total = Model.Total, PageCount = Model.Items.Count, Noun = "Reports", NounSingular = "Report",
+            DownloadUrl = Url.Action("Download") + "?" + FyreApp.ViewModels.Lists.FilterQuery.ToQueryString(filterValues)
+        })
 
         @if (Model.Items.Count == 0)
         {

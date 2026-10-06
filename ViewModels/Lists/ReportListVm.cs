@@ -5,6 +5,11 @@ public class ReportFilter
 {
     public string? Search { get; set; }
     public int Page { get; set; } = 1;
+
+    public IEnumerable<KeyValuePair<string, string>> QueryValues()
+    {
+        yield return FilterQuery.Kv("search", Search);
+    }
 }
 
 public class ReportListItemVm

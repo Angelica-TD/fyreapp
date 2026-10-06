@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FyreApp.Data;
+using FyreApp.Infrastructure;
 using FyreApp.Models;
 using Microsoft.AspNetCore.Authorization;
 
@@ -13,24 +14,61 @@ namespace FyreApp.Controllers
     {
         private readonly AppDbContext _context;
         private readonly SitesService _sites;
-        private readonly FyreApp.Services.Lists.IListService _lists;
+        private readonly FyreApp.Services.Lists.IPropertyListService _list;
 
-        public PropertyController(AppDbContext context, SitesService sites, FyreApp.Services.Lists.IListService lists)
+        public PropertyController(AppDbContext context, SitesService sites, FyreApp.Services.Lists.IPropertyListService list)
         {
             _context = context;
             _sites = sites;
-            _lists = lists;
+            _list = list;
         }
 
         // Without "f" (first visit, sidebar link) the Uptick-style defaults apply; once the filter form has been
         // submitted, what's in the query string is used as is, so a cleared filter means "any".
+        private static FyreApp.ViewModels.Lists.PropertyFilter Filter(string? search, List<string>? status, bool f)
+        {
+            var filter = new FyreApp.ViewModels.Lists.PropertyFilter { Search = search };
+            if (f) filter.Status = status ?? new();
+            return filter;
+        }
+
         [HttpGet]
         public async Task<IActionResult> Index(string? search, List<string>? status, int page = 1, bool f = false, CancellationToken ct = default)
         {
-            var filter = new FyreApp.ViewModels.Lists.PropertyFilter { Search = search, Page = page };
-            if (f) filter.Status = status ?? new();
+            var filter = Filter(search, status, f);
+            filter.Page = page;
+            return View(await _list.SearchAsync(filter, ct));
+        }
 
-            return View(await _lists.PropertiesAsync(filter, ct));
+        // Every property matching the current filters, as CSV
+        [HttpGet]
+        public async Task<IActionResult> Download(string? search, List<string>? status, bool f = false, CancellationToken ct = default) =>
+            File(await _list.CsvAsync(Filter(search, status, f), ct), "text/csv", FyreApp.Infrastructure.CsvExport.FileName("properties"));
+
+        // Edit: change status, or generate a task per property, for the ticked properties or all matching the filters
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> BulkEdit(
+            string bulkAction, string? newStatus, [Bind(Prefix = "task")] FyreApp.ViewModels.Lists.BulkTaskInput task,
+            List<int>? ids, bool allMatching, string? returnUrl,
+            string? search, List<string>? status, bool f = false, CancellationToken ct = default)
+        {
+            var selection = FyreApp.ViewModels.Lists.BulkSelection.From(ids, allMatching);
+            var filter = Filter(search, status, f);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            switch (bulkAction)
+            {
+                case "status" when !string.IsNullOrWhiteSpace(newStatus):
+                    var changed = await _list.SetStatusAsync(selection, filter, newStatus, ct);
+                    return this.BackToList(returnUrl, $"Set {FyreApp.Infrastructure.ListControllerExtensions.Plural(changed, "property", "properties")} to {FyreApp.ViewModels.Lists.ListFilters.PropertyStatusLabel(newStatus)}.");
+                case "tasks":
+                    var created = await _list.GenerateTasksAsync(selection, filter, task, userId, ct);
+                    return this.BackToList(returnUrl, $"Generated {FyreApp.Infrastructure.ListControllerExtensions.Plural(created, "task", "tasks")}, one per property.");
+                default:
+                    return this.BackToList(returnUrl, "Nothing changed: choose what to do.");
+            }
         }
 
 

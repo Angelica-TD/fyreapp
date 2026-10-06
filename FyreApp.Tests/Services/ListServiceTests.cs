@@ -31,7 +31,7 @@ public class ListServiceTests
         using var db = DbContextFactory.Create();
         await SeedAsync(db);
 
-        var result = await new ListService(db).PropertiesAsync(new PropertyFilter());
+        var result = await new PropertyListService(db).SearchAsync(new PropertyFilter());
 
         Assert.Equal(new[] { "P-3338", "P-3337", "P-3000" }, result.Items.Select(p => p.Ref));
         Assert.Equal(("ACTIVE", "QLD", "Naomi"), (result.Items[0].Status, result.Items[0].State, result.Items[0].ClientContact));
@@ -60,7 +60,7 @@ public class ListServiceTests
             D("54304", inactive, asset, "Non-conformance"));              // property inactive
         await db.SaveChangesAsync();
 
-        var result = await new ListService(db).RemarksAsync(new RemarkFilter());
+        var result = await new RemarkListService(db).SearchAsync(new RemarkFilter());
 
         Assert.Equal(new[] { "D-54280", "D-54214", "D-9999" }, result.Items.Select(r => r.Ref));
         Assert.Equal(4, result.Filter.ActiveCount);
@@ -78,7 +78,7 @@ public class ListServiceTests
             new ServiceReport { ExternalId = "52362", Ref = "R-52362", Site = active, ReportType = "Service Report", Compliant = true });
         await db.SaveChangesAsync();
 
-        var result = await new ListService(db).ReportsAsync(new ReportFilter());
+        var result = await new ReportListService(db).SearchAsync(new ReportFilter());
 
         Assert.Equal(new[] { "R-52362", "R-52331", "R-09000" }, result.Items.Select(r => r.Ref));
         Assert.Equal("Apex Mezzanines", result.Items[0].ClientName);
