@@ -40,13 +40,15 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
         q = filter.GenerationStatus switch
         {
             ScheduleGenerationStatus.Pending => q.Where(s => !_db.ClientTasks.Any(t =>
-                t.MaintenanceScheduleId == s.Id &&
-                t.DueDateUtc == s.NextRunDate &&
-                t.Status != ClientTaskStatus.Cancelled)),
+                (t.MaintenanceScheduleId == s.Id || t.CoveredSchedules.Any(c => c.Id == s.Id)) &&
+                t.Status != ClientTaskStatus.Cancelled &&
+                t.DueDateUtc >= s.NextRunDate.AddDays(-ScheduleCoverage.DaysBefore) &&
+                t.DueDateUtc <= s.NextRunDate.AddDays(ScheduleCoverage.DaysAfter))),
             ScheduleGenerationStatus.Generated => q.Where(s => _db.ClientTasks.Any(t =>
-                t.MaintenanceScheduleId == s.Id &&
-                t.DueDateUtc == s.NextRunDate &&
-                t.Status != ClientTaskStatus.Cancelled)),
+                (t.MaintenanceScheduleId == s.Id || t.CoveredSchedules.Any(c => c.Id == s.Id)) &&
+                t.Status != ClientTaskStatus.Cancelled &&
+                t.DueDateUtc >= s.NextRunDate.AddDays(-ScheduleCoverage.DaysBefore) &&
+                t.DueDateUtc <= s.NextRunDate.AddDays(ScheduleCoverage.DaysAfter))),
             _ => q
         };
 
@@ -64,9 +66,11 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
                     ? s.Asset!.Site.Name + " • " + s.Asset.Name
                     : s.Site!.Name,
                 GeneratedTask = _db.ClientTasks
-                    .Where(t => t.MaintenanceScheduleId == s.Id &&
-                                t.DueDateUtc == s.NextRunDate &&
-                                t.Status != ClientTaskStatus.Cancelled)
+                    .Where(t => (t.MaintenanceScheduleId == s.Id || t.CoveredSchedules.Any(c => c.Id == s.Id)) &&
+                                t.Status != ClientTaskStatus.Cancelled &&
+                                t.DueDateUtc >= s.NextRunDate.AddDays(-ScheduleCoverage.DaysBefore) &&
+                                t.DueDateUtc <= s.NextRunDate.AddDays(ScheduleCoverage.DaysAfter))
+                    .OrderBy(t => t.Status == ClientTaskStatus.Completed)
                     .Select(t => new { t.Id, t.Status })
                     .FirstOrDefault()
             })
@@ -94,6 +98,7 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
             .Include(s => s.Asset).ThenInclude(a => a!.Site).ThenInclude(s => s.Client)
             .Include(s => s.MaintenanceHistory)
             .Include(s => s.GeneratedTasks)
+            .Include(s => s.CoveringTasks)
             .FirstOrDefaultAsync(s => s.Id == id);
     }
 
@@ -108,10 +113,12 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
         if (schedule == null)
             throw new InvalidOperationException($"Maintenance schedule {scheduleId} not found.");
 
+        var next = schedule.NextRunDate;
         var existing = await _db.ClientTasks.FirstOrDefaultAsync(t =>
-            t.MaintenanceScheduleId == scheduleId &&
-            t.DueDateUtc == schedule.NextRunDate &&
-            t.Status != ClientTaskStatus.Cancelled);
+            (t.MaintenanceScheduleId == scheduleId || t.CoveredSchedules.Any(c => c.Id == scheduleId)) &&
+            t.Status != ClientTaskStatus.Cancelled &&
+            t.DueDateUtc >= next.AddDays(-ScheduleCoverage.DaysBefore) &&
+            t.DueDateUtc <= next.AddDays(ScheduleCoverage.DaysAfter));
 
         if (existing != null)
             return existing;

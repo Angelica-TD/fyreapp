@@ -11,7 +11,8 @@ public enum UptickExportType
     PropertyContacts = 2,
     Assets = 3,
     Remarks = 4,
-    Reports = 5
+    Reports = 5,
+    Tasks = 6
 }
 
 // Collects counts and grouped issues for one import run.

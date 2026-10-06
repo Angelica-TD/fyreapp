@@ -167,4 +167,34 @@ public class MaintenanceScheduleServiceTests
 
         Assert.Equal(ScheduleCompleteStatus.NotFound, status);
     }
+
+    // -------------------------------------------------------
+    // Imported Uptick tasks covering a schedule
+    // -------------------------------------------------------
+
+    [Theory]
+    [InlineData(29, true)]    // routine due the 1st, Uptick task due the 30th
+    [InlineData(-1, true)]    // task due the last day of the month before
+    [InlineData(45, false)]   // a later occurrence's task
+    public async Task GetDueListAsync_UptickTaskNearNextRun_CountsAsGenerated(int dueOffsetDays, bool generated)
+    {
+        using var db = DbContextFactory.Create();
+        var (client, site, _, schedule) = await SeedDueScheduleAsync(db);
+        var task = new ClientTask
+        {
+            Client = client, Site = site, Title = "PM2026/10", Ref = "T-1", ExternalId = "1",
+            DueDateUtc = schedule.NextRunDate.AddDays(dueOffsetDays)
+        };
+        task.CoveredSchedules.Add(schedule);
+        db.ClientTasks.Add(task);
+        await db.SaveChangesAsync();
+
+        var result = await new MaintenanceScheduleService(db).GetDueListAsync(new MaintenanceScheduleFilter
+        {
+            Window = ScheduleWindow.All,
+            GenerationStatus = ScheduleGenerationStatus.All
+        });
+
+        Assert.Equal(generated ? task.Id : null, Assert.Single(result).GeneratedTaskId);
+    }
 }

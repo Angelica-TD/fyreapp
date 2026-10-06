@@ -23,11 +23,26 @@ public class ClientTask
 {
     public int Id { get; set; }
 
-    // FyreApp ref (e.g. "T-1001"), assigned by the database
+    // Maps from Uptick task export "ID"
+    [StringLength(64)]
+    public string? ExternalId { get; set; }
+
+    // Uptick task ref, e.g. "T-46616"
+    [StringLength(20)]
+    public string? Ref { get; set; }
+
+    // FyreApp ref (e.g. "FT-1001"), assigned by the database when there's no Uptick ID
     [StringLength(20)]
     public string? FyreRef { get; set; }
 
-    public string? DisplayRef => FyreRef;
+    // Every column of the Uptick export row as JSON (key order kept), so nothing is lost on import
+    public string? UptickData { get; set; }
+
+    // Shown to users: Uptick's task ref, then its ID, otherwise the FyreApp ref
+    public string? DisplayRef =>
+        !string.IsNullOrWhiteSpace(Ref) ? Ref
+        : !string.IsNullOrWhiteSpace(ExternalId) ? ExternalId
+        : FyreRef;
 
     // Required links
     public int ClientId { get; set; }
@@ -57,4 +72,8 @@ public class ClientTask
     // Set when this task was auto-generated from a routine MaintenanceSchedule
     public int? MaintenanceScheduleId { get; set; }
     public MaintenanceSchedule? MaintenanceSchedule { get; set; }
+
+    // Schedules an imported Uptick routine (I&T) task covers. One Uptick task can cover several
+    // frequencies at a property (e.g. six-monthly and annual), so this is many-to-many.
+    public ICollection<MaintenanceSchedule> CoveredSchedules { get; set; } = new List<MaintenanceSchedule>();
 }

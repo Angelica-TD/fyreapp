@@ -46,4 +46,7 @@ public class MaintenanceSchedule
     // ClientTasks generated from this schedule's due occurrences
     public ICollection<ClientTask> GeneratedTasks { get; set; } = new List<ClientTask>();
 
+    // Imported Uptick tasks whose scope covers this schedule (see ClientTask.CoveredSchedules)
+    public ICollection<ClientTask> CoveringTasks { get; set; } = new List<ClientTask>();
+
 }
