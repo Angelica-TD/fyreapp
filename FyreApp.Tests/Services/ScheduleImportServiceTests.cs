@@ -48,6 +48,96 @@ public class ScheduleImportServiceTests
         Assert.Null(ScheduleImportService.ParseFrequency(routine).Months);
     }
 
+    [Theory]
+    [InlineData("Annual Evacuation Drill: Annual Evacuation Drill", 12)]   // custom Uptick level, seen on prod
+    [InlineData("Annual Evacuation Drill", 12)]
+    [InlineData("Fire doors: Six monthly check", 6)]                       // "six monthly" read together, not as "monthly"
+    public void ParseFrequency_NamedLevel_UsesFrequencyWordInName(string routine, int expected)
+    {
+        Assert.Equal(expected, ScheduleImportService.ParseFrequency(routine).Months);
+    }
+
+    [Fact]
+    public void ParseFrequency_NamedLevelWithTwoFrequencies_IsUnsupported()
+    {
+        Assert.Null(ScheduleImportService.ParseFrequency("Drills: Monthly and Annual checks").Months);
+    }
+
+    private static readonly DateTime Today = new(2026, 10, 6);
+    private static DateTime D(string s) => DateTime.Parse(s);
+
+    [Fact]
+    public void NextOutstanding_OldGeneratedSupersededByLaterCompletion_IsIgnored()
+    {
+        // Unfiltered export: a 2021 "G" whose task was never closed, then later occurrences completed
+        var next = ScheduleImportService.NextOutstanding(new[]
+        {
+            ("Extinguishers: Six-monthly", D("2021-03-01"), false, true),
+            ("Extinguishers: Six-monthly", D("2026-04-01"), true, false),
+            ("Extinguishers: Six-monthly", D("2026-10-01"), false, false),
+            ("Extinguishers: Six-monthly", D("2027-04-01"), false, false)
+        }, Today);
+
+        Assert.Equal(D("2026-10-01"), next);
+    }
+
+    [Fact]
+    public void NextOutstanding_OpenOccurrenceAfterLastCompletion_IsKept()
+    {
+        var next = ScheduleImportService.NextOutstanding(new[]
+        {
+            ("Extinguishers: Six-monthly", D("2025-10-01"), true, false),
+            ("Extinguishers: Six-monthly", D("2026-04-01"), false, true),   // overdue, task raised, still open
+            ("Extinguishers: Six-monthly", D("2026-10-01"), false, false)
+        }, Today);
+
+        Assert.Equal(D("2026-04-01"), next);
+    }
+
+    [Fact]
+    public void NextOutstanding_CompletionDueInFuture_DoesNotSupersedeEarlierOnes()
+    {
+        // Five-yearly work done early marks a 2031 occurrence complete
+        var next = ScheduleImportService.NextOutstanding(new[]
+        {
+            ("Hydrants: Annual", D("2027-01-01"), false, false),
+            ("Hydrants: Annual", D("2031-01-01"), true, false)
+        }, Today);
+
+        Assert.Equal(D("2027-01-01"), next);
+    }
+
+    [Fact]
+    public void NextOutstanding_EarlierRaisedOccurrencesBehindALaterRaisedOne_AreIgnored()
+    {
+        // P-0662 lighting on prod: Uptick left 2024 and 2025 at "G" though their tasks were done;
+        // the 2026 one (task still READY) is the one actually outstanding
+        var next = ScheduleImportService.NextOutstanding(new[]
+        {
+            ("15 - Emergency escape lighting and exit signs: Six-monthly", D("2023-05-30"), true, false),
+            ("15 - Emergency Escape Lighting and Exit Signs: Six-monthly", D("2024-05-30"), false, true),
+            ("15 - Emergency Escape Lighting and Exit Signs: Six-monthly", D("2025-05-30"), false, true),
+            ("15 - Emergency Escape Lighting and Exit Signs: Six-monthly", D("2026-05-30"), false, true),
+            ("15 - Emergency Escape Lighting and Exit Signs: Six-monthly", D("2027-05-30"), false, false)
+        }, Today);
+
+        Assert.Equal(D("2026-05-30"), next);
+    }
+
+    [Fact]
+    public void NextOutstanding_IsWorkedOutPerRoutine()
+    {
+        // One routine's completion doesn't hide another routine's open occurrence in the same schedule
+        var next = ScheduleImportService.NextOutstanding(new[]
+        {
+            ("Fire panels: Six-monthly", D("2026-08-01"), false, true),
+            ("Extinguishers: Six-monthly", D("2026-09-01"), true, false),
+            ("Extinguishers: Six-monthly", D("2027-03-01"), false, false)
+        }, Today);
+
+        Assert.Equal(D("2026-08-01"), next);
+    }
+
     [Fact]
     public async Task Import_MatchesByPropertyRef_CreatesScheduleAndInterval()
     {
