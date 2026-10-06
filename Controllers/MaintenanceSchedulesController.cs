@@ -1,3 +1,4 @@
+using FyreApp.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -35,7 +36,7 @@ namespace FyreApp.Controllers
         [Authorize(Roles = "Admin")]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [RequestSizeLimit(20_000_000)]
+        [RequestSizeLimit(ImportLimits.MaxUploadBytes)]
         public async Task<IActionResult> Import(IFormFile? file, bool dryRun, CancellationToken ct)
         {
             if (file == null || file.Length == 0)

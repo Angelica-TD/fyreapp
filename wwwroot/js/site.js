@@ -29,6 +29,23 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
+    // =========================================================
+    // UPLOAD SIZE CHECK
+    // File inputs with data-max-bytes refuse files over the server's limit before uploading;
+    // otherwise the server cuts the upload off and the browser only shows a bare HTTP 400.
+    // =========================================================
+    document.querySelectorAll("input[type=file][data-max-bytes]").forEach(function (input) {
+        input.addEventListener("change", function () {
+            const max = Number(input.dataset.maxBytes);
+            const tooBig = Array.from(input.files).find(f => f.size > max);
+            const mb = n => (n / 1000000).toFixed(1) + " MB";
+            input.setCustomValidity(tooBig
+                ? `${tooBig.name} is ${mb(tooBig.size)}; the limit is ${mb(max)}. Split the export or export as XLSX (smaller than CSV).`
+                : "");
+            input.reportValidity();
+        });
+    });
+
     const offcanvasEl = document.getElementById("offcanvasNav");
     if (offcanvasEl) {
         offcanvasEl.addEventListener("click", function (e) {

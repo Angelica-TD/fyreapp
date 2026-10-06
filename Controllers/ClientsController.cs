@@ -1,3 +1,4 @@
+using FyreApp.Infrastructure;
 using FyreApp.Data;
 using FyreApp.Dtos;
 using FyreApp.Models;
@@ -289,6 +290,7 @@ namespace FyreApp.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Admin")]
+        [RequestSizeLimit(ImportLimits.MaxUploadBytes)]
         public async Task<IActionResult> StartImport(IFormFile file, bool dryRun)
         {
             

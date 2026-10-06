@@ -76,7 +76,7 @@
 
             <div class="mb-3">
                 <label class="form-label" for="file">CSV or XLSX file</label>
-                <input type="file" name="file" id="file" class="form-control" accept=".csv,.txt,.xlsx" required />
+                <input type="file" name="file" id="file" class="form-control" accept=".csv,.txt,.xlsx" data-max-bytes="@ImportLimits.MaxUploadBytes" required />
                 @Html.ValidationMessage("file", null, new { @class = "text-danger" })
             </div>
 

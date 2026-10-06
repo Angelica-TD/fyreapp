@@ -1,3 +1,4 @@
+using FyreApp.Infrastructure;
 using FyreApp.Services.DataReset;
 using FyreApp.Services.Imports;
 using Microsoft.AspNetCore.Authorization;
@@ -27,7 +28,7 @@ public class ImportsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [RequestSizeLimit(50_000_000)]
+    [RequestSizeLimit(ImportLimits.MaxUploadBytes)]
     public async Task<IActionResult> Index(IFormFile? file, UptickExportType? type, bool dryRun, CancellationToken ct)
     {
         ViewData["ResetEnabled"] = await _resetService.IsEnabledAsync(ct);
