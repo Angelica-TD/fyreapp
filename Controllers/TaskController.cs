@@ -17,9 +17,12 @@ public class TaskController : Controller
     private readonly AppDbContext _db;
     private readonly IClientTaskService _taskService;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly FyreApp.Services.Tasks.ITaskListService _taskList;
 
-    public TaskController(AppDbContext db, IClientTaskService taskService, UserManager<ApplicationUser> userManager)
+    public TaskController(AppDbContext db, IClientTaskService taskService, UserManager<ApplicationUser> userManager,
+        FyreApp.Services.Tasks.ITaskListService taskList)
     {
+        _taskList = taskList;
         _db = db;
         _taskService = taskService;
         _userManager = userManager;
@@ -27,41 +30,10 @@ public class TaskController : Controller
 
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? status, string? client)
+    public async Task<IActionResult> Index()
     {
-        var q = _db.ClientTasks
-            .Include(t => t.Client)
-            .Include(t => t.Site)
-            .AsNoTracking()
-            .AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ClientTaskStatus>(status, out var statusEnum))
-            q = q.Where(t => t.Status == statusEnum);
-
-        if (!string.IsNullOrWhiteSpace(client) && int.TryParse(client, out var clientId))
-            q = q.Where(t => t.ClientId == clientId);
-
-        var tasks = await q
-            .OrderBy(t => t.DueDateUtc)
-            .Select(t => new ClientTaskListItemVm
-            {
-                Id = t.Id,
-                Title = t.Title,
-                ClientName = t.Client.Name,
-                AddressDisplay = t.Site.AddressDisplay ?? t.Site.Name,
-                Priority = t.Priority,
-                Status = t.Status,
-                DueDate = t.DueDateUtc,
-                CreatedAt = t.CreatedUtc
-            })
-            .ToListAsync();
-
-        return View(new TaskIndexVm
-        {
-            Tasks = tasks,
-            StatusFilter = status,
-            ClientFilter = client
-        });
+        var techs = (await GetTechSelectListAsync()).Where(t => t.Value != "").Select(t => (t.Value, t.Text)).ToList();
+        return View(new TaskIndexVm { Techs = techs });
     }
 
     [HttpGet]
@@ -298,6 +270,17 @@ public class TaskController : Controller
 
     // Tasks list (React). Defaults match Uptick's Tasks page: active tasks, any category, any status.
     // category / status are "is" lists, or "is not" with categoryNot / statusNot.
+    private static FyreApp.Services.Tasks.TaskFilter TaskFilterFrom(
+        string? search, string active, List<string>? category, bool categoryNot, List<ClientTaskStatus>? status, bool statusNot) => new()
+    {
+        Search = search,
+        Active = active switch { "yes" => true, "no" => false, _ => null },
+        Category = category ?? new(),
+        CategoryNot = categoryNot,
+        Status = status ?? new(),
+        StatusNot = statusNot
+    };
+
     [HttpGet("/api/tasks")]
     public async Task<IActionResult> ApiSearch(
         string? search, string active = "yes",
@@ -305,72 +288,65 @@ public class TaskController : Controller
         [FromQuery] List<ClientTaskStatus>? status = null, bool statusNot = false,
         int page = 1, CancellationToken ct = default)
     {
-        const int pageSize = FyreApp.ViewModels.Lists.ListFilters.PageSize;
-        var q = _db.ClientTasks.AsNoTracking().AsQueryable();
+        var filter = TaskFilterFrom(search, active, category, categoryNot, status, statusNot);
+        filter.Page = page;
+        var (total, current, items, categories) = await _taskList.SearchAsync(filter, ct);
+        return Json(new { total, page = current, pages = FyreApp.ViewModels.Lists.ListFilters.Pages(total), items, categories });
+    }
 
-        if (active is "yes" or "no")
+    // Every task matching the current filters, as CSV
+    [HttpGet]
+    public async Task<IActionResult> Download(
+        string? search, string active = "yes",
+        [FromQuery] List<string>? category = null, bool categoryNot = false,
+        [FromQuery] List<ClientTaskStatus>? status = null, bool statusNot = false, CancellationToken ct = default) =>
+        File(await _taskList.CsvAsync(TaskFilterFrom(search, active, category, categoryNot, status, statusNot), ct),
+            "text/csv", FyreApp.Infrastructure.CsvExport.FileName("tasks"));
+
+    public class TaskBulkRequest
+    {
+        public List<int> Ids { get; set; } = new();
+        public bool AllMatching { get; set; }
+        public string? Search { get; set; }
+        public string Active { get; set; } = "yes";
+        public List<string> Category { get; set; } = new();
+        public bool CategoryNot { get; set; }
+        // Status names as the list sends them, e.g. "InProgress"
+        public List<string> Status { get; set; } = new();
+        public bool StatusNot { get; set; }
+
+        // "status" (NewStatus) or "assign" (TechUserId; empty = unassign)
+        public string BulkAction { get; set; } = "";
+        public string? NewStatus { get; set; }
+        public string? TechUserId { get; set; }
+    }
+
+    // Edit (React): change status or assign a technician, for the ticked tasks or all matching the filters
+    [HttpPost("/api/tasks/bulk")]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ApiBulk([FromBody] TaskBulkRequest req, CancellationToken ct = default)
+    {
+        var selection = FyreApp.ViewModels.Lists.BulkSelection.From(req.Ids, req.AllMatching);
+        var statuses = req.Status.Select(s => Enum.TryParse<ClientTaskStatus>(s, out var st) ? st : (ClientTaskStatus?)null).OfType<ClientTaskStatus>().ToList();
+        var filter = TaskFilterFrom(req.Search, req.Active, req.Category, req.CategoryNot, statuses, req.StatusNot);
+
+        switch (req.BulkAction)
         {
-            var isActive = active == "yes";
-            q = q.Where(t => t.IsActive == isActive);
+            case "status" when Enum.TryParse<ClientTaskStatus>(req.NewStatus, out var newStatus):
+                var changed = await _taskList.SetStatusAsync(selection, filter, newStatus, ct);
+                return Json(new { message = $"Set {FyreApp.Infrastructure.ListControllerExtensions.Plural(changed, "task", "tasks")} to {newStatus}." });
+            case "assign":
+                var tech = string.IsNullOrWhiteSpace(req.TechUserId) ? null : req.TechUserId;
+                var assigned = await _taskList.AssignAsync(selection, filter, tech, ct);
+                return assigned is int n
+                    ? Json(new { message = tech == null
+                        ? $"Unassigned {FyreApp.Infrastructure.ListControllerExtensions.Plural(n, "task", "tasks")}."
+                        : $"Assigned {FyreApp.Infrastructure.ListControllerExtensions.Plural(n, "task", "tasks")}." })
+                    : BadRequest(new { message = "That user isn't a technician." });
+            default:
+                return BadRequest(new { message = "Choose what to do." });
         }
-
-        if (category is { Count: > 0 })
-        {
-            var categories = category.ToList();
-            q = categoryNot
-                ? q.Where(t => t.Category == null || !categories.Contains(t.Category))
-                : q.Where(t => t.Category != null && categories.Contains(t.Category));
-        }
-
-        if (status is { Count: > 0 })
-        {
-            var statuses = status.ToList();
-            q = statusNot ? q.Where(t => !statuses.Contains(t.Status)) : q.Where(t => statuses.Contains(t.Status));
-        }
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var term = search.Trim().ToLower();
-            q = q.Where(t =>
-                t.Title.ToLower().Contains(term) ||
-                t.Client.Name.ToLower().Contains(term) ||
-                (t.FyreRef != null && t.FyreRef.ToLower() == term) ||
-                (t.Ref != null && t.Ref.ToLower() == term));
-        }
-
-        var total = await q.CountAsync(ct);
-        page = FyreApp.ViewModels.Lists.ListFilters.ClampPage(page, total);
-
-        // Newest first, as Uptick lists them: made in FyreApp, then Uptick IDs numerically
-        var items = await q
-            .OrderBy(t => t.ExternalId != null)
-            .ThenByDescending(t => t.ExternalId == null ? t.Id : 0)
-            .ThenByDescending(t => (t.ExternalId ?? "").Length)
-            .ThenByDescending(t => t.ExternalId)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(t => new
-            {
-                id          = t.Id,
-                displayRef  = t.Ref ?? t.ExternalId ?? t.FyreRef,
-                category    = t.Category,
-                title       = t.Title,
-                clientName  = t.Client.Name,
-                siteAddress = t.Site.AddressDisplay ?? t.Site.Name,
-                priority    = t.Priority.ToString(),
-                status      = t.Status.ToString(),
-                dueDateUtc  = t.DueDateUtc
-            })
-            .ToListAsync(ct);
-
-        var categoryOptions = await _db.ClientTasks.AsNoTracking()
-            .Where(t => t.Category != null)
-            .Select(t => t.Category!)
-            .Distinct()
-            .OrderBy(c => c)
-            .ToListAsync(ct);
-
-        return Json(new { total, page, pages = FyreApp.ViewModels.Lists.ListFilters.Pages(total), items, categories = categoryOptions });
     }
 
     private async Task<List<SelectListItem>> GetTechSelectListAsync(string? selectedId = null)

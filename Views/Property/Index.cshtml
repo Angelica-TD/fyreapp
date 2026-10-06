@@ -4,6 +4,8 @@
 @{
     ViewData["Title"] = "Properties";
     var f = Model.Filter;
+    var filterValues = f.QueryValues().ToList();
+    var canEdit = User.IsInRole("Admin");
 
     string StatusBadge(string? s) => s switch
     {
@@ -20,6 +22,8 @@
     </div>
 
     <div class="card-body">
+        @await Html.PartialAsync("_SuccessAlert")
+
         <form method="get" asp-action="Index">
             <input type="hidden" name="f" value="true" />
 
@@ -58,7 +62,16 @@
             </div>
         </form>
 
-        <p class="text-muted mb-2">@Model.Total.ToString("N0") propert@(Model.Total == 1 ? "y" : "ies")</p>
+        @await Html.PartialAsync("_SelectionToolbar", new SelectionToolbarVm
+        {
+            Total = Model.Total, PageCount = Model.Items.Count, Noun = "Properties", NounSingular = "Property",
+            DownloadUrl = Url.Action("Download") + "?" + FilterQuery.ToQueryString(filterValues),
+            EditModalId = canEdit ? "bulkEditModal" : null
+        })
+        @if (canEdit)
+        {
+            @await Html.PartialAsync("_BulkEditModal", filterValues)
+        }
 
         @if (Model.Items.Count == 0)
         {
@@ -70,6 +83,10 @@
                 <table class="table table-hover align-middle">
                     <thead>
                         <tr>
+                            @if (canEdit)
+                            {
+                                <th style="width: 2rem"><input class="form-check-input js-select-page" type="checkbox" aria-label="Select all on this page" /></th>
+                            }
                             <th>Ref</th>
                             <th>Status</th>
                             <th class="text-end">Created</th>
@@ -82,6 +99,10 @@
                         @foreach (var p in Model.Items)
                         {
                             <tr>
+                                @if (canEdit)
+                                {
+                                    <td><input class="form-check-input js-select-row" type="checkbox" name="ids" value="@p.Id" form="bulkForm" aria-label="Select" /></td>
+                                }
                                 <td><a asp-action="Details" asp-route-id="@p.Id">@(p.Ref ?? "—")</a></td>
                                 <td><span class="badge @StatusBadge(p.Status)">@ListFilters.PropertyStatusLabel(p.Status).ToUpperInvariant()</span></td>
                                 <td class="text-end text-nowrap">@(p.Created?.ToSydney().ToDisplayDate() ?? "—")</td>
@@ -104,3 +125,7 @@
         }
     </div>
 </div>
+
+@section Scripts {
+    <script src="~/js/list-selection.js" asp-append-version="true"></script>
+}

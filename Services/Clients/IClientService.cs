@@ -74,6 +74,10 @@ public interface IClientService
 
     // Clients list page: filtered and paged in the database (null active = any)
     Task<(int Total, List<ClientListItem> Items)> SearchAsync(string? search, bool? active, int page, int pageSize, CancellationToken ct = default);
+
+    // Clients list page: every client matching the filters as CSV, and Edit → Set active / inactive
+    Task<byte[]> CsvAsync(string? search, bool? active, CancellationToken ct = default);
+    Task<int> SetActiveAsync(FyreApp.ViewModels.Lists.BulkSelection selection, string? search, bool? active, bool makeActive, CancellationToken ct = default);
     Task<ClientCreateResult> CreateAsync(CreateClientVm vm, CancellationToken ct = default);
     Task<Client?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<List<ClientTask>> GetTasksByClientAsync(int clientId, CancellationToken ct = default);

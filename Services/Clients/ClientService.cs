@@ -84,10 +84,10 @@ public sealed class ClientService : IClientService
             : await query.ToListAsync();
     }
 
-    public async Task<(int Total, List<ClientListItem> Items)> SearchAsync(
-        string? search, bool? active, int page, int pageSize, CancellationToken ct = default)
+    // The one place the list filters are applied, so the list, its download and "select all" always agree
+    private IQueryable<Client> Filtered(string? search, bool? active)
     {
-        var q = _db.Clients.AsNoTracking().AsQueryable();
+        var q = _db.Clients.AsQueryable();
 
         if (active is bool a)
             q = q.Where(c => c.Active == a);
@@ -102,9 +102,15 @@ public sealed class ClientService : IClientService
                 (c.FyreRef != null && c.FyreRef.ToLower() == term));
         }
 
+        return q.OrderBy(c => c.Name).ThenBy(c => c.Id);
+    }
+
+    public async Task<(int Total, List<ClientListItem> Items)> SearchAsync(
+        string? search, bool? active, int page, int pageSize, CancellationToken ct = default)
+    {
+        var q = Filtered(search, active).AsNoTracking();
         var total = await q.CountAsync(ct);
         var items = await q
-            .OrderBy(c => c.Name).ThenBy(c => c.Id)
             .Skip((Math.Max(page, 1) - 1) * pageSize)
             .Take(pageSize)
             .Select(c => new ClientListItem(
@@ -112,6 +118,36 @@ public sealed class ClientService : IClientService
             .ToListAsync(ct);
 
         return (total, items);
+    }
+
+    public async Task<byte[]> CsvAsync(string? search, bool? active, CancellationToken ct = default)
+    {
+        var rows = await Filtered(search, active).AsNoTracking()
+            .Select(c => new
+            {
+                Ref = c.ExternalId ?? c.FyreRef, c.Name, c.Active, c.PrimaryContactName, c.PrimaryContactEmail, c.PrimaryContactMobile,
+                c.PrimaryContactAddress, c.BillingName, c.BillingEmail, c.BillingAddress, Properties = c.Sites.Count, c.IsPlaceholder
+            })
+            .ToListAsync(ct);
+
+        return FyreApp.Infrastructure.CsvExport.Build(
+            new[] { "Ref", "Client", "Active", "Primary contact", "Email", "Mobile", "Address", "Billing name", "Billing email",
+                    "Billing address", "Properties", "Placeholder" },
+            rows.Select(r => new[]
+            {
+                r.Ref, r.Name, r.Active ? "Yes" : "No", r.PrimaryContactName, r.PrimaryContactEmail, r.PrimaryContactMobile,
+                r.PrimaryContactAddress, r.BillingName, r.BillingEmail, r.BillingAddress, r.Properties.ToString(), r.IsPlaceholder ? "Yes" : ""
+            }));
+    }
+
+    public async Task<int> SetActiveAsync(
+        FyreApp.ViewModels.Lists.BulkSelection selection, string? search, bool? active, bool makeActive, CancellationToken ct = default)
+    {
+        var ids = selection.Ids.ToList();
+        var clients = await (selection.AllMatching ? Filtered(search, active) : _db.Clients.Where(c => ids.Contains(c.Id))).ToListAsync(ct);
+        foreach (var c in clients) c.Active = makeActive;
+        await _db.SaveChangesAsync(ct);
+        return clients.Count;
     }
 
     public async Task<ClientCreateResult> CreateAsync(CreateClientVm vm, CancellationToken ct = default)

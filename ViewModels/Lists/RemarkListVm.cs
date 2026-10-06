@@ -22,6 +22,16 @@ public class RemarkFilter
     public List<string> Severity { get; set; } = DefaultSeverities.ToList();
     public int Page { get; set; } = 1;
 
+    public IEnumerable<KeyValuePair<string, string>> QueryValues()
+    {
+        yield return FilterQuery.Kv("f", "true");
+        yield return FilterQuery.Kv("search", Search);
+        yield return FilterQuery.Kv("assetActive", FilterQuery.YesNoAny(AssetActive));
+        foreach (var c in Compliance) yield return FilterQuery.Kv("compliance", c.ToString());
+        foreach (var s in PropertyStatus) yield return FilterQuery.Kv("propertyStatus", s);
+        foreach (var s in Severity) yield return FilterQuery.Kv("severity", s);
+    }
+
     public int ActiveCount =>
         (AssetActive != null ? 1 : 0) +
         (Compliance.Count > 0 ? 1 : 0) +
@@ -31,6 +41,7 @@ public class RemarkFilter
 
 public class RemarkListItemVm
 {
+    public int Id { get; set; }
     public string? Ref { get; set; }
     public string? Severity { get; set; }
     public string? RemarkType { get; set; }

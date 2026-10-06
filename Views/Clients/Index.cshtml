@@ -34,7 +34,8 @@
 
 <div class="card">
     <div class="card-body">
-        <div id="client-search-root"></div>
+        @Html.AntiForgeryToken()
+        <div id="client-search-root" data-can-edit="@(User.IsInRole("Admin") ? "true" : "false")"></div>
     </div>
 </div>
 

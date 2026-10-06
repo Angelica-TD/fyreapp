@@ -281,6 +281,40 @@ namespace FyreApp.Controllers
             });
         }
 
+        private static bool? ActiveFilter(string active) => active switch { "yes" => true, "no" => false, _ => null };
+
+        // Every client matching the current filters, as CSV
+        [HttpGet]
+        public async Task<IActionResult> Download(string? search = null, string active = "yes", CancellationToken ct = default) =>
+            File(await _clients.CsvAsync(search, ActiveFilter(active), ct), "text/csv", FyreApp.Infrastructure.CsvExport.FileName("clients"));
+
+        public class ClientBulkRequest
+        {
+            public List<int> Ids { get; set; } = new();
+            public bool AllMatching { get; set; }
+            public string? Search { get; set; }
+            public string Active { get; set; } = "yes";
+
+            // "activate" or "deactivate"
+            public string BulkAction { get; set; } = "";
+        }
+
+        // Edit (React): set active / inactive for the ticked clients or all matching the filters
+        [HttpPost("/api/clients/bulk")]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ApiBulk([FromBody] ClientBulkRequest req, CancellationToken ct = default)
+        {
+            if (req.BulkAction is not ("activate" or "deactivate"))
+                return BadRequest(new { message = "Choose what to do." });
+
+            var makeActive = req.BulkAction == "activate";
+            var changed = await _clients.SetActiveAsync(
+                FyreApp.ViewModels.Lists.BulkSelection.From(req.Ids, req.AllMatching), req.Search, ActiveFilter(req.Active), makeActive, ct);
+
+            return Json(new { message = $"Set {FyreApp.Infrastructure.ListControllerExtensions.Plural(changed, "client", "clients")} {(makeActive ? "active" : "inactive")}." });
+        }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]

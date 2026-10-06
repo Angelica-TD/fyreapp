@@ -1,0 +1,38 @@
+@model IEnumerable<KeyValuePair<string, string>>
+
+@* Edit N Assets: set active / inactive, or generate a task per property listing the assets *@
+<form method="post" asp-controller="Assets" asp-action="BulkEdit" id="bulkForm">
+    @await Html.PartialAsync("_BulkFormFields", Model)
+
+    <div class="modal fade" id="bulkEditModal" tabindex="-1" aria-labelledby="bulkEditTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="bulkEditTitle">Edit <span class="js-selected-count">0</span> Assets</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>You have selected <span class="js-selected-count">0</span> assets. What do you want to do?</p>
+
+                    <div class="form-check">
+                        <input class="form-check-input js-bulk-action" type="radio" name="bulkAction" value="deactivate" id="actDeactivate" checked />
+                        <label class="form-check-label" for="actDeactivate">Set inactive</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input js-bulk-action" type="radio" name="bulkAction" value="activate" id="actActivate" />
+                        <label class="form-check-label" for="actActivate">Set active</label>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input js-bulk-action" type="radio" name="bulkAction" value="tasks" id="actTasks" />
+                        <label class="form-check-label" for="actTasks">Generate a task for each property, listing its selected assets</label>
+                    </div>
+                    @await Html.PartialAsync("_BulkTaskFields", ("Asset works", (string?)null))
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>

@@ -1,0 +1,9 @@
+@model IEnumerable<KeyValuePair<string, string>>
+
+@* Inside a list page's bulk Edit form: which rows (ticked, or all matching the filters) and where to return *@
+<input type="hidden" name="allMatching" value="false" class="js-all-matching" />
+<input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+@foreach (var kv in Model)
+{
+    <input type="hidden" name="@kv.Key" value="@kv.Value" />
+}

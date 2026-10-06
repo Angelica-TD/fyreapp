@@ -1,0 +1,39 @@
+@model IEnumerable<KeyValuePair<string, string>>
+
+@* Edit N Remarks: mark resolved / reopen, or generate a repair task per property listing the defects *@
+<form method="post" asp-controller="Remarks" asp-action="BulkEdit" id="bulkForm">
+    @await Html.PartialAsync("_BulkFormFields", Model)
+
+    <div class="modal fade" id="bulkEditModal" tabindex="-1" aria-labelledby="bulkEditTitle" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="bulkEditTitle">Edit <span class="js-selected-count">0</span> Remarks</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>You have selected <span class="js-selected-count">0</span> remarks. What do you want to do?</p>
+
+                    <div class="form-check">
+                        <input class="form-check-input js-bulk-action" type="radio" name="bulkAction" value="tasks" id="actTasks" checked />
+                        <label class="form-check-label" for="actTasks">Generate a repair task for each property, listing its selected defects</label>
+                    </div>
+                    @await Html.PartialAsync("_BulkTaskFields", ("Defect repairs", (string?)"Repair"))
+
+                    <div class="form-check mt-3">
+                        <input class="form-check-input js-bulk-action" type="radio" name="bulkAction" value="resolve" id="actResolve" />
+                        <label class="form-check-label" for="actResolve">Mark resolved</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input js-bulk-action" type="radio" name="bulkAction" value="reopen" id="actReopen" />
+                        <label class="form-check-label" for="actReopen">Reopen</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>

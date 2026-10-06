@@ -1,0 +1,32 @@
+@model (string DefaultTitle, string? DefaultCategory)
+@using FyreApp.ViewModels.Lists
+
+@* "Generate tasks" fields in a list page's Edit modal; shown when that action is picked (list-selection.js) *@
+<div class="border rounded p-3 mt-2" data-for-action="tasks">
+    <div class="mb-2">
+        <label class="form-label" for="taskTitle">Task title</label>
+        <input class="form-control" id="taskTitle" name="task.Title" value="@Model.DefaultTitle" maxlength="120" required />
+    </div>
+    <div class="row g-2 mb-2">
+        <div class="col-sm-6">
+            <label class="form-label" for="taskCategory">Category</label>
+            <select class="form-select" id="taskCategory" name="task.Category">
+                <option value="">—</option>
+                @foreach (var c in TaskCategories.All)
+                {
+                    <option value="@c" selected="@(c == Model.DefaultCategory ? "selected" : null)">@c</option>
+                }
+            </select>
+        </div>
+        <div class="col-sm-6">
+            <label class="form-label" for="taskDue">Due date</label>
+            <input class="form-control" type="date" id="taskDue" name="task.DueDate" />
+        </div>
+    </div>
+    <div>
+        <label class="form-label" for="taskDescription">Notes</label>
+        <textarea class="form-control" id="taskDescription" name="task.Description" rows="2"
+                  placeholder="Added to each task above the list of selected items"></textarea>
+    </div>
+    <p class="small text-muted mt-2 mb-0">One task is created per property, listing the selected items at that property.</p>
+</div>

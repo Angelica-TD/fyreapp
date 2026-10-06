@@ -19,7 +19,9 @@
 
 <div class="card">
     <div class="card-body">
-        <div id="task-search-root"></div>
+        @Html.AntiForgeryToken()
+        <div id="task-search-root" data-can-edit="@(User.IsInRole("Admin") ? "true" : "false")"
+             data-techs="@System.Text.Json.JsonSerializer.Serialize(Model.Techs.Select(t => new { id = t.Id, name = t.Name }))"></div>
     </div>
 </div>
 
