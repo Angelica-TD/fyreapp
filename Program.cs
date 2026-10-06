@@ -39,6 +39,7 @@ builder.Services.AddScoped<UptickImporter, PropertyContactImporter>();
 builder.Services.AddScoped<UptickImporter, AssetImporter>();
 builder.Services.AddScoped<UptickImporter, RemarkImporter>();
 builder.Services.AddScoped<UptickImporter, ReportImporter>();
+builder.Services.AddScoped<UptickImporter, TaskImporter>();
 builder.Services.AddScoped<IUptickImportService, UptickImportService>();
 builder.Services.AddScoped<IDataResetService, DataResetService>();
 builder.Services.AddScoped<IClientTaskService, ClientTaskService>();

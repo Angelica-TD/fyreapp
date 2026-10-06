@@ -34,6 +34,18 @@
     </p>
 }
 
+@if (Model.CoveredSchedules.Any())
+{
+    <p class="text-muted small">
+        Uptick routine task covering
+        @foreach (var (s, i) in Model.CoveredSchedules.OrderBy(s => s.MaintenanceInterval.Months).Select((s, i) => (s, i)))
+        {
+            @(i > 0 ? ", " : "")<a asp-controller="MaintenanceSchedules" asp-action="Details" asp-route-id="@s.Id">@s.MaintenanceInterval.Name</a>
+        }
+        maintenance.
+    </p>
+}
+
 <div class="card mb-3">
     <div class="card-body">
         <dl class="row mb-0">
@@ -92,7 +104,9 @@
     </div>
 }
 
-<form asp-action="Delete" asp-route-id="@Model.Id" method="get" class="d-inline">
+@await Html.PartialAsync("_UptickData", Model.UptickData)
+
+<form asp-action="Delete" asp-route-id="@Model.Id" method="get" class="d-inline mt-3">
     <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger">Delete task</a>
 </form>
 

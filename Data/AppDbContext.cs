@@ -216,6 +216,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(t => t.SiteId);
             entity.HasIndex(t => t.Status);
             entity.HasIndex(t => t.DueDateUtc);
+            entity.HasIndex(t => t.ExternalId).IsUnique();
+
+            entity.HasMany(t => t.CoveredSchedules)
+                .WithMany(s => s.CoveringTasks)
+                .UsingEntity(j => j.ToTable("ClientTaskCoveredSchedules"));
         });
 
         modelBuilder.Entity<ClientTask>()
@@ -392,7 +397,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         // Raw Uptick rows: "json" rather than "jsonb" so the export's column order is kept for display
         foreach (var type in new[]
                  {
-                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(Defect), typeof(ServiceReport)
+                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask)
                  })
         {
             modelBuilder.Entity(type).Property<string?>("UptickData").HasColumnType("json");

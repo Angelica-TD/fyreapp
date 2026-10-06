@@ -154,6 +154,15 @@ public class ClientTaskService : IClientTaskService
     {
         if (task.MaintenanceScheduleId is int scheduleId)
             await _scheduleService.CompleteAsync(scheduleId, notes: null);
+
+        // Imported Uptick tasks: each schedule whose next occurrence this task covers
+        var covered = await _db.MaintenanceSchedules
+            .Where(s => s.CoveringTasks.Any(t => t.Id == task.Id) && s.Id != task.MaintenanceScheduleId)
+            .Select(s => new { s.Id, s.NextRunDate })
+            .ToListAsync();
+
+        foreach (var s in covered.Where(s => ScheduleCoverage.Covers(task, s.NextRunDate)))
+            await _scheduleService.CompleteAsync(s.Id, notes: task.Ref == null ? null : $"Task {task.Ref} completed");
     }
 
     public async Task<(bool Found, bool TechValid)> AssignTechAsync(int taskId, string? techUserId)

@@ -182,6 +182,7 @@ public class TaskController : Controller
             .Include(s => s.Client)
             .Include(s => s.Site)
             .Include(t => t.AssignedTo)
+            .Include(t => t.CoveredSchedules).ThenInclude(s => s.MaintenanceInterval)
             .FirstOrDefaultAsync(s => s.Id == id);
 
         if (clientTask == null)
@@ -314,7 +315,8 @@ public class TaskController : Controller
             q = q.Where(t =>
                 t.Title.ToLower().Contains(term) ||
                 t.Client.Name.ToLower().Contains(term) ||
-                (t.FyreRef != null && t.FyreRef.ToLower() == term));
+                (t.FyreRef != null && t.FyreRef.ToLower() == term) ||
+                (t.Ref != null && t.Ref.ToLower() == term));
         }
 
         var results = await q
@@ -322,7 +324,7 @@ public class TaskController : Controller
             .Select(t => new
             {
                 id         = t.Id,
-                displayRef = t.FyreRef,
+                displayRef = t.Ref ?? t.ExternalId ?? t.FyreRef,
                 title      = t.Title,
                 clientName = t.Client.Name,
                 siteAddress = t.Site.AddressDisplay ?? t.Site.Name,

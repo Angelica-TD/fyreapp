@@ -88,14 +88,27 @@
         </table>
     }
 
-    @if (schedule.GeneratedTasks.Any())
+    @* Tasks generated here in FyreApp, plus imported Uptick tasks that cover this schedule *@
+    var scheduleTasks = schedule.GeneratedTasks.Concat(schedule.CoveringTasks)
+        .DistinctBy(t => t.Id)
+        .OrderByDescending(t => t.DueDateUtc ?? t.CreatedUtc)
+        .ToList();
+
+    @if (scheduleTasks.Any())
     {
-        <h2>Generated Tasks</h2>
+        <h2>Tasks</h2>
         <ul class="list-group mb-3">
-            @foreach (var task in schedule.GeneratedTasks.OrderByDescending(t => t.CreatedUtc))
+            @foreach (var task in scheduleTasks)
             {
                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <a asp-controller="Task" asp-action="Details" asp-route-id="@task.Id">@task.Title</a>
+                    <span>
+                        <span class="text-muted me-2">@task.DisplayRef</span>
+                        <a asp-controller="Task" asp-action="Details" asp-route-id="@task.Id">@task.Title</a>
+                        @if (task.DueDateUtc.HasValue)
+                        {
+                            <span class="text-muted small ms-2">due @task.DueDateUtc.ToDisplayDate()</span>
+                        }
+                    </span>
                     <span class="badge bg-secondary">@task.Status</span>
                 </li>
             }
