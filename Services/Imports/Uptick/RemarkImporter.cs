@@ -27,6 +27,8 @@ public class RemarkImporter : UptickImporter
                 .ToListAsync(ct))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        await AddPlaceholderSitesAsync(rows.Where(r => !existing.Contains(r.Get("ID") ?? "")), sitesByRef, "Property Name", dryRun, ctx, ct);
+
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var toCreate = new List<Defect>();
         var unlinkedAssets = 0;
@@ -39,8 +41,7 @@ public class RemarkImporter : UptickImporter
             var propertyRef = row.Get("Property Ref");
             if (propertyRef == null || !sitesByRef.TryGetValue(propertyRef, out var siteId))
             {
-                ctx.Skip("Property not found", propertyRef ?? "(blank)", row.RowNumber,
-                    $"No property with ref '{propertyRef}' ({row.Get("Property Name")}). Import properties first. Row skipped.");
+                ctx.Skip("Missing property ref", id!, row.RowNumber, "Remark has no Property Ref. Row skipped.");
                 continue;
             }
 
@@ -57,6 +58,7 @@ public class RemarkImporter : UptickImporter
             toCreate.Add(new Defect
             {
                 ExternalId = id,
+                UptickData = row.ToJson(),
                 SiteId = siteId,
                 AssetId = assetId,
                 RemarkType = row.Get("Remark Type"),

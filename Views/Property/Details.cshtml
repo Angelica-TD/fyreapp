@@ -43,6 +43,11 @@
     <div class="alert alert-success">@TempData["Success"]</div>
 }
 
+@if (Model.IsPlaceholder)
+{
+    <div class="mt-3">@await Html.PartialAsync("_PlaceholderNotice", "property")</div>
+}
+
 <p>
     <strong>Client:</strong>
     <a asp-controller="Clients"
@@ -72,6 +77,8 @@
         <span class="text-muted">No address on file</span>
     }
 </p>
+
+@await Html.PartialAsync("_UptickData", Model.UptickData)
 
 <hr />
 
@@ -185,7 +192,14 @@ else
                     <tr class="@(c.Active ? "" : "text-muted")">
                         <td class="text-nowrap">@c.DisplayRef</td>
                         <td>
-                            @c.Name
+                            @if (string.IsNullOrWhiteSpace(c.Name))
+                            {
+                                <span class="text-muted">(no name)</span>
+                            }
+                            else
+                            {
+                                @c.Name
+                            }
                             @if (!string.IsNullOrWhiteSpace(c.Organisation))
                             {
                                 <div class="small text-muted">@c.Organisation</div>

@@ -6,11 +6,9 @@ public class ClientImportResultDto
     public int Created { get; set; }
 
     public int SkippedDuplicateExternalId { get; set; }
-    public int SkippedDuplicateName { get; set; }
 
-    // Imported with " (Uptick <ID>)" appended because the name was already taken
-    public int RenamedDuplicateName { get; set; }
-    public int SkippedMissingName { get; set; }
+    // Placeholder clients (created by the property import) filled in from this export
+    public int FilledPlaceholders { get; set; }
 
     // row-level invalid data (length, format, etc)
     public int SkippedInvalid { get; set; }

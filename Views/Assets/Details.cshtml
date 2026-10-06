@@ -64,6 +64,10 @@
     </dl>
 }
 
+<div style="max-width: 40rem;">
+    @await Html.PartialAsync("_UptickData", Model.UptickData)
+</div>
+
 @if (Model.Defects.Any())
 {
     <hr />

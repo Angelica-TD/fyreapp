@@ -44,7 +44,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                     .IsRequired()
                     .HasMaxLength(200);
             
-            entity.HasIndex(c => c.Name).IsUnique();
+            // Not unique: Uptick allows different clients to share a name (the Ref tells them apart)
+            entity.HasIndex(c => c.Name);
 
             entity.Property(c => c.ExternalId)
                     .HasMaxLength(64);
@@ -80,7 +81,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             // entity.Property(x => x.BillingState).HasMaxLength(10);
             // entity.Property(x => x.BillingPostcode).HasMaxLength(16);
 
-            entity.Property(x => x.Active).HasDefaultValue(true);
+            entity.Property(x => x.Active)
+                  .HasDefaultValue(true)
+                  .HasSentinel(true); // so an explicit false (e.g. placeholder clients) is sent on insert
 
             // searching by these fields is common
             entity.HasIndex(x => x.Active);
@@ -384,6 +387,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         {
             modelBuilder.Entity(type).Property<string?>("FyreRef").ValueGeneratedOnAdd();
             modelBuilder.Entity(type).HasIndex("FyreRef").IsUnique();
+        }
+
+        // Raw Uptick rows: "json" rather than "jsonb" so the export's column order is kept for display
+        foreach (var type in new[]
+                 {
+                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(Defect), typeof(ServiceReport)
+                 })
+        {
+            modelBuilder.Entity(type).Property<string?>("UptickData").HasColumnType("json");
         }
     }
 

@@ -132,9 +132,7 @@ public class ClientImportService : IClientImportService
 
             progress.WouldCreate = result.Created;
             progress.SkippedDuplicateExternalId = result.SkippedDuplicateExternalId;
-            progress.SkippedDuplicateName = result.SkippedDuplicateName;
-            progress.RenamedDuplicateName = result.RenamedDuplicateName;
-            progress.SkippedMissingName = result.SkippedMissingName;
+            progress.FilledPlaceholders = result.FilledPlaceholders;
             // progress.SkippedDuplicateExternalIdInFile = result.SkippedDuplicateExternalIdInFile;
             // progress.SkippedDuplicateExternalIdMultipleHighPropertyCount = result.SkippedDuplicateExternalIdMultipleHighPropertyCount;
             progress.SkippedInvalid = result.SkippedInvalid;
@@ -147,22 +145,23 @@ public class ClientImportService : IClientImportService
             reportProgress?.Invoke(progress);
         }
 
-        // DB "already exists" lookups (case-insensitive)
-        var existingExternalIdsDb = new HashSet<string>(
-            await _db.Clients.AsNoTracking()
-                .Where(c => c.ExternalId != null && c.ExternalId != "")
-                .Select(c => c.ExternalId!)
-                .ToListAsync(ct),
-            StringComparer.OrdinalIgnoreCase);
+        // DB "already exists" lookups (case-insensitive). Placeholder clients (created by the property
+        // import for clients missing from an export) aren't "existing": their row fills them in.
+        var dbClients = await _db.Clients.AsNoTracking()
+            .Where(c => c.ExternalId != null && c.ExternalId != "")
+            .Select(c => new { c.ExternalId, c.IsPlaceholder })
+            .ToListAsync(ct);
 
-        var dbNames = new HashSet<string>(
-            await _db.Clients.AsNoTracking()
-                .Select(c => c.Name)
-                .ToListAsync(ct),
-            StringComparer.OrdinalIgnoreCase);
+        var existingExternalIdsDb = dbClients
+            .Where(c => !c.IsPlaceholder)
+            .Select(c => c.ExternalId!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var placeholderExternalIds = dbClients
+            .Where(c => c.IsPlaceholder)
+            .Select(c => c.ExternalId!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        // "Selected" within file (so we don't import duplicates inside the file)
-        var selectedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // "Selected" within file (so we don't import duplicate IDs inside the file)
         var selectedByExternalId = new Dictionary<string, Candidate>(StringComparer.OrdinalIgnoreCase);
         var conflictedExternalIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -178,8 +177,6 @@ public class ClientImportService : IClientImportService
                     row,
                     rowNumber: result.TotalRows,
                     existingExternalIdsDb: existingExternalIdsDb,
-                    dbNames: dbNames,
-                    selectedNames: selectedNames,
                     selectedByExternalId: selectedByExternalId,
                     conflictedExternalIds: conflictedExternalIds,
                     result: result,
@@ -192,13 +189,16 @@ public class ClientImportService : IClientImportService
                     Push();
             }
 
-            // Final create list
-            var toCreate = selectedByExternalId.Values
-                .Select(v => v.Client)
+            // Final create list; rows for placeholder clients fill those in instead
+            var selected = selectedByExternalId.Values.Select(v => v.Client).ToList();
+            var toFill = selected
+                .Where(c => c.ExternalId != null && placeholderExternalIds.Contains(c.ExternalId))
                 .ToList();
+            var toCreate = selected.Except(toFill).ToList();
 
             // In dry-run, this is "would create"
             result.Created = toCreate.Count;
+            result.FilledPlaceholders = toFill.Count;
 
             if (dryRun)
             {
@@ -206,11 +206,17 @@ public class ClientImportService : IClientImportService
                 return result;
             }
 
-            if (toCreate.Count == 0)
+            if (toCreate.Count == 0 && toFill.Count == 0)
             {
                 Push("Nothing to import.", completed: true);
                 return result;
             }
+
+            // One transaction, so a failure saves nothing (fill-ins included)
+            await using var tx = await _db.Database.BeginTransactionAsync(ct);
+
+            if (toFill.Count > 0)
+                await FillPlaceholdersAsync(toFill, ct);
 
             // ---------------------------------------------
             // IMPORTANT: Postgres-friendly insert:
@@ -220,12 +226,14 @@ public class ClientImportService : IClientImportService
             var inserted = await InsertClientsIgnoreConflictsAsync(toCreate, ct);
             var skippedByDb = toCreate.Count - inserted;
 
+            await tx.CommitAsync(ct);
+
             result.Created = inserted;
 
             if (skippedByDb > 0)
             {
                 if (result.Messages.Count < MaxReportMessages)
-                    result.Messages.Add($"Skipped {skippedByDb} row(s) due to database uniqueness constraints (Name/ExternalId).");
+                    result.Messages.Add($"Skipped {skippedByDb} row(s) due to database uniqueness constraints (ExternalId).");
 
                 Push($"Import complete with warnings. Inserted {inserted}. Skipped {skippedByDb} due to database constraints.", completed: true);
             }
@@ -273,8 +281,6 @@ public class ClientImportService : IClientImportService
     Dictionary<string, string?> row,
     int rowNumber,
     HashSet<string> existingExternalIdsDb,
-    HashSet<string> dbNames,
-    HashSet<string> selectedNames,
     Dictionary<string, Candidate> selectedByExternalId,
     HashSet<string> conflictedExternalIds,
     ClientImportResultDto result,
@@ -295,41 +301,27 @@ public class ClientImportService : IClientImportService
             return null;
         }
 
-        var name = Get("Name");
         var externalId = Get("ExternalId", "ID");
+
+        // Names are imported as is; Uptick allows clients to share a name
+        var name = Get("Name") ?? "(no name)";
 
         var primaryMobile = Get("Primary Contact Mobile");
 
-        // Max length checks (match EF config)
+        // Max length check (matches EF config): keep the row, cut the field; the full value stays in UptickData
         if (ExceedsMax(primaryMobile, MaxMobileLength))
         {
-            result.SkippedInvalid++;
-
             addIssue(
                 "ValueTooLong",
-                !string.IsNullOrWhiteSpace(name) ? name : externalId ?? "(blank)",
+                externalId ?? name,
                 new[] { rowNumber },
-                $"Primary Contact Mobile is longer than {MaxMobileLength} characters. Row will be skipped.",
-                string.IsNullOrWhiteSpace(externalId) ? null : new[] { externalId }
-            );
+                $"Primary Contact Mobile is longer than {MaxMobileLength} characters. Shortened; the full value is kept in the Uptick data.",
+                string.IsNullOrWhiteSpace(externalId) ? null : new[] { externalId });
 
-            return;
-
+            primaryMobile = primaryMobile![..MaxMobileLength];
         }
 
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            result.SkippedMissingName++;
-            addIssue(
-                "MissingName",
-                "(blank)",
-                new[] { rowNumber },
-                "Name is required. Row skipped.",
-                new[] { externalId ?? "" });
-            return;
-        }
-
-        // Duplicate ExternalId in DB -> skip (checked before names so re-runs aren't reported as renames)
+        // Duplicate ExternalId in DB -> skip
         if (!string.IsNullOrWhiteSpace(externalId) && existingExternalIdsDb.Contains(externalId))
         {
             result.SkippedDuplicateExternalId++;
@@ -342,39 +334,6 @@ public class ClientImportService : IClientImportService
             return;
         }
 
-        // Duplicate Name (DB or already selected in-file).
-        // Uptick allows different clients to share a name; Client.Name is unique here, so keep the data
-        // by importing the later ones as "Name (Uptick <ID>)" for review/merging later.
-        if (dbNames.Contains(name) || selectedNames.Contains(name))
-        {
-            var renamed = string.IsNullOrWhiteSpace(externalId) ? null : DisambiguatedName(name, externalId);
-
-            if (renamed == null || dbNames.Contains(renamed) || selectedNames.Contains(renamed))
-            {
-                result.SkippedDuplicateName++;
-
-                addIssue(
-                    "DuplicateName",
-                    name,
-                    new[] { rowNumber },
-                    "Duplicate. Row will be skipped.",
-                    string.IsNullOrWhiteSpace(externalId) ? null : new[] { externalId });
-
-                return;
-            }
-
-            result.RenamedDuplicateName++;
-
-            addIssue(
-                "DuplicateNameRenamed",
-                name,
-                new[] { rowNumber },
-                $"Name is already used by another client. Imported as \"{name} (Uptick <ID>)\" — review and rename or merge later.",
-                new[] { externalId! });
-
-            name = renamed;
-        }
-
         // Property Count (Total)
         var pcText = Get("Property Count (Total)");
         var propertyCountTotal = 0;
@@ -385,6 +344,7 @@ public class ClientImportService : IClientImportService
         {
             Name = name,
             ExternalId = externalId,
+            UptickData = UptickJson.Serialize(row),
 
             Created = UptickTime.ParseToUtc(Get("Created")) ?? DateTime.UtcNow,
             Updated = UptickTime.ParseToUtc(Get("Updated")),
@@ -403,10 +363,9 @@ public class ClientImportService : IClientImportService
             BillingAddress = Get("Billing Contact: Address", "Billing Address"),
         };
 
-        // No ExternalId: treat as unique by Name only
+        // No ExternalId: nothing to match on, so each row is its own client
         if (string.IsNullOrWhiteSpace(externalId))
         {
-            selectedNames.Add(name);
             selectedByExternalId[$"__NOEXT__{rowNumber}"] = new Candidate(client, propertyCountTotal, rowNumber);
             return;
         }
@@ -428,7 +387,6 @@ public class ClientImportService : IClientImportService
         if (!selectedByExternalId.TryGetValue(externalId, out var existing))
         {
             selectedByExternalId[externalId] = new Candidate(client, propertyCountTotal, rowNumber);
-            selectedNames.Add(name);
             return;
         }
 
@@ -453,7 +411,6 @@ public class ClientImportService : IClientImportService
             // Conflict: both candidates have >1 -> skip all
             conflictedExternalIds.Add(externalId);
 
-            selectedNames.Remove(existing.Client.Name);
             selectedByExternalId.Remove(externalId);
 
             result.SkippedDuplicateExternalIdMultipleHighPropertyCount++;
@@ -471,9 +428,7 @@ public class ClientImportService : IClientImportService
         if (!existingHigh && incomingHigh)
         {
             // Incoming wins if it has >1 and existing does not
-            selectedNames.Remove(existing.Client.Name);
             selectedByExternalId[externalId] = new Candidate(client, propertyCountTotal, rowNumber);
-            selectedNames.Add(name);
             return;
         }
 
@@ -533,7 +488,8 @@ public class ClientImportService : IClientImportService
             ""BillingAttentionTo"",
             ""BillingEmail"",
             ""BillingCcEmail"",
-            ""BillingAddress""
+            ""BillingAddress"",
+            ""UptickData""
         ) VALUES");
 
             for (int r = 0; r < batch.Count; r++)
@@ -561,6 +517,7 @@ public class ClientImportService : IClientImportService
                 P("BillingEmail"),
                 P("BillingCcEmail"),
                 P("BillingAddress"),
+                P("UptickData"),
             }));
                 sql.Append(")");
 
@@ -583,6 +540,7 @@ public class ClientImportService : IClientImportService
                 parameters.Add(new Npgsql.NpgsqlParameter(P("BillingEmail"), (object?)c.BillingEmail ?? DBNull.Value));
                 parameters.Add(new Npgsql.NpgsqlParameter(P("BillingCcEmail"), (object?)c.BillingCcEmail ?? DBNull.Value));
                 parameters.Add(new Npgsql.NpgsqlParameter(P("BillingAddress"), (object?)c.BillingAddress ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("UptickData"), NpgsqlTypes.NpgsqlDbType.Json) { Value = (object?)c.UptickData ?? DBNull.Value });
             }
 
             sql.AppendLine(@"ON CONFLICT DO NOTHING;");
@@ -604,15 +562,38 @@ public class ClientImportService : IClientImportService
 
     static bool ExceedsMax(string? s, int max) => !string.IsNullOrWhiteSpace(s) && s.Trim().Length > max;
 
-    // "Name (Uptick 13827)", trimming the base so it fits Client.Name's 200-character limit
-    public static string DisambiguatedName(string name, string externalId)
+    // Placeholder clients (created by the property import) get the full details from their row
+    private async Task FillPlaceholdersAsync(IReadOnlyList<Client> rows, CancellationToken ct)
     {
-        const int MaxNameLength = 200;
-        var suffix = $" (Uptick {externalId})";
-        var baseName = name.Length + suffix.Length > MaxNameLength
-            ? name[..Math.Max(0, MaxNameLength - suffix.Length)].TrimEnd()
-            : name;
-        return baseName + suffix;
+        var byExt = rows.ToDictionary(c => c.ExternalId!, StringComparer.OrdinalIgnoreCase);
+        var ids = byExt.Keys.ToList();
+
+        var placeholders = await _db.Clients
+            .Where(c => c.IsPlaceholder && c.ExternalId != null && ids.Contains(c.ExternalId))
+            .ToListAsync(ct);
+
+        foreach (var c in placeholders)
+        {
+            var from = byExt[c.ExternalId!];
+            c.Name = from.Name;
+            c.UptickData = from.UptickData;
+            c.Created = from.Created;
+            c.Updated = from.Updated;
+            c.Active = from.Active;
+            c.PrimaryContactName = from.PrimaryContactName;
+            c.PrimaryContactEmail = from.PrimaryContactEmail;
+            c.PrimaryContactCcEmail = from.PrimaryContactCcEmail;
+            c.PrimaryContactMobile = from.PrimaryContactMobile;
+            c.PrimaryContactAddress = from.PrimaryContactAddress;
+            c.BillingName = from.BillingName;
+            c.BillingAttentionTo = from.BillingAttentionTo;
+            c.BillingEmail = from.BillingEmail;
+            c.BillingCcEmail = from.BillingCcEmail;
+            c.BillingAddress = from.BillingAddress;
+            c.IsPlaceholder = false;
+        }
+
+        await _db.SaveChangesAsync(ct);
     }
 
 

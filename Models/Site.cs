@@ -16,6 +16,13 @@ public class Site
     [StringLength(20)]
     public string? FyreRef { get; set; }
 
+    // Created because another export referenced this record but it wasn't in its own export
+    // (e.g. archived in Uptick). Inactive; filled in when the record itself is imported.
+    public bool IsPlaceholder { get; set; }
+
+    // Every column of the Uptick export row as JSON (key order kept), so nothing is lost on import
+    public string? UptickData { get; set; }
+
     // Shown to users: the Uptick ref if imported, otherwise the FyreApp ref
     public string? DisplayRef => string.IsNullOrWhiteSpace(ExternalId) ? FyreRef : ExternalId;
 
@@ -35,7 +42,8 @@ public class Site
     [StringLength(10)]
     public string? Postcode { get; set; }
 
-    [StringLength(20)]
+    // Uptick sometimes has the full name, e.g. "Australian Capital Territory"
+    [StringLength(100)]
     public string? State { get; set; }
 
     [StringLength(300)]

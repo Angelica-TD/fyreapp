@@ -27,6 +27,8 @@ public class AssetImporter : UptickImporter
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var newTypes = new List<string>();
 
+        await AddPlaceholderSitesAsync(rows.Where(r => !existing.Contains(r.Get("ID") ?? "")), sitesByRef, "Property", dryRun, ctx, ct);
+
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var toCreate = new List<Asset>();
 
@@ -38,8 +40,7 @@ public class AssetImporter : UptickImporter
             var propertyRef = row.Get("Property Ref");
             if (propertyRef == null || !sitesByRef.TryGetValue(propertyRef, out var siteId))
             {
-                ctx.Skip("Property not found", propertyRef ?? "(blank)", row.RowNumber,
-                    $"No property with ref '{propertyRef}' ({row.Get("Property")}). Import properties first. Row skipped.");
+                ctx.Skip("Missing property ref", id!, row.RowNumber, "Asset has no Property Ref. Row skipped.");
                 continue;
             }
 
@@ -47,14 +48,12 @@ public class AssetImporter : UptickImporter
             var variant = row.Get("Variant");
             var name = row.Get("Label") ?? string.Join(" ", new[] { typeName, variant }.Where(s => s != null));
             if (string.IsNullOrWhiteSpace(name))
-            {
-                ctx.Skip("Missing label", id!, row.RowNumber, "Asset has no Label or Type. Skipped.");
-                continue;
-            }
+                name = $"Asset {row.Get("Ref") ?? id}";
 
             var asset = new Asset
             {
                 ExternalId = id,
+                UptickData = row.ToJson(),
                 SiteId = siteId,
                 Name = name,
                 Ref = row.Get("Ref"),

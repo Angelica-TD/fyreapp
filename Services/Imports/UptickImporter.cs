@@ -1,4 +1,5 @@
 using FyreApp.Data;
+using FyreApp.Models;
 using FyreApp.ViewModels.Imports;
 using Microsoft.EntityFrameworkCore;
 
@@ -60,12 +61,96 @@ public abstract class UptickImporter
     // Build entities from the rows; when not a dry run, save them. Sets Result.Created / SkippedExisting.
     public abstract Task ImportAsync(IReadOnlyList<ImportRow> rows, bool dryRun, ImportContext ctx, CancellationToken ct);
 
+    // Runs the import in one transaction, so a failure saves nothing (placeholders included).
+    public async Task RunAsync(IReadOnlyList<ImportRow> rows, bool dryRun, ImportContext ctx, CancellationToken ct)
+    {
+        if (dryRun || !Db.Database.IsRelational())
+        {
+            await ImportAsync(rows, dryRun, ctx, ct);
+            return;
+        }
+
+        await using var tx = await Db.Database.BeginTransactionAsync(ct);
+        await ImportAsync(rows, dryRun, ctx, ct);
+        await tx.CommitAsync(ct);
+    }
+
     protected async Task<Dictionary<string, int>> LoadSiteIdsByRefAsync(CancellationToken ct) =>
         (await Db.Sites.AsNoTracking()
             .Where(s => s.ExternalId != null && s.ExternalId != "")
             .Select(s => new { s.Id, s.ExternalId })
             .ToListAsync(ct))
         .ToDictionary(s => s.ExternalId!.Trim(), s => s.Id, StringComparer.OrdinalIgnoreCase);
+
+    public const string UnassignedClientName = "Unassigned (not in Uptick export)";
+
+    // Holds placeholder properties whose client isn't known from the row
+    protected async Task<Client> GetUnassignedClientAsync(CancellationToken ct) =>
+        await Db.Clients.FirstOrDefaultAsync(c => c.IsPlaceholder && c.ExternalId == null && c.Name == UnassignedClientName, ct)
+        ?? new Client { Name = UnassignedClientName, IsPlaceholder = true, Active = false, Created = DateTime.UtcNow };
+
+    // A row can point at a property that isn't in FyreApp, usually because it's archived in Uptick and so
+    // missing from the properties export. Rather than skip the row, create an inactive placeholder property
+    // (ref + name from the row) and add it to sitesByRef. Importing a properties export that includes it
+    // later fills the placeholder in. Dry runs only count them (with temporary negative ids).
+    protected async Task AddPlaceholderSitesAsync(IEnumerable<ImportRow> rows, Dictionary<string, int> sitesByRef,
+        string propertyNameHeader, bool dryRun, ImportContext ctx, CancellationToken ct)
+    {
+        var missing = new Dictionary<string, ImportRow>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            var propertyRef = row.Get("Property Ref");
+            if (propertyRef != null && !sitesByRef.ContainsKey(propertyRef))
+                missing.TryAdd(propertyRef, row);
+        }
+        if (missing.Count == 0) return;
+
+        // Some exports say which client the property belongs to; use it when exactly one client has that name
+        var clientIdByName = (await Db.Clients.AsNoTracking().Select(c => new { c.Id, c.Name }).ToListAsync(ct))
+            .GroupBy(c => c.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() == 1)
+            .ToDictionary(g => g.Key, g => g.Single().Id, StringComparer.OrdinalIgnoreCase);
+
+        Client? unassigned = null;
+        var placeholders = new List<(string Ref, Site Site)>();
+
+        foreach (var (propertyRef, row) in missing)
+        {
+            var site = new Site
+            {
+                ExternalId = propertyRef,
+                Name = row.Get(propertyNameHeader) ?? propertyRef,
+                Active = false,
+                IsPlaceholder = true
+            };
+
+            var clientName = row.Get("Client");
+            if (clientName != null && clientIdByName.TryGetValue(clientName, out var clientId))
+                site.ClientId = clientId;
+            else
+                site.Client = unassigned ??= await GetUnassignedClientAsync(ct);
+
+            placeholders.Add((propertyRef, site));
+            ctx.Issue("Placeholder property", propertyRef, row.RowNumber,
+                $"Property '{site.Name}' isn't in FyreApp (probably archived in Uptick, so not in the properties export). " +
+                "Created as an inactive placeholder; import a properties export that includes it to fill it in.");
+        }
+
+        ctx.Result.Notes.Add(
+            $"{placeholders.Count} propert{(placeholders.Count == 1 ? "y" : "ies")} referenced here {(placeholders.Count == 1 ? "isn't" : "aren't")} in FyreApp " +
+            $"and {(dryRun ? "will be" : "were")} created as inactive placeholders. Import a properties export that includes archived properties to fill them in.");
+
+        if (dryRun)
+        {
+            var tempId = -1;
+            foreach (var (propertyRef, _) in placeholders) sitesByRef[propertyRef] = tempId--;
+            return;
+        }
+
+        Db.Sites.AddRange(placeholders.Select(p => p.Site));
+        await Db.SaveChangesAsync(ct);
+        foreach (var (propertyRef, site) in placeholders) sitesByRef[propertyRef] = site.Id;
+    }
 
     // Returns false (and records why) when the row's external ID is missing, already imported, or repeated in the file.
     protected static bool ClaimExternalId(string? externalId, HashSet<string> existing, HashSet<string> seenInFile,

@@ -66,34 +66,22 @@ public class ClientImportServiceTests
     }
 
     [Fact]
-    public async Task ImportAsync_DuplicateNameInFile_ImportsLaterOneRenamed()
-    {
-        using var db = DbContextFactory.Create();
-
-        var result = await new ClientImportService(db).ImportAsync(
-            Csv("ID,Name\r\n1,Acme\r\n2,Acme\r\n3,Other\r\n"), dryRun: true);
-
-        Assert.Equal(3, result.Created);
-        Assert.Equal(1, result.RenamedDuplicateName);
-        Assert.Equal(0, result.SkippedDuplicateName);
-    }
-
-    [Fact]
-    public async Task ImportAsync_NameAlreadyInDatabase_ImportsRenamed()
+    public async Task ImportAsync_DuplicateNames_ImportedAsIs()
     {
         using var db = DbContextFactory.Create();
         db.Clients.Add(new Client { Name = "Acme", ExternalId = "1" });
         await db.SaveChangesAsync();
 
+        // Uptick allows clients to share a name: same as an existing client, and twice in the file
         var result = await new ClientImportService(db).ImportAsync(
-            Csv("ID,Name\r\n2,Acme\r\n"), dryRun: true);
+            Csv("ID,Name\r\n2,Acme\r\n3,Acme\r\n4,Other\r\n"), dryRun: true);
 
-        Assert.Equal(1, result.Created);
-        Assert.Equal(1, result.RenamedDuplicateName);
+        Assert.Equal(3, result.Created);
+        Assert.Equal(0, result.SkippedDuplicateExternalId);
     }
 
     [Fact]
-    public async Task ImportAsync_RerunSameId_SkippedAsExistingNotRenamed()
+    public async Task ImportAsync_RerunSameId_SkippedAsExisting()
     {
         using var db = DbContextFactory.Create();
         db.Clients.Add(new Client { Name = "Acme", ExternalId = "1" });
@@ -104,19 +92,32 @@ public class ClientImportServiceTests
 
         Assert.Equal(0, result.Created);
         Assert.Equal(1, result.SkippedDuplicateExternalId);
-        Assert.Equal(0, result.RenamedDuplicateName);
     }
 
     [Fact]
-    public async Task ImportAsync_DuplicateNameWithoutId_StillSkipped()
+    public async Task ImportAsync_PlaceholderClient_IsFilledInNotSkipped()
+    {
+        using var db = DbContextFactory.Create();
+        db.Clients.Add(new Client { Name = "Acme", ExternalId = "1", IsPlaceholder = true, Active = false });
+        await db.SaveChangesAsync();
+
+        var result = await new ClientImportService(db).ImportAsync(
+            Csv("ID,Name\r\n1,Acme Pty Ltd\r\n"), dryRun: true);
+
+        Assert.Equal(0, result.Created);
+        Assert.Equal(1, result.FilledPlaceholders);
+        Assert.Equal(0, result.SkippedDuplicateExternalId);
+    }
+
+    [Fact]
+    public async Task ImportAsync_MissingName_ImportedNotSkipped()
     {
         using var db = DbContextFactory.Create();
 
         var result = await new ClientImportService(db).ImportAsync(
-            Csv("ID,Name\r\n,Acme\r\n,Acme\r\n"), dryRun: true);
+            Csv("ID,Name\r\n1,\r\n"), dryRun: true);
 
         Assert.Equal(1, result.Created);
-        Assert.Equal(1, result.SkippedDuplicateName);
     }
 
     [Fact]
@@ -130,16 +131,6 @@ public class ClientImportServiceTests
 
         Assert.Equal(1, result.Created);
         Assert.Equal(0, result.SkippedInvalid);
-    }
-
-    [Fact]
-    public void DisambiguatedName_FitsNameLimit()
-    {
-        Assert.Equal("Acme (Uptick 13827)", ClientImportService.DisambiguatedName("Acme", "13827"));
-
-        var longName = ClientImportService.DisambiguatedName(new string('x', 250), "13827");
-        Assert.Equal(200, longName.Length);
-        Assert.EndsWith(" (Uptick 13827)", longName);
     }
 
     [Fact]

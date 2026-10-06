@@ -21,8 +21,10 @@ public sealed class ClientService : IClientService
         if (client is null)
             return new(ClientUpdateStatus.NotFound);
 
-        // Uniqueness check (case-insensitive), excluding the current record
-        var duplicateExists = await _db.Clients
+        // Uniqueness check (case-insensitive), excluding the current record. Only when renaming:
+        // Uptick allows clients to share a name, so imported duplicates must stay editable.
+        var renamed = !string.Equals(client.Name, name, StringComparison.OrdinalIgnoreCase);
+        var duplicateExists = renamed && await _db.Clients
             .AnyAsync(c => c.Id != id && c.Name.ToLower() == name.ToLower(), ct);
 
         if (duplicateExists)

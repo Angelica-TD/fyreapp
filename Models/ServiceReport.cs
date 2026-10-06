@@ -21,6 +21,9 @@ public class ServiceReport
     [StringLength(20)]
     public string? FyreRef { get; set; }
 
+    // Every column of the Uptick export row as JSON (key order kept), so nothing is lost on import
+    public string? UptickData { get; set; }
+
     // Shown to users: Uptick's report ref (what's printed on the report), then its ID, otherwise the FyreApp ref
     public string? DisplayRef =>
         !string.IsNullOrWhiteSpace(Ref) ? Ref

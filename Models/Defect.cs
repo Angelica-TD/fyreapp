@@ -15,6 +15,9 @@ public class Defect
     [StringLength(20)]
     public string? FyreRef { get; set; }
 
+    // Every column of the Uptick export row as JSON (key order kept), so nothing is lost on import
+    public string? UptickData { get; set; }
+
     // Shown to users: the Uptick ID if imported, otherwise the FyreApp ref
     public string? DisplayRef => string.IsNullOrWhiteSpace(ExternalId) ? FyreRef : ExternalId;
 
