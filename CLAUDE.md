@@ -43,6 +43,7 @@ FyreApp is an **ASP.NET Core MVC (.NET 10) application** with a **hybrid fronten
 - **FyreFrontend/react/** — React components (`ClientSearch`, `TaskSearch`, plus shared components). Each component is a separate Vite entry point built to `wwwroot/js/react/`.
 - **FyreFrontend/scss/** — Bootstrap 5 SCSS customizations, compiled to `wwwroot/css/`.
 - React components use local `useState`/`useEffect` and the Fetch API — no Redux, Zustand, or React Query.
+- List pages mirror Uptick's (same default filters, filter count, reset, server-side paging). Properties, Assets, Remarks, Reports and Routines are server-rendered Razor with query-string filters (`Views/Shared/_ListPager.cshtml`, `ViewModels/Lists`); the Clients and Tasks lists are React islands using `shared/ListControls.jsx` against paged `/api/clients` and `/api/tasks`.
 - Components mount on `#[component-name]-root` divs in Razor views.
 
 ### Key Domain Models

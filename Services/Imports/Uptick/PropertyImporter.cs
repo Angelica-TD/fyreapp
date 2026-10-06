@@ -85,7 +85,8 @@ public class PropertyImporter : UptickImporter
                 State = row.Get("Address State"),
                 Postcode = row.Get("Address Postcode"),
                 Active = !string.Equals(row.Get("Status"), "INACTIVE", StringComparison.OrdinalIgnoreCase),
-                Status = row.Get("Status")?.ToUpperInvariant()
+                Status = row.Get("Status")?.ToUpperInvariant(),
+                Created = row.GetTimestampUtc("Created")
             };
 
             var tooLong = TooLong(site);
@@ -144,6 +145,7 @@ public class PropertyImporter : UptickImporter
                 s.Postcode = from.Postcode;
                 s.Active = from.Active;
                 s.Status = from.Status;
+                s.Created = from.Created;
                 s.IsPlaceholder = false;
             }
         }

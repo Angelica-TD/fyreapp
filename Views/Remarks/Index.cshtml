@@ -1,0 +1,177 @@
+@model FyreApp.ViewModels.Lists.RemarkListVm
+@using FyreApp.ViewModels.Lists
+
+@{
+    ViewData["Title"] = "Remarks";
+    var f = Model.Filter;
+
+    string SeverityBadge(string? s) => s switch
+    {
+        "Critical defect" => "bg-danger",
+        "Non-conformance" => "bg-warning text-dark",
+        "Non-critical defect" => "bg-info text-dark",
+        _ => "bg-secondary"
+    };
+
+    string QuoteBadge(string? s) => s?.ToUpperInvariant() switch
+    {
+        "ACTIONED" or "FINALISED" => "bg-success",
+        "SUBMITTED" => "bg-warning text-dark",
+        "DECLINED" or "EXPIRED" => "bg-secondary",
+        _ => "bg-light text-dark border"
+    };
+}
+
+<div class="card">
+    <div class="card-header">
+        <h1 class="h4 m-0">Remarks</h1>
+    </div>
+
+    <div class="card-body">
+        <form method="get" asp-action="Index">
+            <input type="hidden" name="f" value="true" />
+
+            <div class="row g-2 mb-3">
+                <div class="col">
+                    <input type="search" name="search" value="@f.Search" class="form-control" placeholder="Search ref, remark type, description, asset or property" />
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-light border" type="button" data-bs-toggle="collapse" data-bs-target="#remarkFilters"
+                            aria-expanded="true" aria-controls="remarkFilters">
+                        <i class="bi bi-funnel"></i> Filters
+                        <span class="badge rounded-pill bg-secondary">@f.ActiveCount</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="collapse show bg-light border rounded p-3 mb-3" id="remarkFilters">
+                <div class="row mb-2 align-items-center">
+                    <label class="col-sm-3 col-form-label text-sm-end" for="assetActive">Asset status:</label>
+                    <div class="col-sm-9">
+                        <select name="assetActive" id="assetActive" class="form-select">
+                            <option value="yes" selected="@(f.AssetActive == true ? "selected" : null)">Active</option>
+                            <option value="no" selected="@(f.AssetActive == false ? "selected" : null)">Inactive</option>
+                            <option value="any" selected="@(f.AssetActive == null ? "selected" : null)">Any (including no asset)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-2 align-items-center">
+                    <span class="col-sm-3 col-form-label text-sm-end">Compliance status:</span>
+                    <div class="col-sm-9">
+                        @foreach (var c in Enum.GetValues<RemarkCompliance>())
+                        {
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="compliance" value="@c" id="cs-@c"
+                                       checked="@(f.Compliance.Contains(c) ? "checked" : null)" />
+                                <label class="form-check-label" for="cs-@c">@c</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="row mb-2 align-items-center">
+                    <span class="col-sm-3 col-form-label text-sm-end">Property status:</span>
+                    <div class="col-sm-9">
+                        @foreach (var s in ListFilters.PropertyStatuses)
+                        {
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="propertyStatus" value="@s" id="ps-@s"
+                                       checked="@(f.PropertyStatus.Contains(s) ? "checked" : null)" />
+                                <label class="form-check-label" for="ps-@s">@ListFilters.PropertyStatusLabel(s)</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="row mb-3 align-items-center">
+                    <span class="col-sm-3 col-form-label text-sm-end">Severity:</span>
+                    <div class="col-sm-9">
+                        @foreach (var (s, i) in Model.Severities.Select((s, i) => (s, i)))
+                        {
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="severity" value="@s" id="sev-@i"
+                                       checked="@(f.Severity.Contains(s) ? "checked" : null)" />
+                                <label class="form-check-label" for="sev-@i">@s</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Reset to defaults</a>
+                    <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                </div>
+            </div>
+        </form>
+
+        <p class="text-muted mb-2">@Model.Total.ToString("N0") remark@(Model.Total == 1 ? "" : "s")</p>
+
+        @if (Model.Items.Count == 0)
+        {
+            <p class="text-muted">No remarks match these filters.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Ref</th>
+                            <th>Severity</th>
+                            <th>Remark type</th>
+                            <th>Asset</th>
+                            <th>Property</th>
+                            <th>Latest quote</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Items)
+                        {
+                            <tr>
+                                <td class="text-nowrap">@(r.Ref ?? "—")</td>
+                                <td>
+                                    @if (r.Severity != null)
+                                    {
+                                        <span class="badge @SeverityBadge(r.Severity)">@r.Severity.ToUpperInvariant()</span>
+                                    }
+                                </td>
+                                <td>@r.RemarkType</td>
+                                <td>
+                                    @if (r.AssetId.HasValue)
+                                    {
+                                        <a asp-controller="Assets" asp-action="Details" asp-route-id="@r.AssetId">@r.AssetName</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    <a asp-controller="Property" asp-action="Details" asp-route-id="@r.SiteId">@r.PropertyRef</a>
+                                    <span class="text-muted">· @r.PropertyName</span>
+                                </td>
+                                <td class="text-nowrap">
+                                    @if (r.QuoteRef != null)
+                                    {
+                                        @if (r.QuoteStatus != null)
+                                        {
+                                            <span class="badge @QuoteBadge(r.QuoteStatus)">@r.QuoteStatus.ToUpperInvariant()</span>
+                                        }
+                                        @r.QuoteRef
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @await Html.PartialAsync("_ListPager", (f.Page, Model.Pages))
+        }
+    </div>
+</div>

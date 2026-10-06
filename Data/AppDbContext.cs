@@ -104,6 +104,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Site>()
+            .Property(s => s.Created)
+            .HasColumnType("timestamptz");
+
+        modelBuilder.Entity<Site>()
             .Property(s => s.Active)
             .HasDefaultValue(true)
             .HasSentinel(true); // so an explicit false is sent on insert instead of the DB default
@@ -221,6 +225,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(t => t.SiteId);
             entity.HasIndex(t => t.Status);
             entity.HasIndex(t => t.DueDateUtc);
+            entity.Property(t => t.IsActive).HasDefaultValue(true).HasSentinel(true);
+            entity.HasIndex(t => t.IsActive);
             entity.HasIndex(t => t.ExternalId).IsUnique();
 
             entity.HasMany(t => t.CoveredSchedules)

@@ -12,7 +12,7 @@ namespace FyreApp.Tests.Services;
 public class TaskImporterTests
 {
     private static readonly string[] Headers =
-        { "ID", "Ref", "Created", "Name", "Description", "Scope of works", "Status", "Priority", "Property Ref", "Property Name", "Client", "Category", "Due", "Completed Date" };
+        { "ID", "Ref", "Created", "Name", "Description", "Scope of works", "Status", "Priority", "Property Ref", "Property Name", "Client", "Category", "Due", "Completed Date", "Is Active" };
 
     private static Stream Csv(params Dictionary<string, string>[] rows)
     {
@@ -69,6 +69,7 @@ public class TaskImporterTests
         var task = await db.ClientTasks.Include(t => t.CoveredSchedules).SingleAsync();
         Assert.Equal(("T-46616", "T-46616", site.Id, site.ClientId), (task.Ref, task.DisplayRef, task.SiteId, task.ClientId));
         Assert.Equal(ClientTaskStatus.Open, task.Status);
+        Assert.Equal(("I&T", true), (task.Category, task.IsActive));
         Assert.Equal(new DateTime(2026, 10, 31), task.DueDateUtc);
         Assert.Contains("Scope of works:", task.Description);
         Assert.Equal(new[] { six.Id, annual.Id }.OrderBy(i => i), task.CoveredSchedules.Select(s => s.Id).OrderBy(i => i));
@@ -138,6 +139,21 @@ public class TaskImporterTests
 
         Assert.Equal(0, second.Created);
         Assert.Equal(1, second.SkippedExisting);
+    }
+
+    [Fact]
+    public async Task UptickInactiveFlag_IsKept()
+    {
+        // Uptick leaves some READY tasks inactive (closed off); keep its flag rather than guessing from status
+        using var db = DbContextFactory.Create();
+        await SeedAsync(db);
+        var row = RoutineTask();
+        row["Is Active"] = "False";
+
+        await Import(db, dryRun: false, row);
+
+        var task = await db.ClientTasks.SingleAsync();
+        Assert.Equal((ClientTaskStatus.Open, false), (task.Status, task.IsActive));
     }
 
     [Theory]

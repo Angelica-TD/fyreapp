@@ -1,0 +1,28 @@
+@model (int Page, int Pages)
+
+@* Previous / next for the list pages. Keeps the current filters by copying the query string. *@
+@{
+    string UrlFor(int page)
+    {
+        var query = Context.Request.Query
+            .Where(kv => !string.Equals(kv.Key, "page", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(kv => kv.Value.Select(v => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(v ?? "")}"))
+            .Append($"page={page}");
+        return $"{Context.Request.Path}?{string.Join("&", query)}";
+    }
+}
+
+@if (Model.Pages > 1)
+{
+    <nav aria-label="Pages">
+        <ul class="pagination pagination-sm">
+            <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                <a class="page-link" href="@UrlFor(Model.Page - 1)">Previous</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link">Page @Model.Page of @Model.Pages</span></li>
+            <li class="page-item @(Model.Page >= Model.Pages ? "disabled" : "")">
+                <a class="page-link" href="@UrlFor(Model.Page + 1)">Next</a>
+            </li>
+        </ul>
+    </nav>
+}

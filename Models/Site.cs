@@ -55,6 +55,9 @@ public class Site
     [StringLength(20)]
     public string? Status { get; set; }
 
+    // When the property was created (Uptick's "Created" for imported ones)
+    public DateTime? Created { get; set; }
+
     // FK → Client
     public int ClientId { get; set; }
     public Client Client { get; set; } = null!;

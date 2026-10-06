@@ -296,18 +296,37 @@ public class TaskController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // Tasks list (React). Defaults match Uptick's Tasks page: active tasks, any category, any status.
+    // category / status are "is" lists, or "is not" with categoryNot / statusNot.
     [HttpGet("/api/tasks")]
-    public async Task<IActionResult> ApiSearch(string? search, string? status)
+    public async Task<IActionResult> ApiSearch(
+        string? search, string active = "yes",
+        [FromQuery] List<string>? category = null, bool categoryNot = false,
+        [FromQuery] List<ClientTaskStatus>? status = null, bool statusNot = false,
+        int page = 1, CancellationToken ct = default)
     {
-        var q = _db.ClientTasks
-            .Include(t => t.Client)
-            .Include(t => t.Site)
-            .AsNoTracking()
-            .AsQueryable();
+        const int pageSize = FyreApp.ViewModels.Lists.ListFilters.PageSize;
+        var q = _db.ClientTasks.AsNoTracking().AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(status) &&
-            Enum.TryParse<ClientTaskStatus>(status, out var statusEnum))
-            q = q.Where(t => t.Status == statusEnum);
+        if (active is "yes" or "no")
+        {
+            var isActive = active == "yes";
+            q = q.Where(t => t.IsActive == isActive);
+        }
+
+        if (category is { Count: > 0 })
+        {
+            var categories = category.ToList();
+            q = categoryNot
+                ? q.Where(t => t.Category == null || !categories.Contains(t.Category))
+                : q.Where(t => t.Category != null && categories.Contains(t.Category));
+        }
+
+        if (status is { Count: > 0 })
+        {
+            var statuses = status.ToList();
+            q = statusNot ? q.Where(t => !statuses.Contains(t.Status)) : q.Where(t => statuses.Contains(t.Status));
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -319,22 +338,39 @@ public class TaskController : Controller
                 (t.Ref != null && t.Ref.ToLower() == term));
         }
 
-        var results = await q
-            .OrderBy(t => t.DueDateUtc)
+        var total = await q.CountAsync(ct);
+        page = FyreApp.ViewModels.Lists.ListFilters.ClampPage(page, total);
+
+        // Newest first, as Uptick lists them: made in FyreApp, then Uptick IDs numerically
+        var items = await q
+            .OrderBy(t => t.ExternalId != null)
+            .ThenByDescending(t => t.ExternalId == null ? t.Id : 0)
+            .ThenByDescending(t => (t.ExternalId ?? "").Length)
+            .ThenByDescending(t => t.ExternalId)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(t => new
             {
-                id         = t.Id,
-                displayRef = t.Ref ?? t.ExternalId ?? t.FyreRef,
-                title      = t.Title,
-                clientName = t.Client.Name,
+                id          = t.Id,
+                displayRef  = t.Ref ?? t.ExternalId ?? t.FyreRef,
+                category    = t.Category,
+                title       = t.Title,
+                clientName  = t.Client.Name,
                 siteAddress = t.Site.AddressDisplay ?? t.Site.Name,
-                priority   = t.Priority.ToString(),
-                status     = t.Status.ToString(),
-                dueDateUtc = t.DueDateUtc
+                priority    = t.Priority.ToString(),
+                status      = t.Status.ToString(),
+                dueDateUtc  = t.DueDateUtc
             })
-            .ToListAsync();
+            .ToListAsync(ct);
 
-        return Json(results);
+        var categoryOptions = await _db.ClientTasks.AsNoTracking()
+            .Where(t => t.Category != null)
+            .Select(t => t.Category!)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync(ct);
+
+        return Json(new { total, page, pages = FyreApp.ViewModels.Lists.ListFilters.Pages(total), items, categories = categoryOptions });
     }
 
     private async Task<List<SelectListItem>> GetTechSelectListAsync(string? selectedId = null)

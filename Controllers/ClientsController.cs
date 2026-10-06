@@ -262,28 +262,23 @@ namespace FyreApp.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        // Clients list (React). Defaults match Uptick's Clients page: active clients only.
+        // Id is only used for links; DisplayRef (Uptick ID or FyreApp ref) is the one shown to users.
         [HttpGet("/api/clients")]
-        public async Task<IActionResult> ApiList(string? search = null)
+        public async Task<IActionResult> ApiList(string? search = null, string active = "yes", int page = 1, CancellationToken ct = default)
         {
-            var clients = await _clients.GetAllAsync(activeOnly: false);
+            const int pageSize = FyreApp.ViewModels.Lists.ListFilters.PageSize;
+            bool? activeFilter = active switch { "yes" => true, "no" => false, _ => null };
 
-            if (!string.IsNullOrWhiteSpace(search))
-                clients = clients.Where(c =>
-                    c.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    (c.PrimaryContactName ?? "").Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(c.DisplayRef, search.Trim(), StringComparison.OrdinalIgnoreCase)
-                ).ToList();
+            var (total, items) = await _clients.SearchAsync(search, activeFilter, page, pageSize, ct);
 
-            // Id is only used for links; DisplayRef (Uptick ID or FyreApp ref) is the one shown to users
-            return Json(clients.Select(c => new {
-                c.Id,
-                c.DisplayRef,
-                c.Name,
-                c.PrimaryContactName,
-                c.PrimaryContactMobile,
-                siteCount = c.Sites?.Count ?? 0,
-                c.Active
-            }));
+            return Json(new
+            {
+                total,
+                page = Math.Max(page, 1),
+                pages = FyreApp.ViewModels.Lists.ListFilters.Pages(total),
+                items
+            });
         }
 
 

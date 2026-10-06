@@ -13,13 +13,26 @@ namespace FyreApp.Controllers
     {
         private readonly AppDbContext _context;
         private readonly SitesService _sites;
+        private readonly FyreApp.Services.Lists.IListService _lists;
 
-        public PropertyController(AppDbContext context, SitesService sites)
+        public PropertyController(AppDbContext context, SitesService sites, FyreApp.Services.Lists.IListService lists)
         {
             _context = context;
             _sites = sites;
+            _lists = lists;
         }
-        
+
+        // Without "f" (first visit, sidebar link) the Uptick-style defaults apply; once the filter form has been
+        // submitted, what's in the query string is used as is, so a cleared filter means "any".
+        [HttpGet]
+        public async Task<IActionResult> Index(string? search, List<string>? status, int page = 1, bool f = false, CancellationToken ct = default)
+        {
+            var filter = new FyreApp.ViewModels.Lists.PropertyFilter { Search = search, Page = page };
+            if (f) filter.Status = status ?? new();
+
+            return View(await _lists.PropertiesAsync(filter, ct));
+        }
+
 
         [HttpPost]
         [ValidateAntiForgeryToken]
