@@ -313,7 +313,8 @@ public class TaskController : Controller
             var term = search.Trim().ToLower();
             q = q.Where(t =>
                 t.Title.ToLower().Contains(term) ||
-                t.Client.Name.ToLower().Contains(term));
+                t.Client.Name.ToLower().Contains(term) ||
+                (t.FyreRef != null && t.FyreRef.ToLower() == term));
         }
 
         var results = await q
@@ -321,6 +322,7 @@ public class TaskController : Controller
             .Select(t => new
             {
                 id         = t.Id,
+                displayRef = t.FyreRef,
                 title      = t.Title,
                 clientName = t.Client.Name,
                 siteAddress = t.Site.AddressDisplay ?? t.Site.Name,

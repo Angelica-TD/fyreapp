@@ -8,6 +8,10 @@
 <div class="d-flex justify-content-between align-items-center">
     <h1 class="mb-0">
         @Model.Name
+        @if (Model.DisplayRef != null)
+        {
+            <span class="badge bg-light text-dark border align-middle">@Model.DisplayRef</span>
+        }
         @if (Model.Active)
         {
             <span class="badge bg-success align-middle">Active</span>
@@ -93,6 +97,7 @@ else
     <table class="table table-striped">
         <thead>
             <tr>
+                <th>Ref</th>
                 <th>Asset Name</th>
                 <th>Types</th>
                 <th>Location</th>
@@ -104,6 +109,7 @@ else
             @foreach (var asset in Model.Assets.OrderBy(a => !a.IsActive).ThenBy(a => a.Name))
             {
                 <tr class="@(asset.IsActive ? "" : "text-muted")">
+                    <td class="text-nowrap">@asset.DisplayRef</td>
                     <td>
                         @asset.Name
                         @if (!asset.IsActive)
@@ -165,6 +171,7 @@ else
         <table class="table table-sm">
             <thead>
                 <tr>
+                    <th>Ref</th>
                     <th>Name</th>
                     <th>Role</th>
                     <th>Email</th>
@@ -176,6 +183,7 @@ else
                 @foreach (var c in Model.Contacts.OrderBy(c => !c.Active).ThenBy(c => c.Name))
                 {
                     <tr class="@(c.Active ? "" : "text-muted")">
+                        <td class="text-nowrap">@c.DisplayRef</td>
                         <td>
                             @c.Name
                             @if (!string.IsNullOrWhiteSpace(c.Organisation))
@@ -213,6 +221,7 @@ else
         <table class="table table-sm">
             <thead>
                 <tr>
+                    <th>Ref</th>
                     <th>Raised</th>
                     <th>Type</th>
                     <th>Asset</th>
@@ -226,6 +235,7 @@ else
                 @foreach (var d in Model.Defects.OrderBy(d => !d.Active).ThenByDescending(d => d.RaisedUtc))
                 {
                     <tr class="@(d.Active ? "" : "text-muted")">
+                        <td class="text-nowrap">@d.DisplayRef</td>
                         <td class="text-nowrap">@d.RaisedUtc.ToSydney()?.ToString("dd/MM/yyyy")</td>
                         <td>@d.RemarkType</td>
                         <td>
@@ -282,7 +292,7 @@ else
                 @foreach (var r in Model.ServiceReports.OrderByDescending(r => r.IssuedDate ?? r.InspectedDate))
                 {
                     <tr>
-                        <td class="text-nowrap">@r.Ref</td>
+                        <td class="text-nowrap">@r.DisplayRef</td>
                         <td>@r.ReportType</td>
                         <td class="text-nowrap">@r.InspectedDate?.ToString("dd/MM/yyyy")</td>
                         <td class="text-nowrap">@r.IssuedDate?.ToString("dd/MM/yyyy")</td>

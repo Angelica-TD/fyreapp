@@ -12,6 +12,13 @@ public class Site
     [StringLength(64)]
     public string? ExternalId { get; set; }
 
+    // FyreApp ref (e.g. "P-1001"), assigned by the database when there's no Uptick ref
+    [StringLength(20)]
+    public string? FyreRef { get; set; }
+
+    // Shown to users: the Uptick ref if imported, otherwise the FyreApp ref
+    public string? DisplayRef => string.IsNullOrWhiteSpace(ExternalId) ? FyreRef : ExternalId;
+
     // Address (Google + manual)
     [StringLength(300)]
     public string? AddressDisplay { get; set; } 

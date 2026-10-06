@@ -12,6 +12,13 @@ public class MaintenanceSchedule
 {
     public int Id { get; set; }
 
+    // FyreApp ref (e.g. "MS-1001"), assigned by the database. Uptick imports merge many
+    // occurrence rows into one schedule, so there's no single Uptick ID to keep.
+    [StringLength(20)]
+    public string? FyreRef { get; set; }
+
+    public string? DisplayRef => FyreRef;
+
     [Required]
     public ScheduleTargetType TargetType { get; set; }
 

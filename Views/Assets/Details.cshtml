@@ -37,8 +37,9 @@
 @{
     var details = new (string Label, string? Value)[]
     {
+        ("Ref", Model.DisplayRef),
         ("Status", Model.IsActive ? "Active" : "Inactive"),
-        ("Ref", Model.Ref),
+        ("Asset no.", Model.Ref),
         ("Location", Model.Location),
         ("Variant", Model.Variant),
         ("Make", Model.Make),
@@ -48,8 +49,7 @@
         ("Last result", Model.Compliance),
         ("Base date", Model.BaseDate?.ToString("dd/MM/yyyy")),
         ("Installed", Model.InstallationDate?.ToString("dd/MM/yyyy")),
-        ("Last service", Model.LastServiceDate?.ToString("dd/MM/yyyy")),
-        ("Uptick ID", Model.ExternalId)
+        ("Last service", Model.LastServiceDate?.ToString("dd/MM/yyyy"))
     }.Where(d => !string.IsNullOrWhiteSpace(d.Value)).ToList();
 }
 
@@ -72,6 +72,7 @@
         @foreach (var d in Model.Defects.OrderByDescending(d => d.RaisedUtc))
         {
             <li>
+                <span class="text-muted">@d.DisplayRef</span>
                 <strong>@d.RemarkType</strong>: @d.Description
                 <span class="text-muted">(@d.Status@(string.IsNullOrWhiteSpace(d.Resolution) ? "" : $", {d.Resolution}"))</span>
             </li>

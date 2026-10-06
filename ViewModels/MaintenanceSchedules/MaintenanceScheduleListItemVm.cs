@@ -15,6 +15,7 @@ public class MaintenanceScheduleFilter
 public class MaintenanceScheduleListItemVm
 {
     public int Id { get; set; }
+    public string? DisplayRef { get; set; }
     public string ClientName { get; set; } = string.Empty;
     public string TargetLabel { get; set; } = string.Empty;
     public string IntervalName { get; set; } = string.Empty;

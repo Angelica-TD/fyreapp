@@ -373,6 +373,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
             entity.HasIndex(li => li.QuoteId);
         });
+
+        // FyreApp refs ("C-1001", "P-1001", ...) are assigned on insert by a Postgres trigger
+        // (see migration AddFyreRefs), so EF reads them back instead of sending them
+        foreach (var type in new[]
+                 {
+                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(Defect),
+                     typeof(ServiceReport), typeof(MaintenanceSchedule), typeof(ClientTask)
+                 })
+        {
+            modelBuilder.Entity(type).Property<string?>("FyreRef").ValueGeneratedOnAdd();
+            modelBuilder.Entity(type).HasIndex("FyreRef").IsUnique();
+        }
     }
 
 }

@@ -11,6 +11,13 @@ public class Client
     // Used for import duplicate detection (maps from export "ID")
     public string? ExternalId { get; set; }
 
+    // FyreApp ref (e.g. "C-1001"), assigned by the database when there's no Uptick ID
+    [StringLength(20)]
+    public string? FyreRef { get; set; }
+
+    // Shown to users: the Uptick ID if imported, otherwise the FyreApp ref
+    public string? DisplayRef => string.IsNullOrWhiteSpace(ExternalId) ? FyreRef : ExternalId;
+
     public string Name { get; set; } = string.Empty;
 
     // Auditing / status

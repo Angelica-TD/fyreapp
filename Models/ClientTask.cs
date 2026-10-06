@@ -23,6 +23,12 @@ public class ClientTask
 {
     public int Id { get; set; }
 
+    // FyreApp ref (e.g. "T-1001"), assigned by the database
+    [StringLength(20)]
+    public string? FyreRef { get; set; }
+
+    public string? DisplayRef => FyreRef;
+
     // Required links
     public int ClientId { get; set; }
     public Client Client { get; set; } = null!;
