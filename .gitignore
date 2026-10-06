@@ -80,7 +80,11 @@ appsettings.Development.json
 /wwwroot/css/bootstrap.custom.css.map
 .vscode
 
-appsettings.Prod*.claude/settings.local.json
+# Production settings hold secrets (API keys); never commit them
+appsettings.Production.json
+appsettings.Prod*.json
+
+.claude/settings.local.json
 Export samples
 Exports unfiltered
 Export*

@@ -118,6 +118,13 @@ jobs:
             exit 1
           fi
 
+          # Secrets live only in /etc/fyreapp.env (appsettings.Production.json is not in the repo)
+          for key in GoogleMaps__BrowserKey GoogleMaps__ApiKey; do
+            if [ -z "${!key:-}" ]; then
+              echo "WARNING: $key is not set in /etc/fyreapp.env; Google Maps features won't work"
+            fi
+          done
+
           echo "Applying EF migrations..."
           "$RELEASE_DIR/db/migrate" --connection "$ConnectionStrings__DefaultConnection"
 
