@@ -63,6 +63,13 @@
             @await Html.PartialAsync("_FieldList", UiFieldBuilder.Build(c))
         </div>
 
+        @if (c.IsPlaceholder)
+        {
+            <div class="mt-3">@await Html.PartialAsync("_PlaceholderNotice", "client")</div>
+        }
+
+        @await Html.PartialAsync("_UptickData", c.UptickData)
+
         <div class="d-flex justify-content-between mt-3">
             <div class="d-flex gap-2">
                 <a asp-action="Index" class="btn btn-secondary btn-sm">← Back to Clients</a>

@@ -1,0 +1,21 @@
+@model string?
+@using FyreApp.Services.Imports
+
+@* Every column of the Uptick export row this record was imported from *@
+@{
+    var fields = UptickJson.Parse(Model);
+}
+
+@if (fields.Count > 0)
+{
+    <details class="mt-3">
+        <summary class="text-muted small">Uptick data (@fields.Count fields)</summary>
+        <dl class="row small mt-2 mb-0">
+            @foreach (var (header, value) in fields)
+            {
+                <dt class="col-sm-4 text-muted fw-normal">@header</dt>
+                <dd class="col-sm-8" style="white-space: pre-line">@value</dd>
+            }
+        </dl>
+    </details>
+}

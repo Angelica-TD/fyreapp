@@ -89,7 +89,7 @@ public class UptickImportService : IUptickImportService
 
         try
         {
-            await importer.ImportAsync(rows, dryRun, ctx, ct);
+            await importer.RunAsync(rows, dryRun, ctx, ct);
         }
         catch (DbUpdateException ex)
         {

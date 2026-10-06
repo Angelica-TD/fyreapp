@@ -6,12 +6,17 @@ namespace FyreApp.Services.Imports;
 public sealed class ImportRow
 {
     private readonly Dictionary<string, string?> _values;
+    private readonly IReadOnlyDictionary<string, string?> _raw;
 
     public int RowNumber { get; }
+
+    // Every non-blank column, under the export's own headers, for UptickData
+    public string? ToJson() => UptickJson.Serialize(_raw);
 
     public ImportRow(IReadOnlyDictionary<string, string?> raw, int rowNumber)
     {
         RowNumber = rowNumber;
+        _raw = raw;
         _values = new Dictionary<string, string?>();
         foreach (var (header, value) in raw)
             _values.TryAdd(TabularFileReader.NormalizeHeader(header), value);

@@ -130,6 +130,28 @@ public class ClientServiceTests
         Assert.Equal(ClientUpdateStatus.DuplicateName, result.Status);
     }
 
+    [Fact]
+    public async Task UpdateAsync_SharedImportedNameNotChanged_Succeeds()
+    {
+        // Uptick allows clients to share a name; editing one of them must not be blocked
+        using var db = DbContextFactory.Create();
+        db.Clients.AddRange(
+            new Client { Name = "10/28 Burnside Road", ExternalId = "6219", Active = true },
+            new Client { Name = "10/28 Burnside Road", ExternalId = "6208", Active = true }
+        );
+        await db.SaveChangesAsync();
+        var id = db.Clients.First(c => c.ExternalId == "6208").Id;
+
+        var result = await new ClientService(db).UpdateAsync(id, new UpdateClientRequest
+        {
+            Name = "10/28 Burnside Road",
+            Active = false
+        });
+
+        Assert.Equal(ClientUpdateStatus.Success, result.Status);
+        Assert.False(db.Clients.Single(c => c.Id == id).Active);
+    }
+
     // -------------------------------------------------------
     // DeleteAsync
     // -------------------------------------------------------

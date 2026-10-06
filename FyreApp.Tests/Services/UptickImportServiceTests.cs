@@ -165,7 +165,7 @@ public class UptickImportServiceTests
     }
 
     [Fact]
-    public async Task Properties_UnknownClient_Skipped()
+    public async Task Properties_UnknownClient_CreatesPlaceholderClient()
     {
         using var db = DbContextFactory.Create();
 
@@ -173,9 +173,51 @@ public class UptickImportServiceTests
                 new Dictionary<string, string> { ["Ref"] = "P-1", ["Name"] = "X", ["Client ID"] = "404", ["Client"] = "Nobody" }),
             "p.csv", UptickExportType.Properties, dryRun: false);
 
-        Assert.Equal(0, result.Created);
-        Assert.Equal(1, result.Skipped["Client not found"]);
+        Assert.Equal(1, result.Created);
+        Assert.Empty(result.Skipped);
+        var client = await db.Clients.SingleAsync();
+        Assert.Equal(("404", "Nobody", true, false), (client.ExternalId, client.Name, client.IsPlaceholder, client.Active));
+        Assert.Equal(client.Id, (await db.Sites.SingleAsync()).ClientId);
+    }
+
+    [Fact]
+    public async Task Properties_UnknownClient_DryRunSavesNothing()
+    {
+        using var db = DbContextFactory.Create();
+
+        var result = await CreateSut(db).ImportAsync(Csv(PropertyHeaders,
+                new Dictionary<string, string> { ["Ref"] = "P-1", ["Name"] = "X", ["Client ID"] = "404", ["Client"] = "Nobody" }),
+            "p.csv", UptickExportType.Properties, dryRun: true);
+
+        Assert.Equal(1, result.Created);
+        Assert.Contains(result.Issues, i => i.Type == "Placeholder client");
+        Assert.Empty(await db.Clients.ToListAsync());
         Assert.Empty(await db.Sites.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Properties_FillsInPlaceholderProperty()
+    {
+        using var db = DbContextFactory.Create();
+        var client = await SeedClientAsync(db);
+        var unassigned = new Client { Name = UptickImporter.UnassignedClientName, IsPlaceholder = true, Active = false };
+        db.Sites.Add(new Site { Name = "P-7", ExternalId = "P-7", Client = unassigned, IsPlaceholder = true, Active = false });
+        await db.SaveChangesAsync();
+
+        var result = await CreateSut(db).ImportAsync(Csv(PropertyHeaders,
+                new Dictionary<string, string>
+                {
+                    ["Ref"] = "P-7", ["Name"] = "Acme HQ", ["Status"] = "ACTIVE", ["Address State"] = "Australian Capital Territory",
+                    ["Client ID"] = "100", ["Client"] = "Acme"
+                }),
+            "p.csv", UptickExportType.Properties, dryRun: false);
+
+        Assert.Equal(0, result.Created);
+        Assert.Equal(0, result.SkippedExisting);
+        var site = await db.Sites.SingleAsync();
+        Assert.Equal(("Acme HQ", client.Id, true, false), (site.Name, site.ClientId, site.Active, site.IsPlaceholder));
+        Assert.Equal("Australian Capital Territory", site.State);
+        Assert.Contains("\"Address State\":\"Australian Capital Territory\"", site.UptickData);
     }
 
     [Fact]
@@ -220,15 +262,52 @@ public class UptickImportServiceTests
     }
 
     [Fact]
-    public async Task Contacts_UnknownProperty_Skipped()
+    public async Task Contacts_UnknownProperty_CreatesPlaceholderPropertyUnderUnassignedClient()
     {
         using var db = DbContextFactory.Create();
 
         var result = await CreateSut(db).ImportAsync(Csv(ContactHeaders,
-                new Dictionary<string, string> { ["ID"] = "1", ["Property Ref"] = "P-404", ["Contact Name"] = "Sue" }),
+                new Dictionary<string, string> { ["ID"] = "1", ["Property Ref"] = "P-404", ["Property Name"] = "Old Site", ["Contact Name"] = "Sue" },
+                new Dictionary<string, string> { ["ID"] = "2", ["Property Ref"] = "P-404", ["Property Name"] = "Old Site", ["Contact Name"] = "Bob" }),
             "contacts.csv", UptickExportType.PropertyContacts, dryRun: false);
 
-        Assert.Equal(1, result.Skipped["Property not found"]);
+        Assert.Equal(2, result.Created);
+        Assert.Empty(result.Skipped);
+        var site = await db.Sites.Include(s => s.Client).SingleAsync();
+        Assert.Equal(("P-404", "Old Site", true, false), (site.ExternalId, site.Name, site.IsPlaceholder, site.Active));
+        Assert.Equal(UptickImporter.UnassignedClientName, site.Client.Name);
+        Assert.All(await db.SiteContacts.ToListAsync(), c => Assert.Equal(site.Id, c.SiteId));
+    }
+
+    [Fact]
+    public async Task Contacts_EmptyContact_ImportedAsIs()
+    {
+        using var db = DbContextFactory.Create();
+        var site = await SeedSiteAsync(db, "P-1");
+
+        var result = await CreateSut(db).ImportAsync(Csv(ContactHeaders,
+                new Dictionary<string, string> { ["ID"] = "1", ["Property Ref"] = "P-1", ["Role"] = "accesscontact" }),
+            "contacts.csv", UptickExportType.PropertyContacts, dryRun: false);
+
+        Assert.Equal(1, result.Created);
+        var contact = await db.SiteContacts.SingleAsync();
+        Assert.Equal(("", "accesscontact"), (contact.Name, contact.Role));
+    }
+
+    [Fact]
+    public async Task Reports_UnknownProperty_UsesClientNamedOnRow()
+    {
+        using var db = DbContextFactory.Create();
+        var client = await SeedClientAsync(db, "Acme");
+
+        // Remarks name the client; the placeholder property goes under it rather than "Unassigned"
+        var result = await CreateSut(db).ImportAsync(Csv(RemarkHeaders.Append("Client").ToArray(),
+                new Dictionary<string, string> { ["ID"] = "1", ["Property Ref"] = "P-404", ["Property Name"] = "Old Site", ["Client"] = "Acme" }),
+            "remarks.csv", UptickExportType.Remarks, dryRun: false);
+
+        Assert.Equal(1, result.Created);
+        Assert.Equal(client.Id, (await db.Sites.SingleAsync()).ClientId);
+        Assert.Single(await db.Clients.ToListAsync());
     }
 
     // -------------------------------------------------------

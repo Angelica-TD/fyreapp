@@ -39,9 +39,7 @@
     <li>Processed: <span id="processed">0</span></li>
     <li>Would create: <span id="wouldCreate">0</span></li>
     <li>Skipped duplicate ExternalId: <span id="skipExt">0</span></li>
-    <li>Skipped duplicate Name: <span id="skipName">0</span></li>
-    <li>Imported with renamed duplicate Name: <span id="renamedName">0</span></li>
-    <li>Skipped missing Name: <span id="skipMissing">0</span></li>
+    <li>Filled in placeholder clients: <span id="filledPh">0</span></li>
 </ul>
 
 <div id="summaryCard" class="alert alert-success d-none" role="alert">
@@ -60,9 +58,7 @@
         <li>Processed: <strong id="sProcessed">0</strong></li>
         <li>Created / Would create: <strong id="sWouldCreate">0</strong></li>
         <li>Skipped duplicate ExternalId: <strong id="sSkipExt">0</strong></li>
-        <li>Skipped duplicate Name: <strong id="sSkipName">0</strong></li>
-        <li>Imported with renamed duplicate Name: <strong id="sRenamedName">0</strong></li>
-        <li>Skipped missing Name: <strong id="sSkipMissing">0</strong></li>
+        <li>Filled in placeholder clients: <strong id="sFilledPh">0</strong></li>
     </ul>
 
 </div>
@@ -84,8 +80,7 @@
         <li>Processed: <strong id="fProcessed">0</strong></li>
         <li>Would create: <strong id="fWouldCreate">0</strong></li>
         <li>Skipped duplicate ExternalId: <strong id="fSkipExt">0</strong></li>
-        <li>Skipped duplicate Name: <strong id="fSkipName">0</strong></li>
-        <li>Skipped missing Name: <strong id="fSkipMissing">0</strong></li>
+        <li>Filled in placeholder clients: <strong id="fFilledPh">0</strong></li>
         <li>Failed: <strong id="fFailed">0</strong></li>
     </ul>
 
@@ -166,9 +161,7 @@
             document.getElementById("processed").textContent = p.processed ?? 0;
             document.getElementById("wouldCreate").textContent = p.wouldCreate ?? 0;
             document.getElementById("skipExt").textContent = p.skippedDuplicateExternalId ?? 0;
-            document.getElementById("skipName").textContent = p.skippedDuplicateName ?? 0;
-            document.getElementById("renamedName").textContent = p.renamedDuplicateName ?? 0;
-            document.getElementById("skipMissing").textContent = p.skippedMissingName ?? 0;
+            document.getElementById("filledPh").textContent = p.filledPlaceholders ?? 0;
 
             const total = p.total || 0;
             const processed = p.processed || 0;
@@ -254,9 +247,7 @@
             document.getElementById("sProcessed").textContent = p.processed ?? 0;
             document.getElementById("sWouldCreate").textContent = p.wouldCreate ?? 0;
             document.getElementById("sSkipExt").textContent = p.skippedDuplicateExternalId ?? 0;
-            document.getElementById("sSkipName").textContent = p.skippedDuplicateName ?? 0;
-            document.getElementById("sRenamedName").textContent = p.renamedDuplicateName ?? 0;
-            document.getElementById("sSkipMissing").textContent = p.skippedMissingName ?? 0;
+            document.getElementById("sFilledPh").textContent = p.filledPlaceholders ?? 0;
 
             // Only show issues table on dry-run
             if (isDryRun) {
@@ -284,8 +275,7 @@
             document.getElementById("fProcessed").textContent = p.processed ?? 0;
             document.getElementById("fWouldCreate").textContent = p.wouldCreate ?? 0;
             document.getElementById("fSkipExt").textContent = p.skippedDuplicateExternalId ?? 0;
-            document.getElementById("fSkipName").textContent = p.skippedDuplicateName ?? 0;
-            document.getElementById("fSkipMissing").textContent = p.skippedMissingName ?? 0;
+            document.getElementById("fFilledPh").textContent = p.filledPlaceholders ?? 0;
             document.getElementById("fFailed").textContent = p.failed ?? 0;
 
             if (p.message && (p.message.length > 60 || isErrorMessage(p.message))) {
@@ -365,10 +355,7 @@
             // Treat these as warnings (not fatal)
             const warningsCount =
                 (p.skippedInvalid ?? 0) +
-                (p.skippedDuplicateExternalId ?? 0) +
-                (p.skippedDuplicateName ?? 0) +
-                (p.renamedDuplicateName ?? 0) +
-                (p.skippedMissingName ?? 0);
+                (p.skippedDuplicateExternalId ?? 0);
 
             bar.classList.add(warningsCount > 0 ? "bg-warning" : "bg-success");
 
