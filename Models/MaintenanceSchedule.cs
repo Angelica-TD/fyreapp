@@ -49,4 +49,7 @@ public class MaintenanceSchedule
     // Imported Uptick tasks whose scope covers this schedule (see ClientTask.CoveredSchedules)
     public ICollection<ClientTask> CoveringTasks { get; set; } = new List<ClientTask>();
 
+    // Uptick routines this schedule covers, e.g. extinguishers six-monthly + fire panels six-monthly
+    public ICollection<RoutineServiceLevel> RoutineLevels { get; set; } = new List<RoutineServiceLevel>();
+
 }

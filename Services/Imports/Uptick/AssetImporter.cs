@@ -27,6 +27,13 @@ public class AssetImporter : UptickImporter
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var newTypes = new List<string>();
 
+        // Uptick variants (reference data), by asset type name + variant name
+        var variantIds = (await Db.AssetTypeVariants.AsNoTracking()
+                .Select(v => new { v.Id, TypeName = v.AssetType.Name, v.Name })
+                .ToListAsync(ct))
+            .GroupBy(v => $"{v.TypeName.Trim()}|{v.Name.Trim()}", StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
         await AddPlaceholderSitesAsync(rows.Where(r => !existing.Contains(r.Get("ID") ?? "")), sitesByRef, "Property", dryRun, ctx, ct);
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -78,6 +85,9 @@ public class AssetImporter : UptickImporter
                     newTypes.Add(typeName);
                 }
                 asset.AssetTypes.Add(type);
+
+                if (variant != null && variantIds.TryGetValue($"{typeName}|{variant}", out var variantId))
+                    asset.AssetTypeVariantId = variantId;
             }
 
             toCreate.Add(asset);

@@ -18,6 +18,9 @@ public class ScheduleImportResultVm
     // Sites matched by client + property name that get their ExternalId set from "Property ref"
     public int SitesLinked { get; set; }
 
+    // Existing schedules newly linked to Uptick routines they cover
+    public int RoutineLinksAdded { get; set; }
+
     public List<string> NewIntervals { get; set; } = new();
     public List<ScheduleImportItemVm> Items { get; set; } = new();
     public List<ScheduleImportIssueVm> Issues { get; set; } = new();

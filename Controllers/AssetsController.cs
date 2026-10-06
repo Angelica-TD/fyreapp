@@ -45,6 +45,7 @@ namespace FyreApp.Controllers
                 .Include(a => a.Site)
                     .ThenInclude(s => s.Client)
                 .Include(a => a.AssetTypes)
+                .Include(a => a.AssetTypeVariant)
                 .Include(a => a.MaintenanceSchedules)
                     .ThenInclude(ms => ms.MaintenanceHistory)
                 .Include(a => a.MaintenanceSchedules)

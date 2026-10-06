@@ -99,6 +99,7 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
             .Include(s => s.MaintenanceHistory)
             .Include(s => s.GeneratedTasks)
             .Include(s => s.CoveringTasks)
+            .Include(s => s.RoutineLevels).ThenInclude(l => l.RoutineServiceType)
             .FirstOrDefaultAsync(s => s.Id == id);
     }
 

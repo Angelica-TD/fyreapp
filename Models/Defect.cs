@@ -30,6 +30,10 @@ public class Defect
     // e.g. "00 - Asset Failed"
     public string? RemarkType { get; set; }
 
+    // The Uptick remark type ("Remark Type ID"), when known
+    public int? RemarkTypeId { get; set; }
+    public RemarkType? RemarkTypeRef { get; set; }
+
     // e.g. "Needs Quoting"
     public string? Status { get; set; }
 

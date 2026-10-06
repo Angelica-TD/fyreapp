@@ -29,6 +29,7 @@ public class ScheduleImportService : IScheduleImportService
         public string? PropertyRef { get; set; }
         public List<(string Routine, DateTime Due, bool Done, bool TaskRaised)> Occurrences { get; } = new();
         public SortedSet<string> Routines { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public HashSet<RoutineServiceLevel> Levels { get; } = new();
     }
 
     public async Task<ScheduleImportResultVm> ImportUptickAsync(
@@ -64,6 +65,11 @@ public class ScheduleImportService : IScheduleImportService
             }
             if (issue.Rows.Count < MaxRowsPerIssue) issue.Rows.Add(row);
         }
+
+        // Uptick routine levels (reference data): "<routine service type>: <level>" -> level
+        var levelsByRoutine = (await _db.RoutineServiceLevels.Include(l => l.RoutineServiceType).ToListAsync(ct))
+            .GroupBy(l => $"{l.RoutineServiceType.Name.Trim()}: {l.Name.Trim()}", StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         // Site lookups
         var sites = await _db.Sites.AsNoTracking()
@@ -119,7 +125,11 @@ public class ScheduleImportService : IScheduleImportService
                 continue;
             }
 
+            // The frequency in the name wins (e.g. "Annual Evacuation Drill", configured as 1 month in Uptick);
+            // otherwise use the interval configured on the Uptick level
+            var level = levelsByRoutine.GetValueOrDefault(routine.Trim());
             var (months, frequencyLabel) = ParseFrequency(routine);
+            months ??= level?.IntervalMonths > 0 ? level.IntervalMonths : null;
             if (months == null)
             {
                 result.SkippedUnsupportedFrequency++;
@@ -194,16 +204,20 @@ public class ScheduleImportService : IScheduleImportService
             var done = IsDone(Get("Status"), Get("Completed Date"));
             group.Occurrences.Add((routine, due.Value, done, !done && IsTaskRaised(Get("Status"))));
             group.Routines.Add(routine);
+            if (level != null) group.Levels.Add(level);
         }
 
         // Existing schedules and intervals
         var groupSiteIds = groups.Keys.Select(k => k.SiteId).Distinct().ToList();
-        var existing = (await _db.MaintenanceSchedules.AsNoTracking()
+        // Tracked, so re-running the import can link existing schedules to their routines
+        var existing = (await _db.MaintenanceSchedules
+                .Include(s => s.MaintenanceInterval)
+                .Include(s => s.RoutineLevels)
                 .Where(s => s.TargetType == ScheduleTargetType.Site && s.SiteId != null && groupSiteIds.Contains(s.SiteId.Value))
-                .Select(s => new { SiteId = s.SiteId!.Value, s.MaintenanceInterval.Months })
                 .ToListAsync(ct))
-            .Select(s => (s.SiteId, s.Months))
-            .ToHashSet();
+            .GroupBy(s => (s.SiteId!.Value, s.MaintenanceInterval.Months))
+            .ToDictionary(g => g.Key, g => g.First());
+        var routineLinksAdded = 0;
 
         var intervals = await _db.MaintenanceIntervals.ToListAsync(ct);
         var newIntervals = new Dictionary<int, MaintenanceInterval>();
@@ -234,9 +248,10 @@ public class ScheduleImportService : IScheduleImportService
             var next = NextOutstanding(group.Occurrences, DateTime.UtcNow)
                        ?? group.Occurrences.Max(o => o.Due).AddMonths(group.Months);
 
-            var isExisting = existing.Contains((group.Site.Id, group.Months));
+            var existingSchedule = existing.GetValueOrDefault((group.Site.Id, group.Months));
+            var isExisting = existingSchedule != null;
             var interval = isExisting
-                ? intervals.First(i => i.Months == group.Months)
+                ? existingSchedule!.MaintenanceInterval
                 : IntervalFor(group.Months, group.FrequencyLabel);
 
             result.Items.Add(new ScheduleImportItemVm
@@ -252,6 +267,12 @@ public class ScheduleImportService : IScheduleImportService
 
             if (isExisting)
             {
+                // Existing schedules aren't changed, but pick up routines they don't list yet
+                var missing = group.Levels.Where(l => !existingSchedule!.RoutineLevels.Contains(l)).ToList();
+                routineLinksAdded += missing.Count;
+                if (!dryRun)
+                    foreach (var l in missing) existingSchedule!.RoutineLevels.Add(l);
+
                 result.SkippedExisting++;
                 continue;
             }
@@ -263,16 +284,18 @@ public class ScheduleImportService : IScheduleImportService
                 MaintenanceInterval = interval,
                 StartDate = next.AddMonths(-group.Months),
                 NextRunDate = next,
-                IsActive = true
+                IsActive = true,
+                RoutineLevels = group.Levels.ToList()
             });
         }
 
         result.Created = toCreate.Count;
         result.SitesLinked = linkRefs.Count;
+        result.RoutineLinksAdded = routineLinksAdded;
         result.NewIntervals = newIntervals.Values.Select(i => $"{i.Name} ({i.Months} months)").ToList();
         result.Issues = issues.Values.OrderBy(i => i.Type).ThenBy(i => i.Key).ToList();
 
-        if (dryRun || (toCreate.Count == 0 && linkRefs.Count == 0))
+        if (dryRun || (toCreate.Count == 0 && linkRefs.Count == 0 && routineLinksAdded == 0))
             return result;
 
         try
