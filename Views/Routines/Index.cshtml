@@ -1,6 +1,7 @@
 @model FyreApp.ViewModels.Routines.RoutineListVm
 @using FyreApp.Models
 @using FyreApp.ViewModels.Routines
+@using FyreApp.ViewModels.Lists
 
 @{
     ViewData["Title"] = "Routines";
@@ -18,23 +19,6 @@
         RoutineOccurrenceStatus.Generated => "bg-info text-dark",
         RoutineOccurrenceStatus.Complete => "bg-success",
         _ => "bg-secondary"
-    };
-
-    string PropertyStatusLabel(string s) => s switch
-    {
-        "ONHOLD" => "On hold",
-        _ => s[0] + s[1..].ToLowerInvariant()
-    };
-
-    // Same filters, another page
-    object RouteFor(int page) => new
-    {
-        f = true,
-        search = f.Search,
-        clientActive = f.ClientActive switch { true => "yes", false => "no", _ => "any" },
-        dueFrom = f.DueFrom?.ToString("yyyy-MM-dd"),
-        dueTo = f.DueTo?.ToString("yyyy-MM-dd"),
-        page
     };
 }
 
@@ -85,12 +69,12 @@
                 <div class="row mb-2 align-items-center">
                     <span class="col-sm-3 col-form-label text-sm-end">Property status:</span>
                     <div class="col-sm-9">
-                        @foreach (var s in RoutineFilter.PropertyStatuses)
+                        @foreach (var s in ListFilters.PropertyStatuses)
                         {
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="checkbox" name="propertyStatus" value="@s" id="ps-@s"
                                        checked="@(f.PropertyStatus.Contains(s) ? "checked" : null)" />
-                                <label class="form-check-label" for="ps-@s">@PropertyStatusLabel(s)</label>
+                                <label class="form-check-label" for="ps-@s">@ListFilters.PropertyStatusLabel(s)</label>
                             </div>
                         }
                     </div>
@@ -169,27 +153,8 @@
                 </table>
             </div>
 
-            @if (Model.Pages > 1)
-            {
-                <nav aria-label="Routine pages">
-                    <ul class="pagination pagination-sm">
-                        <li class="page-item @(f.Page <= 1 ? "disabled" : "")">
-                            <a class="page-link" href="@Url.Action("Index", RouteFor(f.Page - 1))@QueryLists()">Previous</a>
-                        </li>
-                        <li class="page-item disabled"><span class="page-link">Page @f.Page of @Model.Pages</span></li>
-                        <li class="page-item @(f.Page >= Model.Pages ? "disabled" : "")">
-                            <a class="page-link" href="@Url.Action("Index", RouteFor(f.Page + 1))@QueryLists()">Next</a>
-                        </li>
-                    </ul>
-                </nav>
-            }
+            @await Html.PartialAsync("_ListPager", (Model.Filter.Page, Model.Pages))
         }
     </div>
 </div>
 
-@functions {
-    // Multi-value filters, appended to paging links (route values can't repeat a key)
-    string QueryLists() =>
-        string.Concat(Model.Filter.PropertyStatus.Select(s => "&propertyStatus=" + Uri.EscapeDataString(s))) +
-        string.Concat(Model.Filter.Status.Select(s => "&status=" + s));
-}

@@ -100,6 +100,9 @@ public class ClientTaskService : IClientTaskService
         task.Title = input.Title.Trim();
         task.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
         task.Priority = input.Priority;
+        // Only on an actual status change, so editing an old imported task doesn't reactivate it
+        if (task.Status != input.Status)
+            task.IsActive = input.Status is not (ClientTaskStatus.Completed or ClientTaskStatus.Cancelled);
         task.Status = input.Status;
         task.AssignedToUserId = input.AssignedToUserId;
         task.DueDateUtc = input.DueDateLocal.HasValue
@@ -139,6 +142,7 @@ public class ClientTaskService : IClientTaskService
         {
             task.Status = ClientTaskStatus.Completed;
             task.CompletedUtc = DateTime.UtcNow;
+            task.IsActive = false;
             await _db.SaveChangesAsync();
 
             await CompleteLinkedScheduleAsync(task);

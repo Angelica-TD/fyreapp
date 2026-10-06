@@ -71,7 +71,13 @@ public interface IClientService
     Task<UpdateClientResult> UpdateAsync(int id, UpdateClientRequest request, CancellationToken ct = default);
     Task<DeleteClientResult> DeleteAsync(int id, bool hardDelete = false, CancellationToken ct = default);
     Task<List<Client>> GetAllAsync(bool activeOnly = true);
+
+    // Clients list page: filtered and paged in the database (null active = any)
+    Task<(int Total, List<ClientListItem> Items)> SearchAsync(string? search, bool? active, int page, int pageSize, CancellationToken ct = default);
     Task<ClientCreateResult> CreateAsync(CreateClientVm vm, CancellationToken ct = default);
     Task<Client?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<List<ClientTask>> GetTasksByClientAsync(int clientId, CancellationToken ct = default);
 }
+
+public record ClientListItem(
+    int Id, string? DisplayRef, string Name, string? PrimaryContactName, string? PrimaryContactMobile, int SiteCount, bool Active);

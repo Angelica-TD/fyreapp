@@ -1,0 +1,129 @@
+@model FyreApp.ViewModels.Assets.AssetListVm
+@using FyreApp.ViewModels.Assets
+@using FyreApp.ViewModels.Lists
+
+@{
+    ViewData["Title"] = "Assets";
+    var f = Model.Filter;
+}
+
+<div class="card">
+    <div class="card-header">
+        <h1 class="h4 m-0">Assets</h1>
+    </div>
+
+    <div class="card-body">
+        <form method="get" asp-action="Index">
+            <input type="hidden" name="f" value="true" />
+
+            <div class="row g-2 mb-3">
+                <div class="col">
+                    <input type="search" name="search" value="@f.Search" class="form-control" placeholder="Search asset, ref, location, property or client" />
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-light border" type="button" data-bs-toggle="collapse" data-bs-target="#assetFilters"
+                            aria-expanded="true" aria-controls="assetFilters">
+                        <i class="bi bi-funnel"></i> Filters
+                        <span class="badge rounded-pill bg-secondary">@f.ActiveCount</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="collapse show bg-light border rounded p-3 mb-3" id="assetFilters">
+                <div class="row mb-2 align-items-center">
+                    <label class="col-sm-3 col-form-label text-sm-end" for="active">Active:</label>
+                    <div class="col-sm-9">
+                        <select name="active" id="active" class="form-select">
+                            <option value="yes" selected="@(f.Active == true ? "selected" : null)">Yes</option>
+                            <option value="no" selected="@(f.Active == false ? "selected" : null)">No</option>
+                            <option value="any" selected="@(f.Active == null ? "selected" : null)">Any</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-2">
+                    <label class="col-sm-3 col-form-label text-sm-end" for="assetType">Asset type:</label>
+                    <div class="col-sm-9 d-flex gap-2">
+                        <select name="assetTypeIsNot" class="form-select w-auto" aria-label="Asset type match">
+                            <option value="false" selected="@(!f.AssetTypeIsNot ? "selected" : null)">Is</option>
+                            <option value="true" selected="@(f.AssetTypeIsNot ? "selected" : null)">Is not</option>
+                        </select>
+                        <select name="assetType" id="assetType" class="form-select" multiple size="4">
+                            @foreach (var (id, name) in Model.AssetTypes)
+                            {
+                                <option value="@id" selected="@(f.AssetTypeIds.Contains(id) ? "selected" : null)">@name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-sm-9 offset-sm-3 form-text">None selected = any value. Ctrl/Cmd-click to pick several.</div>
+                </div>
+
+                <div class="row mb-3 align-items-center">
+                    <span class="col-sm-3 col-form-label text-sm-end">Property status:</span>
+                    <div class="col-sm-9">
+                        @foreach (var s in ListFilters.PropertyStatuses)
+                        {
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="propertyStatus" value="@s" id="ps-@s"
+                                       checked="@(f.PropertyStatus.Contains(s) ? "checked" : null)" />
+                                <label class="form-check-label" for="ps-@s">@ListFilters.PropertyStatusLabel(s)</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Reset to defaults</a>
+                    <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                </div>
+            </div>
+        </form>
+
+        <p class="text-muted mb-2">@Model.Total.ToString("N0") asset@(Model.Total == 1 ? "" : "s")</p>
+
+        @if (Model.Items.Count == 0)
+        {
+            <p class="text-muted">No assets match these filters.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Ref</th>
+                            <th>Property</th>
+                            <th>Client</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in Model.Items)
+                        {
+                            <tr>
+                                <td title="@a.Name">@(a.Ref ?? "—")</td>
+                                <td>
+                                    <a asp-controller="Property" asp-action="Details" asp-route-id="@a.SiteId">@a.PropertyRef</a>
+                                    <span class="text-muted">· @a.PropertyName</span>
+                                </td>
+                                <td>
+                                    <a asp-controller="Clients" asp-action="Details" asp-route-id="@a.ClientId">@a.ClientName</a>
+                                    @if (!string.IsNullOrWhiteSpace(a.ClientContact))
+                                    {
+                                        <span class="text-muted">· @a.ClientContact</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <a asp-action="Details" asp-route-id="@a.Id">View</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @await Html.PartialAsync("_ListPager", (Model.Filter.Page, Model.Pages))
+        }
+    </div>
+</div>
+

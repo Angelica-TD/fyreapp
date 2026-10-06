@@ -38,6 +38,14 @@ public class ClientTask
     // Every column of the Uptick export row as JSON (key order kept), so nothing is lost on import
     public string? UptickData { get; set; }
 
+    // Uptick task category: I&T (routine inspection & testing), Repair, Callout, Billing
+    [StringLength(50)]
+    public string? Category { get; set; }
+
+    // Uptick's "Is Active": open work. Imported from Uptick; tasks completed or cancelled in FyreApp become
+    // inactive, reopening makes them active again.
+    public bool IsActive { get; set; } = true;
+
     // Shown to users: Uptick's task ref, then its ID, otherwise the FyreApp ref
     public string? DisplayRef =>
         !string.IsNullOrWhiteSpace(Ref) ? Ref

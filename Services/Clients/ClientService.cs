@@ -84,6 +84,36 @@ public sealed class ClientService : IClientService
             : await query.ToListAsync();
     }
 
+    public async Task<(int Total, List<ClientListItem> Items)> SearchAsync(
+        string? search, bool? active, int page, int pageSize, CancellationToken ct = default)
+    {
+        var q = _db.Clients.AsNoTracking().AsQueryable();
+
+        if (active is bool a)
+            q = q.Where(c => c.Active == a);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            q = q.Where(c =>
+                c.Name.ToLower().Contains(term) ||
+                (c.PrimaryContactName != null && c.PrimaryContactName.ToLower().Contains(term)) ||
+                (c.ExternalId != null && c.ExternalId.ToLower() == term) ||
+                (c.FyreRef != null && c.FyreRef.ToLower() == term));
+        }
+
+        var total = await q.CountAsync(ct);
+        var items = await q
+            .OrderBy(c => c.Name).ThenBy(c => c.Id)
+            .Skip((Math.Max(page, 1) - 1) * pageSize)
+            .Take(pageSize)
+            .Select(c => new ClientListItem(
+                c.Id, c.ExternalId ?? c.FyreRef, c.Name, c.PrimaryContactName, c.PrimaryContactMobile, c.Sites.Count, c.Active))
+            .ToListAsync(ct);
+
+        return (total, items);
+    }
+
     public async Task<ClientCreateResult> CreateAsync(CreateClientVm vm, CancellationToken ct = default)
     {
         var name = (vm.Name ?? string.Empty).Trim();

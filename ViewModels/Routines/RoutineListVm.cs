@@ -6,8 +6,6 @@ namespace FyreApp.ViewModels.Routines;
 // active properties, pending (no task raised yet).
 public class RoutineFilter
 {
-    public static readonly string[] PropertyStatuses = { "ACTIVE", "ONHOLD", "SETUP", "INACTIVE" };
-
     public string? Search { get; set; }
 
     // true = active clients only, false = inactive only, null = any

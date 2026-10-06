@@ -88,7 +88,9 @@ public class TaskImporter : UptickImporter
                 Priority = MapPriority(row.GetInt("Priority")),
                 DueDateUtc = row.GetDate("Due"),
                 CreatedUtc = row.GetTimestampUtc("Created") ?? DateTime.UtcNow,
-                CompletedUtc = row.GetTimestampUtc("Completed Date")
+                CompletedUtc = row.GetTimestampUtc("Completed Date"),
+                Category = row.Get("Category"),
+                IsActive = row.GetBool("Is Active") ?? MapStatus(row.Get("Status")) is not (ClientTaskStatus.Completed or ClientTaskStatus.Cancelled)
             };
 
             if (string.Equals(row.Get("Category"), "I&T", StringComparison.OrdinalIgnoreCase))
