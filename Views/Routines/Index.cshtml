@@ -1,0 +1,195 @@
+@model FyreApp.ViewModels.Routines.RoutineListVm
+@using FyreApp.Models
+@using FyreApp.ViewModels.Routines
+
+@{
+    ViewData["Title"] = "Routines";
+    var f = Model.Filter;
+
+    string StatusLabel(RoutineOccurrenceStatus s) => s switch
+    {
+        RoutineOccurrenceStatus.Generated => "Task raised",
+        _ => s.ToString()
+    };
+
+    string StatusBadge(RoutineOccurrenceStatus s) => s switch
+    {
+        RoutineOccurrenceStatus.Pending => "bg-warning text-dark",
+        RoutineOccurrenceStatus.Generated => "bg-info text-dark",
+        RoutineOccurrenceStatus.Complete => "bg-success",
+        _ => "bg-secondary"
+    };
+
+    string PropertyStatusLabel(string s) => s switch
+    {
+        "ONHOLD" => "On hold",
+        _ => s[0] + s[1..].ToLowerInvariant()
+    };
+
+    // Same filters, another page
+    object RouteFor(int page) => new
+    {
+        f = true,
+        search = f.Search,
+        clientActive = f.ClientActive switch { true => "yes", false => "no", _ => "any" },
+        dueFrom = f.DueFrom?.ToString("yyyy-MM-dd"),
+        dueTo = f.DueTo?.ToString("yyyy-MM-dd"),
+        page
+    };
+}
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h1 class="h4 m-0">Routines</h1>
+        <a asp-controller="MaintenanceSchedules" asp-action="Import" class="btn btn-outline-primary btn-sm">Import from Uptick</a>
+    </div>
+
+    <div class="card-body">
+        <form method="get" asp-action="Index">
+            <input type="hidden" name="f" value="true" />
+
+            <div class="row g-2 mb-3">
+                <div class="col">
+                    <input type="search" name="search" value="@f.Search" class="form-control" placeholder="Search routine, property or client" />
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-light border" type="button" data-bs-toggle="collapse" data-bs-target="#routineFilters"
+                            aria-expanded="true" aria-controls="routineFilters">
+                        <i class="bi bi-funnel"></i> Filters
+                        <span class="badge rounded-pill bg-secondary">@f.ActiveCount</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="collapse show bg-light border rounded p-3 mb-3" id="routineFilters">
+                <div class="row mb-2 align-items-center">
+                    <label class="col-sm-3 col-form-label text-sm-end" for="clientActive">Client active:</label>
+                    <div class="col-sm-9">
+                        <select name="clientActive" id="clientActive" class="form-select">
+                            <option value="yes" selected="@(f.ClientActive == true ? "selected" : null)">Yes</option>
+                            <option value="no" selected="@(f.ClientActive == false ? "selected" : null)">No</option>
+                            <option value="any" selected="@(f.ClientActive == null ? "selected" : null)">Any</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-2 align-items-center">
+                    <label class="col-sm-3 col-form-label text-sm-end" for="dueFrom">Due:</label>
+                    <div class="col-sm-9 d-flex align-items-center gap-2">
+                        <input type="date" name="dueFrom" id="dueFrom" class="form-control" value="@f.DueFrom?.ToString("yyyy-MM-dd")" />
+                        <span>→</span>
+                        <input type="date" name="dueTo" class="form-control" value="@f.DueTo?.ToString("yyyy-MM-dd")" aria-label="Due to" />
+                    </div>
+                </div>
+
+                <div class="row mb-2 align-items-center">
+                    <span class="col-sm-3 col-form-label text-sm-end">Property status:</span>
+                    <div class="col-sm-9">
+                        @foreach (var s in RoutineFilter.PropertyStatuses)
+                        {
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="propertyStatus" value="@s" id="ps-@s"
+                                       checked="@(f.PropertyStatus.Contains(s) ? "checked" : null)" />
+                                <label class="form-check-label" for="ps-@s">@PropertyStatusLabel(s)</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="row mb-3 align-items-center">
+                    <span class="col-sm-3 col-form-label text-sm-end">Status:</span>
+                    <div class="col-sm-9">
+                        @foreach (var s in Enum.GetValues<RoutineOccurrenceStatus>())
+                        {
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="status" value="@s" id="st-@s"
+                                       checked="@(f.Status.Contains(s) ? "checked" : null)" />
+                                <label class="form-check-label" for="st-@s">@StatusLabel(s)</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a asp-action="Index" class="btn btn-sm btn-outline-secondary">Reset to defaults</a>
+                    <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                </div>
+            </div>
+        </form>
+
+        <p class="text-muted mb-2">@Model.Total.ToString("N0") routine@(Model.Total == 1 ? "" : "s")</p>
+
+        @if (Model.Items.Count == 0)
+        {
+            <p class="text-muted">No routines match these filters.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Routine</th>
+                            <th>Property</th>
+                            <th>Client</th>
+                            <th class="text-end">Due</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Items)
+                        {
+                            <tr>
+                                <td>
+                                    @if (r.MaintenanceScheduleId.HasValue)
+                                    {
+                                        <a asp-controller="MaintenanceSchedules" asp-action="Details" asp-route-id="@r.MaintenanceScheduleId">@r.Routine</a>
+                                    }
+                                    else
+                                    {
+                                        @r.Routine
+                                    }
+                                </td>
+                                <td>
+                                    <a asp-controller="Property" asp-action="Details" asp-route-id="@r.SiteId">@r.PropertyRef</a>
+                                    <span class="text-muted">· @r.PropertyName</span>
+                                </td>
+                                <td>
+                                    <a asp-controller="Clients" asp-action="Details" asp-route-id="@r.ClientId">@r.ClientName</a>
+                                    @if (!string.IsNullOrWhiteSpace(r.ClientContact))
+                                    {
+                                        <span class="text-muted">· @r.ClientContact</span>
+                                    }
+                                </td>
+                                <td class="text-end text-nowrap">@r.DueDate.ToDisplayDate()</td>
+                                <td><span class="badge @StatusBadge(r.Status)">@StatusLabel(r.Status)</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (Model.Pages > 1)
+            {
+                <nav aria-label="Routine pages">
+                    <ul class="pagination pagination-sm">
+                        <li class="page-item @(f.Page <= 1 ? "disabled" : "")">
+                            <a class="page-link" href="@Url.Action("Index", RouteFor(f.Page - 1))@QueryLists()">Previous</a>
+                        </li>
+                        <li class="page-item disabled"><span class="page-link">Page @f.Page of @Model.Pages</span></li>
+                        <li class="page-item @(f.Page >= Model.Pages ? "disabled" : "")">
+                            <a class="page-link" href="@Url.Action("Index", RouteFor(f.Page + 1))@QueryLists()">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            }
+        }
+    </div>
+</div>
+
+@functions {
+    // Multi-value filters, appended to paging links (route values can't repeat a key)
+    string QueryLists() =>
+        string.Concat(Model.Filter.PropertyStatus.Select(s => "&propertyStatus=" + Uri.EscapeDataString(s))) +
+        string.Concat(Model.Filter.Status.Select(s => "&status=" + s));
+}

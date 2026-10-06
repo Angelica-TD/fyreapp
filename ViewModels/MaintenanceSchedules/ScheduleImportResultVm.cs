@@ -21,6 +21,10 @@ public class ScheduleImportResultVm
     // Existing schedules newly linked to Uptick routines they cover
     public int RoutineLinksAdded { get; set; }
 
+    // Routine occurrences (one per row) added / refreshed
+    public int OccurrencesCreated { get; set; }
+    public int OccurrencesUpdated { get; set; }
+
     public List<string> NewIntervals { get; set; } = new();
     public List<ScheduleImportItemVm> Items { get; set; } = new();
     public List<ScheduleImportIssueVm> Issues { get; set; } = new();

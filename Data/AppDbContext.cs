@@ -34,6 +34,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<RemarkType> RemarkTypes => Set<RemarkType>();
     public DbSet<RoutineServiceType> RoutineServiceTypes => Set<RoutineServiceType>();
     public DbSet<RoutineServiceLevel> RoutineServiceLevels => Set<RoutineServiceLevel>();
+    public DbSet<RoutineOccurrence> RoutineOccurrences => Set<RoutineOccurrence>();
 
 
 
@@ -450,6 +451,33 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .UsingEntity(j => j.ToTable("MaintenanceScheduleRoutineLevels"));
         });
 
+        modelBuilder.Entity<RoutineOccurrence>(entity =>
+        {
+            entity.HasOne(o => o.Site)
+                .WithMany()
+                .HasForeignKey(o => o.SiteId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(o => o.RoutineServiceLevel)
+                .WithMany()
+                .HasForeignKey(o => o.RoutineServiceLevelId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+            entity.HasOne(o => o.MaintenanceSchedule)
+                .WithMany()
+                .HasForeignKey(o => o.MaintenanceScheduleId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
+            entity.Property(o => o.DueDate).HasColumnType("timestamptz");
+            entity.Property(o => o.ToleranceStart).HasColumnType("timestamptz");
+            entity.Property(o => o.ToleranceEnd).HasColumnType("timestamptz");
+            entity.Property(o => o.CompletedDate).HasColumnType("timestamptz");
+
+            entity.HasIndex(o => o.ExternalId).IsUnique();
+            entity.HasIndex(o => new { o.DueDate, o.Status }); // the Routines page filters on these
+            entity.HasIndex(o => o.SiteId);
+        });
+
         // FyreApp refs ("C-1001", "P-1001", ...) are assigned on insert by a Postgres trigger
         // (see migration AddFyreRefs), so EF reads them back instead of sending them
         foreach (var type in new[]
@@ -466,7 +494,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         foreach (var type in new[]
                  {
                      typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask),
-                     typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel)
+                     typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(RoutineOccurrence)
                  })
         {
             modelBuilder.Entity(type).Property<string?>("UptickData").HasColumnType("json");

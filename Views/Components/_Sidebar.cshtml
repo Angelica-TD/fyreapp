@@ -136,6 +136,18 @@
 
         @if (User.IsInRole("Admin"))
         {
+            <!-- Routines: Uptick routine occurrences (Admin only) -->
+            <li class="nav-item">
+                <a class="nav-link sidebar-link"
+                   asp-controller="Routines"
+                   asp-action="Index"
+                   nav-active
+                   nav-active-controller-only>
+                    <i class="bi bi-arrow-repeat sidebar-icon"></i>
+                    <span class="sidebar-label">Routines</span>
+                </a>
+            </li>
+
             <!-- Schedules (Admin only) -->
             <li class="nav-item">
                 <a class="nav-link sidebar-link"

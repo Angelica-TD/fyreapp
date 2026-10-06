@@ -21,6 +21,12 @@ public class ScheduleImportService : IScheduleImportService
 
     private sealed record SiteRef(int Id, string Name, string? ExternalId, string ClientName);
 
+    // One routines export row, kept as a RoutineOccurrence
+    private sealed record OccurrenceRow(
+        string? ExternalId, int SiteId, int Months, string Routine, RoutineServiceLevel? Level, DateTime Due,
+        DateTime? ToleranceStart, DateTime? ToleranceEnd, RoutineOccurrenceStatus Status, DateTime? Completed,
+        string? ServiceGroup, string? UptickData);
+
     private sealed class Group
     {
         public required SiteRef Site { get; init; }
@@ -87,6 +93,7 @@ public class ScheduleImportService : IScheduleImportService
         // SiteId -> Property ref to be written to Site.ExternalId
         var linkRefs = new Dictionary<int, string>();
         var groups = new Dictionary<(int SiteId, int Months), Group>();
+        var occurrences = new List<OccurrenceRow>();
 
         for (int i = 0; i < rows.Count; i++)
         {
@@ -205,6 +212,12 @@ public class ScheduleImportService : IScheduleImportService
             group.Occurrences.Add((routine, due.Value, done, !done && IsTaskRaised(Get("Status"))));
             group.Routines.Add(routine);
             if (level != null) group.Levels.Add(level);
+
+            occurrences.Add(new OccurrenceRow(
+                Get("ID"), site.Id, months.Value, routine.Trim(), level, due.Value,
+                ParseDate(Get("Tolerance Period Start Date") ?? ""), ParseDate(Get("Tolerance Period End Date") ?? ""),
+                OccurrenceStatus(Get("Status"), Get("Completed Date")), ParseDate(Get("Completed Date") ?? ""),
+                Get("Service group"), UptickJson.Serialize(row)));
         }
 
         // Existing schedules and intervals
@@ -238,6 +251,7 @@ public class ScheduleImportService : IScheduleImportService
         }
 
         var toCreate = new List<MaintenanceSchedule>();
+        var scheduleByKey = new Dictionary<(int SiteId, int Months), MaintenanceSchedule>();
 
         foreach (var group in groups.Values
                      .OrderBy(g => g.Site.ClientName)
@@ -272,12 +286,13 @@ public class ScheduleImportService : IScheduleImportService
                 routineLinksAdded += missing.Count;
                 if (!dryRun)
                     foreach (var l in missing) existingSchedule!.RoutineLevels.Add(l);
+                scheduleByKey[(group.Site.Id, group.Months)] = existingSchedule!;
 
                 result.SkippedExisting++;
                 continue;
             }
 
-            toCreate.Add(new MaintenanceSchedule
+            var schedule = new MaintenanceSchedule
             {
                 TargetType = ScheduleTargetType.Site,
                 SiteId = group.Site.Id,
@@ -286,8 +301,44 @@ public class ScheduleImportService : IScheduleImportService
                 NextRunDate = next,
                 IsActive = true,
                 RoutineLevels = group.Levels.ToList()
-            });
+            };
+            toCreate.Add(schedule);
+            scheduleByKey[(group.Site.Id, group.Months)] = schedule;
         }
+
+        // Occurrences: one per routines row (as Uptick lists them), linked to their schedule.
+        // Re-importing updates status and dates, since Uptick moves them from pending to generated to complete.
+        var existingOccurrences = await _db.RoutineOccurrences
+            .Where(o => o.ExternalId != null)
+            .ToDictionaryAsync(o => o.ExternalId!, StringComparer.OrdinalIgnoreCase, ct);
+        var seenOccurrences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var newOccurrences = new List<RoutineOccurrence>();
+
+        foreach (var row in occurrences)
+        {
+            if (row.ExternalId != null && !seenOccurrences.Add(row.ExternalId)) continue;
+
+            if (row.ExternalId == null || !existingOccurrences.TryGetValue(row.ExternalId, out var occurrence))
+            {
+                occurrence = new RoutineOccurrence { ExternalId = row.ExternalId, SiteId = row.SiteId };
+                newOccurrences.Add(occurrence);
+            }
+            else result.OccurrencesUpdated++;
+
+            if (dryRun) continue;
+
+            occurrence.Routine = row.Routine.Length <= 300 ? row.Routine : row.Routine[..300];
+            occurrence.RoutineServiceLevel = row.Level;
+            occurrence.MaintenanceSchedule = scheduleByKey.GetValueOrDefault((row.SiteId, row.Months));
+            occurrence.DueDate = row.Due;
+            occurrence.ToleranceStart = row.ToleranceStart;
+            occurrence.ToleranceEnd = row.ToleranceEnd;
+            occurrence.Status = row.Status;
+            occurrence.CompletedDate = row.Completed;
+            occurrence.ServiceGroup = row.ServiceGroup is { Length: > 100 } g ? g[..100] : row.ServiceGroup;
+            occurrence.UptickData = row.UptickData;
+        }
+        result.OccurrencesCreated = newOccurrences.Count;
 
         result.Created = toCreate.Count;
         result.SitesLinked = linkRefs.Count;
@@ -295,7 +346,7 @@ public class ScheduleImportService : IScheduleImportService
         result.NewIntervals = newIntervals.Values.Select(i => $"{i.Name} ({i.Months} months)").ToList();
         result.Issues = issues.Values.OrderBy(i => i.Type).ThenBy(i => i.Key).ToList();
 
-        if (dryRun || (toCreate.Count == 0 && linkRefs.Count == 0 && routineLinksAdded == 0))
+        if (dryRun || (toCreate.Count == 0 && linkRefs.Count == 0 && routineLinksAdded == 0 && occurrences.Count == 0))
             return result;
 
         try
@@ -309,12 +360,15 @@ public class ScheduleImportService : IScheduleImportService
             }
 
             _db.MaintenanceSchedules.AddRange(toCreate);
+            _db.RoutineOccurrences.AddRange(newOccurrences);
             await _db.SaveChangesAsync(ct);
         }
         catch (DbUpdateException ex)
         {
             result.Created = 0;
             result.SitesLinked = 0;
+            result.OccurrencesCreated = 0;
+            result.OccurrencesUpdated = 0;
             result.Error = "Database rejected the import; nothing was saved. " + (ex.InnerException?.Message ?? ex.Message);
         }
 
@@ -430,6 +484,16 @@ public class ScheduleImportService : IScheduleImportService
 
     private static bool IsTaskRaised(string? status) =>
         (status ?? "").Trim().Equals("G", StringComparison.OrdinalIgnoreCase);
+
+    private static RoutineOccurrenceStatus OccurrenceStatus(string? status, string? completedDate) =>
+        !string.IsNullOrWhiteSpace(completedDate) ? RoutineOccurrenceStatus.Complete
+        : (status ?? "").Trim().ToUpperInvariant() switch
+        {
+            "G" => RoutineOccurrenceStatus.Generated,
+            "C" or "COMPLETE" or "COMPLETED" => RoutineOccurrenceStatus.Complete,
+            "X" or "CANCELLED" or "CANCELED" => RoutineOccurrenceStatus.Cancelled,
+            _ => RoutineOccurrenceStatus.Pending
+        };
 
     private static string NameKey(string clientName, string siteName) =>
         $"{TabularFileReader.NormalizeHeader(clientName)}|{TabularFileReader.NormalizeHeader(siteName)}";
