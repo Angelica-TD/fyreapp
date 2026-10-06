@@ -21,6 +21,10 @@ public class RemarkImporter : UptickImporter
                 .Select(a => new { a.Id, a.SiteId, a.ExternalId })
                 .ToListAsync(ct))
             .ToDictionary(a => a.ExternalId!, a => (a.Id, a.SiteId), StringComparer.OrdinalIgnoreCase);
+        // Uptick remark types (reference data), by Uptick ID
+        var remarkTypeIds = await Db.RemarkTypes.AsNoTracking()
+            .Where(r => r.ExternalId != null)
+            .ToDictionaryAsync(r => r.ExternalId!, r => r.Id, StringComparer.OrdinalIgnoreCase, ct);
         var existing = (await Db.Defects.AsNoTracking()
                 .Where(d => d.ExternalId != null)
                 .Select(d => d.ExternalId!)
@@ -62,6 +66,7 @@ public class RemarkImporter : UptickImporter
                 SiteId = siteId,
                 AssetId = assetId,
                 RemarkType = row.Get("Remark Type"),
+                RemarkTypeId = remarkTypeIds.TryGetValue(row.Get("Remark Type ID") ?? "", out var remarkTypeId) ? remarkTypeId : null,
                 Status = row.Get("Status"),
                 Severity = row.GetInt("Severity"),
                 SeverityLabel = row.Get("Severity Display"),

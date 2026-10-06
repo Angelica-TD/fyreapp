@@ -27,6 +27,10 @@ public class Asset
     public string? Location { get; set; }
     public string? Barcode { get; set; }
     public string? Variant { get; set; }
+
+    // The Uptick variant this matches (asset type + variant name), when known
+    public int? AssetTypeVariantId { get; set; }
+    public AssetTypeVariant? AssetTypeVariant { get; set; }
     public string? Make { get; set; }
     public string? Model { get; set; }
     public string? Size { get; set; }

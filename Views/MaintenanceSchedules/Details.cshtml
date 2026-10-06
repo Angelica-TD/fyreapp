@@ -39,6 +39,37 @@
     }
 </p>
 
+@if (Model.RoutineLevels.Any())
+{
+    <h2 class="h5 mt-3">Uptick routines</h2>
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Routine</th>
+                <th>Level</th>
+                <th>Standard</th>
+                <th>Tolerance</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var level in Model.RoutineLevels.OrderBy(l => l.RoutineServiceType.Name))
+            {
+                <tr>
+                    <td>@level.RoutineServiceType.Name</td>
+                    <td>@level.Name</td>
+                    <td class="text-muted">@level.RoutineServiceType.StandardReference</td>
+                    <td class="text-muted">
+                        @if (level.ToleranceInterval.HasValue)
+                        {
+                            @($"± {level.ToleranceInterval} {(level.ToleranceUnit == "D" ? "days" : "months")}")
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
 <hr />
 
 @await Html.PartialAsync("~/Views/MaintenanceSchedules/_ScheduleForm.cshtml", Model)

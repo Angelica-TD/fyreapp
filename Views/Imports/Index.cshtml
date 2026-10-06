@@ -9,6 +9,11 @@
     string Label(UptickExportType t) => t switch
     {
         UptickExportType.PropertyContacts => "Property contacts",
+        UptickExportType.AssetTypes => "Asset types",
+        UptickExportType.AssetTypeVariants => "Asset type variants",
+        UptickExportType.RemarkTypes => "Remark types",
+        UptickExportType.RoutineServiceTypes => "Routine service types",
+        UptickExportType.RoutineServiceLevels => "Routine service levels (level types)",
         _ => t.ToString()
     };
 }
@@ -22,6 +27,7 @@
                 <h2 class="h6">Import order</h2>
                 <p class="small text-muted mb-2">Each export matches records imported by the step before it.</p>
                 <ol class="small mb-0 ps-3">
+                    <li>Reference data: asset types, asset type variants, remark types, routine service types, routine service levels</li>
                     <li><a asp-controller="Clients" asp-action="Import">Clients</a></li>
                     <li>Properties</li>
                     <li>Property contacts</li>
@@ -32,6 +38,7 @@
                     <li>Tasks (after routine schedules, so routine tasks link to them)</li>
                 </ol>
                 <p class="small text-muted mt-2 mb-0">Records already imported (same Uptick ID) are skipped, so an export can be re-run safely.</p>
+                <p class="small text-muted mt-2 mb-0">Reference data is the exception: re-importing it updates what's there, so fixes made in Uptick come through.</p>
                 <p class="small text-muted mt-2 mb-0">
                     In Uptick, include <strong>inactive / archived</strong> records when exporting clients and properties.
                     Otherwise records that refer to them get inactive <em>placeholder</em> clients and properties, which are

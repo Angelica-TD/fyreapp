@@ -30,6 +30,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<Defect> Defects => Set<Defect>();
     public DbSet<ServiceReport> ServiceReports => Set<ServiceReport>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<AssetTypeVariant> AssetTypeVariants => Set<AssetTypeVariant>();
+    public DbSet<RemarkType> RemarkTypes => Set<RemarkType>();
+    public DbSet<RoutineServiceType> RoutineServiceTypes => Set<RoutineServiceType>();
+    public DbSet<RoutineServiceLevel> RoutineServiceLevels => Set<RoutineServiceLevel>();
 
 
 
@@ -382,6 +386,70 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(li => li.QuoteId);
         });
 
+        // Uptick reference data
+        modelBuilder.Entity<AssetType>(entity =>
+        {
+            entity.HasIndex(t => t.ExternalId).IsUnique();
+            entity.Property(t => t.Active).HasDefaultValue(true).HasSentinel(true);
+        });
+
+        modelBuilder.Entity<AssetTypeVariant>(entity =>
+        {
+            entity.HasOne(v => v.AssetType)
+                .WithMany(t => t.Variants)
+                .HasForeignKey(v => v.AssetTypeId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(v => v.ExternalId).IsUnique();
+            entity.HasIndex(v => new { v.AssetTypeId, v.Name });
+            entity.Property(v => v.Active).HasDefaultValue(true).HasSentinel(true);
+        });
+
+        modelBuilder.Entity<Asset>()
+            .HasOne(a => a.AssetTypeVariant)
+            .WithMany(v => v.Assets)
+            .HasForeignKey(a => a.AssetTypeVariantId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
+        modelBuilder.Entity<RemarkType>(entity =>
+        {
+            entity.HasOne(r => r.AssetType)
+                .WithMany()
+                .HasForeignKey(r => r.AssetTypeId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+            entity.HasIndex(r => r.ExternalId).IsUnique();
+            entity.Property(r => r.Active).HasDefaultValue(true).HasSentinel(true);
+        });
+
+        modelBuilder.Entity<Defect>()
+            .HasOne(d => d.RemarkTypeRef)
+            .WithMany(r => r.Defects)
+            .HasForeignKey(d => d.RemarkTypeId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
+        modelBuilder.Entity<RoutineServiceType>(entity =>
+        {
+            entity.HasIndex(t => t.ExternalId).IsUnique();
+            entity.HasIndex(t => t.Name);
+            entity.Property(t => t.Active).HasDefaultValue(true).HasSentinel(true);
+        });
+
+        modelBuilder.Entity<RoutineServiceLevel>(entity =>
+        {
+            entity.HasOne(l => l.RoutineServiceType)
+                .WithMany(t => t.Levels)
+                .HasForeignKey(l => l.RoutineServiceTypeId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(l => l.ExternalId).IsUnique();
+            entity.Property(l => l.Active).HasDefaultValue(true).HasSentinel(true);
+
+            entity.HasMany(l => l.Schedules)
+                .WithMany(s => s.RoutineLevels)
+                .UsingEntity(j => j.ToTable("MaintenanceScheduleRoutineLevels"));
+        });
+
         // FyreApp refs ("C-1001", "P-1001", ...) are assigned on insert by a Postgres trigger
         // (see migration AddFyreRefs), so EF reads them back instead of sending them
         foreach (var type in new[]
@@ -397,7 +465,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         // Raw Uptick rows: "json" rather than "jsonb" so the export's column order is kept for display
         foreach (var type in new[]
                  {
-                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask)
+                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask),
+                     typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel)
                  })
         {
             modelBuilder.Entity(type).Property<string?>("UptickData").HasColumnType("json");
