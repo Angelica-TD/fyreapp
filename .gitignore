@@ -82,3 +82,5 @@ appsettings.Development.json
 
 appsettings.Prod*.claude/settings.local.json
 Export samples
+Exports unfiltered
+Export*
