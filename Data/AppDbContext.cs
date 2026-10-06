@@ -474,6 +474,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
 
+            entity.HasOne(o => o.ClientTask)
+                .WithMany()
+                .HasForeignKey(o => o.ClientTaskId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
             entity.Property(o => o.DueDate).HasColumnType("timestamptz");
             entity.Property(o => o.ToleranceStart).HasColumnType("timestamptz");
             entity.Property(o => o.ToleranceEnd).HasColumnType("timestamptz");

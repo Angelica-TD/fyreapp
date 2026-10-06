@@ -40,6 +40,10 @@ public class RoutineOccurrence
     public DateTime? ToleranceEnd { get; set; }
 
     public RoutineOccurrenceStatus Status { get; set; } = RoutineOccurrenceStatus.Pending;
+
+    // The task generated for this occurrence in FyreApp (Routines page → Generate tasks)
+    public int? ClientTaskId { get; set; }
+    public ClientTask? ClientTask { get; set; }
     public DateTime? CompletedDate { get; set; }
 
     // e.g. "Servicing - Portables & Fire Equipment"
