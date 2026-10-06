@@ -48,6 +48,7 @@ public class RoutineListItemVm
     public DateTime DueDate { get; set; }
     public RoutineOccurrenceStatus Status { get; set; }
     public int? MaintenanceScheduleId { get; set; }
+    public int? ClientTaskId { get; set; }
 }
 
 public class RoutineListVm

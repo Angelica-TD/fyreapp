@@ -7,11 +7,21 @@
     ViewData["Title"] = "Routines";
     var f = Model.Filter;
 
-    string StatusLabel(RoutineOccurrenceStatus s) => s switch
+    string StatusLabel(RoutineOccurrenceStatus s) => FyreApp.Services.Routines.RoutineService.StatusLabel(s);
+
+    // The filters in effect (defaults included), for the download link and "select all matching"
+    var filterValues = new List<KeyValuePair<string, string>>
     {
-        RoutineOccurrenceStatus.Generated => "Task raised",
-        _ => s.ToString()
+        new("f", "true"),
+        new("search", f.Search ?? ""),
+        new("clientActive", f.ClientActive switch { true => "yes", false => "no", _ => "any" }),
+        new("dueFrom", f.DueFrom?.ToString("yyyy-MM-dd") ?? ""),
+        new("dueTo", f.DueTo?.ToString("yyyy-MM-dd") ?? "")
     };
+    filterValues.AddRange(f.PropertyStatus.Select(s => new KeyValuePair<string, string>("propertyStatus", s)));
+    filterValues.AddRange(f.Status.Select(s => new KeyValuePair<string, string>("status", s.ToString())));
+    var filterQuery = string.Join("&", filterValues.Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
 
     string StatusBadge(RoutineOccurrenceStatus s) => s switch
     {
@@ -29,6 +39,14 @@
     </div>
 
     <div class="card-body">
+        @if (TempData["Success"] is string ok)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @ok
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+
         <form method="get" asp-action="Index">
             <input type="hidden" name="f" value="true" />
 
@@ -101,7 +119,52 @@
             </div>
         </form>
 
-        <p class="text-muted mb-2">@Model.Total.ToString("N0") routine@(Model.Total == 1 ? "" : "s")</p>
+        @* Selection toolbar: Edit / Clear selection once something is ticked, as in Uptick; Download on the right *@
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span class="text-muted" id="routineCount">@Model.Total.ToString("N0") routine@(Model.Total == 1 ? "" : "s")</span>
+            <button type="button" class="btn btn-primary btn-sm d-none" id="editRoutines" data-bs-toggle="modal" data-bs-target="#editRoutinesModal">
+                Edit <span class="js-selected-count">0</span> Routines
+            </button>
+            <button type="button" class="btn btn-link btn-sm d-none" id="clearSelection">Clear selection</button>
+            @if (Model.Total > Model.Items.Count)
+            {
+                <button type="button" class="btn btn-link btn-sm d-none" id="selectAllMatching">Select all @Model.Total.ToString("N0") routines</button>
+            }
+            <a class="btn btn-link btn-sm ms-auto @(Model.Total == 0 ? "disabled" : "")" href="@Url.Action("Download")?@filterQuery">
+                <i class="bi bi-download"></i> Download (@Model.Total.ToString("N0"))
+            </a>
+        </div>
+
+        <form method="post" asp-action="GenerateTasks" id="generateForm">
+            <input type="hidden" name="allMatching" value="false" id="allMatching" />
+            <input type="hidden" name="returnUrl" value="@returnUrl" />
+            @foreach (var kv in filterValues)
+            {
+                <input type="hidden" name="@kv.Key" value="@kv.Value" />
+            }
+        </form>
+
+        <div class="modal fade" id="editRoutinesModal" tabindex="-1" aria-labelledby="editRoutinesTitle" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 class="modal-title h5" id="editRoutinesTitle">Edit <span class="js-selected-count">0</span> Routines</h2>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-2">You have selected <span class="js-selected-count">0</span> routines. Do you want to turn them into tasks?</p>
+                        <p class="small text-muted mb-0">
+                            One task is created per property, service group and month (e.g. "PM2026/11 Servicing - Portables &amp; Fire Equipment"),
+                            due at the end of that month, listing its routines. Routines that already have a task or are complete are skipped.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" form="generateForm">Generate Tasks</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         @if (Model.Items.Count == 0)
         {
@@ -113,6 +176,9 @@
                 <table class="table table-hover align-middle">
                     <thead>
                         <tr>
+                            <th style="width: 2rem">
+                                <input class="form-check-input" type="checkbox" id="selectPage" aria-label="Select all on this page" />
+                            </th>
                             <th>Routine</th>
                             <th>Property</th>
                             <th>Client</th>
@@ -124,6 +190,10 @@
                         @foreach (var r in Model.Items)
                         {
                             <tr>
+                                <td>
+                                    <input class="form-check-input js-routine" type="checkbox" name="ids" value="@r.Id" form="generateForm"
+                                           aria-label="Select @r.Routine at @r.PropertyRef" />
+                                </td>
                                 <td>
                                     @if (r.MaintenanceScheduleId.HasValue)
                                     {
@@ -146,7 +216,16 @@
                                     }
                                 </td>
                                 <td class="text-end text-nowrap">@r.DueDate.ToDisplayDate()</td>
-                                <td><span class="badge @StatusBadge(r.Status)">@StatusLabel(r.Status)</span></td>
+                                <td>
+                                    @if (r.ClientTaskId.HasValue)
+                                    {
+                                        <a asp-controller="Task" asp-action="Details" asp-route-id="@r.ClientTaskId" class="badge @StatusBadge(r.Status) text-decoration-none">@StatusLabel(r.Status)</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge @StatusBadge(r.Status)">@StatusLabel(r.Status)</span>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -157,4 +236,51 @@
         }
     </div>
 </div>
+
+@section Scripts {
+<script>
+(function () {
+    // Selection: ticked rows on this page, or every routine matching the filters ("Select all N routines")
+    const total = @Model.Total;
+    const boxes = Array.from(document.querySelectorAll('.js-routine'));
+    const selectPage = document.getElementById('selectPage');
+    const allMatching = document.getElementById('allMatching');
+    const edit = document.getElementById('editRoutines');
+    const clear = document.getElementById('clearSelection');
+    const selectAll = document.getElementById('selectAllMatching');
+    const count = document.getElementById('routineCount');
+
+    function refresh() {
+        const ticked = boxes.filter(b => b.checked).length;
+        const all = allMatching.value === 'true';
+        const selected = all ? total : ticked;
+
+        document.querySelectorAll('.js-selected-count').forEach(el => el.textContent = selected.toLocaleString());
+        edit.classList.toggle('d-none', selected === 0);
+        clear.classList.toggle('d-none', selected === 0);
+        count.classList.toggle('d-none', selected > 0);
+        if (selectAll) selectAll.classList.toggle('d-none', all || ticked !== boxes.length || boxes.length === 0);
+        if (selectPage) {
+            selectPage.checked = boxes.length > 0 && ticked === boxes.length;
+            selectPage.indeterminate = ticked > 0 && ticked < boxes.length;
+        }
+    }
+
+    boxes.forEach(b => b.addEventListener('change', () => { allMatching.value = 'false'; refresh(); }));
+    selectPage?.addEventListener('change', () => {
+        boxes.forEach(b => b.checked = selectPage.checked);
+        allMatching.value = 'false';
+        refresh();
+    });
+    selectAll?.addEventListener('click', () => { allMatching.value = 'true'; refresh(); });
+    clear.addEventListener('click', () => {
+        boxes.forEach(b => b.checked = false);
+        allMatching.value = 'false';
+        refresh();
+    });
+
+    refresh();
+})();
+</script>
+}
 
