@@ -54,7 +54,7 @@
                 <li>Rows skipped — invalid: <strong>@Model.SkippedInvalid</strong></li>
                 <li>Properties @(Model.DryRun ? "to link" : "linked") to their Uptick Property ref: <strong>@Model.SitesLinked</strong></li>
                 <li>Existing schedules @(Model.DryRun ? "to link" : "linked") to more Uptick routines: <strong>@Model.RoutineLinksAdded</strong></li>
-                <li>Routines (one per row) @(Model.DryRun ? "to add" : "added"): <strong>@Model.OccurrencesCreated</strong>, @(Model.DryRun ? "to update" : "updated"): <strong>@Model.OccurrencesUpdated</strong></li>
+                <li>Routines (one per row) @(Model.DryRun ? "to add" : "added"): <strong>@Model.OccurrencesCreated</strong>; existing ones moved forward (e.g. now complete in Uptick): <strong>@Model.OccurrencesUpdated</strong></li>
                 @if (Model.NewIntervals.Any())
                 {
                     <li>New intervals @(Model.DryRun ? "to create" : "created"): <strong>@string.Join(", ", Model.NewIntervals)</strong></li>

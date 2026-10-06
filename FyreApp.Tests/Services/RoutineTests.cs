@@ -53,6 +53,40 @@ public class RoutineTests
         Assert.Equal(RoutineOccurrenceStatus.Generated, (await db.RoutineOccurrences.SingleAsync()).Status);
     }
 
+    [Fact]
+    public async Task Reimport_OnlyMovesStatusForward_SoFyreAppTasksArentUndone()
+    {
+        using var db = DbContextFactory.Create();
+        db.Sites.Add(new Site { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
+        await db.SaveChangesAsync();
+        const string pending = "1,09 - Fire Hose Reels: Annual,2026-10-31,,,P,,Magidale,P-0152,Magidale Pty Ltd,";
+        const string complete = "1,09 - Fire Hose Reels: Annual,2026-10-31,,,C,2026-10-20,Magidale,P-0152,Magidale Pty Ltd,";
+
+        await Import(db, Routines(pending));
+
+        // Task raised in FyreApp
+        var occurrence = await db.RoutineOccurrences.SingleAsync();
+        var task = new ClientTask { Title = "PM2026/10", ClientId = occurrence.Site.ClientId, SiteId = occurrence.SiteId };
+        occurrence.ClientTask = task;
+        occurrence.Status = RoutineOccurrenceStatus.Generated;
+        await db.SaveChangesAsync();
+
+        // Uptick still says pending: nothing changes
+        var again = await Import(db, Routines(pending));
+        Assert.Equal((0, 0), (again.OccurrencesCreated, again.OccurrencesUpdated));
+        Assert.Equal((RoutineOccurrenceStatus.Generated, task.Id), (occurrence.Status, occurrence.ClientTaskId));
+
+        // Completed in Uptick: comes through, task link kept
+        var done = await Import(db, Routines(complete));
+        Assert.Equal(1, done.OccurrencesUpdated);
+        Assert.Equal((RoutineOccurrenceStatus.Complete, new DateTime(2026, 10, 20), task.Id),
+            (occurrence.Status, occurrence.CompletedDate, occurrence.ClientTaskId));
+
+        // And never back again
+        await Import(db, Routines(pending));
+        Assert.Equal(RoutineOccurrenceStatus.Complete, occurrence.Status);
+    }
+
     // -------------------------------------------------------
     // Routines page filters (Uptick defaults)
     // -------------------------------------------------------

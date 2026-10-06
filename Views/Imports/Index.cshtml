@@ -37,8 +37,14 @@
                     <li>Reports</li>
                     <li>Tasks (after routine schedules, so routine tasks link to them)</li>
                 </ol>
-                <p class="small text-muted mt-2 mb-0">Records already imported (same Uptick ID) are skipped, so an export can be re-run safely.</p>
-                <p class="small text-muted mt-2 mb-0">Reference data is the exception: re-importing it updates what's there, so fixes made in Uptick come through.</p>
+                <p class="small text-muted mt-2 mb-0">
+                    You can export everything from Uptick and import it again: records already in FyreApp (same Uptick ID)
+                    are skipped and only new ones are added.
+                </p>
+                <ul class="small text-muted mt-1 mb-0 ps-3">
+                    <li>Reference data is refreshed from the export, so fixes made in Uptick come through.</li>
+                    <li>Routines only move forward (pending → task raised → complete): completions in Uptick come through, tasks raised in FyreApp are kept.</li>
+                </ul>
                 <p class="small text-muted mt-2 mb-0">
                     In Uptick, include <strong>inactive / archived</strong> records when exporting clients and properties.
                     Otherwise records that refer to them get inactive <em>placeholder</em> clients and properties, which are
