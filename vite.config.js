@@ -10,6 +10,10 @@ export default defineConfig({
       input: {
         clientSearch: 'FyreFrontend/react/ClientSearch/index.jsx',
         taskSearch: 'FyreFrontend/react/TaskSearch/index.jsx'
+      },
+      output: {
+        // Fixed entry names so Razor views can reference them; asp-append-version handles cache busting
+        entryFileNames: 'assets/[name].js'
       }
     }
   }
