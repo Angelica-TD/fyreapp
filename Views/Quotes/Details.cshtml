@@ -62,14 +62,14 @@
             <div class="card-body">
                 <dl class="row mb-0">
                     <dt class="col-sm-4">Created by</dt>
-                    <dd class="col-sm-8">@q.CreatedBy?.FirstName @q.CreatedBy?.LastName · @q.CreatedAt.ToString("dd MMM yyyy")</dd>
+                    <dd class="col-sm-8">@q.CreatedBy?.FirstName @q.CreatedBy?.LastName · @q.CreatedAt.ToDisplayDate()</dd>
 
                     <dt class="col-sm-4">Expiry</dt>
                     <dd class="col-sm-8">
                         @if (q.ExpiryDate.HasValue)
                         {
                             <span class="@(q.ExpiryDate < DateTime.UtcNow ? "text-danger" : "")">
-                                @q.ExpiryDate.Value.ToString("dd MMM yyyy")
+                                @q.ExpiryDate.Value.ToDisplayDate()
                             </span>
                         }
                         else

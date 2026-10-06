@@ -63,8 +63,8 @@ public static class UiFieldBuilder
 
         return value switch
         {
-            DateTime dt => dt.ToString("d", CultureInfo.CurrentCulture),
-            DateTimeOffset dto => dto.ToString("d", CultureInfo.CurrentCulture),
+            DateTime dt => dt.ToDisplayDate(),
+            DateTimeOffset dto => dto.DateTime.ToDisplayDate(),
             bool b => b ? "Yes" : "No",
             _ => Convert.ToString(value, CultureInfo.CurrentCulture) ?? "—"
         };

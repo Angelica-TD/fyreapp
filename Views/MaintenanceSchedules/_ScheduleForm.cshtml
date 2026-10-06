@@ -43,7 +43,7 @@
 
 @if (schedule.Id > 0)
 {
-    <p class="mt-2"><strong>Next Maintenance:</strong> @schedule.NextRunDate.ToShortDateString()</p>
+    <p class="mt-2"><strong>Next Maintenance:</strong> @schedule.NextRunDate.ToDisplayDate()</p>
 
     <form asp-controller="MaintenanceSchedules" asp-action="Complete" method="post" class="row g-3">
         @Html.AntiForgeryToken()
@@ -79,8 +79,8 @@
                 @foreach (var entry in schedule.MaintenanceHistory.OrderByDescending(h => h.CompletedAt))
                 {
                     <tr>
-                        <td>@entry.CompletedAt.ToShortDateString()</td>
-                        <td>@entry.DueDateAtCompletion.ToShortDateString()</td>
+                        <td>@entry.CompletedAt.ToDisplayDate()</td>
+                        <td>@entry.DueDateAtCompletion.ToDisplayDate()</td>
                         <td>@(entry.Notes ?? "—")</td>
                     </tr>
                 }

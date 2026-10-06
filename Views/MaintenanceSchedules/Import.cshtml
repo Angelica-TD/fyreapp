@@ -107,7 +107,7 @@
                                 <td>@item.SiteName</td>
                                 <td>@item.PropertyRef</td>
                                 <td>@item.IntervalName</td>
-                                <td>@item.NextRunDate.ToString("dd/MM/yyyy")</td>
+                                <td>@item.NextRunDate.ToDisplayDate()</td>
                                 <td class="small">@string.Join("; ", item.Routines)</td>
                                 <td>
                                     @if (item.WillCreate)

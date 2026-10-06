@@ -114,19 +114,19 @@
 
             <div class="col-md-4">
                 <div class="text-muted small">Quote Expiry</div>
-                <div>@(q.ExpiryDate.HasValue ? q.ExpiryDate.Value.ToString("dd MMM yyyy") : "—")</div>
+                <div>@(q.ExpiryDate.HasValue ? q.ExpiryDate.Value.ToDisplayDate() : "—")</div>
             </div>
 
             <div class="col-md-4">
                 <div class="text-muted small">Created</div>
-                <div>@q.CreatedUtc.ToString("dd MMM yyyy HH:mm") UTC</div>
+                <div>@q.CreatedUtc.ToSydney().ToDisplayDateTime()</div>
             </div>
 
             @if (q.SentUtc.HasValue)
             {
                 <div class="col-md-4">
                     <div class="text-muted small">Sent to client</div>
-                    <div>@q.SentUtc.Value.ToString("dd MMM yyyy HH:mm") UTC</div>
+                    <div>@q.SentUtc.Value.ToSydney().ToDisplayDateTime()</div>
                 </div>
             }
 
@@ -134,7 +134,7 @@
             {
                 <div class="col-md-4">
                     <div class="text-muted small">Last updated</div>
-                    <div>@q.UpdatedUtc.Value.ToString("dd MMM yyyy HH:mm") UTC</div>
+                    <div>@q.UpdatedUtc.Value.ToSydney().ToDisplayDateTime()</div>
                 </div>
             }
         </div>

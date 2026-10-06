@@ -71,7 +71,7 @@ else
                         <a asp-action="Details" asp-route-id="@s.Id">@s.TargetLabel</a>
                     </td>
                     <td>@s.IntervalName</td>
-                    <td>@s.NextRunDate.ToShortDateString()</td>
+                    <td>@s.NextRunDate.ToDisplayDate()</td>
                     <td>
                         @{
                             var isThisMonth = s.NextRunDate.Year == DateTime.UtcNow.Year && s.NextRunDate.Month == DateTime.UtcNow.Month;
