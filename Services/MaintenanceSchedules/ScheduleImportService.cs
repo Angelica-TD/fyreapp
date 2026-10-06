@@ -306,8 +306,9 @@ public class ScheduleImportService : IScheduleImportService
             scheduleByKey[(group.Site.Id, group.Months)] = schedule;
         }
 
-        // Occurrences: one per routines row (as Uptick lists them), linked to their schedule.
-        // Re-importing updates status and dates, since Uptick moves them from pending to generated to complete.
+        // Occurrences: one per routines row (as Uptick lists them), linked to their schedule. New ones are added;
+        // ones already in FyreApp are left alone except to move their status forward (pending → task raised →
+        // complete), so completions in Uptick come through but tasks raised in FyreApp are never undone.
         var existingOccurrences = await _db.RoutineOccurrences
             .Where(o => o.ExternalId != null)
             .ToDictionaryAsync(o => o.ExternalId!, StringComparer.OrdinalIgnoreCase, ct);
@@ -318,12 +319,20 @@ public class ScheduleImportService : IScheduleImportService
         {
             if (row.ExternalId != null && !seenOccurrences.Add(row.ExternalId)) continue;
 
-            if (row.ExternalId == null || !existingOccurrences.TryGetValue(row.ExternalId, out var occurrence))
+            if (row.ExternalId != null && existingOccurrences.TryGetValue(row.ExternalId, out var current))
             {
-                occurrence = new RoutineOccurrence { ExternalId = row.ExternalId, SiteId = row.SiteId };
-                newOccurrences.Add(occurrence);
+                if (StatusRank(row.Status) <= StatusRank(current.Status)) continue;
+
+                result.OccurrencesUpdated++;
+                if (dryRun) continue;
+                current.Status = row.Status;
+                current.CompletedDate = row.Completed ?? current.CompletedDate;
+                current.UptickData = row.UptickData;
+                continue;
             }
-            else result.OccurrencesUpdated++;
+
+            var occurrence = new RoutineOccurrence { ExternalId = row.ExternalId, SiteId = row.SiteId };
+            newOccurrences.Add(occurrence);
 
             if (dryRun) continue;
 
@@ -484,6 +493,14 @@ public class ScheduleImportService : IScheduleImportService
 
     private static bool IsTaskRaised(string? status) =>
         (status ?? "").Trim().Equals("G", StringComparison.OrdinalIgnoreCase);
+
+    // How far along an occurrence is; re-imports only ever move it forward
+    private static int StatusRank(RoutineOccurrenceStatus s) => s switch
+    {
+        RoutineOccurrenceStatus.Pending => 1,
+        RoutineOccurrenceStatus.Generated => 2,
+        _ => 3 // Complete, Cancelled
+    };
 
     private static RoutineOccurrenceStatus OccurrenceStatus(string? status, string? completedDate) =>
         !string.IsNullOrWhiteSpace(completedDate) ? RoutineOccurrenceStatus.Complete
