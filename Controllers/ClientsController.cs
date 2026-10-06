@@ -269,11 +269,14 @@ namespace FyreApp.Controllers
             if (!string.IsNullOrWhiteSpace(search))
                 clients = clients.Where(c =>
                     c.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    (c.PrimaryContactName ?? "").Contains(search, StringComparison.OrdinalIgnoreCase)
+                    (c.PrimaryContactName ?? "").Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(c.DisplayRef, search.Trim(), StringComparison.OrdinalIgnoreCase)
                 ).ToList();
 
+            // Id is only used for links; DisplayRef (Uptick ID or FyreApp ref) is the one shown to users
             return Json(clients.Select(c => new {
                 c.Id,
+                c.DisplayRef,
                 c.Name,
                 c.PrimaryContactName,
                 c.PrimaryContactMobile,

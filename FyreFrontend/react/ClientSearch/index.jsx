@@ -4,7 +4,7 @@ import { SearchToolbar, ToggleSwitch } from '../shared/SearchToolbar'
 import { SearchTable } from '../shared/SearchTable'
 
 const columns = [
-  { key: 'id',                   label: 'ID' },
+  { key: 'displayRef',           label: 'Ref', render: row => row.displayRef ?? '—' },
   { key: 'name',                 label: 'Client' },
   { key: 'primaryContactName',   label: 'Primary contact' },
   { key: 'primaryContactMobile', label: 'Phone (BH)' },
@@ -41,7 +41,7 @@ function ClientSearch() {
 
   return (
     <>
-      <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Search by name or contact…">
+      <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Search by name, contact or ref…">
         <ToggleSwitch
           id="showInactiveToggle"
           label="Show inactive"

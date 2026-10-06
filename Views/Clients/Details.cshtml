@@ -44,7 +44,13 @@
         <div class="card">
             <div class="card-header">
                 <div class="d-flex align-items-center justify-content-between">
-                    <h5 class="mb-0">@c.Name</h5>
+                    <h5 class="mb-0">
+                        @c.Name
+                        @if (c.DisplayRef != null)
+                        {
+                            <span class="badge bg-light text-dark border align-middle ms-1">@c.DisplayRef</span>
+                        }
+                    </h5>
                     <button class="btn btn-sm text-uppercase text-primary"
                             type="button"
                             data-bs-toggle="modal"
@@ -123,6 +129,7 @@
                     <table class="table table-sm table-hover">
                         <thead>
                             <tr>
+                                <th>Ref</th>
                                 <th>Property Name</th>
                                 <th>Assets</th>
                                 <th></th>
@@ -132,6 +139,7 @@
                             @foreach (var site in c.Sites)
                             {
                                 <tr>
+                                    <td class="text-nowrap text-muted">@site.DisplayRef</td>
                                     <td>@site.Name</td>
                                     <td>@site.Assets.Count</td>
                                     <td>
@@ -166,6 +174,7 @@
                     <table class="table table-sm table-hover">
                         <thead>
                             <tr>
+                                <th>Ref</th>
                                 <th>Asset</th>
                                 <th>Property</th>
                                 <th></th>
@@ -177,6 +186,7 @@
                                 @foreach (var asset in site.Assets)
                                 {
                                     <tr>
+                                        <td class="text-nowrap text-muted">@asset.DisplayRef</td>
                                         <td>@asset.Name</td>
                                         <td class="text-muted">@site.Name</td>
                                         <td>
@@ -209,6 +219,7 @@
                     <table class="table table-sm table-hover">
                         <thead>
                             <tr>
+                                <th>Ref</th>
                                 <th>Title</th>
                                 <th>Property</th>
                                 <th>Status</th>
@@ -219,6 +230,7 @@
                             @foreach (var task in Model.Tasks)
                             {
                                 <tr>
+                                    <td class="text-nowrap text-muted">@task.DisplayRef</td>
                                     <td>@task.Title</td>
                                     <td class="text-muted">@(task.Site?.Name ?? "—")</td>
                                     <td>@task.Status</td>
@@ -250,6 +262,7 @@
                     <table class="table table-sm table-hover">
                         <thead>
                             <tr>
+                                <th>Ref</th>
                                 <th>Property</th>
                                 <th>Asset</th>
                                 <th>Interval</th>
@@ -260,6 +273,7 @@
                             @foreach (var (ms, siteName, assetName) in allSchedules)
                             {
                                 <tr>
+                                    <td class="text-nowrap text-muted">@ms.DisplayRef</td>
                                     <td>@siteName</td>
                                     <td class="text-muted">@(assetName ?? "—")</td>
                                     <td>@(ms.MaintenanceInterval?.Name ?? "—")</td>

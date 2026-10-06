@@ -12,6 +12,13 @@ public class Asset
     [StringLength(64)]
     public string? ExternalId { get; set; }
 
+    // FyreApp ref (e.g. "A-1001"), assigned by the database when there's no Uptick ID
+    [StringLength(20)]
+    public string? FyreRef { get; set; }
+
+    // Shown to users: the Uptick ID if imported, otherwise the FyreApp ref
+    public string? DisplayRef => string.IsNullOrWhiteSpace(ExternalId) ? FyreRef : ExternalId;
+
     // Uptick asset ref within the property (e.g. "4")
     public string? Ref { get; set; }
     public string? Location { get; set; }

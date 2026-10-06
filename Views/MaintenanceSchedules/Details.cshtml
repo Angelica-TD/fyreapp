@@ -17,7 +17,13 @@
     </ol>
 </nav>
 
-<h1>@targetName</h1>
+<h1>
+    @targetName
+    @if (Model.DisplayRef != null)
+    {
+        <span class="badge bg-light text-dark border align-middle">@Model.DisplayRef</span>
+    }
+</h1>
 
 <p class="text-muted">
     @client?.Name

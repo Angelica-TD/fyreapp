@@ -34,7 +34,8 @@ function DueDate({ iso, status }) {
 }
 
 const columns = [
-  { key: 'title',       label: 'Title',    render: row => <span className="fw-semibold">{row.title}</span> },
+  { key: 'displayRef',  label: 'Ref',      render: row => row.displayRef ?? '—' },
+  { key: 'title',     label: 'Title',    render: row => <span className="fw-semibold">{row.title}</span> },
   { key: 'clientName',  label: 'Client' },
   { key: 'siteAddress', label: 'Property' },
   {
@@ -94,7 +95,7 @@ function TaskSearch() {
 
   return (
     <>
-      <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Search by title or client…">
+      <SearchToolbar query={query} onQueryChange={setQuery} placeholder="Search by title, client or ref…">
         <select
           className="form-select w-auto"
           value={status}

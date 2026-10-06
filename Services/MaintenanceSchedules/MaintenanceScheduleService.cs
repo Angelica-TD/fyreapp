@@ -55,6 +55,7 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
             .Select(s => new
             {
                 s.Id,
+                s.FyreRef,
                 s.TargetType,
                 s.NextRunDate,
                 IntervalName = s.MaintenanceInterval.Name,
@@ -74,6 +75,7 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
         return rows.Select(r => new MaintenanceScheduleListItemVm
         {
             Id = r.Id,
+            DisplayRef = r.FyreRef,
             ClientName = r.ClientName,
             TargetLabel = r.TargetLabel,
             IntervalName = r.IntervalName,

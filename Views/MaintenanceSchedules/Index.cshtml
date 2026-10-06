@@ -52,6 +52,7 @@ else
     <table class="table table-hover">
         <thead>
             <tr>
+                <th>Ref</th>
                 <th>Client</th>
                 <th>Property / Asset</th>
                 <th>Interval</th>
@@ -64,6 +65,7 @@ else
             @foreach (var s in Model.Schedules)
             {
                 <tr>
+                    <td class="text-nowrap text-muted">@s.DisplayRef</td>
                     <td>@s.ClientName</td>
                     <td>
                         <a asp-action="Details" asp-route-id="@s.Id">@s.TargetLabel</a>
