@@ -58,7 +58,7 @@
                     @if (q.ExpiryDate.HasValue)
                     {
                         <span class="@(q.ExpiryDate < DateTime.UtcNow ? "text-danger" : "")">
-                            @q.ExpiryDate.Value.ToString("dd MMM yyyy")
+                            @q.ExpiryDate.Value.ToDisplayDate()
                         </span>
                     }
                     else
@@ -66,7 +66,7 @@
                         <span class="text-muted">—</span>
                     }
                 </td>
-                <td class="text-muted small">@q.CreatedAt.ToString("dd MMM yyyy")</td>
+                <td class="text-muted small">@q.CreatedAt.ToDisplayDate()</td>
                 <td class="text-end">
                     <a asp-action="Details" asp-route-id="@q.Id" class="btn btn-sm btn-outline-secondary">View</a>
                 </td>

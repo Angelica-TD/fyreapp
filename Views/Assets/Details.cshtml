@@ -47,9 +47,9 @@
         ("Size", Model.Size),
         ("Barcode", Model.Barcode),
         ("Last result", Model.Compliance),
-        ("Base date", Model.BaseDate?.ToString("dd/MM/yyyy")),
-        ("Installed", Model.InstallationDate?.ToString("dd/MM/yyyy")),
-        ("Last service", Model.LastServiceDate?.ToString("dd/MM/yyyy"))
+        ("Base date", Model.BaseDate.ToDisplayDate()),
+        ("Installed", Model.InstallationDate.ToDisplayDate()),
+        ("Last service", Model.LastServiceDate.ToDisplayDate())
     }.Where(d => !string.IsNullOrWhiteSpace(d.Value)).ToList();
 }
 

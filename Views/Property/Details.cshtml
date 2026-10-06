@@ -131,7 +131,7 @@ else
                         }
                     </td>
                     <td>@asset.Location</td>
-                    <td class="text-nowrap">@asset.LastServiceDate?.ToString("dd/MM/yyyy")</td>
+                    <td class="text-nowrap">@asset.LastServiceDate.ToDisplayDate()</td>
                     <td>
                         <a asp-controller="Assets"
                            asp-action="Details"
@@ -250,7 +250,7 @@ else
                 {
                     <tr class="@(d.Active ? "" : "text-muted")">
                         <td class="text-nowrap">@d.DisplayRef</td>
-                        <td class="text-nowrap">@d.RaisedUtc.ToSydney()?.ToString("dd/MM/yyyy")</td>
+                        <td class="text-nowrap">@d.RaisedUtc.ToSydney().ToDisplayDate()</td>
                         <td>@d.RemarkType</td>
                         <td>
                             @if (d.Asset != null)
@@ -308,8 +308,8 @@ else
                     <tr>
                         <td class="text-nowrap">@r.DisplayRef</td>
                         <td>@r.ReportType</td>
-                        <td class="text-nowrap">@r.InspectedDate?.ToString("dd/MM/yyyy")</td>
-                        <td class="text-nowrap">@r.IssuedDate?.ToString("dd/MM/yyyy")</td>
+                        <td class="text-nowrap">@r.InspectedDate.ToDisplayDate()</td>
+                        <td class="text-nowrap">@r.IssuedDate.ToDisplayDate()</td>
                         <td>@r.Technician</td>
                         <td>@r.TaskName</td>
                         <td>

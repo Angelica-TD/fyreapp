@@ -284,7 +284,7 @@
                                     <td>@siteName</td>
                                     <td class="text-muted">@(assetName ?? "—")</td>
                                     <td>@(ms.MaintenanceInterval?.Name ?? "—")</td>
-                                    <td>@ms.NextRunDate.ToShortDateString()</td>
+                                    <td>@ms.NextRunDate.ToDisplayDate()</td>
                                 </tr>
                             }
                         </tbody>

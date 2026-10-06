@@ -28,7 +28,7 @@ function DueDate({ iso, status }) {
     && status !== 'Cancelled'
   return (
     <span className={overdue ? 'text-danger fw-semibold' : ''}>
-      {due.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+      {due.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
     </span>
   )
 }

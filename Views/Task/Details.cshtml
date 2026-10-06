@@ -62,7 +62,7 @@
             <dd class="col-sm-9">
                 @if (Model.DueDateUtc.HasValue)
                 {
-                    @Model.DueDateUtc?.ToSydney().ToString("f")
+                    @Model.DueDateUtc.ToDisplayDate()
                 }
                 else
                 {
@@ -71,12 +71,12 @@
             </dd>
 
             <dt class="col-sm-3">Created</dt>
-            <dd class="col-sm-9">@Model.CreatedUtc.ToSydney().ToString("f")</dd>
+            <dd class="col-sm-9">@Model.CreatedUtc.ToSydney().ToDisplayDateTime()</dd>
 
             @if (Model.CompletedUtc.HasValue)
             {
                 <dt class="col-sm-3">Completed</dt>
-                <dd class="col-sm-9">@Model.CompletedUtc.Value.ToSydney().ToString("f")</dd>
+                <dd class="col-sm-9">@Model.CompletedUtc.Value.ToSydney().ToDisplayDateTime()</dd>
             }
         </dl>
     </div>

@@ -69,7 +69,7 @@
                             </td>
                             <td class="text-end">@q.Amount.ToString("C")</td>
                             <td class="text-nowrap">
-                                @(q.ExpiryDate.HasValue ? q.ExpiryDate.Value.ToString("dd MMM yyyy") : "—")
+                                @(q.ExpiryDate.HasValue ? q.ExpiryDate.Value.ToDisplayDate() : "—")
                             </td>
                             <td class="text-end">
                                 <a class="btn btn-sm btn-outline-secondary"

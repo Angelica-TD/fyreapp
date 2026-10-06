@@ -77,7 +77,7 @@
                 </tr>
                 <tr>
                     <th class="text-muted fw-normal">Quote expires</th>
-                    <td>@(Model.ExpiryDate.HasValue ? Model.ExpiryDate.Value.ToString("dd MMM yyyy") : "—")</td>
+                    <td>@(Model.ExpiryDate.HasValue ? Model.ExpiryDate.Value.ToDisplayDate() : "—")</td>
                 </tr>
                 @if (!string.IsNullOrWhiteSpace(Model.Description))
                 {
