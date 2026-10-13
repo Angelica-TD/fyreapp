@@ -112,6 +112,9 @@ public class AssetImporter : UptickImporter
         a.BaseDate = row.GetDate("Base Date");
         a.InstallationDate = row.GetDate("Installation Date");
         a.LastServiceDate = row.GetDate("Last Service Date");
+        a.InactiveDate = row.GetTimestampUtc("Inactive Date");
+        a.InternalNote = row.Get("Internal Note");
+        a.InspectionOrder = row.GetInt("Inspection Order");
 
         // Uptick has one type per asset: a changed type replaces the old one
         if (type != null && !a.AssetTypes.Contains(type))

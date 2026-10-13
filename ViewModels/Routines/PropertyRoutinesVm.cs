@@ -21,6 +21,11 @@ public class PropertyRoutinesVm
 public class PropertyRoutineGroupVm
 {
     public string Name { get; set; } = string.Empty;
+
+    // Under the group name, as in Uptick: who usually does it and the estimated time for the year
+    public string? Technician { get; set; }
+    public int EstimatedMinutes { get; set; }
+
     public List<PropertyRoutineRowVm> Rows { get; set; } = new();
 }
 

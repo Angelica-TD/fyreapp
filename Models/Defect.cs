@@ -52,6 +52,12 @@ public class Defect
 
     public DateTime? RaisedUtc { get; set; }
 
+    // When it was closed off, e.g. fixed or replaced (Uptick "Inactive Date")
+    public DateTime? InactiveUtc { get; set; }
+
+    // When it was quoted (Uptick "Quoted Date", a calendar date)
+    public DateTime? QuotedDate { get; set; }
+
     // Uptick task / quote references
     public string? RaisedOnTaskRef { get; set; }
     public string? QuoteRef { get; set; }

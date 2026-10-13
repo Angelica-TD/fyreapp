@@ -374,6 +374,18 @@ public class ClientImportService : IClientImportService
             BillingEmail = Get("Billing Contact: Email To", "Billing To Emails", "Billing Email"),
             BillingCcEmail = Get("Billing Contact: Email CC", "Billing CC Emails", "Billing CC Email"),
             BillingAddress = Get("Billing Contact: Address", "Billing Address"),
+
+            PrimaryContactPhone = Get("Primary Contact BH"),
+            PrimaryContactAfterHours = Get("Primary Contact AH"),
+            Reference = Get("Reference"),
+            PrimarySector = Get("Primary Sector"),
+            Notes = Get("Notes"),
+            BillingRequirements = Get("Billing Requirements", "Billing Contact: Requirements"),
+            ReportOrganisation = Get("Report Contact: Organisation"),
+            ReportAttentionTo = Get("Report Contact: Attention To"),
+            ReportAddress = Get("Report Contact: Address"),
+            ReportEmail = Get("Report Contact: Email To"),
+            ReportCcEmail = Get("Report Contact: Email CC"),
         };
 
         // No ExternalId: nothing to match on, so each row is its own client
@@ -502,6 +514,17 @@ public class ClientImportService : IClientImportService
             ""BillingEmail"",
             ""BillingCcEmail"",
             ""BillingAddress"",
+            ""PrimaryContactPhone"",
+            ""PrimaryContactAfterHours"",
+            ""Reference"",
+            ""PrimarySector"",
+            ""Notes"",
+            ""BillingRequirements"",
+            ""ReportOrganisation"",
+            ""ReportAttentionTo"",
+            ""ReportAddress"",
+            ""ReportEmail"",
+            ""ReportCcEmail"",
             ""UptickData""
         ) VALUES");
 
@@ -530,6 +553,17 @@ public class ClientImportService : IClientImportService
                 P("BillingEmail"),
                 P("BillingCcEmail"),
                 P("BillingAddress"),
+                P("PrimaryContactPhone"),
+                P("PrimaryContactAfterHours"),
+                P("Reference"),
+                P("PrimarySector"),
+                P("Notes"),
+                P("BillingRequirements"),
+                P("ReportOrganisation"),
+                P("ReportAttentionTo"),
+                P("ReportAddress"),
+                P("ReportEmail"),
+                P("ReportCcEmail"),
                 P("UptickData"),
             }));
                 sql.Append(")");
@@ -553,6 +587,17 @@ public class ClientImportService : IClientImportService
                 parameters.Add(new Npgsql.NpgsqlParameter(P("BillingEmail"), (object?)c.BillingEmail ?? DBNull.Value));
                 parameters.Add(new Npgsql.NpgsqlParameter(P("BillingCcEmail"), (object?)c.BillingCcEmail ?? DBNull.Value));
                 parameters.Add(new Npgsql.NpgsqlParameter(P("BillingAddress"), (object?)c.BillingAddress ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("PrimaryContactPhone"), (object?)c.PrimaryContactPhone ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("PrimaryContactAfterHours"), (object?)c.PrimaryContactAfterHours ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("Reference"), (object?)c.Reference ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("PrimarySector"), (object?)c.PrimarySector ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("Notes"), (object?)c.Notes ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("BillingRequirements"), (object?)c.BillingRequirements ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("ReportOrganisation"), (object?)c.ReportOrganisation ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("ReportAttentionTo"), (object?)c.ReportAttentionTo ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("ReportAddress"), (object?)c.ReportAddress ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("ReportEmail"), (object?)c.ReportEmail ?? DBNull.Value));
+                parameters.Add(new Npgsql.NpgsqlParameter(P("ReportCcEmail"), (object?)c.ReportCcEmail ?? DBNull.Value));
                 parameters.Add(new Npgsql.NpgsqlParameter(P("UptickData"), NpgsqlTypes.NpgsqlDbType.Json) { Value = (object?)c.UptickData ?? DBNull.Value });
             }
 
@@ -604,6 +649,17 @@ public class ClientImportService : IClientImportService
             c.BillingEmail = from.BillingEmail;
             c.BillingCcEmail = from.BillingCcEmail;
             c.BillingAddress = from.BillingAddress;
+            c.PrimaryContactPhone = from.PrimaryContactPhone;
+            c.PrimaryContactAfterHours = from.PrimaryContactAfterHours;
+            c.Reference = from.Reference;
+            c.PrimarySector = from.PrimarySector;
+            c.Notes = from.Notes;
+            c.BillingRequirements = from.BillingRequirements;
+            c.ReportOrganisation = from.ReportOrganisation;
+            c.ReportAttentionTo = from.ReportAttentionTo;
+            c.ReportAddress = from.ReportAddress;
+            c.ReportEmail = from.ReportEmail;
+            c.ReportCcEmail = from.ReportCcEmail;
             c.IsPlaceholder = false;
         }
 

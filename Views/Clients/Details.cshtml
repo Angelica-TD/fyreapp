@@ -68,6 +68,35 @@
             <div class="mt-3">@await Html.PartialAsync("_PlaceholderNotice", "client")</div>
         }
 
+        @{
+            // From Uptick; only what's filled in is shown
+            var reportContact = string.Join("\n", new[] { c.ReportOrganisation, c.ReportAttentionTo, c.ReportAddress, c.ReportEmail, c.ReportCcEmail == null ? null : $"CC {c.ReportCcEmail}" }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
+            var moreDetails = new (string Label, string? Value)[]
+            {
+                ("Reference", c.Reference),
+                ("Sector", c.PrimarySector),
+                ("Notes", c.Notes),
+                ("Billing requirements", c.BillingRequirements),
+                ("Reports to", reportContact)
+            }.Where(d => !string.IsNullOrWhiteSpace(d.Value)).ToList();
+        }
+
+        @if (moreDetails.Any())
+        {
+            <div class="card mt-3">
+                <div class="card-body">
+                    @foreach (var (label, value) in moreDetails)
+                    {
+                        <div class="row py-2">
+                            <div class="col-sm-6"><strong>@label</strong></div>
+                            <div class="col-sm-6" style="white-space: pre-line">@value</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
         @await Html.PartialAsync("_UptickData", c.UptickData)
 
         <div class="d-flex justify-content-between mt-3">

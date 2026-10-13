@@ -44,6 +44,15 @@ public class Asset
     public DateTime? InstallationDate { get; set; }
     public DateTime? LastServiceDate { get; set; }
 
+    // When it was made inactive (Uptick "Inactive Date")
+    public DateTime? InactiveDate { get; set; }
+
+    // Office note, e.g. "4.5kg installed to be exchanged for 2.5kg" (Uptick "Internal Note")
+    public string? InternalNote { get; set; }
+
+    // The order techs inspect the property's assets in (Uptick "Inspection Order")
+    public int? InspectionOrder { get; set; }
+
     // FK → Site (one site only)
     public int SiteId { get; set; }
     public Site Site { get; set; } = null!;

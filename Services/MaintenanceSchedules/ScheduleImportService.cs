@@ -25,7 +25,7 @@ public class ScheduleImportService : IScheduleImportService
     private sealed record OccurrenceRow(
         string? ExternalId, int SiteId, int Months, string Routine, RoutineServiceLevel? Level, DateTime Due,
         DateTime? ToleranceStart, DateTime? ToleranceEnd, RoutineOccurrenceStatus Status, DateTime? Completed,
-        string? ServiceGroup, string? UptickData);
+        string? ServiceGroup, string? DefaultTechnician, string? Subcontractor, int? EstimatedMinutes, string? UptickData);
 
     private sealed class Group
     {
@@ -217,7 +217,8 @@ public class ScheduleImportService : IScheduleImportService
                 Get("ID"), site.Id, months.Value, routine.Trim(), level, due.Value,
                 ParseDate(Get("Tolerance Period Start Date") ?? ""), ParseDate(Get("Tolerance Period End Date") ?? ""),
                 OccurrenceStatus(Get("Status"), Get("Completed Date")), ParseDate(Get("Completed Date") ?? ""),
-                Get("Service group"), UptickJson.Serialize(row)));
+                Get("Service group"), Get("Default Technician"), Get("Subcontractor"), ParseMinutes(Get("Estimated Duration")),
+                UptickJson.Serialize(row)));
         }
 
         // Existing schedules and intervals
@@ -321,12 +322,21 @@ public class ScheduleImportService : IScheduleImportService
 
             if (row.ExternalId != null && existingOccurrences.TryGetValue(row.ExternalId, out var current))
             {
-                if (StatusRank(row.Status) <= StatusRank(current.Status)) continue;
+                var statusForward = StatusRank(row.Status) > StatusRank(current.Status);
+                var changed = UptickRowChange.ShouldUpdate(row.UptickData, current.UptickData);
+                if (!statusForward && !changed) continue;
 
                 result.OccurrencesUpdated++;
                 if (dryRun) continue;
-                current.Status = row.Status;
-                current.CompletedDate = row.Completed ?? current.CompletedDate;
+                if (statusForward)
+                {
+                    current.Status = row.Status;
+                    current.CompletedDate = row.Completed ?? current.CompletedDate;
+                }
+                // Who does it and how long it takes follow Uptick
+                current.DefaultTechnician = Cut(row.DefaultTechnician, 200);
+                current.Subcontractor = Cut(row.Subcontractor, 200);
+                current.EstimatedMinutes = row.EstimatedMinutes;
                 current.UptickData = row.UptickData;
                 continue;
             }
@@ -344,7 +354,10 @@ public class ScheduleImportService : IScheduleImportService
             occurrence.ToleranceEnd = row.ToleranceEnd;
             occurrence.Status = row.Status;
             occurrence.CompletedDate = row.Completed;
-            occurrence.ServiceGroup = row.ServiceGroup is { Length: > 100 } g ? g[..100] : row.ServiceGroup;
+            occurrence.ServiceGroup = Cut(row.ServiceGroup, 100);
+            occurrence.DefaultTechnician = Cut(row.DefaultTechnician, 200);
+            occurrence.Subcontractor = Cut(row.Subcontractor, 200);
+            occurrence.EstimatedMinutes = row.EstimatedMinutes;
             occurrence.UptickData = row.UptickData;
         }
         result.OccurrencesCreated = newOccurrences.Count;
@@ -514,6 +527,14 @@ public class ScheduleImportService : IScheduleImportService
 
     private static string NameKey(string clientName, string siteName) =>
         $"{TabularFileReader.NormalizeHeader(clientName)}|{TabularFileReader.NormalizeHeader(siteName)}";
+
+    private static string? Cut(string? s, int max) => s is { Length: var n } && n > max ? s[..max] : s;
+
+    // Uptick durations, e.g. "0:30:00" or "1:15:00" -> minutes
+    public static int? ParseMinutes(string? input) =>
+        TimeSpan.TryParse(input, System.Globalization.CultureInfo.InvariantCulture, out var t) && t > TimeSpan.Zero
+            ? (int)Math.Round(t.TotalMinutes)
+            : null;
 
     private static DateTime? ParseDate(string input)
     {

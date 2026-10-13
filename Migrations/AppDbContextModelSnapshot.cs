@@ -176,8 +176,17 @@ namespace FyreApp.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<DateTime?>("InactiveDate")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<int?>("InspectionOrder")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("InstallationDate")
                         .HasColumnType("timestamptz");
+
+                    b.Property<string>("InternalNote")
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
@@ -373,6 +382,9 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("BillingRequirements")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("Created")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamptz")
@@ -395,9 +407,15 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
                     b.Property<string>("PrimaryContactAddress")
                         .HasMaxLength(320)
                         .HasColumnType("character varying(320)");
+
+                    b.Property<string>("PrimaryContactAfterHours")
+                        .HasColumnType("text");
 
                     b.Property<string>("PrimaryContactCcEmail")
                         .HasMaxLength(320)
@@ -414,6 +432,30 @@ namespace FyreApp.Migrations
                     b.Property<string>("PrimaryContactName")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PrimaryContactPhone")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PrimarySector")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reference")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReportAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReportAttentionTo")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReportCcEmail")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReportEmail")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReportOrganisation")
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("Updated")
                         .HasColumnType("timestamptz");
@@ -625,6 +667,9 @@ namespace FyreApp.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<DateTime?>("InactiveUtc")
+                        .HasColumnType("timestamptz");
+
                     b.Property<string>("Location")
                         .HasColumnType("text");
 
@@ -636,6 +681,9 @@ namespace FyreApp.Migrations
 
                     b.Property<string>("QuoteStatus")
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("QuotedDate")
+                        .HasColumnType("timestamptz");
 
                     b.Property<string>("RaisedOnTaskRef")
                         .HasColumnType("text");
@@ -969,8 +1017,15 @@ namespace FyreApp.Migrations
                     b.Property<DateTime?>("CompletedDate")
                         .HasColumnType("timestamptz");
 
+                    b.Property<string>("DefaultTechnician")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<DateTime>("DueDate")
                         .HasColumnType("timestamptz");
+
+                    b.Property<int?>("EstimatedMinutes")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ExternalId")
                         .HasMaxLength(64)
@@ -996,6 +1051,10 @@ namespace FyreApp.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Subcontractor")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<DateTime?>("ToleranceEnd")
                         .HasColumnType("timestamptz");

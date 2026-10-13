@@ -62,7 +62,19 @@
                     @foreach (var group in Model.Groups)
                     {
                         <tr class="routine-grid-group">
-                            <th colspan="13">@group.Name</th>
+                            <th colspan="13">
+                                @group.Name
+                                @if (group.Technician != null || group.EstimatedMinutes > 0)
+                                {
+                                    <div class="small fw-normal text-muted">
+                                        @string.Join(" · ", new[]
+                                        {
+                                            group.Technician,
+                                            group.EstimatedMinutes > 0 ? $"{group.EstimatedMinutes / 60.0:0.#}h estimated" : null
+                                        }.Where(s => s != null))
+                                    </div>
+                                }
+                            </th>
                         </tr>
                         @foreach (var row in group.Rows)
                         {

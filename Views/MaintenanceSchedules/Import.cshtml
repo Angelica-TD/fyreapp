@@ -47,7 +47,7 @@
             <span class="text-muted small ms-2">@Model.FileName</span>
             <ul class="mb-0 mt-2">
                 <li>Rows read: <strong>@Model.TotalRows</strong></li>
-                <li>Routines (one per row) @(Model.DryRun ? "to add" : "added"): <strong>@Model.OccurrencesCreated</strong>; existing ones moved forward (e.g. now complete in Uptick): <strong>@Model.OccurrencesUpdated</strong></li>
+                <li>Routines (one per row) @(Model.DryRun ? "to add" : "added"): <strong>@Model.OccurrencesCreated</strong>; existing ones updated from Uptick (status only moves forward, e.g. now complete; technician and duration follow Uptick): <strong>@Model.OccurrencesUpdated</strong></li>
                 <li>Rows skipped — property not found: <strong>@Model.SkippedSiteNotFound</strong></li>
                 <li>Rows skipped — unsupported frequency: <strong>@Model.SkippedUnsupportedFrequency</strong></li>
                 <li>Rows skipped — invalid: <strong>@Model.SkippedInvalid</strong></li>
