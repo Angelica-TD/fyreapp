@@ -1,0 +1,85 @@
+@model FyreApp.ViewModels.Sites.PropertyPageVm
+@using FyreApp.Infrastructure
+
+@* The property's remarks (Uptick: Assets → Open remarks), most severe first *@
+@{
+    var site = Model.Site;
+}
+
+<div class="card property-card">
+    <div class="card-header">
+        <span>@(Model.ShowClosedRemarks ? "All remarks" : "Open remarks") (@Model.Remarks.Count)</span>
+        <div class="d-flex gap-4">
+            @if (Model.ShowClosedRemarks)
+            {
+                <a class="card-action" asp-action="Details" asp-route-id="@site.Id" asp-route-tab="remarks">Open only</a>
+            }
+            else
+            {
+                <a class="card-action" asp-action="Details" asp-route-id="@site.Id" asp-route-tab="remarks" asp-route-closed="true">Show closed</a>
+            }
+            <a class="card-action" asp-action="Details" asp-route-id="@site.Id" asp-route-tab="assets"><i class="bi bi-arrow-left"></i> Assets</a>
+        </div>
+    </div>
+
+    @if (!Model.Remarks.Any())
+    {
+        <div class="card-body text-muted">No @(Model.ShowClosedRemarks ? "" : "open ")remarks for this property.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th>Ref</th>
+                        <th>Severity</th>
+                        <th>Type</th>
+                        <th>Asset</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Raised</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.Remarks)
+                    {
+                        <tr class="@(d.Active ? "" : "text-muted")">
+                            <td class="text-nowrap">@d.DisplayRef</td>
+                            <td><span class="badge text-uppercase @RemarkSeverity.BadgeCss(d.Severity)">@(d.SeverityLabel ?? d.Severity?.ToString())</span></td>
+                            <td>@d.RemarkType</td>
+                            <td>
+                                @if (d.Asset != null)
+                                {
+                                    <a asp-controller="Assets" asp-action="Details" asp-route-id="@d.Asset.Id">@d.Asset.Name</a>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(d.Location)) { <div class="small text-muted">@d.Location</div> }
+                            </td>
+                            <td>
+                                @d.Description
+                                @if (!string.IsNullOrWhiteSpace(d.Resolution)) { <div class="small text-muted">Resolution: @d.Resolution</div> }
+                            </td>
+                            <td>
+                                @d.Status
+                                @if (d.InactiveUtc is DateTime closed) { <div class="small text-muted">Closed @closed.ToSydney().ToDisplayDate()</div> }
+                                @if (!string.IsNullOrWhiteSpace(d.QuoteRef))
+                                {
+                                    <div class="small text-muted">Quote @d.QuoteRef @d.QuoteStatus@(d.QuotedDate is DateTime q ? $", {q.ToDisplayDate()}" : "")</div>
+                                }
+                                @if (d.RepairTaskId.HasValue)
+                                {
+                                    <div class="small">Repair <a asp-controller="Task" asp-action="Details" asp-route-id="@d.RepairTaskId">@(d.RepairTaskRef ?? "task")</a> @d.RepairTaskStatus</div>
+                                }
+                                else if (!string.IsNullOrWhiteSpace(d.RepairTaskRef))
+                                {
+                                    <div class="small text-muted">Repair @d.RepairTaskRef @d.RepairTaskStatus</div>
+                                }
+                            </td>
+                            <td class="text-nowrap">@d.RaisedUtc.ToSydney().ToDisplayDate()</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

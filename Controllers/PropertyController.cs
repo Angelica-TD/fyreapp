@@ -15,15 +15,15 @@ namespace FyreApp.Controllers
         private readonly AppDbContext _context;
         private readonly SitesService _sites;
         private readonly FyreApp.Services.Lists.IPropertyListService _list;
-        private readonly FyreApp.Services.Routines.IRoutineService _routines;
+        private readonly FyreApp.Services.Sites.IPropertyPageService _page;
 
         public PropertyController(AppDbContext context, SitesService sites, FyreApp.Services.Lists.IPropertyListService list,
-            FyreApp.Services.Routines.IRoutineService routines)
+            FyreApp.Services.Sites.IPropertyPageService page)
         {
             _context = context;
             _sites = sites;
             _list = list;
-            _routines = routines;
+            _page = page;
         }
 
         // Without "f" (first visit, sidebar link) the Uptick-style defaults apply; once the filter form has been
@@ -144,7 +144,7 @@ namespace FyreApp.Controllers
             if (string.IsNullOrWhiteSpace(name))
             {
                 TempData["Error"] = "Asset name is required.";
-                return RedirectToAction("Details", new { id = siteId });
+                return RedirectToAction("Details", new { id = siteId, tab = "assets" });
             }
 
             var site = await _context.Sites.FindAsync(new object[] { siteId }, ct);
@@ -160,34 +160,27 @@ namespace FyreApp.Controllers
             _context.Assets.Add(asset);
             await _context.SaveChangesAsync(ct);
 
-            return RedirectToAction("Details", new { id = siteId });
+            return RedirectToAction("Details", new { id = siteId, tab = "assets" });
         }
 
-        // GET: /Sites/Details/5
-        public async Task<IActionResult> Details(int id, int? year, CancellationToken ct = default)
+        // GET: /Property/Details/5?tab=assets — the property page, one Uptick-style tab at a time
+        public async Task<IActionResult> Details(
+            int id, string? tab, int? year, string? active, int? assetType, string? search, bool closed = false,
+            CancellationToken ct = default)
         {
-            var site = await _context.Sites
-                .Include(s => s.Client)
-                .Include(s => s.Assets)
-                    .ThenInclude(a => a.AssetTypes)
-                .Include(s => s.MaintenanceSchedules)
-                .Include(s => s.Contacts)
-                .Include(s => s.Defects)
-                    .ThenInclude(d => d.Asset)
-                .Include(s => s.ServiceReports)
-                .AsSplitQuery()
-                .FirstOrDefaultAsync(s => s.Id == id);
-
-            if (site == null)
+            var page = await _page.LoadAsync(id, new FyreApp.Services.Sites.PropertyPageQuery(tab, year, active, assetType, search, closed), ct);
+            if (page == null)
                 return NotFound();
 
-            ViewBag.Intervals = await _context.MaintenanceIntervals.ToListAsync();
+            // As Uptick: Home / Properties / P-0391
+            ViewData["Breadcrumbs"] = new List<(string Text, string? Url)>
+            {
+                ("Home", Url.Action("Index", "Home")),
+                ("Properties", Url.Action(nameof(Index))),
+                (page.Site.DisplayRef ?? page.Site.Name, null)
+            };
 
-            // Routines year grid; this year unless the year arrows were used
-            var routineYear = Math.Clamp(year ?? DateTime.UtcNow.ToSydney().Year, 2000, 2100);
-            ViewBag.Routines = await _routines.ForPropertyAsync(id, routineYear, ct);
-
-            return View(site);
+            return View(page);
         }
 
         [HttpPost]

@@ -35,7 +35,7 @@
 {
     <p class="text-muted small">
         Routine task@(routines.Any() ? ": " + string.Join(", ", routines) : "").
-        <a asp-controller="Property" asp-action="Details" asp-route-id="@Model.SiteId" asp-fragment="routines">See the property's routines</a>
+        <a asp-controller="Property" asp-action="Details" asp-route-id="@Model.SiteId" asp-route-tab="routines">See the property's routines</a>
     </p>
 }
 

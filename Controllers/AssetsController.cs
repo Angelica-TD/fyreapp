@@ -43,13 +43,16 @@ namespace FyreApp.Controllers
             return View(await _assetList.SearchAsync(filter, ct));
         }
 
-        // Every asset matching the current filters, as CSV
+        // Every asset matching the current filters, as CSV; with site, one property's (its Assets tab)
         [HttpGet]
         public async Task<IActionResult> Download(
             string? search, string? active, List<int>? assetType, bool assetTypeIsNot,
-            List<string>? propertyStatus, bool f = false, CancellationToken ct = default) =>
-            File(await _assetList.CsvAsync(Filter(search, active, assetType, assetTypeIsNot, propertyStatus, f), ct),
-                "text/csv", FyreApp.Infrastructure.CsvExport.FileName("assets"));
+            List<string>? propertyStatus, int? site, bool f = false, CancellationToken ct = default)
+        {
+            var filter = Filter(search, active, assetType, assetTypeIsNot, propertyStatus, f);
+            filter.SiteId = site;
+            return File(await _assetList.CsvAsync(filter, ct), "text/csv", FyreApp.Infrastructure.CsvExport.FileName("assets"));
+        }
 
         // Edit: set active / inactive, or generate a task per property, for the ticked assets or all matching
         [HttpPost]

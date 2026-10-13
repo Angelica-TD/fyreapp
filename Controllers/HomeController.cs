@@ -78,7 +78,7 @@ public class HomeController : Controller
                 // link to wherever you manage schedules; while they're hidden, the property's routines
                 Url = UiFeatures.MaintenanceSchedules
                     ? Url.Action("Details", "MaintenanceSchedules", new { id = ms.Id })
-                    : Url.Action("Details", "Property", new { id = ms.SiteId ?? ms.Asset?.SiteId }, null, null, "routines")
+                    : Url.Action("Details", "Property", new { id = ms.SiteId ?? ms.Asset?.SiteId, tab = "routines" })
             };
         });
 

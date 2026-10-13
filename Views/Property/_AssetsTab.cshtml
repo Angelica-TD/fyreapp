@@ -1,0 +1,123 @@
+@model FyreApp.ViewModels.Sites.PropertyPageVm
+@using FyreApp.Infrastructure
+
+@* Uptick's property Assets tab: filters (active, asset type), Download, and the assets in inspection order *@
+@{
+    var site = Model.Site;
+    var filterCount = (Model.AssetActive != "any" ? 1 : 0) + (Model.AssetTypeId != null ? 1 : 0);
+}
+
+<div class="card property-card">
+    <div class="card-header justify-content-end gap-4">
+        <a class="card-action" asp-action="Details" asp-route-id="@site.Id" asp-route-tab="remarks">Open remarks (@Model.OpenRemarks)</a>
+        @if (User.IsInRole("Admin"))
+        {
+            <a class="card-action" data-bs-toggle="collapse" href="#createAsset" role="button" aria-expanded="false" aria-controls="createAsset">
+                <i class="bi bi-plus-lg"></i> Create asset
+            </a>
+        }
+    </div>
+
+    <div class="collapse" id="createAsset">
+        <form asp-action="CreateAsset" method="post" class="card-body border-bottom">
+            <input type="hidden" name="siteId" value="@site.Id" />
+            <div style="position:relative">
+                <label class="form-label" for="assetNameInput">Asset name</label>
+                <input type="text" class="form-control" id="assetNameInput" name="name" autocomplete="off"
+                       placeholder="Type to search fire protection assets…" required />
+                <ul id="assetSuggestions" class="list-group shadow-sm"
+                    style="display:none; position:absolute; z-index:1000; width:100%; max-height:260px; overflow-y:auto"></ul>
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">Create asset</button>
+        </form>
+    </div>
+
+    <div class="card-body">
+        <form method="get" asp-action="Details" asp-route-id="@site.Id">
+            <input type="hidden" name="tab" value="assets" />
+            <div class="d-flex gap-2 mb-2">
+                <input type="search" name="search" value="@Model.AssetSearch" class="form-control" placeholder="Search" />
+                <button class="btn btn-light border text-nowrap" type="button" data-bs-toggle="collapse" data-bs-target="#assetFilters"
+                        aria-expanded="true" aria-controls="assetFilters">
+                    <i class="bi bi-funnel"></i> Filters <span class="badge rounded-pill bg-secondary">@filterCount</span>
+                </button>
+            </div>
+            <div class="collapse show bg-light border rounded p-3 mb-3" id="assetFilters">
+                <div class="row g-2 align-items-center mb-2">
+                    <label class="col-sm-3 col-form-label text-sm-end" for="assetActive">Active:</label>
+                    <div class="col-sm-9">
+                        <select class="form-select" name="active" id="assetActive">
+                            <option value="yes" selected="@(Model.AssetActive == "yes")">Yes</option>
+                            <option value="no" selected="@(Model.AssetActive == "no")">No</option>
+                            <option value="any" selected="@(Model.AssetActive == "any")">Any value</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-2 align-items-center">
+                    <label class="col-sm-3 col-form-label text-sm-end" for="assetTypeFilter">Asset Type:</label>
+                    <div class="col-sm-9">
+                        <select class="form-select" name="assetType" id="assetTypeFilter">
+                            <option value="">Any value</option>
+                            @foreach (var (id, name) in Model.AssetTypes)
+                            {
+                                <option value="@id" selected="@(Model.AssetTypeId == id)">@name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="text-end mt-2">
+                    <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@site.Id" asp-route-tab="assets">Reset to defaults</a>
+                    <button type="submit" class="btn btn-sm btn-primary">Apply</button>
+                </div>
+            </div>
+        </form>
+
+        <div class="d-flex justify-content-end mb-2">
+            <a class="btn btn-link btn-sm text-decoration-none" asp-controller="Assets" asp-action="Download"
+               asp-route-f="true" asp-route-site="@site.Id" asp-route-search="@Model.AssetSearch"
+               asp-route-active="@Model.AssetActive" asp-route-assetType="@Model.AssetTypeId">
+                <i class="bi bi-download"></i> Download (@Model.Assets.Count)
+            </a>
+        </div>
+
+        @if (!Model.Assets.Any())
+        {
+            <p class="text-muted mb-0">No assets match these filters.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Ref</th>
+                            <th>Type</th>
+                            <th>Variant</th>
+                            <th>Label</th>
+                            <th>Location</th>
+                            <th>Last service</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var a in Model.Assets)
+                        {
+                            <tr class="@(a.IsActive ? "" : "text-muted")">
+                                <td class="text-nowrap">@a.Ref</td>
+                                <td>@string.Join(", ", a.AssetTypes.Select(t => t.Name))</td>
+                                <td>@a.Variant</td>
+                                <td>
+                                    @a.Name
+                                    @if (!a.IsActive) { <span class="badge bg-secondary ms-1">Inactive</span> }
+                                </td>
+                                <td>@a.Location</td>
+                                <td class="text-nowrap">@a.LastServiceDate.ToDisplayDate()</td>
+                                <td class="text-nowrap"><a asp-controller="Assets" asp-action="Details" asp-route-id="@a.Id">View</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

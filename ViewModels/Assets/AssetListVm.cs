@@ -16,6 +16,9 @@ public class AssetFilter
     // Empty = any
     public List<string> PropertyStatus { get; set; } = FyreApp.ViewModels.Lists.ListFilters.NotInactive();
 
+    // One property's assets only (its Assets tab); null = every property
+    public int? SiteId { get; set; }
+
     public int Page { get; set; } = 1;
 
     public IEnumerable<KeyValuePair<string, string>> QueryValues()
