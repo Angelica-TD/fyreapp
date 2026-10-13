@@ -15,12 +15,15 @@ namespace FyreApp.Controllers
         private readonly AppDbContext _context;
         private readonly SitesService _sites;
         private readonly FyreApp.Services.Lists.IPropertyListService _list;
+        private readonly FyreApp.Services.Routines.IRoutineService _routines;
 
-        public PropertyController(AppDbContext context, SitesService sites, FyreApp.Services.Lists.IPropertyListService list)
+        public PropertyController(AppDbContext context, SitesService sites, FyreApp.Services.Lists.IPropertyListService list,
+            FyreApp.Services.Routines.IRoutineService routines)
         {
             _context = context;
             _sites = sites;
             _list = list;
+            _routines = routines;
         }
 
         // Without "f" (first visit, sidebar link) the Uptick-style defaults apply; once the filter form has been
@@ -161,7 +164,7 @@ namespace FyreApp.Controllers
         }
 
         // GET: /Sites/Details/5
-        public async Task<IActionResult> Details(int id)
+        public async Task<IActionResult> Details(int id, int? year, CancellationToken ct = default)
         {
             var site = await _context.Sites
                 .Include(s => s.Client)
@@ -179,6 +182,10 @@ namespace FyreApp.Controllers
                 return NotFound();
 
             ViewBag.Intervals = await _context.MaintenanceIntervals.ToListAsync();
+
+            // Routines year grid; this year unless the year arrows were used
+            var routineYear = Math.Clamp(year ?? DateTime.UtcNow.ToSydney().Year, 2000, 2100);
+            ViewBag.Routines = await _routines.ForPropertyAsync(id, routineYear, ct);
 
             return View(site);
         }

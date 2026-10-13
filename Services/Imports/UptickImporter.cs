@@ -66,7 +66,7 @@ public abstract class UptickImporter
     // Columns that must all be present for a file to be recognised as this export.
     public abstract string[] SignatureHeaders { get; }
 
-    // Build entities from the rows; when not a dry run, save them. Sets Result.Created / SkippedExisting.
+    // Build entities from the rows; when not a dry run, save them. Sets Result.Created / Updated / SkippedExisting.
     public abstract Task ImportAsync(IReadOnlyList<ImportRow> rows, bool dryRun, ImportContext ctx, CancellationToken ct);
 
     // Runs the import in one transaction, so a failure saves nothing (placeholders included).
@@ -95,6 +95,7 @@ public abstract class UptickImporter
     protected static void NoteUpdated(ImportContext ctx, int updated, bool dryRun, string what)
     {
         ctx.Result.SkippedExisting = 0;
+        ctx.Result.Updated = updated;
         if (updated > 0)
             ctx.Result.Notes.Add($"{updated} existing {what} {(dryRun ? "will be" : "were")} updated from this export.");
     }
@@ -169,28 +170,78 @@ public abstract class UptickImporter
         foreach (var (propertyRef, site) in placeholders) sitesByRef[propertyRef] = site.Id;
     }
 
-    // Returns false (and records why) when the row's external ID is missing, already imported, or repeated in the file.
-    protected static bool ClaimExternalId(string? externalId, HashSet<string> existing, HashSet<string> seenInFile,
-        ImportRow row, ImportContext ctx)
+    // What an import does with one row
+    protected enum RowAction { Skip, Create, Update }
+
+    // A record imported earlier: its FyreApp id and the Uptick row it was last imported from
+    protected sealed record ImportedRecord(int Id, string ExternalId, string? UptickData);
+
+    // For reference data, which refreshes every row: claims then only skip missing and repeated IDs
+    protected static readonly IReadOnlyDictionary<string, ImportedRecord> NoneImported = new Dictionary<string, ImportedRecord>();
+
+    protected static Dictionary<string, ImportedRecord> ByExternalId(IEnumerable<ImportedRecord> records)
     {
+        var byId = new Dictionary<string, ImportedRecord>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in records) byId.TryAdd(r.ExternalId.Trim(), r);
+        return byId;
+    }
+
+    // A row that will be created or will update its record (rather than be skipped as unchanged)
+    protected static bool NewOrChanged(ImportRow row, string idHeader, IReadOnlyDictionary<string, ImportedRecord> existing) =>
+        !existing.TryGetValue(row.Get(idHeader) ?? "", out var record) || UptickRowChange.ShouldUpdate(row.ToJson(), record.UptickData);
+
+    // Create a row new to FyreApp; update one already imported that has changed in Uptick since;
+    // skip one that hasn't (Result.SkippedExisting). Missing and repeated IDs are skipped with an issue.
+    protected static RowAction Claim(string? externalId, IReadOnlyDictionary<string, ImportedRecord> existing,
+        HashSet<string> seenInFile, ImportRow row, ImportContext ctx, out int existingId)
+    {
+        existingId = 0;
+
         if (externalId == null)
         {
             ctx.Skip("Missing ID", "(blank)", row.RowNumber, "Row has no ID. Skipped.");
-            return false;
-        }
-
-        if (existing.Contains(externalId))
-        {
-            ctx.Result.SkippedExisting++;
-            return false;
+            return RowAction.Skip;
         }
 
         if (!seenInFile.Add(externalId))
         {
             ctx.Skip("Duplicate in file", externalId, row.RowNumber, "ID appears more than once in the file. Later rows skipped.");
-            return false;
+            return RowAction.Skip;
         }
 
-        return true;
+        if (!existing.TryGetValue(externalId, out var record)) return RowAction.Create;
+
+        if (!UptickRowChange.ShouldUpdate(row.ToJson(), record.UptickData))
+        {
+            ctx.Result.SkippedExisting++;
+            return RowAction.Skip;
+        }
+
+        existingId = record.Id;
+        return RowAction.Update;
+    }
+
+    // Loads the records to update (tracked, in batches) and applies each one's row to it
+    protected static async Task ApplyUpdatesAsync<T>(IQueryable<T> query, IReadOnlyDictionary<int, Action<T>> updates,
+        Func<T, int> idOf, CancellationToken ct) where T : class
+    {
+        foreach (var chunk in updates.Keys.Chunk(1000))
+        {
+            var ids = chunk.ToList();
+            foreach (var entity in await query.Where(e => ids.Contains(EF.Property<int>(e, "Id"))).ToListAsync(ct))
+                updates[idOf(entity)](entity);
+        }
+    }
+
+    // Records imported earlier whose Uptick ID isn't in this export: deleted in Uptick, or left out by the
+    // export's filters. Only a note; FyreApp keeps them.
+    protected static void NoteNotInExport(ImportContext ctx, IReadOnlyDictionary<string, ImportedRecord> existing,
+        IEnumerable<ImportRow> rows, string idHeader, string what)
+    {
+        var inFile = rows.Select(r => r.Get(idHeader)).OfType<string>().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var missing = existing.Keys.Count(k => !inFile.Contains(k));
+        if (missing > 0)
+            ctx.Result.Notes.Add($"{missing} {what} already in FyreApp {(missing == 1 ? "isn't" : "aren't")} in this export: deleted in Uptick, " +
+                                 "or left out by the export's filters. They're kept.");
     }
 }

@@ -160,6 +160,13 @@ public class TaskController : Controller
         if (clientTask == null)
             return NotFound();
 
+        // Routines this task was generated from (Routines page → Generate tasks)
+        ViewBag.Routines = await _db.RoutineOccurrences
+            .Where(o => o.ClientTaskId == id)
+            .OrderBy(o => o.Routine)
+            .Select(o => o.Routine)
+            .ToListAsync();
+
         return View(clientTask);
     }
 

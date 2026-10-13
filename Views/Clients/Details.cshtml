@@ -107,11 +107,14 @@
                     Tasks <span class="badge bg-secondary">@Model.Tasks.Count</span>
                 </button>
             </li>
-            <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-schedules">
-                    Schedules <span class="badge bg-secondary">@allSchedules.Count</span>
-                </button>
-            </li>
+            @if (UiFeatures.MaintenanceSchedules)
+            {
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-schedules">
+                        Schedules <span class="badge bg-secondary">@allSchedules.Count</span>
+                    </button>
+                </li>
+            }
         </ul>
 
         <div class="tab-content">
@@ -250,6 +253,8 @@
             </div>
 
             @* ── Schedules ── *@
+            @if (UiFeatures.MaintenanceSchedules)
+            {
             <div class="tab-pane fade" id="tab-schedules">
                 @if (User.IsInRole("Admin"))
                 {
@@ -291,6 +296,7 @@
                     </table>
                 }
             </div>
+            }
 
         </div>
     </div>
@@ -406,6 +412,8 @@
 </div>
 
 @* Add Schedule *@
+@if (UiFeatures.MaintenanceSchedules)
+{
 <div class="modal fade" id="createScheduleModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -469,6 +477,7 @@
         </div>
     </div>
 </div>
+}
 
 @* Edit Client *@
 <div class="modal fade" id="editClientModal" tabindex="-1" aria-hidden="true">

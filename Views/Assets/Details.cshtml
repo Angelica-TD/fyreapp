@@ -87,9 +87,12 @@
     </ul>
 }
 
-<hr />
+@if (UiFeatures.MaintenanceSchedules)
+{
+    <hr />
 
-@await Html.PartialAsync("~/Views/MaintenanceSchedules/_ScheduleForm.cshtml", schedule)
+    @await Html.PartialAsync("~/Views/MaintenanceSchedules/_ScheduleForm.cshtml", schedule)
+}
 
 <hr />
 

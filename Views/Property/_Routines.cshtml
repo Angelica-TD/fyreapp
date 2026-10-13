@@ -1,0 +1,122 @@
+@model FyreApp.ViewModels.Routines.PropertyRoutinesVm
+@using FyreApp.ViewModels.Routines
+
+@* A property's routines for a year, laid out like Uptick's property Routines tab *@
+@{
+    var months = System.Globalization.CultureInfo.InvariantCulture.DateTimeFormat.AbbreviatedMonthNames;
+    var currentMonth = Model.Year == Model.Today.Year ? Model.Today.Month : 0;
+
+    string StateClass(RoutineMarkerState s) => s switch
+    {
+        RoutineMarkerState.TaskCreated => "routine-marker-task",
+        RoutineMarkerState.CompletedWithinTolerance => "routine-marker-done",
+        RoutineMarkerState.CompletedOutsideTolerance => "routine-marker-late",
+        RoutineMarkerState.NotCompletedOutsideTolerance => "routine-marker-overdue",
+        _ => "routine-marker-forecast"
+    };
+
+    string StateLabel(RoutineMarkerState s) => s switch
+    {
+        RoutineMarkerState.TaskCreated => "Task created",
+        RoutineMarkerState.CompletedWithinTolerance => "Completed within tolerance",
+        RoutineMarkerState.CompletedOutsideTolerance => "Completed outside tolerance",
+        RoutineMarkerState.NotCompletedOutsideTolerance => "Not completed and outside tolerance",
+        _ => "Forecasted"
+    };
+
+    string MarkerTitle(PropertyRoutineMarkerVm m) =>
+        $"{m.Level} · due {m.DueDate.ToDisplayDate()} · {StateLabel(m.State)}"
+        + (m.CompletedDate is DateTime c ? $" {c.ToDisplayDate()}" : "");
+}
+
+<div class="card mb-3" id="routines">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table routine-grid mb-0">
+                <thead>
+                    <tr>
+                        <th class="routine-grid-name">
+                            <a class="btn btn-sm btn-light border" aria-label="Previous year"
+                               asp-action="Details" asp-route-id="@Model.SiteId" asp-route-year="@(Model.Year - 1)" asp-fragment="routines">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                            <span class="mx-2">@Model.Year</span>
+                            <a class="btn btn-sm btn-light border" aria-label="Next year"
+                               asp-action="Details" asp-route-id="@Model.SiteId" asp-route-year="@(Model.Year + 1)" asp-fragment="routines">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </th>
+                        @for (var m = 1; m <= 12; m++)
+                        {
+                            <th class="routine-grid-month @(m == currentMonth ? "routine-grid-current" : "")">@months[m - 1]</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Groups.Any())
+                    {
+                        <tr>
+                            <td colspan="13" class="text-muted">No routines due in @Model.Year.</td>
+                        </tr>
+                    }
+                    @foreach (var group in Model.Groups)
+                    {
+                        <tr class="routine-grid-group">
+                            <th colspan="13">@group.Name</th>
+                        </tr>
+                        @foreach (var row in group.Rows)
+                        {
+                            <tr>
+                                <td class="routine-grid-name">@row.Routine</td>
+                                @foreach (var markers in row.Months)
+                                {
+                                    <td class="routine-grid-month">
+                                        @foreach (var m in markers)
+                                        {
+                                            if (m.TaskId is int taskId)
+                                            {
+                                                <a class="routine-marker @StateClass(m.State)" title="@MarkerTitle(m)"
+                                                   asp-controller="Task" asp-action="Details" asp-route-id="@taskId">@m.Code</a>
+                                            }
+                                            else
+                                            {
+                                                <span class="routine-marker @StateClass(m.State)" title="@MarkerTitle(m)">@m.Code</span>
+                                            }
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    }
+                    <tr class="routine-grid-tasks">
+                        <td class="routine-grid-name small text-muted text-uppercase">Tasks / month</td>
+                        @foreach (var tasks in Model.TasksByMonth)
+                        {
+                            <td class="routine-grid-month">
+                                @foreach (var t in tasks)
+                                {
+                                    <a class="routine-task @(t.Completed ? "routine-task-done" : "")" title="@t.Title"
+                                       asp-controller="Task" asp-action="Details" asp-route-id="@t.Id">
+                                        <span class="text-truncate d-block">@t.Title</span>
+                                        <span class="d-block">@t.DueDate.ToString("dd MMM", System.Globalization.CultureInfo.InvariantCulture)</span>
+                                        @if (t.Ref != null)
+                                        {
+                                            <span class="d-block text-muted text-truncate">@t.Ref</span>
+                                        }
+                                    </a>
+                                }
+                            </td>
+                        }
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-3 justify-content-end small mb-3">
+    @foreach (var state in Enum.GetValues<RoutineMarkerState>())
+    {
+        <span><span class="routine-legend @StateClass(state)"></span> @StateLabel(state)</span>
+    }
+</div>

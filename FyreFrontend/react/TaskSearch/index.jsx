@@ -165,7 +165,7 @@ function TaskSearch({ canEdit, techs }) {
               {STATUSES.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
             </select>
             <p className="small text-muted mt-2 mb-0">
-              Completing a routine task also moves its schedules on, as completing it on its own page does.
+              Completing a routine task moves its routines on, as completing it on its own page does.
             </p>
           </div>
         )}

@@ -31,7 +31,7 @@ public class RoutineServiceLevelImporter : UptickImporter
         foreach (var row in rows)
         {
             var id = row.Get("ID");
-            if (!ClaimExternalId(id, new HashSet<string>(), seen, row, ctx)) continue;
+            if (Claim(id, NoneImported, seen, row, ctx, out _) == RowAction.Skip) continue;
 
             var typeName = row.Get("Routine Service Type Name") ?? "(no routine)";
             var type = typesByExt.GetValueOrDefault(row.Get("Routine Service Type ID") ?? "") ?? typesByName.GetValueOrDefault(typeName);

@@ -27,7 +27,7 @@ public class AssetTypeImporter : UptickImporter
         foreach (var row in rows)
         {
             var id = row.Get("ID");
-            if (!ClaimExternalId(id, new HashSet<string>(), seen, row, ctx)) continue;
+            if (Claim(id, NoneImported, seen, row, ctx, out _) == RowAction.Skip) continue;
 
             var name = row.Get("Name") ?? $"Asset type {id}";
             var type = byExt.GetValueOrDefault(id!) ?? byName.GetValueOrDefault(name);

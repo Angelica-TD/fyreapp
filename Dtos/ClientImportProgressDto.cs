@@ -8,7 +8,11 @@ public class ClientImportProgressDto
 
     public int WouldCreate { get; set; }
 
+    // Already imported and unchanged in Uptick since
     public int SkippedDuplicateExternalId { get; set; }
+
+    // Already imported and changed in Uptick since: updated from this export
+    public int Updated { get; set; }
 
     // Placeholder clients (created by the property import) filled in from this export
     public int FilledPlaceholders { get; set; }

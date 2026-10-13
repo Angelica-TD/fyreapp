@@ -142,6 +142,39 @@ public class TaskImporterTests
     }
 
     [Fact]
+    public async Task Rerun_TaskCompletedInUptickSince_IsUpdatedAndRollsItsSchedules()
+    {
+        using var db = DbContextFactory.Create();
+        var (_, six, _) = await SeedAsync(db);
+
+        await Import(db, dryRun: false, RoutineTask());
+        var task = await db.ClientTasks.SingleAsync();
+        task.AssignedToUserId = "tech-1"; // FyreApp's own field
+        await db.SaveChangesAsync();
+
+        var second = await Import(db, dryRun: false, RoutineTask("COMPLETE"));
+
+        Assert.Equal((0, 1, 0), (second.Created, second.Updated, second.SkippedExisting));
+        await db.Entry(task).ReloadAsync();
+        Assert.Equal((ClientTaskStatus.Completed, "tech-1"), (task.Status, task.AssignedToUserId));
+        await db.Entry(six).ReloadAsync();
+        Assert.Equal(new DateTime(2027, 4, 1), six.NextRunDate);
+    }
+
+    [Fact]
+    public async Task Rerun_DryRun_CountsUpdatesWithoutSaving()
+    {
+        using var db = DbContextFactory.Create();
+        await SeedAsync(db);
+
+        await Import(db, dryRun: false, RoutineTask());
+        var second = await Import(db, dryRun: true, RoutineTask("COMPLETE"));
+
+        Assert.Equal(1, second.Updated);
+        Assert.Equal(ClientTaskStatus.Open, (await db.ClientTasks.AsNoTracking().SingleAsync()).Status);
+    }
+
+    [Fact]
     public async Task UptickInactiveFlag_IsKept()
     {
         // Uptick leaves some READY tasks inactive (closed off); keep its flag rather than guessing from status

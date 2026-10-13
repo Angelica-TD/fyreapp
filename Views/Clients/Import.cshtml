@@ -57,7 +57,8 @@
         <li>Total rows: <strong id="sTotal">0</strong></li>
         <li>Processed: <strong id="sProcessed">0</strong></li>
         <li>Created / Would create: <strong id="sWouldCreate">0</strong></li>
-        <li>Skipped duplicate ExternalId: <strong id="sSkipExt">0</strong></li>
+        <li>Updated (changed in Uptick): <strong id="sUpdated">0</strong></li>
+        <li>Already imported, unchanged: <strong id="sSkipExt">0</strong></li>
         <li>Filled in placeholder clients: <strong id="sFilledPh">0</strong></li>
     </ul>
 
@@ -79,7 +80,8 @@
         <li>Total rows: <strong id="fTotal">0</strong></li>
         <li>Processed: <strong id="fProcessed">0</strong></li>
         <li>Would create: <strong id="fWouldCreate">0</strong></li>
-        <li>Skipped duplicate ExternalId: <strong id="fSkipExt">0</strong></li>
+        <li>Updated (changed in Uptick): <strong id="fUpdated">0</strong></li>
+        <li>Already imported, unchanged: <strong id="fSkipExt">0</strong></li>
         <li>Filled in placeholder clients: <strong id="fFilledPh">0</strong></li>
         <li>Failed: <strong id="fFailed">0</strong></li>
     </ul>
@@ -246,6 +248,7 @@
             document.getElementById("sTotal").textContent = p.total ?? 0;
             document.getElementById("sProcessed").textContent = p.processed ?? 0;
             document.getElementById("sWouldCreate").textContent = p.wouldCreate ?? 0;
+            document.getElementById("sUpdated").textContent = p.updated ?? 0;
             document.getElementById("sSkipExt").textContent = p.skippedDuplicateExternalId ?? 0;
             document.getElementById("sFilledPh").textContent = p.filledPlaceholders ?? 0;
 
@@ -274,6 +277,7 @@
             document.getElementById("fTotal").textContent = p.total ?? 0;
             document.getElementById("fProcessed").textContent = p.processed ?? 0;
             document.getElementById("fWouldCreate").textContent = p.wouldCreate ?? 0;
+            document.getElementById("fUpdated").textContent = p.updated ?? 0;
             document.getElementById("fSkipExt").textContent = p.skippedDuplicateExternalId ?? 0;
             document.getElementById("fFilledPh").textContent = p.filledPlaceholders ?? 0;
             document.getElementById("fFailed").textContent = p.failed ?? 0;

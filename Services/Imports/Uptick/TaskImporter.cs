@@ -26,14 +26,12 @@ public class TaskImporter : UptickImporter
     public override async Task ImportAsync(IReadOnlyList<ImportRow> rows, bool dryRun, ImportContext ctx, CancellationToken ct)
     {
         var sitesByRef = await LoadSiteIdsByRefAsync(ct);
-        var existing = (await Db.ClientTasks.AsNoTracking()
-                .Where(t => t.ExternalId != null)
-                .Select(t => t.ExternalId!)
-                .ToListAsync(ct))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var existing = ByExternalId(await Db.ClientTasks.AsNoTracking()
+            .Where(t => t.ExternalId != null)
+            .Select(t => new ImportedRecord(t.Id, t.ExternalId!, t.UptickData))
+            .ToListAsync(ct));
 
-        var newRows = rows.Where(r => !existing.Contains(r.Get("ID") ?? "")).ToList();
-        await AddPlaceholderSitesAsync(newRows, sitesByRef, "Property Name", dryRun, ctx, ct);
+        await AddPlaceholderSitesAsync(rows.Where(r => NewOrChanged(r, "ID", existing)).ToList(), sitesByRef, "Property Name", dryRun, ctx, ct);
 
         // Placeholder ids are negative in a dry run; the client only matters when saving
         var clientIdBySite = await Db.Sites.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.ClientId, ct);
@@ -47,13 +45,15 @@ public class TaskImporter : UptickImporter
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var toCreate = new List<ClientTask>();
+        var toUpdate = new Dictionary<int, Action<ClientTask>>();
         int? noPropertySiteId = null;
         var linked = 0;
 
         foreach (var row in rows)
         {
             var id = row.Get("ID");
-            if (!ClaimExternalId(id, existing, seen, row, ctx)) continue;
+            var action = Claim(id, existing, seen, row, ctx, out var existingId);
+            if (action == RowAction.Skip) continue;
 
             var propertyRef = row.Get("Property Ref");
             int siteId;
@@ -75,39 +75,37 @@ public class TaskImporter : UptickImporter
                     $"Task has no property in Uptick. Imported under the placeholder property '{NoPropertySiteName}'.");
             }
 
-            var task = new ClientTask
-            {
-                ExternalId = id,
-                Ref = row.Get("Ref"),
-                UptickData = row.ToJson(),
-                SiteId = siteId,
-                ClientId = clientIdBySite.GetValueOrDefault(siteId),
-                Title = Truncate(row.Get("Name") ?? FirstLine(row.Get("Description")) ?? row.Get("Ref") ?? id!, 120),
-                Description = BuildDescription(row.Get("Description"), row.Get("Scope of works")),
-                Status = MapStatus(row.Get("Status")),
-                Priority = MapPriority(row.GetInt("Priority")),
-                DueDateUtc = row.GetDate("Due"),
-                CreatedUtc = row.GetTimestampUtc("Created") ?? DateTime.UtcNow,
-                CompletedUtc = row.GetTimestampUtc("Completed Date"),
-                Category = row.Get("Category"),
-                IsActive = row.GetBool("Is Active") ?? MapStatus(row.Get("Status")) is not (ClientTaskStatus.Completed or ClientTaskStatus.Cancelled)
-            };
+            // Routine (I&T) tasks cover the property's schedules for the frequencies in their scope
+            var covered = string.Equals(row.Get("Category"), "I&T", StringComparison.OrdinalIgnoreCase)
+                ? ScopeMonths(row.Get("Scope of works")).SelectMany(m => schedulesBySiteMonths[(siteId, m)]).Distinct().ToList()
+                : new List<MaintenanceSchedule>();
+            if (covered.Count > 0) linked++;
+            var clientId = clientIdBySite.GetValueOrDefault(siteId);
 
-            if (string.Equals(row.Get("Category"), "I&T", StringComparison.OrdinalIgnoreCase))
+            if (action == RowAction.Create)
             {
-                foreach (var months in ScopeMonths(row.Get("Scope of works")))
-                foreach (var schedule in schedulesBySiteMonths[(siteId, months)])
-                    task.CoveredSchedules.Add(schedule);
-
-                if (task.CoveredSchedules.Count > 0) linked++;
+                var task = new ClientTask { ExternalId = id };
+                Map(task, row, siteId, clientId, covered);
+                toCreate.Add(task);
             }
-
-            toCreate.Add(task);
+            else
+            {
+                toUpdate[existingId] = t => Map(t, row, siteId, clientId, covered);
+            }
         }
 
-        var rolled = RollSchedulesForward(toCreate, dryRun);
+        // Updated tasks are loaded (tracked) so a task now completed in Uptick rolls its schedules forward too.
+        // In a dry run nothing is loaded; the counts are what matter.
+        var updated = new List<ClientTask>();
+        if (!dryRun)
+            await ApplyUpdatesAsync(Db.ClientTasks.Include(t => t.CoveredSchedules), toUpdate.ToDictionary(
+                p => p.Key, p => (Action<ClientTask>)(t => { p.Value(t); updated.Add(t); })), t => t.Id, ct);
+
+        var rolled = RollSchedulesForward(toCreate.Concat(updated).ToList(), dryRun);
 
         ctx.Result.Created = toCreate.Count;
+        ctx.Result.Updated = toUpdate.Count;
+        NoteNotInExport(ctx, existing, rows, "ID", "tasks");
         if (linked > 0)
             ctx.Result.Notes.Add($"{linked} routine task{(linked == 1 ? "" : "s")} {(dryRun ? "will be" : "were")} linked to their property's maintenance schedules.");
         if (rolled > 0)
@@ -122,6 +120,30 @@ public class TaskImporter : UptickImporter
 
         Db.ClientTasks.AddRange(toCreate);
         await Db.SaveChangesAsync(ct);
+    }
+
+    // Everything a task takes from its Uptick row, for new and updated tasks alike. FyreApp's own fields
+    // (assigned tech, routines it was generated from) are left alone.
+    private static void Map(ClientTask t, ImportRow row, int siteId, int clientId, IReadOnlyList<MaintenanceSchedule> covered)
+    {
+        var status = MapStatus(row.Get("Status"));
+
+        t.Ref = row.Get("Ref");
+        t.UptickData = row.ToJson();
+        t.SiteId = siteId;
+        t.ClientId = clientId;
+        t.Title = Truncate(row.Get("Name") ?? FirstLine(row.Get("Description")) ?? row.Get("Ref") ?? row.Get("ID")!, 120);
+        t.Description = BuildDescription(row.Get("Description"), row.Get("Scope of works"));
+        t.Status = status;
+        t.Priority = MapPriority(row.GetInt("Priority"));
+        t.DueDateUtc = row.GetDate("Due");
+        t.CreatedUtc = row.GetTimestampUtc("Created") ?? (t.CreatedUtc == default ? DateTime.UtcNow : t.CreatedUtc);
+        t.CompletedUtc = row.GetTimestampUtc("Completed Date");
+        t.Category = row.Get("Category");
+        t.IsActive = row.GetBool("Is Active") ?? status is not (ClientTaskStatus.Completed or ClientTaskStatus.Cancelled);
+
+        foreach (var s in covered.Where(s => !t.CoveredSchedules.Contains(s)))
+            t.CoveredSchedules.Add(s);
     }
 
     // For each linked schedule, while a completed imported task covers its next occurrence, log it in

@@ -235,6 +235,44 @@ public class UptickImportServiceTests
         Assert.Equal(1, await db.Sites.CountAsync());
     }
 
+    [Fact]
+    public async Task Properties_RerunUpdatesWhatChangedInUptick()
+    {
+        using var db = DbContextFactory.Create();
+        await SeedClientAsync(db);
+        var row = new Dictionary<string, string> { ["Ref"] = "P-1", ["Name"] = "X", ["Status"] = "ACTIVE", ["Client ID"] = "100" };
+
+        await CreateSut(db).ImportAsync(Csv(PropertyHeaders, row), "p.csv", UptickExportType.Properties, dryRun: false);
+        row["Name"] = "X Tower";
+        row["Status"] = "INACTIVE";
+        var second = await CreateSut(db).ImportAsync(Csv(PropertyHeaders, row), "p.csv", UptickExportType.Properties, dryRun: false);
+
+        Assert.Equal((0, 1, 0), (second.Created, second.Updated, second.SkippedExisting));
+        var site = await db.Sites.AsNoTracking().SingleAsync();
+        Assert.Equal(("X Tower", false, "INACTIVE"), (site.Name, site.Active, site.Status));
+    }
+
+    [Fact]
+    public async Task Assets_RerunUpdatesChangedAssets_AndNotesOnesNoLongerInTheExport()
+    {
+        using var db = DbContextFactory.Create();
+        await SeedSiteAsync(db);
+        var a1 = new Dictionary<string, string> { ["ID"] = "1", ["Label"] = "Ext 1", ["Type"] = "Extinguisher", ["Is Active"] = "True", ["Property Ref"] = "P-1" };
+        var a2 = new Dictionary<string, string> { ["ID"] = "2", ["Label"] = "Ext 2", ["Type"] = "Extinguisher", ["Is Active"] = "True", ["Property Ref"] = "P-1" };
+        await CreateSut(db).ImportAsync(Csv(AssetHeaders, a1, a2), "a.csv", UptickExportType.Assets, dryRun: false);
+
+        // Asset 1 replaced by a hose reel and deactivated in Uptick; asset 2 deleted there
+        a1["Type"] = "Hose Reel";
+        a1["Is Active"] = "False";
+        var second = await CreateSut(db).ImportAsync(Csv(AssetHeaders, a1), "a.csv", UptickExportType.Assets, dryRun: false);
+
+        Assert.Equal((0, 1), (second.Created, second.Updated));
+        Assert.Contains(second.Notes, n => n.StartsWith("1 assets already in FyreApp isn't in this export"));
+        var asset = await db.Assets.Include(a => a.AssetTypes).SingleAsync(a => a.ExternalId == "1");
+        Assert.Equal((false, "Hose Reel"), (asset.IsActive, Assert.Single(asset.AssetTypes).Name));
+        Assert.Equal(2, await db.Assets.CountAsync()); // deleted in Uptick: kept
+    }
+
     // -------------------------------------------------------
     // Contacts
     // -------------------------------------------------------

@@ -29,14 +29,13 @@ public class PropertyImporter : UptickImporter
             .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
 
         var sites = await Db.Sites.AsNoTracking()
-            .Select(s => new { s.Id, s.ClientId, s.Name, s.ExternalId, s.IsPlaceholder })
+            .Select(s => new { s.Id, s.ClientId, s.Name, s.ExternalId, s.IsPlaceholder, s.UptickData })
             .ToListAsync(ct);
 
         // Placeholders aren't "already imported": their row fills them in
-        var existingRefs = sites
+        var existing = ByExternalId(sites
             .Where(s => !string.IsNullOrWhiteSpace(s.ExternalId) && !s.IsPlaceholder)
-            .Select(s => s.ExternalId!.Trim())
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .Select(s => new ImportedRecord(s.Id, s.ExternalId!, s.UptickData)));
         var placeholderIdsByRef = sites
             .Where(s => !string.IsNullOrWhiteSpace(s.ExternalId) && s.IsPlaceholder)
             .ToDictionary(s => s.ExternalId!.Trim(), s => s.Id, StringComparer.OrdinalIgnoreCase);
@@ -47,18 +46,20 @@ public class PropertyImporter : UptickImporter
             .GroupBy(s => (s.ClientId, TabularFileReader.NormalizeHeader(s.Name)))
             .ToDictionary(g => g.Key, g => g.Select(s => s.Id).ToList());
 
-        await AddPlaceholderClientsAsync(rows.Where(r => !existingRefs.Contains(r.Get("Ref") ?? "")),
+        await AddPlaceholderClientsAsync(rows.Where(r => NewOrChanged(r, "Ref", existing)),
             clientsByExt, clientsByName, dryRun, ctx, ct);
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var toCreate = new List<Site>();
         var toLink = new Dictionary<int, string>();
         var toFill = new Dictionary<int, Site>();
+        var toUpdate = new Dictionary<int, Site>();
 
         foreach (var row in rows)
         {
             var propertyRef = row.Get("Ref");
-            if (!ClaimExternalId(propertyRef, existingRefs, seen, row, ctx)) continue;
+            var action = Claim(propertyRef, existing, seen, row, ctx, out var existingId);
+            if (action == RowAction.Skip) continue;
 
             var clientExt = row.Get("Client ID");
             var clientName = row.Get("Client");
@@ -96,6 +97,12 @@ public class PropertyImporter : UptickImporter
                 continue;
             }
 
+            if (action == RowAction.Update)
+            {
+                toUpdate[existingId] = site;
+                continue;
+            }
+
             if (placeholderIdsByRef.TryGetValue(propertyRef!, out var placeholderId))
             {
                 toFill[placeholderId] = site;
@@ -115,6 +122,8 @@ public class PropertyImporter : UptickImporter
         }
 
         ctx.Result.Created = toCreate.Count;
+        ctx.Result.Updated = toUpdate.Count;
+        NoteNotInExport(ctx, existing, rows, "Ref", "properties");
         if (toLink.Count > 0)
             ctx.Result.Notes.Add($"{toLink.Count} existing propert{(toLink.Count == 1 ? "y" : "ies")} matched by client + name {(dryRun ? "will be" : "were")} linked to their Uptick ref.");
         if (toFill.Count > 0)
@@ -129,29 +138,33 @@ public class PropertyImporter : UptickImporter
                 s.ExternalId = toLink[s.Id];
         }
 
-        if (toFill.Count > 0)
-        {
-            var ids = toFill.Keys.ToList();
-            foreach (var s in await Db.Sites.Where(s => ids.Contains(s.Id)).ToListAsync(ct))
-            {
-                var from = toFill[s.Id];
-                s.ClientId = from.ClientId;
-                s.Name = from.Name;
-                s.UptickData = from.UptickData;
-                s.AddressDisplay = from.AddressDisplay;
-                s.AddressLine1 = from.AddressLine1;
-                s.Suburb = from.Suburb;
-                s.State = from.State;
-                s.Postcode = from.Postcode;
-                s.Active = from.Active;
-                s.Status = from.Status;
-                s.Created = from.Created;
-                s.IsPlaceholder = false;
-            }
-        }
+        // Placeholders get the full details from their row; properties changed in Uptick are updated
+        await ApplyUpdatesAsync(Db.Sites, toFill.ToDictionary(p => p.Key, p => (Action<Site>)(s => CopyFrom(s, p.Value))), s => s.Id, ct);
+        await ApplyUpdatesAsync(Db.Sites, toUpdate.ToDictionary(p => p.Key, p => (Action<Site>)(s => CopyFrom(s, p.Value))), s => s.Id, ct);
 
         Db.Sites.AddRange(toCreate);
         await Db.SaveChangesAsync(ct);
+    }
+
+    // Everything a property takes from its Uptick row (built as `from`)
+    private static void CopyFrom(Site s, Site from)
+    {
+        // A moved address needs looking up again
+        if (!string.Equals(s.AddressDisplay, from.AddressDisplay, StringComparison.Ordinal))
+            s.GooglePlaceId = null;
+
+        s.ClientId = from.ClientId;
+        s.Name = from.Name;
+        s.UptickData = from.UptickData;
+        s.AddressDisplay = from.AddressDisplay;
+        s.AddressLine1 = from.AddressLine1;
+        s.Suburb = from.Suburb;
+        s.State = from.State;
+        s.Postcode = from.Postcode;
+        s.Active = from.Active;
+        s.Status = from.Status;
+        s.Created = from.Created;
+        s.IsPlaceholder = false;
     }
 
     // A property can belong to a client that isn't in the clients export (usually archived in Uptick).
