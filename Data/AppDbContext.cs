@@ -27,6 +27,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<Quote> Quotes => Set<Quote>();
     public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
     public DbSet<SiteContact> SiteContacts => Set<SiteContact>();
+    public DbSet<ClientContact> ClientContacts => Set<ClientContact>();
     public DbSet<Defect> Defects => Set<Defect>();
     public DbSet<ServiceReport> ServiceReports => Set<ServiceReport>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
@@ -108,6 +109,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             .HasColumnType("timestamptz");
 
         modelBuilder.Entity<Site>()
+            .Property(s => s.InactiveDate)
+            .HasColumnType("timestamptz");
+
+        modelBuilder.Entity<Site>()
             .Property(s => s.Active)
             .HasDefaultValue(true)
             .HasSentinel(true); // so an explicit false is sent on insert instead of the DB default
@@ -136,6 +141,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(c => c.SiteId);
         });
 
+        modelBuilder.Entity<ClientContact>(entity =>
+        {
+            entity.HasOne(c => c.Client)
+                .WithMany(c => c.Contacts)
+                .HasForeignKey(c => c.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(c => c.Active).HasDefaultValue(true).HasSentinel(true);
+
+            entity.HasIndex(c => c.ExternalId).IsUnique();
+            entity.HasIndex(c => c.ClientId);
+        });
+
         modelBuilder.Entity<Defect>(entity =>
         {
             entity.HasOne(d => d.Site)
@@ -149,11 +167,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
 
+            entity.HasOne(d => d.RepairTask)
+                .WithMany()
+                .HasForeignKey(d => d.RepairTaskId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
             entity.Property(d => d.RaisedUtc).HasColumnType("timestamptz");
 
             entity.HasIndex(d => d.ExternalId).IsUnique();
             entity.HasIndex(d => d.SiteId);
             entity.HasIndex(d => d.AssetId);
+            entity.HasIndex(d => d.RepairTaskExternalId);
         });
 
         modelBuilder.Entity<ServiceReport>(entity =>
@@ -163,11 +188,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .HasForeignKey(r => r.SiteId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            entity.HasOne(r => r.ClientTask)
+                .WithMany()
+                .HasForeignKey(r => r.ClientTaskId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
             entity.Property(r => r.IssuedDate).HasColumnType("timestamptz");
             entity.Property(r => r.InspectedDate).HasColumnType("timestamptz");
 
             entity.HasIndex(r => r.ExternalId).IsUnique();
             entity.HasIndex(r => r.SiteId);
+            entity.HasIndex(r => r.TaskExternalId);
         });
 
         modelBuilder.Entity<AppSetting>()
@@ -494,7 +526,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         // (see migration AddFyreRefs), so EF reads them back instead of sending them
         foreach (var type in new[]
                  {
-                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(Defect),
+                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(ClientContact), typeof(Defect),
                      typeof(ServiceReport), typeof(MaintenanceSchedule), typeof(ClientTask)
                  })
         {
@@ -505,7 +537,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         // Raw Uptick rows: "json" rather than "jsonb" so the export's column order is kept for display
         foreach (var type in new[]
                  {
-                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask),
+                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(ClientContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask),
                      typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(RoutineOccurrence)
                  })
         {

@@ -72,6 +72,7 @@ public class DataResetService : IDataResetService
             ("Defects", await _db.Defects.CountAsync(ct)),
             ("Service reports", await _db.ServiceReports.CountAsync(ct)),
             ("Property contacts", await _db.SiteContacts.CountAsync(ct)),
+            ("Client contacts", await _db.ClientContacts.CountAsync(ct)),
             ("Assets", await _db.Assets.CountAsync(ct)),
             ("Properties", await _db.Sites.CountAsync(ct)),
             ("Clients", await _db.Clients.CountAsync(ct))
@@ -98,6 +99,7 @@ public class DataResetService : IDataResetService
             ("Defects", await _db.Defects.ExecuteDeleteAsync(ct)),
             ("Service reports", await _db.ServiceReports.ExecuteDeleteAsync(ct)),
             ("Property contacts", await _db.SiteContacts.ExecuteDeleteAsync(ct)),
+            ("Client contacts", await _db.ClientContacts.ExecuteDeleteAsync(ct)),
             ("Assets", await _db.Assets.ExecuteDeleteAsync(ct)),
             ("Properties", await _db.Sites.ExecuteDeleteAsync(ct)),
             ("Clients", await _db.Clients.ExecuteDeleteAsync(ct))

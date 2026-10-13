@@ -120,6 +120,38 @@ public class TaskImporter : UptickImporter
 
         Db.ClientTasks.AddRange(toCreate);
         await Db.SaveChangesAsync(ct);
+
+        var (reports, remarks) = await LinkWaitingRecordsAsync(toCreate, ct);
+        if (reports + remarks > 0)
+            ctx.Result.Notes.Add($"{reports} report(s) and {remarks} remark(s) imported earlier were linked to their task.");
+    }
+
+    // Reports and remarks imported before their task point at it by Uptick task ID; link them now
+    private async Task<(int Reports, int Remarks)> LinkWaitingRecordsAsync(IReadOnlyList<ClientTask> created, CancellationToken ct)
+    {
+        var idByExt = created.Where(t => t.ExternalId != null)
+            .GroupBy(t => t.ExternalId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+        int reports = 0, remarks = 0;
+
+        foreach (var chunk in idByExt.Keys.Chunk(1000))
+        {
+            var exts = chunk.ToList();
+            foreach (var r in await Db.ServiceReports.Where(r => r.ClientTaskId == null && r.TaskExternalId != null && exts.Contains(r.TaskExternalId)).ToListAsync(ct))
+            {
+                r.ClientTaskId = idByExt[r.TaskExternalId!];
+                reports++;
+            }
+            foreach (var d in await Db.Defects.Where(d => d.RepairTaskId == null && d.RepairTaskExternalId != null && exts.Contains(d.RepairTaskExternalId)).ToListAsync(ct))
+            {
+                d.RepairTaskId = idByExt[d.RepairTaskExternalId!];
+                remarks++;
+            }
+        }
+
+        if (reports + remarks > 0)
+            await Db.SaveChangesAsync(ct);
+        return (reports, remarks);
     }
 
     // Everything a task takes from its Uptick row, for new and updated tasks alike. FyreApp's own fields

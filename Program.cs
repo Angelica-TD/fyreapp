@@ -36,6 +36,7 @@ builder.Services.AddScoped<IMaintenanceScheduleService, MaintenanceScheduleServi
 builder.Services.AddScoped<IScheduleImportService, ScheduleImportService>();
 builder.Services.AddScoped<UptickImporter, PropertyImporter>();
 builder.Services.AddScoped<UptickImporter, PropertyContactImporter>();
+builder.Services.AddScoped<UptickImporter, ClientContactImporter>();
 builder.Services.AddScoped<UptickImporter, AssetImporter>();
 builder.Services.AddScoped<UptickImporter, RemarkImporter>();
 builder.Services.AddScoped<UptickImporter, ReportImporter>();

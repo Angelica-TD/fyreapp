@@ -183,9 +183,11 @@ public sealed class ClientService : IClientService
                 .ThenInclude(s => s.Assets)
                     .ThenInclude(a => a.MaintenanceSchedules)
                         .ThenInclude(ms => ms.MaintenanceInterval)
+            .Include(c => c.Contacts)
             .Include(c => c.Sites)
                 .ThenInclude(s => s.MaintenanceSchedules)
                     .ThenInclude(ms => ms.MaintenanceInterval)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 

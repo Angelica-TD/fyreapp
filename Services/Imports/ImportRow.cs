@@ -49,6 +49,9 @@ public sealed class ImportRow
     public int? GetInt(string header) =>
         int.TryParse(Get(header), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : null;
 
+    public double? GetDouble(string header) =>
+        double.TryParse(Get(header), NumberStyles.Float, CultureInfo.InvariantCulture, out var n) ? n : null;
+
     // Calendar date (no time) stored as UTC midnight, matching how schedule due dates are stored.
     public DateTime? GetDate(string header)
     {

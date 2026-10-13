@@ -167,6 +167,17 @@ public class TaskController : Controller
             .Select(o => o.Routine)
             .ToListAsync();
 
+        // Reports done on this task, and remarks it was raised to repair (linked from Uptick imports)
+        ViewBag.Reports = await _db.ServiceReports.AsNoTracking()
+            .Where(r => r.ClientTaskId == id)
+            .OrderByDescending(r => r.InspectedDate)
+            .ToListAsync();
+        ViewBag.Repairs = await _db.Defects.AsNoTracking()
+            .Include(d => d.Asset)
+            .Where(d => d.RepairTaskId == id)
+            .OrderBy(d => d.Id)
+            .ToListAsync();
+
         return View(clientTask);
     }
 
