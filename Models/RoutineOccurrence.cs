@@ -50,6 +50,16 @@ public class RoutineOccurrence
     [StringLength(100)]
     public string? ServiceGroup { get; set; }
 
+    // Who usually does it (Uptick "Default Technician", "Subcontractor") and how long it takes
+    // (Uptick "Estimated Duration", e.g. 0:30:00)
+    [StringLength(200)]
+    public string? DefaultTechnician { get; set; }
+
+    [StringLength(200)]
+    public string? Subcontractor { get; set; }
+
+    public int? EstimatedMinutes { get; set; }
+
     // Every column of the Uptick export row as JSON (key order kept)
     public string? UptickData { get; set; }
 }

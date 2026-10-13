@@ -105,6 +105,8 @@ public class RemarkImporter : UptickImporter
         d.Location = row.Get("Location", "Asset Location");
         d.Active = row.GetBool("Active") ?? true;
         d.RaisedUtc = row.GetTimestampUtc("Created");
+        d.InactiveUtc = row.GetTimestampUtc("Inactive Date");
+        d.QuotedDate = row.GetDate("Quoted Date");
         d.RaisedOnTaskRef = row.Get("Created on Task Ref");
         d.QuoteRef = row.Get("Quote Ref");
         d.QuoteStatus = row.Get("Quote Status");

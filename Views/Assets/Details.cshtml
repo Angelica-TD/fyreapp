@@ -38,7 +38,8 @@
     var details = new (string Label, string? Value)[]
     {
         ("Ref", Model.DisplayRef),
-        ("Status", Model.IsActive ? "Active" : "Inactive"),
+        ("Status", Model.IsActive ? "Active" : Model.InactiveDate is DateTime off ? $"Inactive since {off.ToSydney().ToDisplayDate()}" : "Inactive"),
+        ("Internal note", Model.InternalNote),
         ("Asset no.", Model.Ref),
         ("Location", Model.Location),
         ("Variant", Model.Variant),

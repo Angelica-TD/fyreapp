@@ -152,7 +152,7 @@ else
             </tr>
         </thead>
         <tbody>
-            @foreach (var asset in Model.Assets.OrderBy(a => !a.IsActive).ThenBy(a => a.Name))
+            @foreach (var asset in Model.Assets.OrderBy(a => !a.IsActive).ThenBy(a => a.InspectionOrder ?? int.MaxValue).ThenBy(a => a.Name))
             {
                 <tr class="@(asset.IsActive ? "" : "text-muted")">
                     <td class="text-nowrap">@asset.DisplayRef</td>
@@ -311,9 +311,13 @@ else
                         <td>@(d.SeverityLabel ?? d.Severity?.ToString())</td>
                         <td>
                             @d.Status
+                            @if (d.InactiveUtc is DateTime closed)
+                            {
+                                <div class="small text-muted">Closed @closed.ToSydney().ToDisplayDate()</div>
+                            }
                             @if (!string.IsNullOrWhiteSpace(d.QuoteRef))
                             {
-                                <div class="small text-muted">Quote @d.QuoteRef @d.QuoteStatus</div>
+                                <div class="small text-muted">Quote @d.QuoteRef @d.QuoteStatus@(d.QuotedDate is DateTime q ? $", {q.ToDisplayDate()}" : "")</div>
                             }
                             @if (d.RepairTaskId.HasValue)
                             {

@@ -44,8 +44,33 @@ public class Client
     [Display(Name = "Mobile")]
     [UiField(Order = 3)]
     public string? PrimaryContactMobile { get; set; }
+
+    // Uptick "Primary Contact BH" / "Primary Contact AH"
+    [Display(Name = "Phone")]
+    [UiField(Order = 4)]
+    public string? PrimaryContactPhone { get; set; }
+
+    [Display(Name = "After hours")]
+    [UiField(Order = 5)]
+    public string? PrimaryContactAfterHours { get; set; }
+
     public string? PrimaryContactCcEmail { get; set; }
     public string? PrimaryContactAddress { get; set; }
+
+    // Uptick "Reference" (often a trading name) and "Primary Sector", e.g. "Property Management (Residential)"
+    public string? Reference { get; set; }
+    public string? PrimarySector { get; set; }
+
+    // Office notes and billing instructions (Uptick "Notes", "Billing Requirements")
+    public string? Notes { get; set; }
+    public string? BillingRequirements { get; set; }
+
+    // Who gets reports, when not the primary contact (Uptick "Report Contact: …")
+    public string? ReportOrganisation { get; set; }
+    public string? ReportAttentionTo { get; set; }
+    public string? ReportAddress { get; set; }
+    public string? ReportEmail { get; set; }
+    public string? ReportCcEmail { get; set; }
 
     // Billing
     public string? BillingName { get; set; }

@@ -128,6 +128,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(a => a.BaseDate).HasColumnType("timestamptz");
             entity.Property(a => a.InstallationDate).HasColumnType("timestamptz");
             entity.Property(a => a.LastServiceDate).HasColumnType("timestamptz");
+            entity.Property(a => a.InactiveDate).HasColumnType("timestamptz");
         });
 
         modelBuilder.Entity<SiteContact>(entity =>
@@ -174,6 +175,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .IsRequired(false);
 
             entity.Property(d => d.RaisedUtc).HasColumnType("timestamptz");
+            entity.Property(d => d.InactiveUtc).HasColumnType("timestamptz");
+            entity.Property(d => d.QuotedDate).HasColumnType("timestamptz");
 
             entity.HasIndex(d => d.ExternalId).IsUnique();
             entity.HasIndex(d => d.SiteId);

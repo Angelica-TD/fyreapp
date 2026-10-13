@@ -128,6 +128,9 @@ public class RoutineService : IRoutineService
                 o.Status,
                 o.CompletedDate,
                 o.ServiceGroup,
+                o.DefaultTechnician,
+                o.Subcontractor,
+                o.EstimatedMinutes,
                 TaskRef = o.ClientTask != null ? o.ClientTask.Ref ?? o.ClientTask.FyreRef : null
             })
             .ToListAsync(ct);
@@ -243,6 +246,9 @@ public class RoutineService : IRoutineService
                 Level = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.Name : null,
                 DisplayCode = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.DisplayCode : null,
                 o.ServiceGroup,
+                o.DefaultTechnician,
+                o.Subcontractor,
+                o.EstimatedMinutes,
                 o.DueDate,
                 o.ToleranceEnd,
                 o.CompletedDate,
@@ -259,6 +265,8 @@ public class RoutineService : IRoutineService
             return new
             {
                 Group = o.ServiceGroup ?? o.TypeServiceGroup ?? "Other",
+                Technician = o.DefaultTechnician ?? o.Subcontractor,
+                o.EstimatedMinutes,
                 Type = type,
                 Marker = new PropertyRoutineMarkerVm
                 {
@@ -276,7 +284,13 @@ public class RoutineService : IRoutineService
         // Groups in the order of their first routine, e.g. "10 - …" before "15 - …", as Uptick lists them
         foreach (var group in markers.GroupBy(m => m.Group).OrderBy(g => g.Min(m => m.Type)))
         {
-            var groupVm = new PropertyRoutineGroupVm { Name = group.Key };
+            var groupVm = new PropertyRoutineGroupVm
+            {
+                Name = group.Key,
+                // The technician most of its routines name
+                Technician = group.Where(m => m.Technician != null).GroupBy(m => m.Technician).OrderByDescending(g => g.Count()).Select(g => g.Key).FirstOrDefault(),
+                EstimatedMinutes = group.Sum(m => m.EstimatedMinutes ?? 0)
+            };
             foreach (var row in group.GroupBy(m => m.Type).OrderBy(r => r.Key))
             {
                 var rowVm = new PropertyRoutineRowVm { Routine = row.Key };
