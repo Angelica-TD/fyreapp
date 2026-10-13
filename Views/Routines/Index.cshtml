@@ -169,7 +169,7 @@
                                            aria-label="Select @r.Routine at @r.PropertyRef" />
                                 </td>
                                 <td>
-                                    @if (r.MaintenanceScheduleId.HasValue)
+                                    @if (UiFeatures.MaintenanceSchedules && r.MaintenanceScheduleId.HasValue)
                                     {
                                         <a asp-controller="MaintenanceSchedules" asp-action="Details" asp-route-id="@r.MaintenanceScheduleId">@r.Routine</a>
                                     }

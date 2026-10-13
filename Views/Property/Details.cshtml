@@ -166,6 +166,12 @@ else
 
 <hr />
 
+<h2>Routines</h2>
+
+@await Html.PartialAsync("_Routines", (FyreApp.ViewModels.Routines.PropertyRoutinesVm)ViewBag.Routines)
+
+<hr />
+
 <h2>Contacts</h2>
 
 @if (!Model.Contacts.Any())

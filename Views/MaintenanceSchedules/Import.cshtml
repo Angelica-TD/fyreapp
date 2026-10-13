@@ -1,17 +1,17 @@
 @model FyreApp.ViewModels.MaintenanceSchedules.ScheduleImportResultVm?
 
 @{
-    ViewData["Title"] = "Import Schedules";
+    ViewData["Title"] = "Import Routines";
     const int MaxItemsShown = 500;
 }
 
-<h1 class="m-0 mb-3">Import Schedules from Uptick</h1>
+<h1 class="m-0 mb-3">Import Routines from Uptick</h1>
 
 <p class="text-muted">
-    Upload an Uptick <strong>Routine schedules</strong> export (CSV or XLSX). Routine occurrences are grouped into one
-    property schedule per frequency, due on the next outstanding occurrence. Properties are matched on
-    <em>Property ref</em>, falling back to client name + property name. Properties that already have a schedule for
-    the same interval are skipped.
+    Upload an Uptick <strong>Routines</strong> export (CSV or XLSX). Each row is one routine at a property, e.g.
+    "10 - Portable and Wheeled Fire Extinguishers: Six-monthly" due 30 Nov. Properties are matched on
+    <em>Property ref</em>, falling back to client name + property name. Routines already in FyreApp only move forward
+    (pending → task raised → complete).
 </p>
 
 <form method="post" enctype="multipart/form-data" asp-action="Import" class="mb-4">
@@ -31,7 +31,7 @@
     </div>
 
     <button type="submit" class="btn btn-primary">Upload</button>
-    <a asp-action="Index" class="btn btn-outline-secondary">Back to schedules</a>
+    <a asp-controller="Routines" asp-action="Index" class="btn btn-outline-secondary">Back to routines</a>
 </form>
 
 @if (Model != null)
@@ -47,15 +47,18 @@
             <span class="text-muted small ms-2">@Model.FileName</span>
             <ul class="mb-0 mt-2">
                 <li>Rows read: <strong>@Model.TotalRows</strong></li>
-                <li>Schedules @(Model.DryRun ? "to create" : "created"): <strong>@Model.Created</strong></li>
-                <li>Skipped (property already has a schedule for that interval): <strong>@Model.SkippedExisting</strong></li>
+                <li>Routines (one per row) @(Model.DryRun ? "to add" : "added"): <strong>@Model.OccurrencesCreated</strong>; existing ones moved forward (e.g. now complete in Uptick): <strong>@Model.OccurrencesUpdated</strong></li>
                 <li>Rows skipped — property not found: <strong>@Model.SkippedSiteNotFound</strong></li>
                 <li>Rows skipped — unsupported frequency: <strong>@Model.SkippedUnsupportedFrequency</strong></li>
                 <li>Rows skipped — invalid: <strong>@Model.SkippedInvalid</strong></li>
                 <li>Properties @(Model.DryRun ? "to link" : "linked") to their Uptick Property ref: <strong>@Model.SitesLinked</strong></li>
-                <li>Existing schedules @(Model.DryRun ? "to link" : "linked") to more Uptick routines: <strong>@Model.RoutineLinksAdded</strong></li>
-                <li>Routines (one per row) @(Model.DryRun ? "to add" : "added"): <strong>@Model.OccurrencesCreated</strong>; existing ones moved forward (e.g. now complete in Uptick): <strong>@Model.OccurrencesUpdated</strong></li>
-                @if (Model.NewIntervals.Any())
+                @if (UiFeatures.MaintenanceSchedules)
+                {
+                    <li>Schedules @(Model.DryRun ? "to create" : "created"): <strong>@Model.Created</strong></li>
+                    <li>Skipped (property already has a schedule for that interval): <strong>@Model.SkippedExisting</strong></li>
+                    <li>Existing schedules @(Model.DryRun ? "to link" : "linked") to more Uptick routines: <strong>@Model.RoutineLinksAdded</strong></li>
+                }
+                @if (UiFeatures.MaintenanceSchedules && Model.NewIntervals.Any())
                 {
                     <li>New intervals @(Model.DryRun ? "to create" : "created"): <strong>@string.Join(", ", Model.NewIntervals)</strong></li>
                 }
@@ -85,7 +88,7 @@
             </div>
         }
 
-        if (Model.Items.Any())
+        if (UiFeatures.MaintenanceSchedules && Model.Items.Any())
         {
             <h2 class="h5">Schedules</h2>
             <div class="table-responsive">

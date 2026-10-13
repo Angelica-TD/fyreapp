@@ -26,7 +26,20 @@
     </div>
 </div>
 
-@if (Model.MaintenanceScheduleId.HasValue)
+@{
+    var routines = (List<string>?)ViewBag.Routines ?? new();
+    var isRoutineTask = routines.Any() || Model.MaintenanceScheduleId.HasValue || Model.CoveredSchedules.Any();
+}
+
+@if (!UiFeatures.MaintenanceSchedules && isRoutineTask)
+{
+    <p class="text-muted small">
+        Routine task@(routines.Any() ? ": " + string.Join(", ", routines) : "").
+        <a asp-controller="Property" asp-action="Details" asp-route-id="@Model.SiteId" asp-fragment="routines">See the property's routines</a>
+    </p>
+}
+
+@if (UiFeatures.MaintenanceSchedules && Model.MaintenanceScheduleId.HasValue)
 {
     <p class="text-muted small">
         Generated from a
@@ -34,7 +47,7 @@
     </p>
 }
 
-@if (Model.CoveredSchedules.Any())
+@if (UiFeatures.MaintenanceSchedules && Model.CoveredSchedules.Any())
 {
     <p class="text-muted small">
         Uptick routine task covering

@@ -1,4 +1,5 @@
 using FyreApp.Data;
+using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.Services.MaintenanceSchedules;
 using FyreApp.ViewModels.Tasks;
@@ -167,6 +168,19 @@ public class ClientTaskService : IClientTaskService
 
         foreach (var s in covered.Where(s => ScheduleCoverage.Covers(task, s.NextRunDate)))
             await _scheduleService.CompleteAsync(s.Id, notes: task.Ref == null ? null : $"Task {task.Ref} completed");
+
+        // Routines the task was generated from are complete too, as in Uptick (dates are stored as UTC midnight)
+        var today = DateTime.SpecifyKind(DateTime.UtcNow.ToSydney().Date, DateTimeKind.Utc);
+        var routines = await _db.RoutineOccurrences
+            .Where(o => o.ClientTaskId == task.Id && o.Status == RoutineOccurrenceStatus.Generated)
+            .ToListAsync();
+        foreach (var o in routines)
+        {
+            o.Status = RoutineOccurrenceStatus.Complete;
+            o.CompletedDate = today;
+        }
+        if (routines.Count > 0)
+            await _db.SaveChangesAsync();
     }
 
     public async Task<(bool Found, bool TechValid)> AssignTechAsync(int taskId, string? techUserId)

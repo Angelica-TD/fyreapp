@@ -20,6 +20,9 @@ public interface IRoutineService
     // ids = the ticked routines; with allMatching, every routine matching the filter instead.
     Task<GenerateRoutineTasksResult> GenerateTasksAsync(
         IReadOnlyCollection<int> ids, bool allMatching, RoutineFilter filter, string? createdByUserId, CancellationToken ct = default);
+
+    // A property's routines for one year, as on Uptick's property Routines tab
+    Task<PropertyRoutinesVm> ForPropertyAsync(int siteId, int year, CancellationToken ct = default);
 }
 
 public record GenerateRoutineTasksResult(int TasksCreated, int RoutinesUsed, int RoutinesSkipped);
@@ -219,6 +222,117 @@ public class RoutineService : IRoutineService
         await _db.SaveChangesAsync(ct);
 
         return new GenerateRoutineTasksResult(tasks.Count, pending.Count, skipped);
+    }
+
+    public async Task<PropertyRoutinesVm> ForPropertyAsync(int siteId, int year, CancellationToken ct = default)
+    {
+        // Due dates are calendar dates stored as UTC midnight
+        var yearStart = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var yearEnd = yearStart.AddYears(1);
+        var today = DateTime.UtcNow.ToSydney().Date;
+
+        var occurrences = await _db.RoutineOccurrences.AsNoTracking()
+            .Where(o => o.SiteId == siteId && o.DueDate >= yearStart && o.DueDate < yearEnd
+                        && o.Status != RoutineOccurrenceStatus.Cancelled)
+            .Select(o => new
+            {
+                o.Id,
+                o.Routine,
+                Type = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.RoutineServiceType.Name : null,
+                TypeServiceGroup = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.RoutineServiceType.ServiceGroup : null,
+                Level = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.Name : null,
+                DisplayCode = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.DisplayCode : null,
+                o.ServiceGroup,
+                o.DueDate,
+                o.ToleranceEnd,
+                o.CompletedDate,
+                o.Status,
+                o.ClientTaskId
+            })
+            .ToListAsync(ct);
+
+        var vm = new PropertyRoutinesVm { SiteId = siteId, Year = year, Today = today };
+
+        var markers = occurrences.Select(o =>
+        {
+            var (type, level) = o.Type != null ? (o.Type, o.Level ?? "") : SplitRoutine(o.Routine);
+            return new
+            {
+                Group = o.ServiceGroup ?? o.TypeServiceGroup ?? "Other",
+                Type = type,
+                Marker = new PropertyRoutineMarkerVm
+                {
+                    Id = o.Id,
+                    Level = level,
+                    Code = !string.IsNullOrWhiteSpace(o.DisplayCode) ? o.DisplayCode! : level.Length > 0 ? level[..1].ToUpperInvariant() : "?",
+                    DueDate = o.DueDate,
+                    CompletedDate = o.CompletedDate,
+                    TaskId = o.ClientTaskId,
+                    State = MarkerState(o.Status, o.ToleranceEnd, o.CompletedDate, today)
+                }
+            };
+        }).ToList();
+
+        // Groups in the order of their first routine, e.g. "10 - …" before "15 - …", as Uptick lists them
+        foreach (var group in markers.GroupBy(m => m.Group).OrderBy(g => g.Min(m => m.Type)))
+        {
+            var groupVm = new PropertyRoutineGroupVm { Name = group.Key };
+            foreach (var row in group.GroupBy(m => m.Type).OrderBy(r => r.Key))
+            {
+                var rowVm = new PropertyRoutineRowVm { Routine = row.Key };
+                foreach (var m in row.OrderBy(m => m.Marker.DueDate))
+                    rowVm.Months[m.Marker.DueDate.Month - 1].Add(m.Marker);
+                groupVm.Rows.Add(rowVm);
+            }
+            vm.Groups.Add(groupVm);
+        }
+
+        // Routine tasks at the property due this year: generated from its routines or schedules, or imported
+        // Uptick routine tasks covering its schedules
+        var tasks = await _db.ClientTasks.AsNoTracking()
+            .Where(t => t.SiteId == siteId && t.DueDateUtc != null
+                        && t.Status != ClientTaskStatus.Cancelled
+                        && (t.MaintenanceScheduleId != null || t.CoveredSchedules.Any()
+                            || _db.RoutineOccurrences.Any(o => o.ClientTaskId == t.Id)))
+            .Select(t => new { t.Id, t.Ref, t.FyreRef, t.Title, t.DueDateUtc, t.Status })
+            .ToListAsync(ct);
+
+        foreach (var t in tasks)
+        {
+            var due = t.DueDateUtc!.Value.ToSydney();
+            if (due.Year != year) continue;
+            vm.TasksByMonth[due.Month - 1].Add(new PropertyRoutineTaskVm
+            {
+                Id = t.Id,
+                Ref = t.Ref ?? t.FyreRef,
+                Title = t.Title,
+                DueDate = due.Date,
+                Completed = t.Status == ClientTaskStatus.Completed
+            });
+        }
+        foreach (var month in vm.TasksByMonth)
+            month.Sort((a, b) => a.DueDate != b.DueDate ? a.DueDate.CompareTo(b.DueDate) : string.CompareOrdinal(a.Title, b.Title));
+
+        return vm;
+    }
+
+    // Uptick's legend: forecasted, task created, completed within / outside tolerance, not completed and outside tolerance
+    public static RoutineMarkerState MarkerState(RoutineOccurrenceStatus status, DateTime? toleranceEnd, DateTime? completed, DateTime today) =>
+        status == RoutineOccurrenceStatus.Complete
+            ? (completed is DateTime c && toleranceEnd is DateTime end && c.Date > end.Date
+                ? RoutineMarkerState.CompletedOutsideTolerance
+                : RoutineMarkerState.CompletedWithinTolerance)
+            : toleranceEnd is DateTime e && today > e.Date
+                ? RoutineMarkerState.NotCompletedOutsideTolerance
+                : status == RoutineOccurrenceStatus.Generated
+                    ? RoutineMarkerState.TaskCreated
+                    : RoutineMarkerState.Forecasted;
+
+    // "10 - Portable and Wheeled Fire Extinguishers: Six-monthly" → (routine, level)
+    private static (string Type, string Level) SplitRoutine(string routine)
+    {
+        var i = routine.LastIndexOf(": ", StringComparison.Ordinal);
+        return i < 0 ? (routine, "") : (routine[..i], routine[(i + 2)..]);
     }
 
     public static string StatusLabel(RoutineOccurrenceStatus s) => s switch

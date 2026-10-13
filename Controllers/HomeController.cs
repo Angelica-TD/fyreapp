@@ -2,6 +2,7 @@ using FyreApp.ViewModels.Home;
 using FyreApp.Models;
 using FyreApp.Data;
 using FyreApp.Dtos;
+using FyreApp.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
@@ -74,8 +75,10 @@ public class HomeController : Controller
                 Title = title,
                 Start = ms.NextRunDate.ToString("yyyy-MM-dd"),
                 ClassName = isOverdue ? "overdue" : "due",
-                // link to wherever you manage schedules
-                Url = Url.Action("Details", "MaintenanceSchedules", new { id = ms.Id })
+                // link to wherever you manage schedules; while they're hidden, the property's routines
+                Url = UiFeatures.MaintenanceSchedules
+                    ? Url.Action("Details", "MaintenanceSchedules", new { id = ms.Id })
+                    : Url.Action("Details", "Property", new { id = ms.SiteId ?? ms.Asset?.SiteId }, null, null, "routines")
             };
         });
 

@@ -24,8 +24,20 @@ public sealed class BreadcrumbFilter : IActionFilter
             ("Home", controller.Url.Action("Index", "Home"))
         };
 
-        // Controller crumb
-        crumbs.Add((SplitWords(controllerName), controller.Url.Action("Index", controllerName)));
+        // Routines sit under Tasks, as in Uptick ("Home / Tasks / Routines"). While schedules are hidden,
+        // their pages (e.g. the routines import) are reached from Routines.
+        var underRoutines = controllerName == "Routines"
+            || (controllerName == "MaintenanceSchedules" && !UiFeatures.MaintenanceSchedules);
+        if (underRoutines)
+        {
+            crumbs.Add(("Tasks", controller.Url.Action("Index", "Task")));
+            crumbs.Add(("Routines", controller.Url.Action("Index", "Routines")));
+        }
+        else
+        {
+            // Controller crumb
+            crumbs.Add((SplitWords(controllerName), controller.Url.Action("Index", controllerName)));
+        }
 
         // Action crumb (skip Index so no "Clients > Index")
         if (!string.Equals(actionName, "Index", StringComparison.OrdinalIgnoreCase))
