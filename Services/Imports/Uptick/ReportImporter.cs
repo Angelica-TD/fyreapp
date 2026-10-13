@@ -16,6 +16,7 @@ public class ReportImporter : UptickImporter
     public override async Task ImportAsync(IReadOnlyList<ImportRow> rows, bool dryRun, ImportContext ctx, CancellationToken ct)
     {
         var sitesByRef = await LoadSiteIdsByRefAsync(ct);
+        var taskIds = await LoadTaskIdsByExternalIdAsync(ct);
         var existing = ByExternalId(await Db.ServiceReports.AsNoTracking()
             .Where(r => r.ExternalId != null)
             .Select(r => new ImportedRecord(r.Id, r.ExternalId!, r.UptickData))
@@ -43,12 +44,12 @@ public class ReportImporter : UptickImporter
             if (action == RowAction.Create)
             {
                 var report = new ServiceReport { ExternalId = id };
-                Map(report, row, siteId);
+                Map(report, row, siteId, taskIds);
                 toCreate.Add(report);
             }
             else
             {
-                toUpdate[existingId] = r => Map(r, row, siteId);
+                toUpdate[existingId] = r => Map(r, row, siteId, taskIds);
             }
         }
 
@@ -63,7 +64,7 @@ public class ReportImporter : UptickImporter
     }
 
     // Everything a report takes from its Uptick row, for new and updated reports alike
-    private static void Map(ServiceReport r, ImportRow row, int siteId)
+    private static void Map(ServiceReport r, ImportRow row, int siteId, IReadOnlyDictionary<string, int> taskIds)
     {
         r.UptickData = row.ToJson();
         r.SiteId = siteId;
@@ -74,6 +75,9 @@ public class ReportImporter : UptickImporter
         r.Compliant = row.GetBool("Compliant");
         r.TaskRef = row.Get("Task Ref");
         r.TaskName = row.Get("Task");
+        r.TaskExternalId = row.Get("Task Id");
+        // Linked now when the task is already imported; otherwise the tasks import links it
+        r.ClientTaskId = r.TaskExternalId != null && taskIds.TryGetValue(r.TaskExternalId, out var taskId) ? taskId : null;
         r.Technician = row.Get("Technician");
         r.Author = row.Get("Author");
         r.Published = row.GetBool("Published") ?? false;

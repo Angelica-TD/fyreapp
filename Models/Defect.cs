@@ -58,4 +58,11 @@ public class Defect
     public string? QuoteStatus { get; set; }
     public string? RepairTaskRef { get; set; }
     public string? RepairTaskStatus { get; set; }
+
+    // The task raised to repair it: Uptick's task ID (export "Repair Task ID"), linked to the imported task
+    // once both are in FyreApp (whichever is imported second makes the link)
+    [StringLength(64)]
+    public string? RepairTaskExternalId { get; set; }
+    public int? RepairTaskId { get; set; }
+    public ClientTask? RepairTask { get; set; }
 }

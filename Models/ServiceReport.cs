@@ -40,6 +40,13 @@ public class ServiceReport
 
     public string? TaskRef { get; set; }
     public string? TaskName { get; set; }
+
+    // The task the report was done on: Uptick's task ID (export "Task Id"), linked to the imported task
+    // once both are in FyreApp (whichever is imported second makes the link)
+    [StringLength(64)]
+    public string? TaskExternalId { get; set; }
+    public int? ClientTaskId { get; set; }
+    public ClientTask? ClientTask { get; set; }
     public string? Technician { get; set; }
     public string? Author { get; set; }
 

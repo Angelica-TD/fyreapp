@@ -78,6 +78,45 @@
     }
 </p>
 
+@if (Model.Latitude is double lat && Model.Longitude is double lng)
+{
+    <p>
+        <a href="https://www.google.com/maps/search/?api=1&query=@lat.ToString(System.Globalization.CultureInfo.InvariantCulture),@lng.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+           target="_blank" rel="noopener"><i class="bi bi-geo-alt"></i> Open in Google Maps</a>
+    </p>
+}
+
+@{
+    // Site access and office notes, as Uptick holds them; only what's filled in is shown
+    var siteInfo = new (string Label, string? Value)[]
+    {
+        ("Access procedure", Model.AccessProcedure),
+        ("Access code", Model.AccessCode),
+        ("Access note", Model.AccessNote),
+        ("Service requirements", Model.ServiceRequirements),
+        ("Safety requirements", Model.SafetyRequirements),
+        ("Billing requirements", Model.BillingRequirements),
+        ("Internal note", Model.InternalNote),
+        (Model.Status == "ONHOLD" ? "On hold since" : "Inactive since", Model.Active && Model.Status != "ONHOLD" ? null : Model.InactiveDate.ToSydney().ToDisplayDate())
+    }.Where(i => !string.IsNullOrWhiteSpace(i.Value)).ToList();
+}
+
+@if (siteInfo.Any())
+{
+    <div class="card mb-3">
+        <div class="card-header">Access and site info</div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                @foreach (var (label, value) in siteInfo)
+                {
+                    <dt class="col-sm-3">@label</dt>
+                    <dd class="col-sm-9" style="white-space: pre-line">@value</dd>
+                }
+            </dl>
+        </div>
+    </div>
+}
+
 @await Html.PartialAsync("_UptickData", Model.UptickData)
 
 <hr />
@@ -276,6 +315,14 @@ else
                             {
                                 <div class="small text-muted">Quote @d.QuoteRef @d.QuoteStatus</div>
                             }
+                            @if (d.RepairTaskId.HasValue)
+                            {
+                                <div class="small">Repair <a asp-controller="Task" asp-action="Details" asp-route-id="@d.RepairTaskId">@(d.RepairTaskRef ?? "task")</a> @d.RepairTaskStatus</div>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(d.RepairTaskRef))
+                            {
+                                <div class="small text-muted">Repair @d.RepairTaskRef @d.RepairTaskStatus</div>
+                            }
                         </td>
                         <td>@d.Resolution</td>
                     </tr>
@@ -317,7 +364,20 @@ else
                         <td class="text-nowrap">@r.InspectedDate.ToDisplayDate()</td>
                         <td class="text-nowrap">@r.IssuedDate.ToDisplayDate()</td>
                         <td>@r.Technician</td>
-                        <td>@r.TaskName</td>
+                        <td>
+                            @if (r.ClientTaskId.HasValue)
+                            {
+                                <a asp-controller="Task" asp-action="Details" asp-route-id="@r.ClientTaskId">@(r.TaskRef ?? r.TaskName ?? "Task")</a>
+                                @if (r.TaskRef != null && r.TaskName != null)
+                                {
+                                    <div class="small text-muted">@r.TaskName</div>
+                                }
+                            }
+                            else
+                            {
+                                @r.TaskName
+                            }
+                        </td>
                         <td>
                             @if (r.Compliant == true)
                             {

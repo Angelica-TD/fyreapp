@@ -16,6 +16,7 @@ public class RemarkImporter : UptickImporter
     public override async Task ImportAsync(IReadOnlyList<ImportRow> rows, bool dryRun, ImportContext ctx, CancellationToken ct)
     {
         var sitesByRef = await LoadSiteIdsByRefAsync(ct);
+        var taskIds = await LoadTaskIdsByExternalIdAsync(ct);
         var assetsByExt = (await Db.Assets.AsNoTracking()
                 .Where(a => a.ExternalId != null)
                 .Select(a => new { a.Id, a.SiteId, a.ExternalId })
@@ -65,12 +66,12 @@ public class RemarkImporter : UptickImporter
             if (action == RowAction.Create)
             {
                 var defect = new Defect { ExternalId = id };
-                Map(defect, row, siteId, assetId, remarkTypeId);
+                Map(defect, row, siteId, assetId, remarkTypeId, taskIds);
                 toCreate.Add(defect);
             }
             else
             {
-                toUpdate[existingId] = d => Map(d, row, siteId, assetId, remarkTypeId);
+                toUpdate[existingId] = d => Map(d, row, siteId, assetId, remarkTypeId, taskIds);
             }
         }
 
@@ -88,7 +89,7 @@ public class RemarkImporter : UptickImporter
     }
 
     // Everything a remark takes from its Uptick row, for new and updated remarks alike
-    private static void Map(Defect d, ImportRow row, int siteId, int? assetId, int? remarkTypeId)
+    private static void Map(Defect d, ImportRow row, int siteId, int? assetId, int? remarkTypeId, IReadOnlyDictionary<string, int> taskIds)
     {
         d.UptickData = row.ToJson();
         d.SiteId = siteId;
@@ -109,5 +110,8 @@ public class RemarkImporter : UptickImporter
         d.QuoteStatus = row.Get("Quote Status");
         d.RepairTaskRef = row.Get("Repair Task Ref");
         d.RepairTaskStatus = row.Get("Repair Task Status");
+        d.RepairTaskExternalId = row.Get("Repair Task ID");
+        // Linked now when the task is already imported; otherwise the tasks import links it
+        d.RepairTaskId = d.RepairTaskExternalId != null && taskIds.TryGetValue(d.RepairTaskExternalId, out var taskId) ? taskId : null;
     }
 }

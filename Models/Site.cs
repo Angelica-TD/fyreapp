@@ -58,6 +58,28 @@ public class Site
     // When the property was created (Uptick's "Created" for imported ones)
     public DateTime? Created { get; set; }
 
+    // When it went inactive or on hold (Uptick "Inactive/Onhold Date")
+    public DateTime? InactiveDate { get; set; }
+
+    // Map position (Uptick "Address Lat" / "Address Lng")
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
+    // Site access, for techs. Procedure is Uptick's code, e.g. "CA" or "OA".
+    [StringLength(20)]
+    public string? AccessProcedure { get; set; }
+
+    [StringLength(100)]
+    public string? AccessCode { get; set; }
+
+    public string? AccessNote { get; set; }
+
+    // Office notes and requirements (Uptick "Internal Note", "Service / Safety / Billing Requirements")
+    public string? InternalNote { get; set; }
+    public string? ServiceRequirements { get; set; }
+    public string? SafetyRequirements { get; set; }
+    public string? BillingRequirements { get; set; }
+
     // FK → Client
     public int ClientId { get; set; }
     public Client Client { get; set; } = null!;

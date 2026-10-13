@@ -19,7 +19,9 @@ public enum UptickExportType
     AssetTypeVariants = 8,
     RemarkTypes = 9,
     RoutineServiceTypes = 10,
-    RoutineServiceLevels = 11
+    RoutineServiceLevels = 11,
+
+    ClientContacts = 12
 }
 
 // Collects counts and grouped issues for one import run.
@@ -89,6 +91,15 @@ public abstract class UptickImporter
             .Select(s => new { s.Id, s.ExternalId })
             .ToListAsync(ct))
         .ToDictionary(s => s.ExternalId!.Trim(), s => s.Id, StringComparer.OrdinalIgnoreCase);
+
+    // Imported tasks by Uptick task ID, for records that point at a task (reports, remarks)
+    protected async Task<Dictionary<string, int>> LoadTaskIdsByExternalIdAsync(CancellationToken ct) =>
+        (await Db.ClientTasks.AsNoTracking()
+            .Where(t => t.ExternalId != null)
+            .Select(t => new { t.Id, t.ExternalId })
+            .ToListAsync(ct))
+        .GroupBy(t => t.ExternalId!.Trim(), StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
 
     // Reference data importers update what's already there instead of skipping it, so a fresh
     // export (e.g. after fixing a level in Uptick) refreshes FyreApp.

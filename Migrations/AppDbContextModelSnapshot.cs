@@ -440,6 +440,68 @@ namespace FyreApp.Migrations
                     b.ToTable("Clients");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.ClientContact", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("FyreRef")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Mobile")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Position")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UptickData")
+                        .HasColumnType("json");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("FyreRef")
+                        .IsUnique();
+
+                    b.ToTable("ClientContacts");
+                });
+
             modelBuilder.Entity("FyreApp.Models.ClientTask", b =>
                 {
                     b.Property<int>("Id")
@@ -587,6 +649,13 @@ namespace FyreApp.Migrations
                     b.Property<int?>("RemarkTypeId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("RepairTaskExternalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int?>("RepairTaskId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("RepairTaskRef")
                         .HasColumnType("text");
 
@@ -622,6 +691,10 @@ namespace FyreApp.Migrations
                         .IsUnique();
 
                     b.HasIndex("RemarkTypeId");
+
+                    b.HasIndex("RepairTaskExternalId");
+
+                    b.HasIndex("RepairTaskId");
 
                     b.HasIndex("SiteId");
 
@@ -1207,6 +1280,9 @@ namespace FyreApp.Migrations
                     b.Property<string>("Author")
                         .HasColumnType("text");
 
+                    b.Property<int?>("ClientTaskId")
+                        .HasColumnType("integer");
+
                     b.Property<bool?>("Compliant")
                         .HasColumnType("boolean");
 
@@ -1243,6 +1319,10 @@ namespace FyreApp.Migrations
                     b.Property<int>("SiteId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("TaskExternalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("TaskName")
                         .HasColumnType("text");
 
@@ -1257,6 +1337,8 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ClientTaskId");
+
                     b.HasIndex("ExternalId")
                         .IsUnique();
 
@@ -1264,6 +1346,8 @@ namespace FyreApp.Migrations
                         .IsUnique();
 
                     b.HasIndex("SiteId");
+
+                    b.HasIndex("TaskExternalId");
 
                     b.ToTable("ServiceReports");
                 });
@@ -1313,6 +1397,17 @@ namespace FyreApp.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AccessCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("AccessNote")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AccessProcedure")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<bool>("Active")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -1329,6 +1424,9 @@ namespace FyreApp.Migrations
                     b.Property<string>("AddressLine2")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BillingRequirements")
+                        .HasColumnType("text");
 
                     b.Property<int>("ClientId")
                         .HasColumnType("integer");
@@ -1349,8 +1447,20 @@ namespace FyreApp.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<DateTime?>("InactiveDate")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("InternalNote")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsPlaceholder")
                         .HasColumnType("boolean");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1359,6 +1469,12 @@ namespace FyreApp.Migrations
                     b.Property<string>("Postcode")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
+
+                    b.Property<string>("SafetyRequirements")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ServiceRequirements")
+                        .HasColumnType("text");
 
                     b.Property<string>("State")
                         .HasMaxLength(100)
@@ -1679,6 +1795,17 @@ namespace FyreApp.Migrations
                     b.Navigation("AssetType");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.ClientContact", b =>
+                {
+                    b.HasOne("FyreApp.Models.Client", "Client")
+                        .WithMany("Contacts")
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
             modelBuilder.Entity("FyreApp.Models.ClientTask", b =>
                 {
                     b.HasOne("FyreApp.Models.ApplicationUser", "AssignedTo")
@@ -1724,6 +1851,11 @@ namespace FyreApp.Migrations
                         .HasForeignKey("RemarkTypeId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("FyreApp.Models.ClientTask", "RepairTask")
+                        .WithMany()
+                        .HasForeignKey("RepairTaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FyreApp.Models.Site", "Site")
                         .WithMany("Defects")
                         .HasForeignKey("SiteId")
@@ -1733,6 +1865,8 @@ namespace FyreApp.Migrations
                     b.Navigation("Asset");
 
                     b.Navigation("RemarkTypeRef");
+
+                    b.Navigation("RepairTask");
 
                     b.Navigation("Site");
                 });
@@ -1921,11 +2055,18 @@ namespace FyreApp.Migrations
 
             modelBuilder.Entity("FyreApp.Models.ServiceReport", b =>
                 {
+                    b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
+                        .WithMany()
+                        .HasForeignKey("ClientTaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FyreApp.Models.Site", "Site")
                         .WithMany("ServiceReports")
                         .HasForeignKey("SiteId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("ClientTask");
 
                     b.Navigation("Site");
                 });
@@ -2062,6 +2203,8 @@ namespace FyreApp.Migrations
 
             modelBuilder.Entity("FyreApp.Models.Client", b =>
                 {
+                    b.Navigation("Contacts");
+
                     b.Navigation("Sites");
                 });
 

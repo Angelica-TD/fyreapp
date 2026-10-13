@@ -87,7 +87,17 @@ public class PropertyImporter : UptickImporter
                 Postcode = row.Get("Address Postcode"),
                 Active = !string.Equals(row.Get("Status"), "INACTIVE", StringComparison.OrdinalIgnoreCase),
                 Status = row.Get("Status")?.ToUpperInvariant(),
-                Created = row.GetTimestampUtc("Created")
+                Created = row.GetTimestampUtc("Created"),
+                InactiveDate = row.GetTimestampUtc("Inactive/Onhold Date"),
+                Latitude = row.GetDouble("Address Lat"),
+                Longitude = row.GetDouble("Address Lng"),
+                AccessProcedure = row.Get("Access Procedure"),
+                AccessCode = row.Get("Access Code"),
+                AccessNote = row.Get("Access Note"),
+                InternalNote = row.Get("Internal Note"),
+                ServiceRequirements = row.Get("Service Requirements"),
+                SafetyRequirements = row.Get("Safety Requirements"),
+                BillingRequirements = row.Get("Billing Requirements")
             };
 
             var tooLong = TooLong(site);
@@ -164,6 +174,16 @@ public class PropertyImporter : UptickImporter
         s.Active = from.Active;
         s.Status = from.Status;
         s.Created = from.Created;
+        s.InactiveDate = from.InactiveDate;
+        s.Latitude = from.Latitude;
+        s.Longitude = from.Longitude;
+        s.AccessProcedure = from.AccessProcedure;
+        s.AccessCode = from.AccessCode;
+        s.AccessNote = from.AccessNote;
+        s.InternalNote = from.InternalNote;
+        s.ServiceRequirements = from.ServiceRequirements;
+        s.SafetyRequirements = from.SafetyRequirements;
+        s.BillingRequirements = from.BillingRequirements;
         s.IsPlaceholder = false;
     }
 
@@ -236,6 +256,8 @@ public class PropertyImporter : UptickImporter
         if (s.Suburb?.Length > 80) return "City";
         if (s.State?.Length > 100) return "State";
         if (s.Postcode?.Length > 10) return "Postcode";
+        if (s.AccessProcedure?.Length > 20) return "Access procedure";
+        if (s.AccessCode?.Length > 100) return "Access code";
         return null;
     }
 }

@@ -107,6 +107,11 @@
                     Tasks <span class="badge bg-secondary">@Model.Tasks.Count</span>
                 </button>
             </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-contacts">
+                    Contacts <span class="badge bg-secondary">@c.Contacts.Count</span>
+                </button>
+            </li>
             @if (UiFeatures.MaintenanceSchedules)
             {
                 <li class="nav-item">
@@ -245,6 +250,53 @@
                                     <td class="text-muted">@(task.Site?.Name ?? "—")</td>
                                     <td>@task.Status</td>
                                     <td>@task.Priority</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </div>
+
+            @* ── Contacts (Uptick client contacts; the primary contact is in the details on the left) ── *@
+            <div class="tab-pane fade" id="tab-contacts">
+                @if (!c.Contacts.Any())
+                {
+                    <p class="text-muted">No other contacts for this client.</p>
+                }
+                else
+                {
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Ref</th>
+                                <th>Name</th>
+                                <th>Position</th>
+                                <th>Email</th>
+                                <th>Mobile</th>
+                                <th>Phone</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var contact in c.Contacts.OrderBy(x => !x.Active).ThenBy(x => x.Name))
+                            {
+                                <tr class="@(contact.Active ? "" : "text-muted")">
+                                    <td class="text-nowrap text-muted">@contact.DisplayRef</td>
+                                    <td>
+                                        @contact.Name
+                                        @if (!contact.Active)
+                                        {
+                                            <span class="badge bg-secondary ms-1">Inactive</span>
+                                        }
+                                    </td>
+                                    <td>@contact.Position</td>
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(contact.Email))
+                                        {
+                                            <a href="mailto:@contact.Email">@contact.Email</a>
+                                        }
+                                    </td>
+                                    <td class="text-nowrap">@contact.Mobile</td>
+                                    <td class="text-nowrap">@contact.Phone</td>
                                 </tr>
                             }
                         </tbody>
