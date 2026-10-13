@@ -13,6 +13,11 @@ public class UptickImportResultVm
 
     public int TotalRows { get; set; }
     public int Created { get; set; }
+
+    // Already imported and changed in Uptick since: updated from this export
+    public int Updated { get; set; }
+
+    // Already imported and unchanged
     public int SkippedExisting { get; set; }
 
     // Row-level skips by reason, e.g. "Property not found" -> 3

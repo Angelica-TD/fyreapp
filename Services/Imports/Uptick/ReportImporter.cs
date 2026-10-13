@@ -16,21 +16,22 @@ public class ReportImporter : UptickImporter
     public override async Task ImportAsync(IReadOnlyList<ImportRow> rows, bool dryRun, ImportContext ctx, CancellationToken ct)
     {
         var sitesByRef = await LoadSiteIdsByRefAsync(ct);
-        var existing = (await Db.ServiceReports.AsNoTracking()
-                .Where(r => r.ExternalId != null)
-                .Select(r => r.ExternalId!)
-                .ToListAsync(ct))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var existing = ByExternalId(await Db.ServiceReports.AsNoTracking()
+            .Where(r => r.ExternalId != null)
+            .Select(r => new ImportedRecord(r.Id, r.ExternalId!, r.UptickData))
+            .ToListAsync(ct));
 
-        await AddPlaceholderSitesAsync(rows.Where(r => !existing.Contains(r.Get("ID") ?? "")), sitesByRef, "Property", dryRun, ctx, ct);
+        await AddPlaceholderSitesAsync(rows.Where(r => NewOrChanged(r, "ID", existing)), sitesByRef, "Property", dryRun, ctx, ct);
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var toCreate = new List<ServiceReport>();
+        var toUpdate = new Dictionary<int, Action<ServiceReport>>();
 
         foreach (var row in rows)
         {
             var id = row.Get("ID");
-            if (!ClaimExternalId(id, existing, seen, row, ctx)) continue;
+            var action = Claim(id, existing, seen, row, ctx, out var existingId);
+            if (action == RowAction.Skip) continue;
 
             var propertyRef = row.Get("Property Ref");
             if (propertyRef == null || !sitesByRef.TryGetValue(propertyRef, out var siteId))
@@ -39,31 +40,45 @@ public class ReportImporter : UptickImporter
                 continue;
             }
 
-            toCreate.Add(new ServiceReport
+            if (action == RowAction.Create)
             {
-                ExternalId = id,
-                UptickData = row.ToJson(),
-                SiteId = siteId,
-                Ref = row.Get("Ref"),
-                ReportType = row.Get("Report Type"),
-                IssuedDate = row.GetDate("Issued"),
-                InspectedDate = row.GetDate("Inspected"),
-                Compliant = row.GetBool("Compliant"),
-                TaskRef = row.Get("Task Ref"),
-                TaskName = row.Get("Task"),
-                Technician = row.Get("Technician"),
-                Author = row.Get("Author"),
-                Published = row.GetBool("Published") ?? false,
-                Amendment = row.GetBool("Amendment") ?? false,
-                GeneralNote = row.Get("General Note"),
-                CriticalNote = row.Get("Critical Note")
-            });
+                var report = new ServiceReport { ExternalId = id };
+                Map(report, row, siteId);
+                toCreate.Add(report);
+            }
+            else
+            {
+                toUpdate[existingId] = r => Map(r, row, siteId);
+            }
         }
 
         ctx.Result.Created = toCreate.Count;
+        ctx.Result.Updated = toUpdate.Count;
+        NoteNotInExport(ctx, existing, rows, "ID", "reports");
         if (dryRun) return;
 
+        await ApplyUpdatesAsync(Db.ServiceReports, toUpdate, r => r.Id, ct);
         Db.ServiceReports.AddRange(toCreate);
         await Db.SaveChangesAsync(ct);
+    }
+
+    // Everything a report takes from its Uptick row, for new and updated reports alike
+    private static void Map(ServiceReport r, ImportRow row, int siteId)
+    {
+        r.UptickData = row.ToJson();
+        r.SiteId = siteId;
+        r.Ref = row.Get("Ref");
+        r.ReportType = row.Get("Report Type");
+        r.IssuedDate = row.GetDate("Issued");
+        r.InspectedDate = row.GetDate("Inspected");
+        r.Compliant = row.GetBool("Compliant");
+        r.TaskRef = row.Get("Task Ref");
+        r.TaskName = row.Get("Task");
+        r.Technician = row.Get("Technician");
+        r.Author = row.Get("Author");
+        r.Published = row.GetBool("Published") ?? false;
+        r.Amendment = row.GetBool("Amendment") ?? false;
+        r.GeneralNote = row.Get("General Note");
+        r.CriticalNote = row.Get("Critical Note");
     }
 }

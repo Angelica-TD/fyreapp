@@ -133,6 +133,7 @@ public class ClientImportService : IClientImportService
             progress.WouldCreate = result.Created;
             progress.SkippedDuplicateExternalId = result.SkippedDuplicateExternalId;
             progress.FilledPlaceholders = result.FilledPlaceholders;
+            progress.Updated = result.Updated;
             // progress.SkippedDuplicateExternalIdInFile = result.SkippedDuplicateExternalIdInFile;
             // progress.SkippedDuplicateExternalIdMultipleHighPropertyCount = result.SkippedDuplicateExternalIdMultipleHighPropertyCount;
             progress.SkippedInvalid = result.SkippedInvalid;
@@ -149,16 +150,23 @@ public class ClientImportService : IClientImportService
         // import for clients missing from an export) aren't "existing": their row fills them in.
         var dbClients = await _db.Clients.AsNoTracking()
             .Where(c => c.ExternalId != null && c.ExternalId != "")
-            .Select(c => new { c.ExternalId, c.IsPlaceholder })
+            .Select(c => new { c.ExternalId, c.IsPlaceholder, c.UptickData })
             .ToListAsync(ct);
 
-        var existingExternalIdsDb = dbClients
-            .Where(c => !c.IsPlaceholder)
-            .Select(c => c.ExternalId!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // Imported clients by Uptick ID, with the Uptick row each was last imported from
+        var existingDb = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var c in dbClients.Where(c => !c.IsPlaceholder))
+            existingDb.TryAdd(c.ExternalId!.Trim(), c.UptickData);
         var placeholderExternalIds = dbClients
             .Where(c => c.IsPlaceholder)
             .Select(c => c.ExternalId!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Uptick IDs in this export, to spot imported clients it no longer has
+        var rowExternalIds = rows
+            .Select(r => r.FirstOrDefault(kv => TabularFileReader.NormalizeHeader(kv.Key) is var h
+                && (h == TabularFileReader.NormalizeHeader("ExternalId") || h == TabularFileReader.NormalizeHeader("ID"))).Value?.Trim())
+            .OfType<string>()
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // "Selected" within file (so we don't import duplicate IDs inside the file)
@@ -176,7 +184,7 @@ public class ClientImportService : IClientImportService
                 ProcessRow(
                     row,
                     rowNumber: result.TotalRows,
-                    existingExternalIdsDb: existingExternalIdsDb,
+                    existingDb: existingDb,
                     selectedByExternalId: selectedByExternalId,
                     conflictedExternalIds: conflictedExternalIds,
                     result: result,
@@ -189,16 +197,25 @@ public class ClientImportService : IClientImportService
                     Push();
             }
 
-            // Final create list; rows for placeholder clients fill those in instead
+            // Final create list; rows for placeholder clients fill those in, and rows for clients changed in
+            // Uptick since they were imported update them, instead
             var selected = selectedByExternalId.Values.Select(v => v.Client).ToList();
             var toFill = selected
                 .Where(c => c.ExternalId != null && placeholderExternalIds.Contains(c.ExternalId))
                 .ToList();
-            var toCreate = selected.Except(toFill).ToList();
+            var toUpdate = selected
+                .Where(c => c.ExternalId != null && existingDb.ContainsKey(c.ExternalId))
+                .ToList();
+            var toCreate = selected.Except(toFill).Except(toUpdate).ToList();
 
             // In dry-run, this is "would create"
             result.Created = toCreate.Count;
             result.FilledPlaceholders = toFill.Count;
+            result.Updated = toUpdate.Count;
+
+            var notInExport = existingDb.Keys.Count(k => !rowExternalIds.Contains(k));
+            if (notInExport > 0 && result.Messages.Count < MaxReportMessages)
+                result.Messages.Add($"{notInExport} client(s) already in FyreApp aren't in this export: deleted in Uptick, or left out by the export's filters. They're kept.");
 
             if (dryRun)
             {
@@ -206,17 +223,18 @@ public class ClientImportService : IClientImportService
                 return result;
             }
 
-            if (toCreate.Count == 0 && toFill.Count == 0)
+            if (toCreate.Count == 0 && toFill.Count == 0 && toUpdate.Count == 0)
             {
                 Push("Nothing to import.", completed: true);
                 return result;
             }
 
-            // One transaction, so a failure saves nothing (fill-ins included)
-            await using var tx = await _db.Database.BeginTransactionAsync(ct);
+            // One transaction, so a failure saves nothing (fill-ins and updates included)
+            // (The in-memory test database has no transactions)
+            await using var tx = _db.Database.IsRelational() ? await _db.Database.BeginTransactionAsync(ct) : null;
 
-            if (toFill.Count > 0)
-                await FillPlaceholdersAsync(toFill, ct);
+            if (toFill.Count > 0 || toUpdate.Count > 0)
+                await UpdateFromRowsAsync(toFill.Concat(toUpdate).ToList(), ct);
 
             // ---------------------------------------------
             // IMPORTANT: Postgres-friendly insert:
@@ -226,7 +244,7 @@ public class ClientImportService : IClientImportService
             var inserted = await InsertClientsIgnoreConflictsAsync(toCreate, ct);
             var skippedByDb = toCreate.Count - inserted;
 
-            await tx.CommitAsync(ct);
+            if (tx != null) await tx.CommitAsync(ct);
 
             result.Created = inserted;
 
@@ -280,7 +298,7 @@ public class ClientImportService : IClientImportService
     private static void ProcessRow(
     Dictionary<string, string?> row,
     int rowNumber,
-    HashSet<string> existingExternalIdsDb,
+    IReadOnlyDictionary<string, string?> existingDb,
     Dictionary<string, Candidate> selectedByExternalId,
     HashSet<string> conflictedExternalIds,
     ClientImportResultDto result,
@@ -303,6 +321,14 @@ public class ClientImportService : IClientImportService
 
         var externalId = Get("ExternalId", "ID");
 
+        // Already imported: skip unless it changed in Uptick since (then the row updates the client)
+        if (!string.IsNullOrWhiteSpace(externalId) && existingDb.TryGetValue(externalId, out var storedUptickData)
+            && !UptickRowChange.ShouldUpdate(UptickJson.Serialize(row), storedUptickData))
+        {
+            result.SkippedDuplicateExternalId++;
+            return;
+        }
+
         // Names are imported as is; Uptick allows clients to share a name
         var name = Get("Name") ?? "(no name)";
 
@@ -319,19 +345,6 @@ public class ClientImportService : IClientImportService
                 string.IsNullOrWhiteSpace(externalId) ? null : new[] { externalId });
 
             primaryMobile = primaryMobile![..MaxMobileLength];
-        }
-
-        // Duplicate ExternalId in DB -> skip
-        if (!string.IsNullOrWhiteSpace(externalId) && existingExternalIdsDb.Contains(externalId))
-        {
-            result.SkippedDuplicateExternalId++;
-            addIssue(
-                "DuplicateExternalIdInDatabase",
-                externalId,
-                new[] { rowNumber },
-                "Already exists in database. Row will be skipped.",
-                new[] { externalId });
-            return;
         }
 
         // Property Count (Total)
@@ -562,17 +575,18 @@ public class ClientImportService : IClientImportService
 
     static bool ExceedsMax(string? s, int max) => !string.IsNullOrWhiteSpace(s) && s.Trim().Length > max;
 
-    // Placeholder clients (created by the property import) get the full details from their row
-    private async Task FillPlaceholdersAsync(IReadOnlyList<Client> rows, CancellationToken ct)
+    // Placeholder clients (created by the property import) and clients changed in Uptick since they were
+    // imported get the full details from their row. FyreApp's own fields are left alone.
+    private async Task UpdateFromRowsAsync(IReadOnlyList<Client> rows, CancellationToken ct)
     {
         var byExt = rows.ToDictionary(c => c.ExternalId!, StringComparer.OrdinalIgnoreCase);
         var ids = byExt.Keys.ToList();
 
-        var placeholders = await _db.Clients
-            .Where(c => c.IsPlaceholder && c.ExternalId != null && ids.Contains(c.ExternalId))
+        var clients = await _db.Clients
+            .Where(c => c.ExternalId != null && ids.Contains(c.ExternalId))
             .ToListAsync(ct);
 
-        foreach (var c in placeholders)
+        foreach (var c in clients)
         {
             var from = byExt[c.ExternalId!];
             c.Name = from.Name;

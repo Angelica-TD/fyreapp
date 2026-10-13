@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using ClosedXML.Excel;
 using FyreApp.Models;
@@ -50,7 +51,7 @@ public class ClientImportServiceTests
 
             Assert.Equal(2, result.TotalRows);
             Assert.Equal(1, result.Created);
-            Assert.Equal(1, result.SkippedDuplicateExternalId);
+            Assert.Equal(1, result.Updated); // imported before FyreApp kept the Uptick row, so it counts as changed
             Assert.Equal(0, result.Failed);
         }
         finally
@@ -81,17 +82,32 @@ public class ClientImportServiceTests
     }
 
     [Fact]
-    public async Task ImportAsync_RerunSameId_SkippedAsExisting()
+    public async Task ImportAsync_RerunSameId_UnchangedIsSkipped()
     {
         using var db = DbContextFactory.Create();
-        db.Clients.Add(new Client { Name = "Acme", ExternalId = "1" });
+        db.Clients.Add(new Client { Name = "Acme", ExternalId = "1", UptickData = "{\"ID\":\"1\",\"Name\":\"Acme\"}" });
         await db.SaveChangesAsync();
 
         var result = await new ClientImportService(db).ImportAsync(
             Csv("ID,Name\r\n1,Acme\r\n"), dryRun: true);
 
-        Assert.Equal(0, result.Created);
-        Assert.Equal(1, result.SkippedDuplicateExternalId);
+        Assert.Equal((0, 0, 1), (result.Created, result.Updated, result.SkippedDuplicateExternalId));
+    }
+
+    [Fact]
+    public async Task ImportAsync_RerunSameId_ChangedInUptickIsUpdated()
+    {
+        using var db = DbContextFactory.Create();
+        var acme = new Client { Name = "Acme", ExternalId = "1", Active = true, UptickData = "{\"ID\":\"1\",\"Name\":\"Acme\",\"Active\":\"True\"}" };
+        db.Clients.Add(acme);
+        await db.SaveChangesAsync();
+
+        var result = await new ClientImportService(db).ImportAsync(
+            Csv("ID,Name,Active\r\n1,Acme Pty Ltd,False\r\n"), dryRun: false);
+
+        Assert.Equal((0, 1, 0), (result.Created, result.Updated, result.SkippedDuplicateExternalId));
+        var saved = await db.Clients.SingleAsync();
+        Assert.Equal(("Acme Pty Ltd", false), (saved.Name, saved.Active));
     }
 
     [Fact]

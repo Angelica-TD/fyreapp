@@ -32,16 +32,20 @@
                     <li>Properties</li>
                     <li>Property contacts</li>
                     <li>Assets</li>
-                    <li><a asp-controller="MaintenanceSchedules" asp-action="Import">Routine schedules</a></li>
+                    <li><a asp-controller="MaintenanceSchedules" asp-action="Import">Routines</a></li>
                     <li>Remarks (after assets, so they link to the asset)</li>
                     <li>Reports</li>
-                    <li>Tasks (after routine schedules, so routine tasks link to them)</li>
+                    <li>Tasks (after routines, so routine tasks link to them)</li>
                 </ol>
                 <p class="small text-muted mt-2 mb-0">
-                    You can export everything from Uptick and import it again: records already in FyreApp (same Uptick ID)
-                    are skipped and only new ones are added.
+                    You can export everything from Uptick and import it again to keep FyreApp in step: new records are added,
+                    records changed in Uptick since the last import are updated, and unchanged ones are skipped
+                    (matched on Uptick ID).
                 </p>
                 <ul class="small text-muted mt-1 mb-0 ps-3">
+                    <li>Uptick wins: changes made in FyreApp to imported records are overwritten when the record changes in Uptick.</li>
+                    <li>An older export never overwrites newer data (Uptick's "Updated" time is compared).</li>
+                    <li>Records deleted in Uptick are kept; the import says how many weren't in the export.</li>
                     <li>Reference data is refreshed from the export, so fixes made in Uptick come through.</li>
                     <li>Routines only move forward (pending → task raised → complete): completions in Uptick come through, tasks raised in FyreApp are kept.</li>
                 </ul>
@@ -123,7 +127,8 @@
                     <ul class="mb-0 mt-2">
                         <li>Rows read: <strong>@Model.TotalRows</strong></li>
                         <li>@(Model.DryRun ? "To create" : "Created"): <strong>@Model.Created</strong></li>
-                        <li>Already imported (skipped): <strong>@Model.SkippedExisting</strong></li>
+                        <li>@(Model.DryRun ? "To update" : "Updated") (changed in Uptick since the last import): <strong>@Model.Updated</strong></li>
+                        <li>Already imported, unchanged (skipped): <strong>@Model.SkippedExisting</strong></li>
                         @foreach (var (reason, count) in Model.Skipped.OrderByDescending(s => s.Value))
                         {
                             <li>Skipped: @reason: <strong>@count</strong></li>
