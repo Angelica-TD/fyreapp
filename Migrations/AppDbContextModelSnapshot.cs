@@ -2784,6 +2784,35 @@ namespace FyreApp.Migrations
                     b.ToTable("Suppliers");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.TaskAsset", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssetId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ClientTaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Routine")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("ClientTaskId", "AssetId", "Routine")
+                        .IsUnique();
+
+                    b.ToTable("TaskAssets");
+                });
+
             modelBuilder.Entity("FyreApp.Models.TimelineEntry", b =>
                 {
                     b.Property<int>("Id")
@@ -3520,6 +3549,25 @@ namespace FyreApp.Migrations
                     b.Navigation("Site");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.TaskAsset", b =>
+                {
+                    b.HasOne("FyreApp.Models.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
+                        .WithMany("Assets")
+                        .HasForeignKey("ClientTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("ClientTask");
+                });
+
             modelBuilder.Entity("FyreApp.Models.TimelineEntry", b =>
                 {
                     b.HasOne("FyreApp.Models.Asset", "Asset")
@@ -3655,6 +3703,11 @@ namespace FyreApp.Migrations
                     b.Navigation("Contacts");
 
                     b.Navigation("Sites");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.ClientTask", b =>
+                {
+                    b.Navigation("Assets");
                 });
 
             modelBuilder.Entity("FyreApp.Models.MaintenanceInterval", b =>

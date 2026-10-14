@@ -57,6 +57,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
     public DbSet<StockLevel> StockLevels => Set<StockLevel>();
+    public DbSet<TaskAsset> TaskAssets => Set<TaskAsset>();
 
 
 
@@ -646,6 +647,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(s => s.EndDate).HasColumnType("timestamptz");
             entity.Property(s => s.CreatedUtc).HasColumnType("timestamptz");
             entity.HasIndex(s => s.SiteId);
+        });
+
+
+        // Assets a routine task services: gone with the task or the asset
+        modelBuilder.Entity<TaskAsset>(entity =>
+        {
+            entity.HasOne(a => a.ClientTask).WithMany(t => t.Assets).HasForeignKey(a => a.ClientTaskId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(a => a.Asset).WithMany().HasForeignKey(a => a.AssetId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(a => new { a.ClientTaskId, a.AssetId, a.Routine }).IsUnique();
         });
 
         // FyreApp refs ("C-1001", "P-1001", ...) are assigned on insert by a Postgres trigger

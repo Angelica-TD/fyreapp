@@ -178,11 +178,17 @@ public class RoutineService : IRoutineService
         var occurrences = await selected
             .Include(o => o.Site)
             .Include(o => o.MaintenanceSchedule)
+            .Include(o => o.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
             .ToListAsync(ct);
 
         // Only routines still waiting for a task; ones already raised or done are left alone
         var pending = occurrences.Where(o => o.Status == RoutineOccurrenceStatus.Pending).ToList();
         var skipped = occurrences.Count - pending.Count;
+
+        // The assets each routine services, listed on the task's Work tab
+        var assets = await RoutineAssets.ForAsync(_db, pending
+            .Select(o => new RoutineAssets.SiteRoutine(o.SiteId, o.Routine, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Routine)))
+            .ToList(), ct);
 
         // One task per property, service group and month, named like Uptick's ("PM2026/11 Servicing - …")
         var tasks = new List<ClientTask>();
@@ -211,6 +217,9 @@ public class RoutineService : IRoutineService
 
             foreach (var schedule in routines.Select(o => o.MaintenanceSchedule).OfType<MaintenanceSchedule>().Distinct())
                 task.CoveredSchedules.Add(schedule);
+
+            foreach (var line in routines.Select(o => o.Routine).Distinct().SelectMany(r => assets[(siteId, r)]))
+                task.Assets.Add(new TaskAsset { AssetId = line.AssetId, Routine = line.Routine });
 
             foreach (var o in routines)
             {
