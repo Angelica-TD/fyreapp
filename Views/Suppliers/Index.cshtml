@@ -1,0 +1,68 @@
+@model FyreApp.ViewModels.Lists.DirectoryListVm<FyreApp.Models.Supplier>
+
+@{
+    ViewData["Title"] = "Suppliers";
+    var f = Model.Filter;
+}
+
+<div class="card">
+    <div class="card-header">
+        <h1 class="h4 m-0">Suppliers</h1>
+    </div>
+
+    <div class="card-body">
+        @await Html.PartialAsync("_DirectoryFilters", (f, "Search name, ref, ABN or email"))
+
+        @await Html.PartialAsync("_SelectionToolbar", new FyreApp.ViewModels.Lists.SelectionToolbarVm
+        {
+            Total = Model.Total, PageCount = Model.Items.Count, Noun = "Suppliers", NounSingular = "Supplier",
+            DownloadUrl = Url.Action("Download") + "?" + FyreApp.ViewModels.Lists.FilterQuery.ToQueryString(f.QueryValues())
+        })
+
+        @if (Model.Items.Count == 0)
+        {
+            <p class="text-muted">No suppliers match. Suppliers come from Uptick's Suppliers export (Import page).</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Ref</th>
+                            <th>ABN</th>
+                            <th>Accounts</th>
+                            <th>Purchasing</th>
+                            <th>Payment terms</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.Items)
+                        {
+                            <tr class="@(s.Active ? "" : "text-muted")">
+                                <td>
+                                    @s.Name
+                                    @if (!s.Active) { <span class="badge bg-secondary">Inactive</span> }
+                                </td>
+                                <td class="text-nowrap">@(s.Ref ?? "-")</td>
+                                <td class="text-nowrap">@(s.BusinessNumber ?? "-")</td>
+                                <td>
+                                    @(s.AccountsContactName ?? "-")
+                                    @if (s.AccountsEmail != null) { <div class="small"><a href="mailto:@s.AccountsEmail">@s.AccountsEmail</a></div> }
+                                </td>
+                                <td>
+                                    @(s.PurchasingContactName ?? "-")
+                                    @if (s.PurchasingEmail != null) { <div class="small"><a href="mailto:@s.PurchasingEmail">@s.PurchasingEmail</a></div> }
+                                </td>
+                                <td>@(s.PaymentTermsLabel ?? "-")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @await Html.PartialAsync("_ListPager", (f.Page, Model.Pages))
+        }
+    </div>
+</div>

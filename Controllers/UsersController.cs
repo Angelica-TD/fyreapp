@@ -1,4 +1,7 @@
+using FyreApp.Infrastructure;
+using FyreApp.Services.Lists;
 using FyreApp.Services.UserManagement;
+using FyreApp.ViewModels.Lists;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,10 +11,12 @@ namespace FyreApp.Controllers;
 public class UsersController : Controller
 {
     private readonly IUserManagementService _userService;
+    private readonly IDirectoryListService _directory;
 
-    public UsersController(IUserManagementService userService)
+    public UsersController(IUserManagementService userService, IDirectoryListService directory)
     {
         _userService = userService;
+        _directory = directory;
     }
 
     public async Task<IActionResult> Index()
@@ -19,6 +24,16 @@ public class UsersController : Controller
         var users = await _userService.GetAllAsync();
         return View(users);
     }
+
+    // Users imported from Uptick (a record of who's who; they don't log in to FyreApp)
+    [HttpGet]
+    public async Task<IActionResult> Uptick(string? search, string? license, int page = 1, CancellationToken ct = default) =>
+        View(await _directory.UptickUsersAsync(new DirectoryFilter { Search = search, License = license, Active = "any", Page = page }, ct));
+
+    [HttpGet]
+    public async Task<IActionResult> UptickDownload(string? search, string? license, CancellationToken ct = default) =>
+        File(await _directory.UptickUsersCsvAsync(new DirectoryFilter { Search = search, License = license, Active = "any" }, ct),
+            "text/csv", CsvExport.FileName("uptick-users"));
 
     [HttpGet]
     public IActionResult Create()

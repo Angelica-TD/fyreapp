@@ -38,15 +38,15 @@ public static class TabularFileReader
 
         if (!await csv.ReadAsync()) return rows;
         csv.ReadHeader();
-        var headers = csv.HeaderRecord ?? Array.Empty<string>();
+        var headers = UniqueHeaders(csv.HeaderRecord ?? Array.Empty<string>());
 
         while (await csv.ReadAsync())
         {
             ct.ThrowIfCancellationRequested();
 
             var dict = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-            foreach (var h in headers)
-                dict[h] = csv.GetField(h);
+            for (var i = 0; i < headers.Count; i++)
+                dict[headers[i]] = csv.GetField(i);
 
             rows.Add(dict);
         }
@@ -64,7 +64,7 @@ public static class TabularFileReader
         var headerRow = ws.FirstRowUsed();
         if (headerRow == null) return rows;
 
-        var headers = headerRow.CellsUsed().Select(c => c.GetString()).ToList();
+        var headers = UniqueHeaders(headerRow.CellsUsed().Select(c => c.GetString()).ToList());
 
         foreach (var row in ws.RowsUsed().Skip(1))
         {
@@ -76,6 +76,21 @@ public static class TabularFileReader
         }
 
         return rows;
+    }
+
+    // A header used twice keeps both columns: the second becomes e.g. "License (2)". (Uptick's users export
+    // has two "License" columns: the licence type, then the trade licence number.)
+    internal static List<string> UniqueHeaders(IReadOnlyList<string> headers)
+    {
+        var seen = new Dictionary<string, int>();
+        var unique = new List<string>(headers.Count);
+        foreach (var h in headers)
+        {
+            var key = NormalizeHeader(h);
+            seen[key] = seen.GetValueOrDefault(key) + 1;
+            unique.Add(seen[key] == 1 ? h : $"{h} ({seen[key]})");
+        }
+        return unique;
     }
 
     // Date cells as ISO text so parsing doesn't depend on the server's culture

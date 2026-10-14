@@ -40,4 +40,16 @@ public class TabularFileReaderTests
             CultureInfo.CurrentCulture = original;
         }
     }
+
+    [Fact]
+    public async Task ReadAsync_RepeatedHeader_KeepsEveryColumn()
+    {
+        // Uptick's users export: licence type, then trade licence number, both headed "License"
+        var csv = "\"Name\",\"License\",\"License\"\r\n\"Dwayne Page\",\"FIELD\",\"QBCC 15366855\"\r\n";
+
+        var rows = await TabularFileReader.ReadAsync(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(csv)), "users.csv");
+
+        var row = Assert.Single(rows);
+        Assert.Equal(("FIELD", "QBCC 15366855"), (row["License"], row["License (2)"]));
+    }
 }

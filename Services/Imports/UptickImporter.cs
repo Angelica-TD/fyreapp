@@ -21,7 +21,12 @@ public enum UptickExportType
     RoutineServiceTypes = 10,
     RoutineServiceLevels = 11,
 
-    ClientContacts = 12
+    ClientContacts = 12,
+
+    // People and businesses (no import order needed)
+    Users = 13,
+    Contractors = 14,
+    Suppliers = 15
 }
 
 // Collects counts and grouped issues for one import run.
@@ -110,6 +115,9 @@ public abstract class UptickImporter
         if (updated > 0)
             ctx.Result.Notes.Add($"{updated} existing {what} {(dryRun ? "will be" : "were")} updated from this export.");
     }
+
+    // Cuts text to fit its column (reference exports are free text; a rare long value shouldn't fail the import)
+    protected static string? Cap(string? s, int max) => s == null || s.Length <= max ? s : s[..(max - 1)] + "…";
 
     public const string UnassignedClientName = "Unassigned (not in Uptick export)";
 

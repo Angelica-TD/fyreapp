@@ -6,7 +6,10 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1>Users</h1>
-    <a asp-action="Create" class="btn btn-primary">+ Add User</a>
+    <div class="d-flex gap-2">
+        <a asp-action="Uptick" class="btn btn-outline-secondary">Uptick users</a>
+        <a asp-action="Create" class="btn btn-primary">+ Add User</a>
+    </div>
 </div>
 
 @if (TempData["Success"] != null)
