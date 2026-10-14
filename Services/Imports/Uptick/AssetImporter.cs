@@ -1,3 +1,4 @@
+using FyreApp.Services.Timeline;
 using FyreApp.Data;
 using FyreApp.Models;
 using Microsoft.EntityFrameworkCore;
@@ -71,7 +72,17 @@ public class AssetImporter : UptickImporter
             }
             else
             {
-                toUpdate[existingId] = a => Map(a, row, siteId, type, variantId);
+                // Fields changed in Uptick show on the asset's Timeline, as Uptick shows them
+                toUpdate[existingId] = a =>
+                {
+                    var before = TimelineLog.AssetFields(a);
+                    Map(a, row, siteId, type, variantId);
+                    foreach (var change in TimelineLog.Changes(before, TimelineLog.AssetFields(a), TimelineLog.UptickAuthor, TimelineLog.UpdatedInUptick(a.UptickData)))
+                    {
+                        change.AssetId = a.Id;
+                        Db.TimelineEntries.Add(change);
+                    }
+                };
             }
         }
 
@@ -107,6 +118,8 @@ public class AssetImporter : UptickImporter
         a.Make = row.Get("Make");
         a.Model = row.Get("Model");
         a.Size = row.Get("Size");
+        a.Serial = Cap(row.Get("Inspection Ref"), 100);
+        a.Quantity = Cap(row.Get("Quantity"), 100);
         a.Compliance = row.Get("Compliant");
         a.IsActive = row.GetBool("Is Active") ?? true;
         a.BaseDate = row.GetDate("Base Date");

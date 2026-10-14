@@ -87,6 +87,7 @@ namespace FyreApp.Controllers
             }
 
             var result = await _sites.CreateAsync(request, ct);
+            await LogCreatedAsync(result, ct);
 
             return result.Status switch
             {
@@ -99,6 +100,29 @@ namespace FyreApp.Controllers
             };
 
             
+        }
+
+        // A property made in FyreApp starts its Timeline, as in Uptick
+        private async Task LogCreatedAsync(CreateSiteResult result, CancellationToken ct)
+        {
+            if (result.Status != CreateSiteStatus.Success || result.site == null) return;
+            _context.TimelineEntries.Add(new TimelineEntry { SiteId = result.site.Id, Author = await _context.AuthorNameAsync(User, ct), Text = "Property was created." });
+            await _context.SaveChangesAsync(ct);
+        }
+
+        // "Add note" on the property's Timeline
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AddNote(int id, string? text, CancellationToken ct)
+        {
+            if (!await _context.Sites.AnyAsync(s => s.Id == id, ct)) return NotFound();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                _context.TimelineEntries.Add(new TimelineEntry { SiteId = id, Author = await _context.AuthorNameAsync(User, ct), IsNote = true, Text = text.Trim() });
+                await _context.SaveChangesAsync(ct);
+            }
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         private IActionResult RedirectWithError(int clientId, string message)
@@ -116,6 +140,7 @@ namespace FyreApp.Controllers
                 return ValidationProblem(ModelState);
 
             var result = await _sites.CreateAsync(request, ct);
+            await LogCreatedAsync(result, ct);
 
             return result.Status switch
             {
@@ -159,16 +184,18 @@ namespace FyreApp.Controllers
 
             _context.Assets.Add(asset);
             await _context.SaveChangesAsync(ct);
+            _context.TimelineEntries.Add(new TimelineEntry { AssetId = asset.Id, Author = await _context.AuthorNameAsync(User, ct), Text = "Asset was created." });
+            await _context.SaveChangesAsync(ct);
 
             return RedirectToAction("Details", new { id = siteId, tab = "assets" });
         }
 
         // GET: /Property/Details/5?tab=assets — the property page, one Uptick-style tab at a time
         public async Task<IActionResult> Details(
-            int id, string? tab, int? year, string? active, int? assetType, string? search, bool closed = false,
+            int id, string? tab, int? year, string? active, int? assetType, string? search, bool closed = false, bool notes = false,
             CancellationToken ct = default)
         {
-            var page = await _page.LoadAsync(id, new FyreApp.Services.Sites.PropertyPageQuery(tab, year, active, assetType, search, closed), ct);
+            var page = await _page.LoadAsync(id, new FyreApp.Services.Sites.PropertyPageQuery(tab, year, active, assetType, search, closed, notes), ct);
             if (page == null)
                 return NotFound();
 
@@ -192,6 +219,7 @@ namespace FyreApp.Controllers
             if (site == null) return NotFound();
 
             site.Active = false;
+            _context.TimelineEntries.Add(new TimelineEntry { SiteId = id, Author = await _context.AuthorNameAsync(User), Field = "Status", Value = "Inactive" });
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Property deactivated.";
@@ -207,6 +235,7 @@ namespace FyreApp.Controllers
             if (site == null) return NotFound();
 
             site.Active = true;
+            _context.TimelineEntries.Add(new TimelineEntry { SiteId = id, Author = await _context.AuthorNameAsync(User), Field = "Status", Value = "Active" });
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Property activated.";

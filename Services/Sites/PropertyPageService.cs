@@ -2,6 +2,7 @@ using FyreApp.Data;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.Services.Routines;
+using FyreApp.Services.Timeline;
 using FyreApp.ViewModels.Sites;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,20 +17,20 @@ public interface IPropertyPageService
 // What the page was asked for: the tab, plus that tab's filters
 public record PropertyPageQuery(
     string? Tab, int? Year = null, string? AssetActive = null, int? AssetType = null, string? AssetSearch = null,
-    bool ShowClosedRemarks = false);
+    bool ShowClosedRemarks = false, bool NotesOnly = false);
 
 // Loads only what the open tab needs, as Uptick's tabs are separate pages
 public class PropertyPageService : IPropertyPageService
 {
-    private const int TimelineSize = 100;
-
     private readonly AppDbContext _db;
     private readonly IRoutineService _routines;
+    private readonly ITimelineService _timeline;
 
-    public PropertyPageService(AppDbContext db, IRoutineService routines)
+    public PropertyPageService(AppDbContext db, IRoutineService routines, ITimelineService timeline)
     {
         _db = db;
         _routines = routines;
+        _timeline = timeline;
     }
 
     public async Task<PropertyPageVm?> LoadAsync(int id, PropertyPageQuery query, CancellationToken ct = default)
@@ -89,7 +90,8 @@ public class PropertyPageService : IPropertyPageService
             _ => new PropertyPageVm
             {
                 Site = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
-                Timeline = await TimelineAsync(site, ct)
+                Timeline = await _timeline.ForPropertyAsync(site, query.NotesOnly, ct),
+                NotesOnly = query.NotesOnly
             }
         };
     }
@@ -125,78 +127,4 @@ public class PropertyPageService : IPropertyPageService
         };
     }
 
-    // What happened at the property, from FyreApp's records: tasks created and completed, reports issued,
-    // remarks raised and closed. (Uptick's correspondence and invoices aren't in FyreApp.)
-    private async Task<List<TimelineItemVm>> TimelineAsync(Site site, CancellationToken ct)
-    {
-        var items = new List<TimelineItemVm>();
-
-        var tasks = await _db.ClientTasks.AsNoTracking()
-            .Where(t => t.SiteId == site.Id)
-            .OrderByDescending(t => t.CreatedUtc).Take(TimelineSize)
-            .Select(t => new { t.Id, t.Ref, t.FyreRef, t.Title, t.CreatedUtc, t.CompletedUtc, t.Status })
-            .ToListAsync(ct);
-        foreach (var t in tasks)
-        {
-            var name = $"{t.Ref ?? t.FyreRef}: {t.Title}";
-            items.Add(new TimelineItemVm
-            {
-                WhenUtc = t.CreatedUtc, Kind = "Task", Icon = "bi-list-check",
-                Before = "Task ", LinkText = name, LinkController = "Task", LinkId = t.Id, After = " was created."
-            });
-            if (t.CompletedUtc is DateTime done && t.Status == ClientTaskStatus.Completed)
-                items.Add(new TimelineItemVm
-                {
-                    WhenUtc = done, Kind = "Task", Icon = "bi-check2-circle",
-                    Before = "Task ", LinkText = name, LinkController = "Task", LinkId = t.Id, After = " was completed."
-                });
-        }
-
-        var reports = await _db.ServiceReports.AsNoTracking()
-            .Where(r => r.SiteId == site.Id && (r.IssuedDate != null || r.InspectedDate != null))
-            .OrderByDescending(r => r.IssuedDate ?? r.InspectedDate).Take(TimelineSize)
-            .Select(r => new { r.Id, r.Ref, r.ExternalId, r.FyreRef, r.ReportType, r.IssuedDate, r.InspectedDate, r.ClientTaskId, r.TaskRef, r.TaskName })
-            .ToListAsync(ct);
-        foreach (var r in reports)
-        {
-            var report = $"{r.ReportType ?? "Report"} ({r.Ref ?? r.ExternalId ?? r.FyreRef})";
-            items.Add(new TimelineItemVm
-            {
-                WhenUtc = (r.IssuedDate ?? r.InspectedDate)!.Value, DateOnly = true, Kind = "Service report", Icon = "bi-file-earmark-check",
-                Before = $"{(r.IssuedDate != null ? "Issued" : "Inspected")} {report}" + (r.ClientTaskId != null ? " for task " : "."),
-                LinkText = r.ClientTaskId != null ? $"{r.TaskRef}: {r.TaskName}" : null,
-                LinkController = "Task", LinkId = r.ClientTaskId,
-                After = r.ClientTaskId != null ? "." : null
-            });
-        }
-
-        var remarks = await _db.Defects.AsNoTracking()
-            .Where(d => d.SiteId == site.Id && d.RaisedUtc != null)
-            .OrderByDescending(d => d.RaisedUtc).Take(TimelineSize)
-            .Select(d => new { d.ExternalId, d.FyreRef, d.RemarkType, d.SeverityLabel, d.Description, d.RaisedUtc, d.InactiveUtc, d.Active })
-            .ToListAsync(ct);
-        foreach (var d in remarks)
-        {
-            var remark = $"{d.SeverityLabel ?? d.RemarkType ?? "Remark"} {(d.ExternalId != null ? $"D-{d.ExternalId}" : d.FyreRef)}";
-            items.Add(new TimelineItemVm
-            {
-                WhenUtc = d.RaisedUtc!.Value, Kind = "Remark", Icon = "bi-exclamation-triangle",
-                Before = $"{remark} raised: {Short(d.Description)}"
-            });
-            if (!d.Active && d.InactiveUtc is DateTime closed)
-                items.Add(new TimelineItemVm
-                {
-                    WhenUtc = closed, Kind = "Remark", Icon = "bi-check2-square",
-                    Before = $"{remark} was closed."
-                });
-        }
-
-        if (site.Created is DateTime created)
-            items.Add(new TimelineItemVm { WhenUtc = created, Kind = "Property", Icon = "bi-building", Before = "Property was created." });
-
-        return items.OrderByDescending(i => i.WhenUtc).Take(TimelineSize).ToList();
-    }
-
-    private static string Short(string? s) =>
-        string.IsNullOrWhiteSpace(s) ? "" : s.Length <= 120 ? s.Trim() : s[..117].Trim() + "…";
 }

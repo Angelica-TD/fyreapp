@@ -95,7 +95,9 @@
                             <th>Variant</th>
                             <th>Label</th>
                             <th>Location</th>
-                            <th>Last service</th>
+                            <th>Last service result</th>
+                            <th>Base Date</th>
+                            <th>Installation date</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -111,8 +113,21 @@
                                     @if (!a.IsActive) { <span class="badge bg-secondary ms-1">Inactive</span> }
                                 </td>
                                 <td>@a.Location</td>
-                                <td class="text-nowrap">@a.LastServiceDate.ToDisplayDate()</td>
-                                <td class="text-nowrap"><a asp-controller="Assets" asp-action="Details" asp-route-id="@a.Id">View</a></td>
+                                <td>
+                                    @if (AssetCompliance.ListBadge(a.Compliance) is { } result)
+                                    {
+                                        <span class="badge @result.Css">@result.Text</span>
+                                    }
+                                </td>
+                                <td class="text-nowrap">@(a.BaseDate?.ToOrdinalDate() ?? "-")</td>
+                                <td class="text-nowrap">@(a.InstallationDate?.ToOrdinalDate() ?? "-")</td>
+                                <td class="text-nowrap asset-actions">
+                                    <a asp-controller="Assets" asp-action="Details" asp-route-id="@a.Id">View</a>
+                                    @if (User.IsInRole("Admin"))
+                                    {
+                                        <a asp-controller="Assets" asp-action="Edit" asp-route-id="@a.Id">Edit</a>
+                                    }
+                                </td>
                             </tr>
                         }
                     </tbody>

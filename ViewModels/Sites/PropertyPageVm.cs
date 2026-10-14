@@ -24,7 +24,8 @@ public class PropertyPageVm
     public Defect? MostSevereRemark { get; init; }
 
     // Property tab
-    public IReadOnlyList<TimelineItemVm> Timeline { get; init; } = [];
+    public IReadOnlyList<TimelineEntry> Timeline { get; init; } = [];
+    public bool NotesOnly { get; init; }
 
     // Assets tab (filters as on Uptick's: active, asset type, search)
     public IReadOnlyList<Asset> Assets { get; init; } = [];
@@ -45,22 +46,3 @@ public class PropertyPageVm
     public IReadOnlyList<ClientTask> Tasks { get; init; } = [];
 }
 
-// One entry on the property's timeline, newest first
-public class TimelineItemVm
-{
-    public DateTime WhenUtc { get; set; }
-
-    // Calendar dates (e.g. a report's issue date) have no time of day to show
-    public bool DateOnly { get; set; }
-
-    // e.g. "Task", "Service report", "Remark"
-    public string Kind { get; set; } = string.Empty;
-    public string Icon { get; set; } = "bi-dot";
-
-    // LinkText links to LinkController's Details for LinkId; Before / After are the words around it
-    public string? Before { get; set; }
-    public string? LinkText { get; set; }
-    public string? LinkController { get; set; }
-    public int? LinkId { get; set; }
-    public string? After { get; set; }
-}

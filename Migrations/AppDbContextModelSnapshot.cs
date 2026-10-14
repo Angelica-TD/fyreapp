@@ -209,8 +209,16 @@ namespace FyreApp.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Quantity")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("Ref")
                         .HasColumnType("text");
+
+                    b.Property<string>("Serial")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<int>("SiteId")
                         .HasColumnType("integer");
@@ -1794,6 +1802,49 @@ namespace FyreApp.Migrations
                     b.ToTable("Suppliers");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.TimelineEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AssetId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Author")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Field")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsNote")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("SiteId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("WhenUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId", "WhenUtc");
+
+                    b.HasIndex("SiteId", "WhenUtc");
+
+                    b.ToTable("TimelineEntries");
+                });
+
             modelBuilder.Entity("FyreApp.Models.UptickUser", b =>
                 {
                     b.Property<int>("Id")
@@ -2389,6 +2440,23 @@ namespace FyreApp.Migrations
                         .HasForeignKey("SiteId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Site");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.TimelineEntry", b =>
+                {
+                    b.HasOne("FyreApp.Models.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("FyreApp.Models.Site", "Site")
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Asset");
 
                     b.Navigation("Site");
                 });

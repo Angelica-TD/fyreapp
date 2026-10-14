@@ -56,6 +56,8 @@ builder.Services.AddScoped<UptickImporter, UserImporter>();
 builder.Services.AddScoped<UptickImporter, ContractorImporter>();
 builder.Services.AddScoped<UptickImporter, SupplierImporter>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IDirectoryListService, FyreApp.Services.Lists.DirectoryListService>();
+builder.Services.AddScoped<FyreApp.Services.Timeline.ITimelineService, FyreApp.Services.Timeline.TimelineService>();
+builder.Services.AddScoped<FyreApp.Services.Assets.IAssetPageService, FyreApp.Services.Assets.AssetPageService>();
 builder.Services.AddScoped<IUptickImportService, UptickImportService>();
 builder.Services.AddScoped<IDataResetService, DataResetService>();
 builder.Services.AddScoped<IClientTaskService, ClientTaskService>();

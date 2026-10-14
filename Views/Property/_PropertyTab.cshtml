@@ -274,36 +274,12 @@
 
     @* Timeline *@
     <div class="col-lg-6">
-        <div class="card property-card">
-            <div class="card-header"><span>Timeline</span></div>
-            <div class="card-body">
-                @if (!Model.Timeline.Any())
-                {
-                    <p class="text-muted mb-0">Nothing has happened at this property yet.</p>
-                }
-                else
-                {
-                    <ul class="property-timeline">
-                        @foreach (var item in Model.Timeline)
-                        {
-                            <li>
-                                <span class="property-timeline-icon"><i class="bi @item.Icon"></i></span>
-                                <div>
-                                    <div class="small text-muted">
-                                        <span class="fw-semibold">@item.Kind</span> ·
-                                        @(item.DateOnly ? item.WhenUtc.ToDisplayDate() : item.WhenUtc.ToSydney().ToDisplayDateTime())
-                                    </div>
-                                    <div>
-                                        @item.Before@if (item.LinkText != null && item.LinkId != null)
-                                        {<a asp-controller="@item.LinkController" asp-action="Details" asp-route-id="@item.LinkId">@item.LinkText</a>}@item.After
-                                    </div>
-                                </div>
-                            </li>
-                        }
-                    </ul>
-                    <p class="small text-muted mb-0">Tasks, service reports and remarks from FyreApp. Uptick's correspondence and invoices aren't imported.</p>
-                }
-            </div>
-        </div>
+        @await Html.PartialAsync("_Timeline", new FyreApp.ViewModels.Timeline.TimelineVm
+        {
+            Entries = Model.Timeline,
+            NotesOnly = Model.NotesOnly,
+            AddNoteUrl = Url.Action("AddNote", new { id = site.Id })!,
+            ToggleNotesUrl = Model.NotesOnly ? Url.Action("Details", new { id = site.Id })! : Url.Action("Details", new { id = site.Id, notes = true })!
+        })
     </div>
 </div>

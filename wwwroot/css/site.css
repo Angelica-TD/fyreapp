@@ -537,3 +537,28 @@ a.routine-marker:hover {
     color: var(--bs-secondary-color, #6c757d);
     z-index: 1;
 }
+
+/* Timeline: changes and notes read as in Uptick, e.g. "Access note was changed to ..." */
+.timeline-text em {
+    font-style: italic;
+}
+
+.timeline-toggle {
+    color: var(--bs-secondary-color, #6c757d);
+}
+
+/* Asset rows: View / Edit side by side, muted like Uptick's */
+.asset-actions a {
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    margin-left: 0.75rem;
+}
+
+.asset-actions a:hover {
+    color: var(--bs-link-color);
+}
+
+/* The asset Update form: a single card, Uptick's width */
+.asset-form {
+    max-width: 48rem;
+}
