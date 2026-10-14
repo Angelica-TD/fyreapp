@@ -1,0 +1,57 @@
+@model FyreApp.ViewModels.Sites.PropertyPageVm
+@using FyreApp.Infrastructure
+
+@* Uptick's Records tab: the property's service reports, newest first *@
+
+<div class="card property-card">
+    <div class="card-header"><span>Service reports (@Model.Reports.Count)</span></div>
+    @if (!Model.Reports.Any())
+    {
+        <div class="card-body text-muted">No service reports for this property.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Ref</th>
+                        <th>Type</th>
+                        <th>Inspected</th>
+                        <th>Issued</th>
+                        <th>Technician</th>
+                        <th>Task</th>
+                        <th>Compliant</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Reports)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@r.DisplayRef</td>
+                            <td>@r.ReportType</td>
+                            <td class="text-nowrap">@r.InspectedDate.ToDisplayDate()</td>
+                            <td class="text-nowrap">@r.IssuedDate.ToDisplayDate()</td>
+                            <td>@r.Technician</td>
+                            <td>
+                                @if (r.ClientTaskId.HasValue)
+                                {
+                                    <a asp-controller="Task" asp-action="Details" asp-route-id="@r.ClientTaskId">@(r.TaskRef ?? r.TaskName ?? "Task")</a>
+                                    @if (r.TaskRef != null && r.TaskName != null) { <div class="small text-muted">@r.TaskName</div> }
+                                }
+                                else
+                                {
+                                    @r.TaskName
+                                }
+                            </td>
+                            <td>
+                                @if (r.Compliant == true) { <span class="badge bg-success">Yes</span> }
+                                else if (r.Compliant == false) { <span class="badge bg-danger">No</span> }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

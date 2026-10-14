@@ -37,12 +37,12 @@
                     <tr>
                         <th class="routine-grid-name">
                             <a class="btn btn-sm btn-light border" aria-label="Previous year"
-                               asp-action="Details" asp-route-id="@Model.SiteId" asp-route-year="@(Model.Year - 1)" asp-fragment="routines">
+                               asp-action="Details" asp-route-id="@Model.SiteId" asp-route-year="@(Model.Year - 1)" asp-route-tab="routines">
                                 <i class="bi bi-chevron-left"></i>
                             </a>
                             <span class="mx-2">@Model.Year</span>
                             <a class="btn btn-sm btn-light border" aria-label="Next year"
-                               asp-action="Details" asp-route-id="@Model.SiteId" asp-route-year="@(Model.Year + 1)" asp-fragment="routines">
+                               asp-action="Details" asp-route-id="@Model.SiteId" asp-route-year="@(Model.Year + 1)" asp-route-tab="routines">
                                 <i class="bi bi-chevron-right"></i>
                             </a>
                         </th>

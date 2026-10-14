@@ -91,6 +91,7 @@ public class PropertyImporter : UptickImporter
                 InactiveDate = row.GetTimestampUtc("Inactive/Onhold Date"),
                 Latitude = row.GetDouble("Address Lat"),
                 Longitude = row.GetDouble("Address Lng"),
+                AccessSchedule = row.Get("Access Schedule"),
                 AccessProcedure = row.Get("Access Procedure"),
                 AccessCode = row.Get("Access Code"),
                 AccessNote = row.Get("Access Note"),
@@ -177,6 +178,7 @@ public class PropertyImporter : UptickImporter
         s.InactiveDate = from.InactiveDate;
         s.Latitude = from.Latitude;
         s.Longitude = from.Longitude;
+        s.AccessSchedule = from.AccessSchedule;
         s.AccessProcedure = from.AccessProcedure;
         s.AccessCode = from.AccessCode;
         s.AccessNote = from.AccessNote;
@@ -256,6 +258,7 @@ public class PropertyImporter : UptickImporter
         if (s.Suburb?.Length > 80) return "City";
         if (s.State?.Length > 100) return "State";
         if (s.Postcode?.Length > 10) return "Postcode";
+        if (s.AccessSchedule?.Length > 20) return "Access schedule";
         if (s.AccessProcedure?.Length > 20) return "Access procedure";
         if (s.AccessCode?.Length > 100) return "Access code";
         return null;

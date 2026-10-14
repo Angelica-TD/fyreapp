@@ -65,7 +65,10 @@ public class Site
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
 
-    // Site access, for techs. Procedure is Uptick's code, e.g. "CA" or "OA".
+    // Site access, for techs. Schedule and procedure are Uptick's codes, e.g. "NR" (needs review), "CA".
+    [StringLength(20)]
+    public string? AccessSchedule { get; set; }
+
     [StringLength(20)]
     public string? AccessProcedure { get; set; }
 

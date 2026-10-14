@@ -1,0 +1,63 @@
+@model FyreApp.ViewModels.Sites.PropertyPageVm
+
+@* Uptick's Billing tab, for what FyreApp holds: the property's and the client's billing requirements.
+   (Uptick's billing cards, contracts and invoices aren't imported.) *@
+@{
+    var site = Model.Site;
+    var client = site.Client;
+}
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card property-card">
+            <div class="card-header">
+                <div>
+                    <div>Property billing requirements</div>
+                    <div class="small text-muted fw-normal">@site.DisplayRef @site.Name</div>
+                </div>
+            </div>
+            <div class="card-body">
+                <dl class="row property-facts mb-0">
+                    <dt class="col-4">Requirements</dt>
+                    <dd class="col-8" style="white-space: pre-line">@(string.IsNullOrWhiteSpace(site.BillingRequirements) ? "-" : site.BillingRequirements)</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card property-card">
+            <div class="card-header">
+                <div>
+                    <div>Client billing requirements</div>
+                    <a class="small fw-normal" asp-controller="Clients" asp-action="Details" asp-route-id="@client.Id">@client.Name</a>
+                </div>
+            </div>
+            <div class="card-body">
+                <dl class="row property-facts mb-0">
+                    <dt class="col-4">Organisation</dt>
+                    @* With no billing organisation or address, Uptick shows the client's, greyed *@
+                    <dd class="col-8 @(client.BillingName == null ? "text-muted" : "")">@(client.BillingName ?? client.Name)</dd>
+                    <dt class="col-4">Attention</dt>
+                    <dd class="col-8">@(client.BillingAttentionTo ?? "-")</dd>
+                    <dt class="col-4">Email</dt>
+                    <dd class="col-8">
+                        @if (!string.IsNullOrWhiteSpace(client.BillingEmail)) { <a href="mailto:@client.BillingEmail">@client.BillingEmail</a> } else { <text>-</text> }
+                        @if (!string.IsNullOrWhiteSpace(client.BillingCcEmail)) { <div><small>Cc:</small> @client.BillingCcEmail</div> }
+                    </dd>
+                    <dt class="col-4">Address</dt>
+                    <dd class="col-8 @(client.BillingAddress == null ? "text-muted" : "")">@(client.BillingAddress ?? client.PrimaryContactAddress ?? "-")</dd>
+                    <dt class="col-4">Special requirements</dt>
+                    <dd class="col-8" style="white-space: pre-line">@(string.IsNullOrWhiteSpace(client.BillingRequirements) ? "-" : client.BillingRequirements)</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card property-card">
+            <div class="card-header"><span>Billing contracts and invoices</span></div>
+            <div class="card-body text-muted">
+                Billing cards, contracts and invoices are in Uptick and aren't imported into FyreApp yet.
+            </div>
+        </div>
+    </div>
+</div>

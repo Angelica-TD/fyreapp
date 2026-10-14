@@ -1,0 +1,51 @@
+@model FyreApp.ViewModels.Sites.PropertyPageVm
+@using FyreApp.Infrastructure
+
+@* Uptick's Tasks tab: the property's tasks, open ones first *@
+@{
+    var site = Model.Site;
+}
+
+<div class="card property-card">
+    <div class="card-header">
+        <span>Tasks (@Model.Tasks.Count)</span>
+        <a class="card-action" asp-controller="Task" asp-action="Create" asp-route-clientId="@site.ClientId" asp-route-siteId="@site.Id">
+            <i class="bi bi-plus-lg"></i> Add task
+        </a>
+    </div>
+    @if (!Model.Tasks.Any())
+    {
+        <div class="card-body text-muted">No tasks for this property.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Ref</th>
+                        <th>Task</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Due</th>
+                        <th>Assigned to</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model.Tasks)
+                    {
+                        var done = t.Status is ClientTaskStatus.Completed or ClientTaskStatus.Cancelled;
+                        <tr class="@(done ? "text-muted" : "")">
+                            <td class="text-nowrap">@t.DisplayRef</td>
+                            <td><a asp-controller="Task" asp-action="Details" asp-route-id="@t.Id">@t.Title</a></td>
+                            <td>@t.Category</td>
+                            <td>@t.Status</td>
+                            <td class="text-nowrap">@t.DueDateUtc.ToDisplayDate()</td>
+                            <td>@(t.AssignedTo?.FullName ?? "")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

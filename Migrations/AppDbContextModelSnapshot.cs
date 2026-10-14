@@ -1467,6 +1467,10 @@ namespace FyreApp.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("AccessSchedule")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<bool>("Active")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")

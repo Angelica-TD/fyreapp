@@ -1,0 +1,309 @@
+@model FyreApp.ViewModels.Sites.PropertyPageVm
+@using System.Globalization
+@using FyreApp.Infrastructure
+
+@* Uptick's Property tab: the property and who/what's there on the left, its timeline on the right *@
+@{
+    var site = Model.Site;
+    var client = site.Client;
+
+    (string Label, string Css) Status(string? status) => status switch
+    {
+        "ONHOLD" => ("On hold", "bg-warning text-dark"),
+        "SETUP" => ("Setup", "bg-info text-dark"),
+        "INACTIVE" => ("Inactive", "bg-secondary"),
+        _ => site.Active ? ("Active", "bg-success") : ("Inactive", "bg-secondary")
+    };
+    var status = Status(site.Status);
+
+    var notes = new (string Label, string? Value)[]
+    {
+        ("Internal note", site.InternalNote),
+        ("Service requirements", site.ServiceRequirements),
+        ("Safety requirements", site.SafetyRequirements)
+    }.Where(n => !string.IsNullOrWhiteSpace(n.Value)).ToList();
+
+    // Uptick shows "NR" as "Needs review" and a blank procedure as "Unknown procedure"; other codes as they are
+    var schedule = site.AccessSchedule switch { null or "" => "Unknown schedule", "NR" => "Needs review", var s => s };
+    var procedure = string.IsNullOrWhiteSpace(site.AccessProcedure) ? "Unknown procedure" : site.AccessProcedure;
+
+    // Uptick keeps the address one part per line; ones typed in FyreApp use commas
+    var addressLines = (site.AddressDisplay ?? "").Split(new[] { '\n', ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    // Uptick's contact role codes, as Uptick shows them
+    string Role(string? role) => role switch
+    {
+        "onsitemanager" => "On-site manager",
+        "accesscontact" => "Access contact",
+        "propertymanager" => "Property manager",
+        "owner" => "Owner",
+        "tenant" => "Tenant",
+        "required" => "Required",
+        _ => role ?? ""
+    };
+}
+
+<div class="row g-3">
+    <div class="col-lg-6">
+
+        @* Summary *@
+        <div class="card property-card">
+            <div class="card-header">
+                <div>
+                    <span class="text-muted fw-light me-2">@site.DisplayRef</span>
+                    <span class="fw-semibold">@site.Name</span>
+                    <span class="badge @status.Css ms-2 align-middle">@status.Label</span>
+                </div>
+                @if (site.Active)
+                {
+                    <form asp-action="Deactivate" asp-route-id="@site.Id" method="post">
+                        <button type="submit" class="btn btn-link card-action text-warning" onclick="return confirm('Deactivate this property?')">
+                            <i class="bi bi-pause-circle"></i> Deactivate
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <form asp-action="Activate" asp-route-id="@site.Id" method="post">
+                        <button type="submit" class="btn btn-link card-action" onclick="return confirm('Reactivate this property?')">
+                            <i class="bi bi-play-circle"></i> Activate
+                        </button>
+                    </form>
+                }
+            </div>
+            <div class="card-body">
+                @if (Model.MostSevereRemark is { } worst)
+                {
+                    <p>
+                        <span class="badge text-uppercase @RemarkSeverity.BadgeCss(worst.Severity)">@(worst.SeverityLabel ?? "Remark")</span>
+                        is most severe of
+                        <a asp-action="Details" asp-route-id="@site.Id" asp-route-tab="remarks">@Model.OpenRemarks open remark@(Model.OpenRemarks == 1 ? "" : "s")</a>.
+                    </p>
+                }
+
+                <dl class="row property-facts mb-3">
+                    <dt class="col-4"><i class="bi bi-person"></i> Client</dt>
+                    <dd class="col-8"><a asp-controller="Clients" asp-action="Details" asp-route-id="@client.Id">@client.Name</a></dd>
+                </dl>
+
+                <div class="fw-semibold border-bottom pb-1 mb-2">Notes</div>
+                @if (notes.Any())
+                {
+                    <dl class="row property-facts mb-0">
+                        @foreach (var (label, value) in notes)
+                        {
+                            <dt class="col-4">@label</dt>
+                            <dd class="col-8" style="white-space: pre-line">@value</dd>
+                        }
+                    </dl>
+                }
+                else
+                {
+                    <p class="text-muted mb-0">No notes.</p>
+                }
+            </div>
+        </div>
+
+        @* Property contacts *@
+        <div class="card property-card">
+            <div class="card-header"><span>Property Contacts</span></div>
+            @if (!site.Contacts.Any())
+            {
+                <div class="card-body text-muted">No contacts for this property.</div>
+            }
+            else
+            {
+                <table class="table mb-0">
+                    <thead>
+                        <tr><th>Name</th><th>Contact details</th><th>Notifications</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in site.Contacts.OrderBy(c => !c.Active).ThenBy(c => c.Name))
+                        {
+                            <tr class="@(c.Active ? "" : "text-muted")">
+                                <td>
+                                    @(string.IsNullOrWhiteSpace(c.Name) ? "(no name)" : c.Name)
+                                    @if (!c.Active) { <span class="badge bg-secondary ms-1">Inactive</span> }
+                                    <div class="text-muted small">@Role(c.Role)</div>
+                                    @if (!string.IsNullOrWhiteSpace(c.Organisation)) { <div class="text-muted small">@c.Organisation</div> }
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(c.Email)) { <div><a href="mailto:@c.Email">@c.Email</a></div> }
+                                    <div>@c.Mobile</div>
+                                    @if (!string.IsNullOrWhiteSpace(c.BusinessHours)) { <div class="text-muted small">@c.BusinessHours</div> }
+                                </td>
+                                <td class="text-nowrap contact-notifications">
+                                    <i class="bi bi-currency-dollar @(c.QuoteRequired ? "on" : "")" title="Quotes @(c.QuoteRequired ? "" : "not ")sent"></i>
+                                    <i class="bi bi-file-earmark-text @(c.ReportRequired ? "on" : "")" title="Reports @(c.ReportRequired ? "" : "not ")sent"></i>
+                                    <i class="bi bi-receipt @(c.InvoiceRequired ? "on" : "")" title="Invoices @(c.InvoiceRequired ? "" : "not ")sent"></i>
+                                    <i class="bi bi-bell @(c.NotificationRequired ? "on" : "")" title="Notifications @(c.NotificationRequired ? "" : "not ")sent"></i>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        @* Access *@
+        <div class="card property-card">
+            <div class="card-header"><span>Access</span></div>
+            <div class="card-body">
+                <dl class="row property-facts mb-0">
+                    <dt class="col-4">Schedule</dt>
+                    <dd class="col-8"><span class="badge bg-secondary text-uppercase">@schedule</span></dd>
+                    <dt class="col-4">Procedure</dt>
+                    <dd class="col-8"><span class="badge bg-secondary text-uppercase">@procedure</span></dd>
+                    @if (!string.IsNullOrWhiteSpace(site.AccessCode))
+                    {
+                        <dt class="col-4">Code</dt>
+                        <dd class="col-8">@site.AccessCode</dd>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(site.AccessNote))
+                    {
+                        <dt class="col-4">Note</dt>
+                        <dd class="col-8" style="white-space: pre-line">@site.AccessNote</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        @* Client *@
+        <div class="card property-card">
+            <div class="card-header"><span>Client</span></div>
+            <div class="card-body">
+                <dl class="row property-facts mb-0">
+                    <dt class="col-4">Client</dt>
+                    <dd class="col-8"><a asp-controller="Clients" asp-action="Details" asp-route-id="@client.Id">@client.Name</a></dd>
+                    <dt class="col-4">Primary contact</dt>
+                    <dd class="col-8">@(client.PrimaryContactName ?? "-")</dd>
+                    <dt class="col-4">Email</dt>
+                    <dd class="col-8">
+                        @if (!string.IsNullOrWhiteSpace(client.PrimaryContactEmail)) { <a href="mailto:@client.PrimaryContactEmail">@client.PrimaryContactEmail</a> } else { <text>-</text> }
+                        @if (!string.IsNullOrWhiteSpace(client.PrimaryContactCcEmail)) { <div><small>Cc:</small> @client.PrimaryContactCcEmail</div> }
+                    </dd>
+                    <dt class="col-4">Address</dt>
+                    <dd class="col-8">@(client.PrimaryContactAddress ?? client.BillingAddress ?? "-")</dd>
+                </dl>
+            </div>
+            <table class="table mb-0">
+                <thead>
+                    <tr><th>Name</th><th>Mobile</th><th>Phone</th><th>Email</th></tr>
+                </thead>
+                <tbody>
+                    @if (!string.IsNullOrWhiteSpace(client.BillingEmail))
+                    {
+                        <tr>
+                            <td class="text-muted">Billing Contact@(client.BillingAttentionTo == null ? "" : $" ({client.BillingAttentionTo})")</td>
+                            <td></td><td></td>
+                            <td><a href="mailto:@client.BillingEmail">@client.BillingEmail</a></td>
+                        </tr>
+                    }
+                    <tr>
+                        <td class="text-muted">Primary Contact</td>
+                        <td class="text-nowrap">@client.PrimaryContactMobile</td>
+                        <td class="text-nowrap">@client.PrimaryContactPhone</td>
+                        <td>@if (!string.IsNullOrWhiteSpace(client.PrimaryContactEmail)) { <a href="mailto:@client.PrimaryContactEmail">@client.PrimaryContactEmail</a> }</td>
+                    </tr>
+                    @foreach (var c in client.Contacts.Where(c => c.Active).OrderBy(c => c.Name))
+                    {
+                        <tr>
+                            <td>@c.Name<div class="text-muted small">@c.Position</div></td>
+                            <td class="text-nowrap">@c.Mobile</td>
+                            <td class="text-nowrap">@c.Phone</td>
+                            <td>@if (!string.IsNullOrWhiteSpace(c.Email)) { <a href="mailto:@c.Email">@c.Email</a> }</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @* Location *@
+        <div class="card property-card">
+            <div class="card-header">
+                <span>Location</span>
+                @if (site.Latitude is double lat && site.Longitude is double lng)
+                {
+                    var at = $"{lat.ToString(CultureInfo.InvariantCulture)},{lng.ToString(CultureInfo.InvariantCulture)}";
+                    <a class="card-action" href="https://www.google.com/maps/search/?api=1&query=@at" target="_blank" rel="noopener">
+                        <i class="bi bi-geo-alt"></i> Open in Google Maps
+                    </a>
+                }
+            </div>
+            @if (site.Latitude is double mapLat && site.Longitude is double mapLng)
+            {
+                var c = CultureInfo.InvariantCulture;
+                var bbox = $"{(mapLng - 0.006).ToString(c)},{(mapLat - 0.003).ToString(c)},{(mapLng + 0.006).ToString(c)},{(mapLat + 0.003).ToString(c)}";
+                <iframe class="property-map" title="Map of @site.Name" loading="lazy"
+                        src="https://www.openstreetmap.org/export/embed.html?bbox=@bbox&layer=mapnik&marker=@mapLat.ToString(c),@mapLng.ToString(c)"></iframe>
+            }
+            <div class="card-body">
+                <dl class="row property-facts mb-0">
+                    <dt class="col-4">Display</dt>
+                    <dd class="col-8">
+                        @if (addressLines.Any())
+                        {
+                            @foreach (var line in addressLines) { <div>@line</div> }
+                        }
+                        else
+                        {
+                            <span class="text-muted">No address on file</span>
+                        }
+                    </dd>
+                    @if (!string.IsNullOrWhiteSpace(site.Suburb))
+                    {
+                        <dt class="col-4">City, Town or Suburb</dt>
+                        <dd class="col-8">@site.Suburb</dd>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(site.State))
+                    {
+                        <dt class="col-4">State or Region</dt>
+                        <dd class="col-8">@site.State</dd>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(site.Postcode))
+                    {
+                        <dt class="col-4">Postcode</dt>
+                        <dd class="col-8">@site.Postcode</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        @await Html.PartialAsync("_UptickData", site.UptickData)
+    </div>
+
+    @* Timeline *@
+    <div class="col-lg-6">
+        <div class="card property-card">
+            <div class="card-header"><span>Timeline</span></div>
+            <div class="card-body">
+                @if (!Model.Timeline.Any())
+                {
+                    <p class="text-muted mb-0">Nothing has happened at this property yet.</p>
+                }
+                else
+                {
+                    <ul class="property-timeline">
+                        @foreach (var item in Model.Timeline)
+                        {
+                            <li>
+                                <span class="property-timeline-icon"><i class="bi @item.Icon"></i></span>
+                                <div>
+                                    <div class="small text-muted">
+                                        <span class="fw-semibold">@item.Kind</span> ·
+                                        @(item.DateOnly ? item.WhenUtc.ToDisplayDate() : item.WhenUtc.ToSydney().ToDisplayDateTime())
+                                    </div>
+                                    <div>
+                                        @item.Before@if (item.LinkText != null && item.LinkId != null)
+                                        {<a asp-controller="@item.LinkController" asp-action="Details" asp-route-id="@item.LinkId">@item.LinkText</a>}@item.After
+                                    </div>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                    <p class="small text-muted mb-0">Tasks, service reports and remarks from FyreApp. Uptick's correspondence and invoices aren't imported.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>

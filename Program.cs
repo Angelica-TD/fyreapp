@@ -94,6 +94,7 @@ builder.Services.Configure<FyreApp.Services.Sites.GoogleMapsOptions>(
 builder.Services.AddHttpClient<FyreApp.Services.Sites.GoogleGeocodingClient>();
 
 builder.Services.AddScoped<FyreApp.Services.Sites.SitesService>();
+builder.Services.AddScoped<FyreApp.Services.Sites.IPropertyPageService, FyreApp.Services.Sites.PropertyPageService>();
 
 
 

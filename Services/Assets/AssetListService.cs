@@ -31,6 +31,9 @@ public class AssetListService : IAssetListService
     {
         var q = _db.Assets.AsQueryable();
 
+        if (filter.SiteId is int siteId)
+            q = q.Where(a => a.SiteId == siteId);
+
         if (filter.Active is bool active)
             q = q.Where(a => a.IsActive == active);
 
