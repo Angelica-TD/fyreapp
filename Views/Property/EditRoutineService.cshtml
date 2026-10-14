@@ -1,0 +1,75 @@
+@model FyreApp.ViewModels.Routines.EditRoutineServiceVm
+
+@{
+    ViewData["Title"] = $"Edit {Model.RoutineType}";
+    var input = Model.Input;
+    string? Date(DateTime? d) => d?.ToString("yyyy-MM-dd");
+}
+
+<div class="property-page">
+    <h1 class="h3 mb-1">@Model.RoutineType</h1>
+    <p class="text-muted">Routine service at @Model.SiteName</p>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <form asp-action="EditRoutineService" asp-route-id="@Model.Id" method="post" class="card property-card">
+                <div class="card-body">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label" for="StartDate">Start date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="StartDate" name="StartDate" value="@Date(input.StartDate)" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="LastAnnualDate">Last annual date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="LastAnnualDate" name="LastAnnualDate" value="@Date(input.LastAnnualDate)" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="EndDate">End date</label>
+                            <input type="date" class="form-control" id="EndDate" name="EndDate" value="@Date(input.EndDate)" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="Subcontractor">Subcontractor</label>
+                        <select class="form-select" id="Subcontractor" name="Subcontractor">
+                            <option value="">Not subcontracted</option>
+                            @foreach (var c in Model.Contractors)
+                            {
+                                <option value="@c" selected="@(c == input.Subcontractor)">@c</option>
+                            }
+                            @if (input.Subcontractor != null && !Model.Contractors.Contains(input.Subcontractor))
+                            {
+                                <option value="@input.Subcontractor" selected>@input.Subcontractor</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-label">Levels</div>
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var l in Model.Levels)
+                            {
+                                <input type="checkbox" class="btn-check" name="Levels" value="@l.Id" id="level@(l.Id)" autocomplete="off"
+                                       checked="@input.Levels.Contains(l.Id)" />
+                                <label class="btn btn-sm btn-outline-primary rounded-pill routine-level-chip" for="level@(l.Id)">
+                                    <i class="bi bi-check-lg"></i> @l.Name
+                                </label>
+                            }
+                        </div>
+                    </div>
+
+                    <p class="small text-muted mb-0">
+                        Saving forecasts its routines again from these dates and levels. Routines that already have a task, or are done,
+                        stay as they are.
+                    </p>
+                </div>
+                <div class="card-footer d-flex justify-content-between bg-body">
+                    <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.SiteId" asp-route-tab="routines">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

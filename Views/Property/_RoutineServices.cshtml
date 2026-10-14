@@ -1,0 +1,50 @@
+@model IReadOnlyList<FyreApp.ViewModels.Routines.RoutineServiceSummaryVm>
+@using FyreApp.Infrastructure
+
+@* Routine services set up on this property in FyreApp (Add routine services), with Edit and Remove.
+   Routines imported from Uptick aren't listed: Uptick's exports don't include its routine services. *@
+<div class="card property-card">
+    <div class="card-header"><span>Routine services</span></div>
+    @if (!Model.Any())
+    {
+        <div class="card-body text-muted">
+            None set up in FyreApp yet. Use "Add routine services" above; routines imported from Uptick show on the grid only.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr><th>Routine type</th><th>Levels</th><th>Start</th><th>Last annual</th><th>End</th><th>Subcontractor</th><th>Pending</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@s.RoutineType</td>
+                            <td>
+                                @foreach (var l in s.Levels) { <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis me-1">@l</span> }
+                            </td>
+                            <td class="text-nowrap">@s.StartDate.ToOrdinalDate()</td>
+                            <td class="text-nowrap">@s.LastAnnualDate.ToOrdinalDate()</td>
+                            <td class="text-nowrap">@(s.EndDate?.ToOrdinalDate() ?? "-")</td>
+                            <td>@(s.Subcontractor ?? "Not subcontracted")</td>
+                            <td class="text-nowrap">
+                                @s.PendingRoutines
+                                @if (s.NextDue is { } next) { <div class="small text-muted">next @next.ToString("MMM yyyy")</div> }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <a class="btn btn-sm btn-outline-secondary" asp-action="EditRoutineService" asp-route-id="@s.Id">Edit</a>
+                                <form asp-action="RemoveRoutineService" asp-route-id="@s.Id" method="post" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Remove this routine service and its @s.PendingRoutines pending routine(s)? Routines with a task, or done, stay.')">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

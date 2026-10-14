@@ -208,6 +208,61 @@ namespace FyreApp.Controllers
             return RedirectToAction(nameof(Details), new { id, tab = "routines", year = (result.FirstDue ?? input.StartDate)?.Year });
         }
 
+        // Routines tab → a routine service → Edit
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> EditRoutineService(int id, [FromServices] FyreApp.Services.Routines.IRoutineSetupService routineSetup, CancellationToken ct)
+        {
+            var vm = await routineSetup.EditFormAsync(id, ct);
+            if (vm == null) return NotFound();
+            RoutineServiceBreadcrumbs(vm);
+            return View(vm);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> EditRoutineService(int id, FyreApp.ViewModels.Routines.EditRoutineServiceInput input,
+            [FromServices] FyreApp.Services.Routines.IRoutineSetupService routineSetup, CancellationToken ct)
+        {
+            var result = await routineSetup.UpdateAsync(id, input, ct);
+            if (!result.Found) return NotFound();
+            if (result.Error != null)
+            {
+                var vm = (await routineSetup.EditFormAsync(id, ct))!;
+                vm.Input = input;
+                ModelState.AddModelError(string.Empty, result.Error);
+                RoutineServiceBreadcrumbs(vm);
+                return View(vm);
+            }
+
+            TempData["Success"] = $"Routine service updated: {result.Added} routine{(result.Added == 1 ? "" : "s")} forecast" +
+                                  (result.Kept > 0 ? $"; {result.Kept} with a task or done kept as they were." : ".");
+            return RedirectToAction(nameof(Details), new { id = result.SiteId, tab = "routines", year = result.FirstDue?.Year });
+        }
+
+        // Routines tab → a routine service → Remove (its routines with a task, or done, stay)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RemoveRoutineService(int id, [FromServices] FyreApp.Services.Routines.IRoutineSetupService routineSetup, CancellationToken ct)
+        {
+            var result = await routineSetup.RemoveAsync(id, ct);
+            if (!result.Found) return NotFound();
+            TempData["Success"] = $"Routine service removed with its {result.Removed} pending routine{(result.Removed == 1 ? "" : "s")}" +
+                                  (result.Kept > 0 ? $"; {result.Kept} with a task or done kept." : ".");
+            return RedirectToAction(nameof(Details), new { id = result.SiteId, tab = "routines" });
+        }
+
+        private void RoutineServiceBreadcrumbs(FyreApp.ViewModels.Routines.EditRoutineServiceVm vm) =>
+            ViewData["Breadcrumbs"] = new List<(string Text, string? Url)>
+            {
+                ("Home", Url.Action("Index", "Home")),
+                ("Properties", Url.Action(nameof(Index))),
+                (vm.SiteName, Url.Action(nameof(Details), new { id = vm.SiteId, tab = "routines" })),
+                ("Edit routine service", null)
+            };
+
         // GET: /Property/Details/5?tab=assets — the property page, one Uptick-style tab at a time
         public async Task<IActionResult> Details(
             int id, string? tab, int? year, string? active, int? assetType, string? search, bool closed = false, bool notes = false,
@@ -219,7 +274,10 @@ namespace FyreApp.Controllers
 
             // Routines tab: Uptick's "Add routine services" modal, for admins
             if (page.Tab == "routines" && routineSetup != null && User.IsInRole("Admin"))
+            {
                 ViewBag.AddRoutines = await routineSetup.FormAsync(id, ct);
+                ViewBag.RoutineServices = await routineSetup.ListAsync(id, ct);
+            }
 
             // As Uptick: Home / Properties / P-0391
             ViewData["Breadcrumbs"] = new List<(string Text, string? Url)>
