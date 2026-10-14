@@ -41,6 +41,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<RoutineServiceLevel> RoutineServiceLevels => Set<RoutineServiceLevel>();
     public DbSet<RoutineOccurrence> RoutineOccurrences => Set<RoutineOccurrence>();
     public DbSet<PropertyRoutineService> PropertyRoutineServices => Set<PropertyRoutineService>();
+    public DbSet<SecurityGroup> SecurityGroups => Set<SecurityGroup>();
+    public DbSet<ExtraField> ExtraFields => Set<ExtraField>();
+    public DbSet<PromptQuestion> PromptQuestions => Set<PromptQuestion>();
 
 
 
@@ -581,6 +584,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .IsRequired(false);
         });
 
+        modelBuilder.Entity<SecurityGroup>().HasIndex(g => g.ExternalId).IsUnique();
+        modelBuilder.Entity<ExtraField>().HasIndex(f => f.ExternalId).IsUnique();
+        modelBuilder.Entity<PromptQuestion>().HasIndex(q => q.ExternalId).IsUnique();
+
         modelBuilder.Entity<PropertyRoutineService>(entity =>
         {
             entity.HasOne(s => s.Site)
@@ -619,7 +626,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                  {
                      typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(ClientContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask),
                      typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(RoutineOccurrence),
-                     typeof(Contractor), typeof(Supplier), typeof(UptickUser)
+                     typeof(Contractor), typeof(Supplier), typeof(UptickUser), typeof(ExtraField), typeof(PromptQuestion)
                  })
         {
             modelBuilder.Entity(type).Property<string?>("UptickData").HasColumnType("json");

@@ -36,10 +36,10 @@ public class UptickImportService : IUptickImportService
             return result;
         }
 
-        List<Dictionary<string, string?>> raw;
+        TabularFileReader.Table table;
         try
         {
-            raw = await TabularFileReader.ReadAsync(stream, fileName, ct);
+            table = await TabularFileReader.ReadTableAsync(stream, fileName, ct);
         }
         catch (Exception ex)
         {
@@ -47,9 +47,9 @@ public class UptickImportService : IUptickImportService
             return result;
         }
 
-        var headers = raw.FirstOrDefault()?.Keys
-            .Select(TabularFileReader.NormalizeHeader)
-            .ToHashSet() ?? new HashSet<string>();
+        // From the header row, so an export with no rows is still recognised
+        var raw = table.Rows;
+        var headers = table.Headers.Select(TabularFileReader.NormalizeHeader).ToHashSet();
 
         bool Matches(string[] signature) =>
             signature.All(h => headers.Contains(TabularFileReader.NormalizeHeader(h)));
@@ -58,7 +58,7 @@ public class UptickImportService : IUptickImportService
         if (type != null)
         {
             importer = Importers.First(i => i.Type == type);
-            if (raw.Count > 0 && !Matches(importer.SignatureHeaders))
+            if (headers.Count > 0 && !importer.Recognises(headers))
             {
                 var missing = importer.SignatureHeaders.Where(h => !headers.Contains(TabularFileReader.NormalizeHeader(h)));
                 result.Error = $"This doesn't look like an Uptick {importer.DisplayName} export (missing columns: {string.Join(", ", missing)}).";
@@ -67,7 +67,7 @@ public class UptickImportService : IUptickImportService
         }
         else
         {
-            importer = Importers.FirstOrDefault(i => Matches(i.SignatureHeaders));
+            importer = Importers.FirstOrDefault(i => i.Recognises(headers));
             if (importer == null)
             {
                 var other = OtherExports.FirstOrDefault(o => Matches(o.Headers)).Name;

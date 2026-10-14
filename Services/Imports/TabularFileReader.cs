@@ -12,7 +12,14 @@ public static class TabularFileReader
         Path.GetExtension(fileName).ToLowerInvariant() is ".csv" or ".txt" or ".xlsx";
 
     public static async Task<List<Dictionary<string, string?>>> ReadAsync(
-        Stream stream, string fileName, CancellationToken ct = default)
+        Stream stream, string fileName, CancellationToken ct = default) =>
+        (await ReadTableAsync(stream, fileName, ct)).Rows;
+
+    // The header row as well as the rows, so an export with no rows (e.g. an empty prompt questions
+    // export) can still be recognised from its columns
+    public sealed record Table(IReadOnlyList<string> Headers, List<Dictionary<string, string?>> Rows);
+
+    public static async Task<Table> ReadTableAsync(Stream stream, string fileName, CancellationToken ct = default)
     {
         var ext = Path.GetExtension(fileName).ToLowerInvariant();
         return ext == ".xlsx" ? ReadExcel(stream) : await ReadCsvAsync(stream, ct);
@@ -21,7 +28,7 @@ public static class TabularFileReader
     public static string NormalizeHeader(string s) =>
         new string(s.Trim().ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 
-    private static async Task<List<Dictionary<string, string?>>> ReadCsvAsync(Stream stream, CancellationToken ct)
+    private static async Task<Table> ReadCsvAsync(Stream stream, CancellationToken ct)
     {
         var rows = new List<Dictionary<string, string?>>();
 
@@ -36,7 +43,7 @@ public static class TabularFileReader
         };
         using var csv = new CsvReader(reader, config);
 
-        if (!await csv.ReadAsync()) return rows;
+        if (!await csv.ReadAsync()) return new Table([], rows);
         csv.ReadHeader();
         var headers = UniqueHeaders(csv.HeaderRecord ?? Array.Empty<string>());
 
@@ -51,10 +58,10 @@ public static class TabularFileReader
             rows.Add(dict);
         }
 
-        return rows;
+        return new Table(headers, rows);
     }
 
-    private static List<Dictionary<string, string?>> ReadExcel(Stream stream)
+    private static Table ReadExcel(Stream stream)
     {
         var rows = new List<Dictionary<string, string?>>();
 
@@ -62,7 +69,7 @@ public static class TabularFileReader
         var ws = wb.Worksheets.First();
 
         var headerRow = ws.FirstRowUsed();
-        if (headerRow == null) return rows;
+        if (headerRow == null) return new Table([], rows);
 
         var headers = UniqueHeaders(headerRow.CellsUsed().Select(c => c.GetString()).ToList());
 
@@ -75,7 +82,7 @@ public static class TabularFileReader
             rows.Add(dict);
         }
 
-        return rows;
+        return new Table(headers, rows);
     }
 
     // A header used twice keeps both columns: the second becomes e.g. "License (2)". (Uptick's users export

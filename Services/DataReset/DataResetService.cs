@@ -100,7 +100,10 @@ public class DataResetService : IDataResetService
             ("Maintenance intervals", await _db.MaintenanceIntervals.CountAsync(ct)),
             ("Service offerings", await _db.ServiceOfferings.CountAsync(ct)),
             ("Service types", await _db.ServiceTypes.CountAsync(ct)),
-            ("Asset catalogue", await _db.AssetCatalogue.CountAsync(ct))
+            ("Asset catalogue", await _db.AssetCatalogue.CountAsync(ct)),
+            ("Security groups", await _db.SecurityGroups.CountAsync(ct)),
+            ("Extra fields", await _db.ExtraFields.CountAsync(ct)),
+            ("Prompt questions", await _db.PromptQuestions.CountAsync(ct))
         };
 
     public async Task<IReadOnlyList<(string Table, int Count)>> ResetAsync(string? userName, CancellationToken ct = default)

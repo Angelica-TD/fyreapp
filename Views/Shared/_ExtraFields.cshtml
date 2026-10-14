@@ -1,0 +1,13 @@
+@model IReadOnlyList<FyreApp.Services.Imports.ExtraFieldValue>
+
+@* Uptick's custom fields with a value for this record, in Uptick's order (extra fields export) *@
+<div class="card-body border-top">
+    <div class="fw-semibold mb-2">Extra fields</div>
+    <dl class="row property-facts mb-0">
+        @foreach (var f in Model)
+        {
+            <dt class="col-5" title="@f.HelpText">@f.Label</dt>
+            <dd class="col-7" style="white-space: pre-line">@f.Value</dd>
+        }
+    </dl>
+</div>

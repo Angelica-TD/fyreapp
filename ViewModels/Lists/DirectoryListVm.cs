@@ -44,6 +44,9 @@ public class UptickUserListItemVm
 
     // The FyreApp login linked to this user, if they have one
     public LoginSummary? Login { get; set; }
+
+    // Their security groups, split using the imported group names
+    public IReadOnlyList<string> Groups { get; set; } = [];
 }
 
 public record LoginSummary(string Id, string? Role, bool IsActive)

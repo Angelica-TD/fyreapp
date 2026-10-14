@@ -15,6 +15,9 @@
         UptickExportType.RemarkTypes => "Remark types",
         UptickExportType.RoutineServiceTypes => "Routine service types",
         UptickExportType.RoutineServiceLevels => "Routine service levels (level types)",
+        UptickExportType.SecurityGroups => "Security groups",
+        UptickExportType.ExtraFields => "Extra fields",
+        UptickExportType.PromptQuestions => "Prompt questions",
         _ => t.ToString()
     };
 }
@@ -28,7 +31,8 @@
                 <h2 class="h6">Import order</h2>
                 <p class="small text-muted mb-2">Each export matches records imported by the step before it.</p>
                 <ol class="small mb-0 ps-3">
-                    <li>Reference data: asset types, asset type variants, remark types, routine service types, routine service levels</li>
+                    <li>Reference data: asset types, asset type variants, remark types, routine service types, routine service levels
+                        (security groups, extra fields and prompt questions any time)</li>
                     <li><a asp-controller="Clients" asp-action="Import">Clients</a></li>
                     <li>Client contacts</li>
                     <li>Properties</li>

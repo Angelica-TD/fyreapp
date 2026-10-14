@@ -267,6 +267,10 @@
                     }
                 </dl>
             </div>
+            @if (Model.ExtraFields.Any())
+            {
+                @await Html.PartialAsync("_ExtraFields", Model.ExtraFields)
+            }
         </div>
 
         @await Html.PartialAsync("_UptickData", site.UptickData)

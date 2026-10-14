@@ -27,6 +27,9 @@ public class PropertyPageVm
     public IReadOnlyList<TimelineEntry> Timeline { get; init; } = [];
     public bool NotesOnly { get; init; }
 
+    // Uptick's custom fields with a value for this property (extra fields export + its Uptick row)
+    public IReadOnlyList<FyreApp.Services.Imports.ExtraFieldValue> ExtraFields { get; init; } = [];
+
     // Assets tab (filters as on Uptick's: active, asset type, search)
     public IReadOnlyList<Asset> Assets { get; init; } = [];
     public IReadOnlyList<(int Id, string Name)> AssetTypes { get; init; } = [];

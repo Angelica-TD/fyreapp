@@ -26,7 +26,12 @@ public enum UptickExportType
     // People and businesses (no import order needed)
     Users = 13,
     Contractors = 14,
-    Suppliers = 15
+    Suppliers = 15,
+
+    // More reference data
+    SecurityGroups = 16,
+    ExtraFields = 17,
+    PromptQuestions = 18
 }
 
 // Collects counts and grouped issues for one import run.
@@ -72,6 +77,11 @@ public abstract class UptickImporter
 
     // Columns that must all be present for a file to be recognised as this export.
     public abstract string[] SignatureHeaders { get; }
+
+    // Whether a file with these (normalised) column headers is this export. An export with very common
+    // columns (e.g. just "id" and "name") overrides this to need exactly its columns.
+    public virtual bool Recognises(IReadOnlySet<string> headers) =>
+        SignatureHeaders.All(h => headers.Contains(TabularFileReader.NormalizeHeader(h)));
 
     // Build entities from the rows; when not a dry run, save them. Sets Result.Created / Updated / SkippedExisting.
     public abstract Task ImportAsync(IReadOnlyList<ImportRow> rows, bool dryRun, ImportContext ctx, CancellationToken ct);

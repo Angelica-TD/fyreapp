@@ -25,6 +25,9 @@ public class AssetPageVm
     public IReadOnlyList<TimelineEntry> Timeline { get; init; } = [];
     public bool NotesOnly { get; init; }
 
+    // Uptick's custom fields with a value for this asset (extra fields export + the asset's Uptick row)
+    public IReadOnlyList<FyreApp.Services.Imports.ExtraFieldValue> ExtraFields { get; init; } = [];
+
     // Defect history tab: every defect, open first
     public IReadOnlyList<Defect> Defects { get; init; } = [];
 }
