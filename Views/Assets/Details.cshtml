@@ -133,7 +133,7 @@
                                                     @if (d.Active) { <span class="badge bg-warning text-dark">OPEN</span> }
                                                     else { <span class="badge bg-success">RESOLVED</span> }
                                                 </td>
-                                                <td class="text-nowrap">@d.DisplayRef</td>
+                                                <td class="text-nowrap">@await Html.PartialAsync("_RemarkRef", d)</td>
                                                 <td class="text-nowrap">@(d.RaisedUtc?.ToSydney().ToOrdinalDate() ?? "-")</td>
                                                 <td><span class="badge text-uppercase @RemarkSeverity.BadgeCss(d.Severity)">@(d.SeverityLabel ?? "-")</span></td>
                                                 <td>@Dash(d.Description ?? d.RemarkType)</td>
@@ -215,7 +215,7 @@
                                     {
                                         <tr>
                                             <td><span class="badge text-uppercase @RemarkSeverity.BadgeCss(d.Severity)">@(d.SeverityLabel ?? "-")</span></td>
-                                            <td class="text-nowrap">@d.DisplayRef</td>
+                                            <td class="text-nowrap">@await Html.PartialAsync("_RemarkRef", d)</td>
                                             <td class="text-nowrap">@(d.RaisedUtc?.ToSydney().ToOrdinalDate() ?? "-")</td>
                                             <td>@Dash(d.Description ?? d.RemarkType)</td>
                                             <td>@Dash(d.QuoteRef)</td>

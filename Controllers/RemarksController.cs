@@ -40,6 +40,22 @@ public class RemarksController : Controller
         return View(await _list.SearchAsync(filter, ct));
     }
 
+    // GET: /Remarks/Details/5 — one remark ("D-54980")
+    [HttpGet]
+    public async Task<IActionResult> Details(int id, CancellationToken ct = default)
+    {
+        var remark = await _list.FindAsync(id, ct);
+        if (remark == null) return NotFound();
+
+        ViewData["Breadcrumbs"] = new List<(string Text, string? Url)>
+        {
+            ("Home", Url.Action("Index", "Home")),
+            ("Remarks", Url.Action(nameof(Index))),
+            (remark.DisplayRef ?? $"Remark {remark.Id}", null)
+        };
+        return View(remark);
+    }
+
     // Every remark matching the current filters, as CSV
     [HttpGet]
     public async Task<IActionResult> Download(
