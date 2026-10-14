@@ -1,194 +1,393 @@
-@model FyreApp.Models.ClientTask
+@model FyreApp.ViewModels.Tasks.TaskPageVm
+@using System.Globalization
 @using FyreApp.Infrastructure
 @using FyreApp.Models
+@using FyreApp.ViewModels.Tasks
 
+@* The task page, laid out like Uptick's: client / property, status, category and ref above Task and Work tabs.
+   The Task tab has the details on the left, process and notes in the middle, and schedule and access on the right. *@
 @{
-    ViewData["Title"] = Model.Title;
+    var t = Model.Task;
+    var site = t.Site;
+    ViewData["Title"] = $"{t.DisplayRef} {t.Title}".Trim();
+    ViewData["Breadcrumbs"] = new (string, string?)[] { ("Home", Url.Action("Index", "Home")), ("Tasks", Url.Action("Index")), (t.DisplayRef ?? t.Title, null) };
+    var isAdmin = User.IsInRole("Admin");
+    string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
+
+    // Uptick's export dates ("2026-10-13 15:16:23", Brisbane time) as Uptick shows them ("13th Oct 2026")
+    string? UDate(string header) =>
+        Model.U(header) is { } s && DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d.ToOrdinalDate() : Model.U(header);
+    string? Money(string header) =>
+        Model.U(header) is { } s && decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var m) ? m.ToString("C", CultureInfo.GetCultureInfo("en-AU")) : Model.U(header);
+
+    // One line per line of the address; Uptick wraps "181 Gemvale Rd, Mudgeeraba, Qld, 4213" rather than splitting it
+    var addressLines = (site.AddressDisplay ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    var suburb = string.Join(" ", new[] { site.Suburb, site.State, site.Postcode }.Where(s => !string.IsNullOrWhiteSpace(s)));
+    var uptickOther = FyreApp.Services.Tasks.TaskListService.OtherUptickTechnician(t.AssignedTo?.Name, t.UptickTechnician);
+    var supporting = (Model.U("Supporting Technicians") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    var accessSchedule = site.AccessSchedule switch { null or "" => null, "NR" => "Needs review", var s => s };
+    var isRoutineTask = Model.Routines.Any() || t.MaintenanceScheduleId.HasValue || t.CoveredSchedules.Any();
 }
 
-<div class="d-flex justify-content-between align-items-start mb-3">
-    <h1 class="mb-0">
-        @Model.Title
-        @if (Model.DisplayRef != null)
-        {
-            <span class="badge bg-light text-dark border align-middle">@Model.DisplayRef</span>
-        }
-    </h1>
-    <div class="d-flex gap-2">
-        @if (Model.Status != ClientTaskStatus.Completed)
-        {
-            <form asp-action="Complete" asp-route-id="@Model.Id" method="post" class="d-inline">
-                <button type="submit" class="btn btn-success">Mark Complete</button>
-            </form>
-        }
-        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Edit</a>
-        <a asp-action="Index" class="btn btn-outline-secondary">Back to list</a>
+<div class="task-page">
+    @* Client / property *@
+    <div class="task-crumbs mb-1">
+        <i class="bi bi-person-fill"></i>
+        <a asp-controller="Clients" asp-action="Details" asp-route-id="@t.ClientId">@t.Client.Name</a>
+        <span class="text-muted mx-2">/</span>
+        <i class="bi bi-building"></i>
+        <a asp-controller="Property" asp-action="Details" asp-route-id="@t.SiteId"><strong>@site.DisplayRef @site.Name</strong></a>
+        @if (suburb != "") { <span class="text-muted">@suburb</span> }
     </div>
-</div>
 
-@{
-    var routines = (List<string>?)ViewBag.Routines ?? new();
-    var isRoutineTask = routines.Any() || Model.MaintenanceScheduleId.HasValue || Model.CoveredSchedules.Any();
-}
-
-@if (!UiFeatures.MaintenanceSchedules && isRoutineTask)
-{
-    <p class="text-muted small">
-        Routine task@(routines.Any() ? ": " + string.Join(", ", routines) : "").
-        <a asp-controller="Property" asp-action="Details" asp-route-id="@Model.SiteId" asp-route-tab="routines">See the property's routines</a>
-    </p>
-}
-
-@if (UiFeatures.MaintenanceSchedules && Model.MaintenanceScheduleId.HasValue)
-{
-    <p class="text-muted small">
-        Generated from a
-        <a asp-controller="MaintenanceSchedules" asp-action="Details" asp-route-id="@Model.MaintenanceScheduleId">routine maintenance schedule</a>.
-    </p>
-}
-
-@if (UiFeatures.MaintenanceSchedules && Model.CoveredSchedules.Any())
-{
-    <p class="text-muted small">
-        Uptick routine task covering
-        @foreach (var (s, i) in Model.CoveredSchedules.OrderBy(s => s.MaintenanceInterval.Months).Select((s, i) => (s, i)))
-        {
-            @(i > 0 ? ", " : "")<a asp-controller="MaintenanceSchedules" asp-action="Details" asp-route-id="@s.Id">@s.MaintenanceInterval.Name</a>
-        }
-        maintenance.
-    </p>
-}
-
-<div class="card mb-3">
-    <div class="card-body">
-        <dl class="row mb-0">
-            <dt class="col-sm-3">Client</dt>
-            <dd class="col-sm-9">@Model.Client.Name</dd>
-
-            <dt class="col-sm-3">Property</dt>
-            <dd class="col-sm-9">@Model.Site.Name</dd>
-
-            <dt class="col-sm-3">Status</dt>
-            <dd class="col-sm-9">
-                <span class="badge @StatusBadge(Model.Status)">@Model.Status</span>
-            </dd>
-
-            <dt class="col-sm-3">Assigned To</dt>
-            <dd class="col-sm-9">
-                @{ var uptickOther = FyreApp.Services.Tasks.TaskListService.OtherUptickTechnician(Model.AssignedTo?.Name, Model.UptickTechnician); }
-                @(Model.AssignedTo?.Name ?? (Model.UptickTechnician == null ? "Unassigned" : null))
-                @if (uptickOther != null)
-                {
-                    <div class="small text-muted">@uptickOther · assigned in Uptick</div>
-                }
-            </dd>
-
-            <dt class="col-sm-3">Priority</dt>
-            <dd class="col-sm-9">
-                <span class="badge @PriorityBadge(Model.Priority)">@Model.Priority</span>
-            </dd>
-
-            <dt class="col-sm-3">Due Date</dt>
-            <dd class="col-sm-9">
-                @if (Model.DueDateUtc.HasValue)
-                {
-                    @Model.DueDateUtc.ToDisplayDate()
-                }
-                else
-                {
-                    <span class="text-muted">Not set</span>
-                }
-            </dd>
-
-            <dt class="col-sm-3">Created</dt>
-            <dd class="col-sm-9">@Model.CreatedUtc.ToSydney().ToDisplayDateTime()</dd>
-
-            @if (Model.CompletedUtc.HasValue)
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+        <h1 class="task-title mb-0">
+            <span class="badge task-status align-middle">@Model.StatusLabel</span>
+            @if (t.Category != null) { <span class="badge bg-dark align-middle">@t.Category.ToUpperInvariant()</span> }
+            <span class="align-middle">@t.DisplayRef @t.Title</span>
+            @if (Model.Subtitle != null) { <span class="task-subtitle align-middle">@Model.Subtitle</span> }
+        </h1>
+        <div class="d-flex gap-2">
+            @if (t.Status != ClientTaskStatus.Completed)
             {
-                <dt class="col-sm-3">Completed</dt>
-                <dd class="col-sm-9">@Model.CompletedUtc.Value.ToSydney().ToDisplayDateTime()</dd>
+                <form asp-action="Complete" asp-route-id="@t.Id" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Mark this task complete?')">Mark complete</button>
+                </form>
             }
-        </dl>
-    </div>
-</div>
-
-@if (!string.IsNullOrWhiteSpace(Model.Description))
-{
-    <div class="card mb-3">
-        <div class="card-header">Description</div>
-        <div class="card-body">
-            <p class="mb-0" style="white-space: pre-wrap;">@Model.Description</p>
+            <a asp-action="Delete" asp-route-id="@t.Id" class="btn btn-sm btn-outline-danger">Delete</a>
         </div>
     </div>
-}
 
-@{
-    var reports = (List<ServiceReport>?)ViewBag.Reports ?? new();
-    var repairs = (List<Defect>?)ViewBag.Repairs ?? new();
-}
+    @if (TempData["Success"] != null) { <div class="alert alert-success">@TempData["Success"]</div> }
+    @if (TempData["Error"] != null) { <div class="alert alert-danger">@TempData["Error"]</div> }
 
-@if (reports.Any())
-{
-    <div class="card mb-3">
-        <div class="card-header">Service reports</div>
-        <ul class="list-group list-group-flush">
-            @foreach (var r in reports)
-            {
-                <li class="list-group-item">
-                    @r.DisplayRef · @r.ReportType · inspected @r.InspectedDate.ToDisplayDate()
-                    @if (r.Compliant == false)
-                    {
-                        <span class="badge bg-danger ms-1">Not compliant</span>
-                    }
-                </li>
-            }
-        </ul>
-    </div>
-}
+    <ul class="nav nav-tabs task-tabs mb-3">
+        @foreach (var (key, label) in TaskPageVm.Tabs)
+        {
+            <li class="nav-item">
+                <a class="nav-link @(key == Model.Tab ? "active" : "")" asp-action="Details" asp-route-id="@t.Id"
+                   asp-route-tab="@(key == "task" ? null : key)">@(key == "work" ? $"{label} ({Model.Repairs.Count})" : label)</a>
+            </li>
+        }
+    </ul>
 
-@if (repairs.Any())
-{
-    <div class="card mb-3">
-        <div class="card-header">Remarks this task repairs</div>
-        <ul class="list-group list-group-flush">
-            @foreach (var d in repairs)
-            {
-                <li class="list-group-item">
-                    @d.DisplayRef · @d.RemarkType
-                    @if (d.Asset != null)
-                    {
-                        <span class="text-muted">· @d.Asset.Name</span>
-                    }
-                    <div class="small text-muted">@d.Description</div>
-                </li>
-            }
-        </ul>
-    </div>
-}
-
-@await Html.PartialAsync("_UptickData", Model.UptickData)
-
-<form asp-action="Delete" asp-route-id="@Model.Id" method="get" class="d-inline mt-3">
-    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger">Delete task</a>
-</form>
-
-@functions {
-    static string PriorityBadge(ClientTaskPriority p) => p switch
+    @if (Model.Tab == "work")
     {
-        ClientTaskPriority.Low    => "bg-secondary",
-        ClientTaskPriority.Normal => "bg-primary",
-        ClientTaskPriority.High   => "bg-warning text-dark",
-        ClientTaskPriority.Urgent => "bg-danger",
-        _                         => "bg-secondary"
-    };
-
-    static string StatusBadge(ClientTaskStatus s) => s switch
+        @* Work: the asset repairs this task does (remarks raised to be repaired on it) *@
+        <h2 class="h4 mb-3">Activities</h2>
+        <div class="card property-card">
+            <div class="card-header"><span>Asset Repair</span></div>
+            @if (!Model.Repairs.Any())
+            {
+                <div class="card-body text-muted fst-italic">No asset repairs on this task.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr><th>Asset</th><th>Remark</th><th>Description</th><th>Resolution</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var d in Model.Repairs)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (d.Asset != null)
+                                        {
+                                            <a asp-controller="Assets" asp-action="Details" asp-route-id="@d.Asset.Id">@d.Asset.Name</a>
+                                            @if (!string.IsNullOrWhiteSpace(d.Asset.Location)) { <div class="small text-muted">@d.Asset.Location</div> }
+                                        }
+                                        else { <span class="text-muted">-</span> }
+                                    </td>
+                                    <td class="text-nowrap">
+                                        @if (d.Active) { <span class="small fw-semibold text-warning">TO RESOLVE</span> }
+                                        else { <span class="small fw-semibold text-success">RESOLVED</span> }
+                                        @await Html.PartialAsync("_RemarkRef", d)
+                                        @if (d.RemarkType != null) { <div class="small text-muted">@d.RemarkType</div> }
+                                    </td>
+                                    <td>@Dash(d.Description)</td>
+                                    <td>@Dash(d.Resolution)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+        <p class="small text-muted">Charges, products and actions aren't in Uptick's exports, so they aren't shown here.</p>
+    }
+    else
     {
-        ClientTaskStatus.Open       => "bg-info text-dark",
-        ClientTaskStatus.InProgress => "bg-primary",
-        ClientTaskStatus.Blocked    => "bg-warning text-dark",
-        ClientTaskStatus.Completed  => "bg-success",
-        ClientTaskStatus.Cancelled  => "bg-secondary",
-        _                           => "bg-secondary"
-    };
-}
+        <div class="row g-3">
+            @* Details *@
+            <div class="col-lg-6 col-xl-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h4 mb-0">Details</h2>
+                    @if (isAdmin) { <a asp-action="Edit" asp-route-id="@t.Id" class="btn btn-sm btn-light border">Edit</a> }
+                </div>
+                @if (Model.Subtitle != null) { <p class="text-muted">@Model.Subtitle</p> }
+
+                <div class="task-detail">
+                    @if (Model.U("Parent Task") is { } parent)
+                    {
+                        <div class="task-detail-item">
+                            <i class="bi bi-diagram-2"></i>
+                            <div><div class="fw-semibold">Originated from</div>@parent</div>
+                        </div>
+                    }
+                    <div class="task-detail-item">
+                        <i class="bi bi-building"></i>
+                        <div>
+                            <div class="fw-semibold">Property</div>
+                            <a asp-controller="Property" asp-action="Details" asp-route-id="@t.SiteId">@site.DisplayRef @site.Name</a>
+                            @foreach (var line in addressLines) { <div>@line</div> }
+                        </div>
+                    </div>
+                    <div class="task-detail-item">
+                        <i class="bi bi-person-fill"></i>
+                        <div>
+                            <div class="fw-semibold">Client</div>
+                            <a asp-controller="Clients" asp-action="Details" asp-route-id="@t.ClientId">@t.Client.Name</a>
+                            @if (Model.U("Primary Contact Name") is { } contact) { <div>@contact</div> }
+                            @if (Model.U("Primary Contact Email") is { } email) { <div class="text-break"><a href="mailto:@email">@email</a></div> }
+                        </div>
+                    </div>
+                    @if (Model.U("Billing Card Name") is { } billing)
+                    {
+                        <div class="task-detail-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <div><div class="fw-semibold">Billing card</div>@billing.ToUpperInvariant()</div>
+                        </div>
+                    }
+                    @if (Model.U("Authorisation Ref") != null || Model.U("Authorisation Amount") != null)
+                    {
+                        <div class="task-detail-item">
+                            <i class="bi bi-upc"></i>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold">Authorisation</div>
+                                <div class="task-authorisation">
+                                    @if (Model.U("Authorisation Ref") is { } authRef) { <div><i class="bi bi-hash"></i> @authRef</div> }
+                                    @if (Money("Authorisation Amount") is { } amount) { <div><i class="bi bi-currency-dollar"></i> @amount</div> }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    <div class="task-detail-item border-top pt-2">
+                        <i class="bi bi-grid-3x2-gap"></i>
+                        <div><div class="fw-semibold">Service group</div>@Dash(Model.U("Service Group"))</div>
+                    </div>
+                    @if (isRoutineTask)
+                    {
+                        <div class="task-detail-item">
+                            <i class="bi bi-arrow-repeat"></i>
+                            <div>
+                                <div class="fw-semibold">Routines</div>
+                                @foreach (var r in Model.Routines) { <div>@r</div> }
+                                @foreach (var s in t.CoveredSchedules.OrderBy(s => s.MaintenanceInterval.Months)) { <div>@s.MaintenanceInterval.Name</div> }
+                                <a asp-controller="Property" asp-action="Details" asp-route-id="@t.SiteId" asp-route-tab="routines">Property's routines</a>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <h3 class="h6 border-top pt-3 mt-3">Responsible Persons</h3>
+                @if (Model.U("Assigned Office") is { } office)
+                {
+                    <div class="task-person">
+                        <span class="task-avatar task-avatar-office">@TaskPageVm.Initials(office)</span>
+                        <div><div>@office</div><div class="small text-muted">Office assignee</div></div>
+                    </div>
+                }
+                @if (Model.U("Salesperson") is { } sales)
+                {
+                    <div class="task-person">
+                        <span class="task-avatar task-avatar-office">@TaskPageVm.Initials(sales)</span>
+                        <div><div>@sales</div><div class="small text-muted">Salesperson</div></div>
+                    </div>
+                }
+                <div class="task-person text-muted">
+                    <span class="task-avatar task-avatar-empty"><i class="bi bi-list-ul"></i></span>
+                    <div>@(Model.U("Round") ?? "No round")</div>
+                </div>
+            </div>
+
+            @* Process and notes *@
+            <div class="col-lg-6 col-xl-5">
+                <div class="card property-card">
+                    @if (Model.Tags.Any())
+                    {
+                        <div class="card-body border-bottom bg-light py-2">
+                            @foreach (var tag in Model.Tags) { <span class="badge bg-danger fs-6 fw-normal me-1">@tag</span> }
+                        </div>
+                    }
+                    <div class="card-body">
+                        <h2 class="h4 mb-3">Process</h2>
+
+                        <div class="task-process mb-3">
+                            <div class="task-process-head">
+                                <i class="bi bi-receipt"></i> Invoices
+                                <span class="mx-1">·</span>
+                                <strong>@(Model.U("Invoiced") is "True" or "true" or "Yes" ? "Invoiced" : "Work pending")</strong>
+                            </div>
+                        </div>
+
+                        <div class="task-process mb-4">
+                            <div class="task-process-head">
+                                <i class="bi bi-file-earmark-text"></i> Reports
+                                <span class="mx-1">·</span>
+                                <strong>@(Model.Reports.Count == 0 ? "No reports" : $"{Model.Reports.Count} report{(Model.Reports.Count == 1 ? "" : "s")}")</strong>
+                            </div>
+                            @foreach (var r in Model.Reports)
+                            {
+                                <div class="task-process-row">
+                                    <i class="bi bi-arrow-return-right text-muted"></i>
+                                    <span class="badge bg-light text-muted border text-uppercase">@(r.ReportType ?? "Report")</span>
+                                    <span>@r.DisplayRef</span>
+                                    <span class="text-muted">inspected @(r.InspectedDate.ToOrdinalDate() ?? "-")</span>
+                                    @if (r.Compliant == false) { <span class="badge bg-danger">Not compliant</span> }
+                                    @if (r.Published) { <span class="badge bg-success">Published</span> }
+                                </div>
+                            }
+                        </div>
+
+                        <h2 class="h4 mb-3">Notes</h2>
+                        <div class="fw-semibold mb-1">Scope of works</div>
+                        <div class="task-note mb-3">@Dash(Model.ScopeOfWorks)</div>
+
+                        <div class="fw-semibold mb-1">Technician note <i class="bi bi-eye text-muted" title="Technicians see this"></i></div>
+                        <div class="task-note mb-3 @(Model.U("Technician Note") == null ? "task-note-empty" : "")">@(Model.U("Technician Note") ?? "No technician note")</div>
+
+                        <div class="fw-semibold mb-1">Invoice note</div>
+                        <div class="task-note mb-3 @(Model.U("Invoice Note") == null ? "task-note-empty" : "task-note-invoice")">@(Model.U("Invoice Note") ?? "No invoice note")</div>
+
+                        @if (Model.U("Internal Note") is { } internalNote)
+                        {
+                            <div class="fw-semibold mb-1">Internal note</div>
+                            <div class="task-note mb-3">@internalNote</div>
+                        }
+                    </div>
+                </div>
+
+                @await Html.PartialAsync("_UptickData", t.UptickData)
+            </div>
+
+            @* Schedule and access *@
+            <div class="col-lg-12 col-xl-4">
+                <div class="card property-card">
+                    <div class="card-body">
+                        <dl class="row task-facts mb-0">
+                            <dt class="col-7"><i class="bi bi-stopwatch-fill"></i> @(t.DueDateUtc is { } due ? $"Due {due.ToSydney().ToOrdinalDate()}" : "No due date")</dt>
+                            <dd class="col-5 text-end">@if (isAdmin) { <a asp-action="Edit" asp-route-id="@t.Id">Edit</a> }</dd>
+                            <dt class="col-7">Estimated time</dt>
+                            <dd class="col-5 text-end">@Dash(Model.U("Est. Duration"))</dd>
+                            <dt class="col-7">Priority</dt>
+                            <dd class="col-5 text-end">@t.Priority</dd>
+                            <dt class="col-7">On-site</dt>
+                            <dd class="col-5 text-end">@Dash(UDate("On-site Date"))</dd>
+                            <dt class="col-7">Performed</dt>
+                            <dd class="col-5 text-end">@Dash(UDate("Performed Date"))</dd>
+                            @if (t.CompletedUtc is { } done)
+                            {
+                                <dt class="col-7">Completed</dt>
+                                <dd class="col-5 text-end">@done.ToSydney().ToOrdinalDate()</dd>
+                            }
+                        </dl>
+                    </div>
+
+                    <div class="card-body border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="fs-5">Schedule</span>
+                            @if (t.AssignedTo != null) { <span class="task-avatar">@TaskPageVm.Initials(t.AssignedTo.Name)</span> }
+                        </div>
+
+                        <div class="fw-semibold mb-2">Assign field staff</div>
+                        @if (t.AssignedTo != null)
+                        {
+                            <div class="task-staff mb-2">
+                                <span class="task-avatar">@TaskPageVm.Initials(t.AssignedTo.Name)</span>
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold">@t.AssignedTo.Name</div>
+                                    <div class="small text-muted">Primary @(t.AssignedTo.LicenseType == "CONTRACTOR" ? "Contractor" : "Technician")</div>
+                                </div>
+                            </div>
+                        }
+                        else if (uptickOther == null)
+                        {
+                            <p class="text-muted mb-2">No technician assigned.</p>
+                        }
+                        @if (uptickOther != null)
+                        {
+                            <div class="small text-muted mb-2">@uptickOther · assigned in Uptick</div>
+                        }
+                        @foreach (var s in supporting)
+                        {
+                            <div class="task-staff mb-2">
+                                <span class="task-avatar task-avatar-office">@TaskPageVm.Initials(s)</span>
+                                <div><div>@s</div><div class="small text-muted">Supporting Technician</div></div>
+                            </div>
+                        }
+                        @if (isAdmin)
+                        {
+                            <form asp-action="Assign" asp-route-id="@t.Id" method="post" class="d-flex gap-2 mb-3">
+                                <select name="technicianId" class="form-select form-select-sm" aria-label="Technician">
+                                    <option value="">— Unassigned —</option>
+                                    @if (t.AssignedTo != null && !Model.Techs.Any(x => x.Id == t.AssignedTo.Id.ToString()))
+                                    {
+                                        <option value="@t.AssignedTo.Id" selected>@t.AssignedTo.Name</option>
+                                    }
+                                    @foreach (var (id, name) in Model.Techs)
+                                    {
+                                        <option value="@id" selected="@(t.AssignedToUptickUserId?.ToString() == id)">@name</option>
+                                    }
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Assign</button>
+                            </form>
+                        }
+
+                        <div class="fw-semibold mb-1">Appointments</div>
+                        <p class="mb-0 @(Model.U("Scheduled Date") == null ? "text-muted" : "")">
+                            @(UDate("Scheduled Date") is { } scheduled ? $"Scheduled {scheduled}" : "Not scheduled")
+                        </p>
+                    </div>
+
+                    <div class="card-body border-top">
+                        <div class="fs-5 mb-3">Access Information</div>
+                        <dl class="row task-facts mb-0">
+                            <dt class="col-5">Access</dt>
+                            <dd class="col-7">
+                                @if (accessSchedule == "Needs review") { <span class="badge bg-danger text-uppercase">Needs review</span> }
+                                else { @Dash(accessSchedule) }
+                            </dd>
+                            <dt class="col-5">Procedure</dt>
+                            <dd class="col-7">@Dash(site.AccessProcedure)</dd>
+                            <dt class="col-5">Access Code</dt>
+                            <dd class="col-7">@Dash(site.AccessCode)</dd>
+                            @if (Model.U("Access Window") is { } window)
+                            {
+                                <dt class="col-5">Access Window</dt>
+                                <dd class="col-7">@window</dd>
+                            }
+                        </dl>
+                        @if (!string.IsNullOrWhiteSpace(site.AccessNote))
+                        {
+                            <div class="fw-semibold mt-2 mb-1">Access Note</div>
+                            @if (site.AccessNote.Length <= 80)
+                            {
+                                <div class="task-note">@site.AccessNote</div>
+                            }
+                            else
+                            {
+                                @* Uptick shows the start of a long note with "Show more" *@
+                                <details class="task-note task-access-note">
+                                    <summary>@site.AccessNote[..80]… <span class="task-show-more">Show more</span></summary>
+                                    <div class="mt-2">@site.AccessNote</div>
+                                </details>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

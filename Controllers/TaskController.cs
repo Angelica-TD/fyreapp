@@ -154,38 +154,25 @@ public class TaskController : Controller
         return RedirectToAction("Details", "Property", new { id = task.SiteId });
     }
 
+    // The task page, laid out like Uptick's (Task and Work tabs)
     [HttpGet]
-    public async Task<IActionResult> Details(int id)
+    public async Task<IActionResult> Details(int id, string? tab, [FromServices] FyreApp.Services.Tasks.ITaskPageService pages, CancellationToken ct = default)
     {
-        var clientTask = await _db.ClientTasks
-            .Include(s => s.Client)
-            .Include(s => s.Site)
-            .Include(t => t.AssignedTo)
-            .Include(t => t.CoveredSchedules).ThenInclude(s => s.MaintenanceInterval)
-            .FirstOrDefaultAsync(s => s.Id == id);
+        var vm = await pages.LoadAsync(id, tab, ct);
+        return vm == null ? NotFound() : View(vm);
+    }
 
-        if (clientTask == null)
-            return NotFound();
-
-        // Routines this task was generated from (Routines page → Generate tasks)
-        ViewBag.Routines = await _db.RoutineOccurrences
-            .Where(o => o.ClientTaskId == id)
-            .OrderBy(o => o.Routine)
-            .Select(o => o.Routine)
-            .ToListAsync();
-
-        // Reports done on this task, and remarks it was raised to repair (linked from Uptick imports)
-        ViewBag.Reports = await _db.ServiceReports.AsNoTracking()
-            .Where(r => r.ClientTaskId == id)
-            .OrderByDescending(r => r.InspectedDate)
-            .ToListAsync();
-        ViewBag.Repairs = await _db.Defects.AsNoTracking()
-            .Include(d => d.Asset)
-            .Where(d => d.RepairTaskId == id)
-            .OrderBy(d => d.Id)
-            .ToListAsync();
-
-        return View(clientTask);
+    // The page's "Assign field staff": the task's technician, an Uptick user (blank = unassign)
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Assign(int id, int? technicianId)
+    {
+        var (found, valid) = await _taskService.AssignTechAsync(id, technicianId);
+        if (!found) return NotFound();
+        TempData[valid ? "Success" : "Error"] = valid
+            ? (technicianId == null ? "Technician removed." : "Technician assigned.")
+            : "That Uptick user can't be assigned tasks.";
+        return RedirectToAction(nameof(Details), new { id });
     }
 
 
