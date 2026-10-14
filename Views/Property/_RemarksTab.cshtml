@@ -45,7 +45,7 @@
                     @foreach (var d in Model.Remarks)
                     {
                         <tr class="@(d.Active ? "" : "text-muted")">
-                            <td class="text-nowrap">@d.DisplayRef</td>
+                            <td class="text-nowrap">@await Html.PartialAsync("_RemarkRef", d)</td>
                             <td><span class="badge text-uppercase @RemarkSeverity.BadgeCss(d.Severity)">@(d.SeverityLabel ?? d.Severity?.ToString())</span></td>
                             <td>@d.RemarkType</td>
                             <td>

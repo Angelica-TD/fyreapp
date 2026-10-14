@@ -1,0 +1,140 @@
+@model FyreApp.Models.Defect
+@using FyreApp.Infrastructure
+
+@* One remark (Uptick "D-54980"): what it is and where, then its quote and repair *@
+@{
+    var d = Model;
+    var site = d.Site;
+    ViewData["Title"] = d.DisplayRef ?? "Remark";
+    string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
+}
+
+<div class="property-page">
+    <h1 class="property-title">
+        <a class="text-reset text-decoration-none" asp-controller="Property" asp-action="Details" asp-route-id="@site.Id">
+            @if (site.DisplayRef != null)
+            {
+                <span class="property-title-ref">@site.DisplayRef</span>
+            }
+            <span class="property-title-name">@site.Name</span>
+        </a>
+    </h1>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card property-card">
+                <div class="card-body">
+                    <h2 class="h5 mb-2">
+                        <span class="text-muted fw-normal">@d.DisplayRef</span>
+                        @(d.RemarkType ?? "Remark")
+                    </h2>
+                    <div class="d-flex flex-wrap gap-2">
+                        @if (d.Active) { <span class="badge bg-warning text-dark">OPEN</span> }
+                        else { <span class="badge bg-success">RESOLVED</span> }
+                        @if (d.SeverityLabel != null)
+                        {
+                            <span class="badge text-uppercase @RemarkSeverity.BadgeCss(d.Severity)">@d.SeverityLabel</span>
+                        }
+                    </div>
+                </div>
+                <div class="card-body border-top">
+                    <dl class="row property-facts mb-0">
+                        <dt class="col-4">Description</dt>
+                        <dd class="col-8" style="white-space: pre-line">@Dash(d.Description)</dd>
+                        <dt class="col-4">Resolution</dt>
+                        <dd class="col-8" style="white-space: pre-line">@Dash(d.Resolution)</dd>
+                        @if (!string.IsNullOrWhiteSpace(d.Notes))
+                        {
+                            <dt class="col-4">Notes</dt>
+                            <dd class="col-8" style="white-space: pre-line">@d.Notes</dd>
+                        }
+                        <dt class="col-4">Status</dt>
+                        <dd class="col-8">@Dash(d.Status)</dd>
+                        <dt class="col-4">Location</dt>
+                        <dd class="col-8">@Dash(d.Location)</dd>
+                        <dt class="col-4">Owner responsible</dt>
+                        <dd class="col-8">@(d.RemarkTypeRef == null ? "-" : d.RemarkTypeRef.OwnerResponsible ? "Yes" : "No")</dd>
+                    </dl>
+                </div>
+            </div>
+
+            @await Html.PartialAsync("_UptickData", d.UptickData)
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card property-card">
+                <div class="card-header"><span>Where</span></div>
+                <div class="card-body">
+                    <dl class="row property-facts mb-0">
+                        <dt class="col-4">Property</dt>
+                        <dd class="col-8">
+                            <a asp-controller="Property" asp-action="Details" asp-route-id="@site.Id">@site.DisplayRef</a>
+                            <span class="text-muted">· @site.Name</span>
+                        </dd>
+                        <dt class="col-4">Client</dt>
+                        <dd class="col-8"><a asp-controller="Clients" asp-action="Details" asp-route-id="@site.ClientId">@site.Client.Name</a></dd>
+                        <dt class="col-4">Asset</dt>
+                        <dd class="col-8">
+                            @if (d.Asset != null)
+                            {
+                                <a asp-controller="Assets" asp-action="Details" asp-route-id="@d.AssetId">@d.Asset.Name</a>
+                                @if (!string.IsNullOrWhiteSpace(d.Asset.Location)) { <div class="small text-muted">@d.Asset.Location</div> }
+                            }
+                            else
+                            {
+                                <text>-</text>
+                            }
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card property-card">
+                <div class="card-header"><span>History</span></div>
+                <div class="card-body">
+                    <dl class="row property-facts mb-0">
+                        <dt class="col-4">Identified</dt>
+                        <dd class="col-8">@(d.RaisedUtc?.ToSydney().ToOrdinalDate() ?? "-")</dd>
+                        <dt class="col-4">Raised on task</dt>
+                        <dd class="col-8">@Dash(d.RaisedOnTaskRef)</dd>
+                        <dt class="col-4">Resolved</dt>
+                        <dd class="col-8">@(d.Active ? "-" : d.InactiveUtc?.ToSydney().ToOrdinalDate() ?? "-")</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card property-card">
+                <div class="card-header"><span>Quote and repair</span></div>
+                <div class="card-body">
+                    <dl class="row property-facts mb-0">
+                        <dt class="col-4">Quote</dt>
+                        <dd class="col-8">
+                            @if (d.QuoteRef != null)
+                            {
+                                @d.QuoteRef
+                                @if (d.QuoteStatus != null) { <span class="badge bg-light text-dark border ms-1">@d.QuoteStatus.ToUpperInvariant()</span> }
+                                @if (d.QuotedDate is { } quoted) { <div class="small text-muted">Quoted @quoted.ToOrdinalDate()</div> }
+                            }
+                            else
+                            {
+                                <text>-</text>
+                            }
+                        </dd>
+                        <dt class="col-4">Repair task</dt>
+                        <dd class="col-8">
+                            @if (d.RepairTaskId != null)
+                            {
+                                <a asp-controller="Task" asp-action="Details" asp-route-id="@d.RepairTaskId">@(d.RepairTaskRef ?? d.RepairTask?.DisplayRef ?? "Task")</a>
+                            }
+                            else
+                            {
+                                @Dash(d.RepairTaskRef)
+                            }
+                            @if (d.RepairTaskStatus != null) { <span class="text-muted">· @d.RepairTaskStatus</span> }
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

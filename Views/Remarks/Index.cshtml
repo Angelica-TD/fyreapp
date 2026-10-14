@@ -150,7 +150,7 @@
                                 {
                                     <td><input class="form-check-input js-select-row" type="checkbox" name="ids" value="@r.Id" form="bulkForm" aria-label="Select" /></td>
                                 }
-                                <td class="text-nowrap">@(r.Ref ?? "—")</td>
+                                <td class="text-nowrap"><a asp-action="Details" asp-route-id="@r.Id">@(r.Ref ?? "—")</a></td>
                                 <td>
                                     @if (r.Severity != null)
                                     {

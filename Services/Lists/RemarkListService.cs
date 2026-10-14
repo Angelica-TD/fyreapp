@@ -12,6 +12,9 @@ public interface IRemarkListService
     Task<RemarkListVm> SearchAsync(RemarkFilter filter, CancellationToken ct = default);
     Task<byte[]> CsvAsync(RemarkFilter filter, CancellationToken ct = default);
 
+    // One remark with its property, client, asset, remark type and repair task, for its details page
+    Task<Defect?> FindAsync(int id, CancellationToken ct = default);
+
     // Edit → Mark resolved / Reopen (Uptick's remark "Active": open = not resolved)
     Task<int> SetResolvedAsync(BulkSelection selection, RemarkFilter filter, bool resolved, CancellationToken ct = default);
 
@@ -24,6 +27,15 @@ public class RemarkListService : IRemarkListService
 {
     private readonly AppDbContext _db;
     public RemarkListService(AppDbContext db) => _db = db;
+
+    public Task<Defect?> FindAsync(int id, CancellationToken ct = default) =>
+        _db.Defects.AsNoTracking()
+            .Include(d => d.Site).ThenInclude(s => s.Client)
+            .Include(d => d.Asset).ThenInclude(a => a!.AssetTypes)
+            .Include(d => d.RemarkTypeRef)
+            .Include(d => d.RepairTask)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(d => d.Id == id, ct);
 
     // The one place the filters are applied, so the list, its download and "select all" always agree
     private IQueryable<Defect> Filtered(RemarkFilter filter)

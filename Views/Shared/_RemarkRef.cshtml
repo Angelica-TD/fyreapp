@@ -1,0 +1,11 @@
+@model FyreApp.Models.Defect
+
+@* A remark's ref ("D-54980"), linking to its details page for admins (the Remarks pages are admin only) *@
+@if (User.IsInRole("Admin"))
+{
+    <a asp-controller="Remarks" asp-action="Details" asp-route-id="@Model.Id">@(Model.DisplayRef ?? "Remark")</a>
+}
+else
+{
+    @Model.DisplayRef
+}
