@@ -105,7 +105,7 @@
                         @foreach (var a in Model.Assets)
                         {
                             <tr class="@(a.IsActive ? "" : "text-muted")">
-                                <td class="text-nowrap">@a.Ref</td>
+                                <td class="text-nowrap"><a asp-controller="Assets" asp-action="Details" asp-route-id="@a.Id">@(a.Ref ?? "—")</a></td>
                                 <td>@string.Join(", ", a.AssetTypes.Select(t => t.Name))</td>
                                 <td>@a.Variant</td>
                                 <td>
