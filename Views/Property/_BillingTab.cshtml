@@ -171,7 +171,10 @@
                             <td class="text-nowrap">@(i.Date?.ToOrdinalDate() ?? "-")</td>
                             <td class="text-nowrap">@(i.DueDate?.ToOrdinalDate() ?? "-")</td>
                             <td>@i.Description</td>
-                            <td class="text-nowrap">@(i.TaskRef ?? "-")</td>
+                            <td class="text-nowrap">
+                                @if (i.TaskRef != null) { <a asp-controller="Task" asp-action="Index" asp-route-search="@i.TaskRef" asp-route-active="any">@i.TaskRef</a> }
+                                else { <text>-</text> }
+                            </td>
                             <td class="text-end text-nowrap">
                                 @(i.Total?.ToString("C", Money) ?? "-")
                                 @foreach (var c in credits) { <div class="small text-muted">@c.Number credit</div> }
