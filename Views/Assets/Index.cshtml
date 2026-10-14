@@ -122,7 +122,7 @@
                                 {
                                     <td><input class="form-check-input js-select-row" type="checkbox" name="ids" value="@a.Id" form="bulkForm" aria-label="Select" /></td>
                                 }
-                                <td title="@a.Name">@(a.Ref ?? "—")</td>
+                                <td title="@a.Name"><a asp-controller="Assets" asp-action="Details" asp-route-id="@a.Id">@(a.Ref ?? "—")</a></td>
                                 <td>
                                     <a asp-controller="Property" asp-action="Details" asp-route-id="@a.SiteId">@a.PropertyRef</a>
                                     <span class="text-muted">· @a.PropertyName</span>
