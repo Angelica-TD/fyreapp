@@ -52,6 +52,15 @@
             @await Html.PartialAsync("_RemarksTab", Model)
             break;
         case "routines":
+            @if (ViewBag.AddRoutines is FyreApp.ViewModels.Routines.AddRoutineServicesVm addRoutines)
+            {
+                <div class="d-flex justify-content-end mb-2">
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRoutineServices">
+                        <i class="bi bi-plus-lg"></i> Add routine services
+                    </button>
+                </div>
+                @await Html.PartialAsync("_AddRoutineServices", addRoutines)
+            }
             @await Html.PartialAsync("_Routines", Model.Routines!)
             break;
         case "billing":
@@ -73,5 +82,9 @@
     @if (Model.Tab == "assets")
     {
         <script src="~/js/asset-suggestions.js" asp-append-version="true"></script>
+    }
+    @if (Model.Tab == "routines" && ViewBag.AddRoutines != null)
+    {
+        <script src="~/js/add-routine-services.js" asp-append-version="true"></script>
     }
 }

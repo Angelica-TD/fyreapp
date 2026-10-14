@@ -31,6 +31,10 @@ public class RoutineOccurrence
     public int? RoutineServiceLevelId { get; set; }
     public RoutineServiceLevel? RoutineServiceLevel { get; set; }
 
+    // The routine service set up in FyreApp that forecast this occurrence (null for ones imported from Uptick)
+    public int? PropertyRoutineServiceId { get; set; }
+    public PropertyRoutineService? PropertyRoutineService { get; set; }
+
     // The schedule (property + interval) this occurrence belongs to
     public int? MaintenanceScheduleId { get; set; }
     public MaintenanceSchedule? MaintenanceSchedule { get; set; }
