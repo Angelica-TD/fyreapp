@@ -2,6 +2,7 @@ using FyreApp.Data;
 using FyreApp.Models;
 using FyreApp.Services.Routines;
 using FyreApp.Services.Sites;
+using FyreApp.Services.Timeline;
 using FyreApp.Tests.Helpers;
 using Xunit;
 
@@ -34,7 +35,7 @@ public class PropertyPageServiceTests
         return site;
     }
 
-    private static PropertyPageService Sut(AppDbContext db) => new(db, new RoutineService(db));
+    private static PropertyPageService Sut(AppDbContext db) => new(db, new RoutineService(db), new TimelineService(db));
 
     [Fact]
     public async Task Summary_ShowsTheMostSevereOpenRemark()
@@ -78,17 +79,22 @@ public class PropertyPageServiceTests
     }
 
     [Fact]
-    public async Task Timeline_ListsWhatHappenedNewestFirst()
+    public async Task Timeline_IsTheChangeLog_NewestFirst_WithUptickCreationLast()
     {
         using var db = DbContextFactory.Create();
         var site = await SeedAsync(db);
+        db.TimelineEntries.AddRange(
+            new TimelineEntry { SiteId = site.Id, WhenUtc = Utc("2026-10-13 04:24"), Author = "Uptick", Field = "Name", Value = "Ezfurn" },
+            new TimelineEntry { SiteId = site.Id, WhenUtc = Utc("2026-10-13 04:26"), Author = "Wes Speedon", IsNote = true, Text = "Gate code changed" });
+        await db.SaveChangesAsync();
 
         var page = await Sut(db).LoadAsync(site.Id, new PropertyPageQuery("property"));
+        Assert.Equal(new[] { "Gate code changed", null, "Property was created." }, page!.Timeline.Select(e => e.Text));
+        // Tasks, reports and remarks aren't on it, as in Uptick
+        Assert.Equal(3, page.Timeline.Count);
 
-        Assert.Equal(page!.Timeline.OrderByDescending(i => i.WhenUtc).Select(i => i.WhenUtc), page.Timeline.Select(i => i.WhenUtc));
-        Assert.Contains(page.Timeline, i => i.Kind == "Task" && i.After == " was completed." && i.LinkText == "T-31713: PM2026/04 Servicing");
-        Assert.Contains(page.Timeline, i => i.Kind == "Remark" && i.Before!.EndsWith("was closed."));
-        Assert.Equal("Property was created.", page.Timeline.Last().Before);
+        var notes = await Sut(db).LoadAsync(site.Id, new PropertyPageQuery("property", NotesOnly: true));
+        Assert.Equal("Gate code changed", Assert.Single(notes!.Timeline).Text);
     }
 
     [Fact]

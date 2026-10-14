@@ -1,102 +1,240 @@
-@model FyreApp.Models.Asset
+@model FyreApp.ViewModels.Assets.AssetPageVm
+@using FyreApp.Infrastructure
+@using FyreApp.ViewModels.Assets
 
+@* The asset page, laid out like Uptick's: the property's title, the asset on the left,
+   Asset / Defect history / Service History tabs on the right *@
 @{
-    ViewData["Title"] = "Asset Details";
-    var schedule = Model.MaintenanceSchedules?.FirstOrDefault() ?? new FyreApp.Models.MaintenanceSchedule
-    {
-        TargetType = FyreApp.Models.ScheduleTargetType.Asset,
-        AssetId = Model.Id,
-        StartDate = DateTime.UtcNow
-    };
+    var a = Model.Asset;
+    var site = a.Site;
+    ViewData["Title"] = a.Name;
+    var type = a.AssetTypes.FirstOrDefault();
+    string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
 }
 
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item">
-            <a asp-controller="Clients" asp-action="Details" asp-route-id="@Model.Site.Client.Id">@Model.Site.Client.Name</a>
-        </li>
-        <li class="breadcrumb-item">
-            <a asp-controller="Property" asp-action="Details" asp-route-id="@Model.SiteId">@Model.Site.Name</a>
-        </li>
-        <li class="breadcrumb-item active">@Model.Name</li>
-    </ol>
-</nav>
+<div class="property-page">
+    <h1 class="property-title">
+        <a class="text-reset text-decoration-none" asp-controller="Property" asp-action="Details" asp-route-id="@site.Id">
+            @if (site.DisplayRef != null)
+            {
+                <span class="property-title-ref">@site.DisplayRef</span>
+            }
+            <span class="property-title-name">@site.Name</span>
+        </a>
+    </h1>
 
-<h1>@Model.Name</h1>
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success">@TempData["Success"]</div>
+    }
 
-@if (Model.AssetTypes.Any())
-{
-    <div class="d-flex flex-wrap gap-1 mb-3">
-        @foreach (var type in Model.AssetTypes)
-        {
-            <span class="badge bg-secondary">@type.Name</span>
-        }
+    <div class="row g-3">
+        @* The asset *@
+        <div class="col-lg-5 col-xl-4">
+            <div class="card property-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between gap-3">
+                        <h2 class="h5 mb-1">@a.Name</h2>
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <a class="card-action text-nowrap" asp-action="Edit" asp-route-id="@a.Id">Update</a>
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(a.Location))
+                    {
+                        <div class="text-muted mb-1">@a.Location</div>
+                    }
+                    @if (!a.IsActive)
+                    {
+                        <div class="mb-1">
+                            <span class="badge bg-secondary">INACTIVE</span>
+                            @if (a.InactiveDate is { } off) { <span class="text-muted small">since @off.ToSydney().ToOrdinalDate()</span> }
+                        </div>
+                    }
+                    @if (Model.MostSevereOpenDefect is { } worst)
+                    {
+                        <div>
+                            <span class="badge text-uppercase @RemarkSeverity.BadgeCss(worst.Severity)">@(worst.SeverityLabel ?? "Defect")</span>
+                            is highest severity defect
+                            @if (worst.RaisedUtc is { } raised)
+                            {
+                                <span>(identified <em>@AssetCompliance.Ago(raised, DateTime.UtcNow)</em>)</span>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="card-body border-top">
+                    <dl class="row property-facts mb-0">
+                        <dt class="col-5">Type</dt>
+                        <dd class="col-7">@Dash(type?.Name)</dd>
+                        <dt class="col-5">Variant</dt>
+                        <dd class="col-7">@Dash(a.Variant)</dd>
+                        <dt class="col-5">Product</dt>
+                        <dd class="col-7">@Dash(a.AssetTypeVariant?.DefaultReplacementProduct)</dd>
+                        <dt class="col-5">Ref</dt>
+                        <dd class="col-7">@Dash(a.Ref)</dd>
+                        <dt class="col-5">Serial</dt>
+                        <dd class="col-7">@Dash(a.Serial)</dd>
+                        <dt class="col-5">Barcode</dt>
+                        <dd class="col-7">@Dash(a.Barcode)</dd>
+                        <dt class="col-5">Make</dt>
+                        <dd class="col-7">@Dash(a.Make)</dd>
+                        <dt class="col-5">Model</dt>
+                        <dd class="col-7">@Dash(a.Model)</dd>
+                        <dt class="col-5">Size</dt>
+                        <dd class="col-7">@Dash(a.Size)</dd>
+                        <dt class="col-5">Quantity</dt>
+                        <dd class="col-7">@Dash(a.Quantity)</dd>
+                        @if (!string.IsNullOrWhiteSpace(a.InternalNote))
+                        {
+                            <dt class="col-5">Internal note</dt>
+                            <dd class="col-7" style="white-space: pre-line">@a.InternalNote</dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+
+            @await Html.PartialAsync("_UptickData", a.UptickData)
+        </div>
+
+        @* Tabs *@
+        <div class="col-lg-7 col-xl-8">
+            <ul class="nav nav-pills property-tabs mb-3">
+                @foreach (var (key, label) in AssetPageVm.Tabs)
+                {
+                    <li class="nav-item">
+                        <a class="nav-link @(key == Model.Tab ? "active" : "")" asp-action="Details" asp-route-id="@a.Id"
+                           asp-route-tab="@(key == "asset" ? null : key)">@label</a>
+                    </li>
+                }
+            </ul>
+
+            @switch (Model.Tab)
+            {
+                case "defects":
+                    <div class="card property-card">
+                        <div class="card-header"><span>Defect history</span></div>
+                        @if (!Model.Defects.Any())
+                        {
+                            <div class="card-body text-muted fst-italic">No defects …</div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead>
+                                        <tr><th></th><th>ID</th><th>Identified</th><th>Severity</th><th>Remark</th><th>Location</th><th>Resolved</th><th>Quotes</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var d in Model.Defects)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    @if (d.Active) { <span class="badge bg-warning text-dark">OPEN</span> }
+                                                    else { <span class="badge bg-success">RESOLVED</span> }
+                                                </td>
+                                                <td class="text-nowrap">@d.DisplayRef</td>
+                                                <td class="text-nowrap">@(d.RaisedUtc?.ToSydney().ToOrdinalDate() ?? "-")</td>
+                                                <td><span class="badge text-uppercase @RemarkSeverity.BadgeCss(d.Severity)">@(d.SeverityLabel ?? "-")</span></td>
+                                                <td>@Dash(d.Description ?? d.RemarkType)</td>
+                                                <td>@Dash(d.Location)</td>
+                                                <td class="text-nowrap">@(d.Active ? "-" : d.InactiveUtc?.ToSydney().ToOrdinalDate() ?? "-")</td>
+                                                <td>@Dash(d.QuoteRef)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                    break;
+
+                case "service":
+                    <div class="card property-card">
+                        <div class="card-header"><span>Service history</span></div>
+                        <div class="card-body text-muted">
+                            Uptick's service history lists the products used on this asset on each task. Task line items
+                            aren't imported into FyreApp yet.
+                            @if (a.LastServiceDate is { } last)
+                            {
+                                <div class="mt-2 text-body">Last serviced @last.ToOrdinalDate().</div>
+                            }
+                        </div>
+                    </div>
+                    break;
+
+                default:
+                    <div class="card property-card">
+                        <div class="card-header"><span>Maintenance</span></div>
+                        <div class="card-body">
+                            <dl class="row property-facts mb-0">
+                                <dt class="col-5">Last service by</dt>
+                                <dd class="col-7">@Dash(Model.LastServiceBy)</dd>
+                                <dt class="col-5">Last service date</dt>
+                                <dd class="col-7">@(a.LastServiceDate?.ToOrdinalDate() ?? "-")</dd>
+                                <dt class="col-5">Last service result</dt>
+                                <dd class="col-7">
+                                    @if (AssetCompliance.PageBadge(a.Compliance) is { } result)
+                                    {
+                                        <span class="badge @result.Css">@result.Text</span>
+                                    }
+                                    else
+                                    {
+                                        <text>-</text>
+                                    }
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="card property-card">
+                        <div class="card-header"><span>Lifecycle</span></div>
+                        <div class="card-body">
+                            <dl class="row property-facts mb-0">
+                                <dt class="col-5">Installation date</dt>
+                                <dd class="col-7">@(a.InstallationDate?.ToOrdinalDate() ?? "-")</dd>
+                                <dt class="col-5">Base date</dt>
+                                <dd class="col-7">@(a.BaseDate?.ToOrdinalDate() ?? "-")</dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <div class="card property-card">
+                        <div class="card-header"><span>Open Defects</span></div>
+                        <div class="table-responsive">
+                            <table class="table align-middle mb-0">
+                                <thead>
+                                    <tr><th>Severity</th><th>ID</th><th>Identified</th><th>Remark</th><th>Quotes</th></tr>
+                                </thead>
+                                <tbody>
+                                    @if (!Model.OpenDefects.Any())
+                                    {
+                                        <tr><td colspan="5" class="text-muted fst-italic">No open defects …</td></tr>
+                                    }
+                                    @foreach (var d in Model.OpenDefects)
+                                    {
+                                        <tr>
+                                            <td><span class="badge text-uppercase @RemarkSeverity.BadgeCss(d.Severity)">@(d.SeverityLabel ?? "-")</span></td>
+                                            <td class="text-nowrap">@d.DisplayRef</td>
+                                            <td class="text-nowrap">@(d.RaisedUtc?.ToSydney().ToOrdinalDate() ?? "-")</td>
+                                            <td>@Dash(d.Description ?? d.RemarkType)</td>
+                                            <td>@Dash(d.QuoteRef)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    @await Html.PartialAsync("_Timeline", new FyreApp.ViewModels.Timeline.TimelineVm
+                    {
+                        Entries = Model.Timeline,
+                        NotesOnly = Model.NotesOnly,
+                        AddNoteUrl = Url.Action("AddNote", new { id = a.Id })!,
+                        ToggleNotesUrl = Model.NotesOnly ? Url.Action("Details", new { id = a.Id })! : Url.Action("Details", new { id = a.Id, notes = true })!
+                    })
+                    break;
+            }
+        </div>
     </div>
-}
-
-@{
-    var details = new (string Label, string? Value)[]
-    {
-        ("Ref", Model.DisplayRef),
-        ("Status", Model.IsActive ? "Active" : Model.InactiveDate is DateTime off ? $"Inactive since {off.ToSydney().ToDisplayDate()}" : "Inactive"),
-        ("Internal note", Model.InternalNote),
-        ("Asset no.", Model.Ref),
-        ("Location", Model.Location),
-        ("Variant", Model.Variant),
-        ("Replacement product", Model.AssetTypeVariant?.DefaultReplacementProduct),
-        ("Category", string.Join(", ", Model.AssetTypes.Select(t => t.Category).Where(c => c != null).Distinct())),
-        ("Inspection criteria", string.Join(", ", Model.AssetTypes.Select(t => t.InspectionCriteria).Where(c => c != null).Distinct())),
-        ("Make", Model.Make),
-        ("Model", Model.Model),
-        ("Size", Model.Size),
-        ("Barcode", Model.Barcode),
-        ("Last result", Model.Compliance),
-        ("Base date", Model.BaseDate.ToDisplayDate()),
-        ("Installed", Model.InstallationDate.ToDisplayDate()),
-        ("Last service", Model.LastServiceDate.ToDisplayDate())
-    }.Where(d => !string.IsNullOrWhiteSpace(d.Value)).ToList();
-}
-
-@if (details.Count > 1)
-{
-    <dl class="row mb-0" style="max-width: 40rem;">
-        @foreach (var (label, value) in details)
-        {
-            <dt class="col-sm-4">@label</dt>
-            <dd class="col-sm-8">@value</dd>
-        }
-    </dl>
-}
-
-<div style="max-width: 40rem;">
-    @await Html.PartialAsync("_UptickData", Model.UptickData)
 </div>
-
-@if (Model.Defects.Any())
-{
-    <hr />
-    <h2 class="h5">Defects</h2>
-    <ul>
-        @foreach (var d in Model.Defects.OrderByDescending(d => d.RaisedUtc))
-        {
-            <li>
-                <span class="text-muted">@d.DisplayRef</span>
-                <strong>@d.RemarkType</strong>: @d.Description
-                <span class="text-muted">(@d.Status@(string.IsNullOrWhiteSpace(d.Resolution) ? "" : $", {d.Resolution}"))</span>
-            </li>
-        }
-    </ul>
-}
-
-@if (UiFeatures.MaintenanceSchedules)
-{
-    <hr />
-
-    @await Html.PartialAsync("~/Views/MaintenanceSchedules/_ScheduleForm.cshtml", schedule)
-}
-
-<hr />
-
-<a asp-controller="Property" asp-action="Details" asp-route-id="@Model.SiteId" class="btn btn-secondary">
-    ← Back to Property
-</a>

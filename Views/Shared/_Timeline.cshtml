@@ -1,0 +1,76 @@
+@model FyreApp.ViewModels.Timeline.TimelineVm
+@using FyreApp.Infrastructure
+
+@* Uptick's Timeline card: who and when, then the note, change ("Access note was changed to ...") or event.
+   "Notes only" hides changes and events; "Add note" posts a note. *@
+<div class="card property-card">
+    <div class="card-header gap-3">
+        <span>Timeline</span>
+        <div class="d-flex align-items-center gap-4">
+            <a class="card-action timeline-toggle text-nowrap" href="@Model.ToggleNotesUrl" role="switch" aria-checked="@(Model.NotesOnly ? "true" : "false")">
+                <span class="form-check form-switch d-inline-block m-0 align-middle">
+                    <input class="form-check-input" type="checkbox" tabindex="-1" checked="@Model.NotesOnly" onclick="return false" />
+                </span>
+                Notes only
+            </a>
+            @if (User.IsInRole("Admin"))
+            {
+                <a class="card-action text-nowrap" data-bs-toggle="collapse" href="#addNote" role="button" aria-expanded="false" aria-controls="addNote">
+                    <i class="bi bi-plus-lg"></i> Add note
+                </a>
+            }
+        </div>
+    </div>
+
+    @if (User.IsInRole("Admin"))
+    {
+        <div class="collapse" id="addNote">
+            <form method="post" action="@Model.AddNoteUrl" class="card-body border-bottom">
+                @Html.AntiForgeryToken()
+                <label class="form-label visually-hidden" for="noteText">Note</label>
+                <textarea class="form-control" id="noteText" name="text" rows="3" placeholder="Add a note" required></textarea>
+                <button type="submit" class="btn btn-primary btn-sm mt-2">Add note</button>
+            </form>
+        </div>
+    }
+
+    <div class="card-body">
+        @if (!Model.Entries.Any())
+        {
+            <p class="text-muted mb-0">@(Model.NotesOnly ? "No notes yet." : "Nothing on the timeline yet.")</p>
+        }
+        else
+        {
+            <ul class="property-timeline">
+                @foreach (var e in Model.Entries)
+                {
+                    <li>
+                        <span class="property-timeline-icon"><i class="bi bi-bookmark-fill"></i></span>
+                        <div>
+                            <div class="small text-muted">
+                                <span class="fw-semibold">@(e.Author ?? "Unknown")</span> · @e.WhenUtc.ToSydney().ToOrdinalDateTime()
+                            </div>
+                            <div class="timeline-text">
+                                @if (e.Field != null)
+                                {
+                                    @if (e.Value == null)
+                                    {
+                                        <text><em>@e.Field</em> was cleared.</text>
+                                    }
+                                    else
+                                    {
+                                        <text><em>@e.Field</em> was changed to <em>@e.Value</em>.</text>
+                                    }
+                                }
+                                else
+                                {
+                                    @e.Text
+                                }
+                            </div>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>

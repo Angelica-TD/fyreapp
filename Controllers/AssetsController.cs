@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FyreApp.Data;
+using FyreApp.Infrastructure;
+using FyreApp.Models;
+using Microsoft.AspNetCore.Authorization;
 using FyreApp.Services.Assets;
 using FyreApp.ViewModels.Assets;
 
@@ -10,11 +13,13 @@ namespace FyreApp.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IAssetListService _assetList;
+        private readonly IAssetPageService _page;
 
-        public AssetsController(AppDbContext context, IAssetListService assetList)
+        public AssetsController(AppDbContext context, IAssetListService assetList, IAssetPageService page)
         {
             _context = context;
             _assetList = assetList;
+            _page = page;
         }
 
         // Without "f" (first visit, sidebar link) the Uptick-style defaults apply; once the filter form has been
@@ -115,27 +120,81 @@ namespace FyreApp.Controllers
             return View();
         }
 
-        public async Task<IActionResult> Details(int id)
+        // GET: /Assets/Details/5?tab=defects — the asset page, laid out like Uptick's
+        public async Task<IActionResult> Details(int id, string? tab, bool notes = false, CancellationToken ct = default)
         {
-            var asset = await _context.Assets
-                .Include(a => a.Site)
-                    .ThenInclude(s => s.Client)
-                .Include(a => a.AssetTypes)
-                .Include(a => a.AssetTypeVariant)
-                .Include(a => a.MaintenanceSchedules)
-                    .ThenInclude(ms => ms.MaintenanceHistory)
-                .Include(a => a.MaintenanceSchedules)
-                    .ThenInclude(ms => ms.GeneratedTasks)
-                .Include(a => a.Defects)
-                .AsSplitQuery()
-                .FirstOrDefaultAsync(a => a.Id == id);
+            var page = await _page.LoadAsync(id, tab, notes, ct);
+            if (page == null) return NotFound();
 
-            if (asset == null) return NotFound();
-
-            ViewBag.Intervals = await _context.MaintenanceIntervals.ToListAsync();
-
-            return View(asset);
+            SetBreadcrumbs(page.Asset);
+            return View(page);
         }
 
+        // Uptick's asset Update form
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Edit(int id, CancellationToken ct = default)
+        {
+            var form = await _page.EditFormAsync(id, ct);
+            if (form == null) return NotFound();
+
+            SetBreadcrumbs(form.Asset!, update: true);
+            return View(form);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Edit(int id, AssetEditVm form, bool continueEditing = false, CancellationToken ct = default)
+        {
+            form.Id = id;
+            if (form.AssetTypeId == null)
+                ModelState.AddModelError(nameof(form.AssetTypeId), "Choose the asset type.");
+
+            if (!ModelState.IsValid)
+            {
+                await _page.FillEditFormAsync(form, ct);
+                if (form.Asset == null) return NotFound();
+                SetBreadcrumbs(form.Asset, update: true);
+                return View(form);
+            }
+
+            if (!await _page.SaveAsync(form, await _context.AuthorNameAsync(User, ct), ct))
+                return NotFound();
+
+            TempData["Success"] = "Asset saved.";
+            return continueEditing ? RedirectToAction(nameof(Edit), new { id }) : RedirectToAction(nameof(Details), new { id });
+        }
+
+        // "Add note" on the asset's Timeline
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AddNote(int id, string? text, CancellationToken ct)
+        {
+            if (!await _context.Assets.AnyAsync(a => a.Id == id, ct)) return NotFound();
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                _context.TimelineEntries.Add(new TimelineEntry { AssetId = id, Author = await _context.AuthorNameAsync(User, ct), IsNote = true, Text = text.Trim() });
+                await _context.SaveChangesAsync(ct);
+            }
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // As Uptick: Home / Properties / P-3330 / Assets / 001 - DCP AB(E) 4.5KG Port… (/ Update)
+        private void SetBreadcrumbs(Asset asset, bool update = false)
+        {
+            var label = asset.Name.Length > 28 ? asset.Name[..28] + "…" : asset.Name;
+            var crumbs = new List<(string Text, string? Url)>
+            {
+                ("Home", Url.Action("Index", "Home")),
+                ("Properties", Url.Action("Index", "Property")),
+                (asset.Site.DisplayRef ?? asset.Site.Name, Url.Action("Details", "Property", new { id = asset.SiteId })),
+                ("Assets", Url.Action("Details", "Property", new { id = asset.SiteId, tab = "assets" })),
+                (label, update ? Url.Action(nameof(Details), new { id = asset.Id }) : null)
+            };
+            if (update) crumbs.Add(("Update", null));
+            ViewData["Breadcrumbs"] = crumbs;
+        }
     }
 }

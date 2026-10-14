@@ -35,6 +35,14 @@ public class Asset
     public string? Model { get; set; }
     public string? Size { get; set; }
 
+    // External inspection reference or serial, e.g. a fire door certification tag (Uptick "Inspection Ref")
+    [StringLength(100)]
+    public string? Serial { get; set; }
+
+    // Information for office staff (Uptick "Quantity", free text)
+    [StringLength(100)]
+    public string? Quantity { get; set; }
+
     // Last inspection result from Uptick (e.g. "Pass", "Fail")
     public string? Compliance { get; set; }
 
