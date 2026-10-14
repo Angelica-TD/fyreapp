@@ -116,6 +116,15 @@ if (!authEnabled)
         DevAuthHandler.SchemeName, _ => { });
 }
 
+// Every page needs a login unless it says otherwise ([AllowAnonymous]: the login page, client quote links),
+// so a controller without [Authorize] is never public by mistake
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
+
 // --------------------------------------------------
 // Auth cookie behaviour (GLOBAL + DRY)
 // --------------------------------------------------
@@ -199,7 +208,8 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapStaticAssets();
+// CSS, JS and images are public (the login page needs them)
+app.MapStaticAssets().AllowAnonymous();
 
 app.MapHub<ImportProgressHub>("/hubs/importProgress");
 

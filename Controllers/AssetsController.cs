@@ -39,6 +39,7 @@ namespace FyreApp.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Index(
             string? search, string? active, List<int>? assetType, bool assetTypeIsNot,
             List<string>? propertyStatus, int page = 1, bool f = false, CancellationToken ct = default)
@@ -50,6 +51,7 @@ namespace FyreApp.Controllers
 
         // Every asset matching the current filters, as CSV; with site, one property's (its Assets tab)
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Download(
             string? search, string? active, List<int>? assetType, bool assetTypeIsNot,
             List<string>? propertyStatus, int? site, bool f = false, CancellationToken ct = default)
@@ -91,6 +93,7 @@ namespace FyreApp.Controllers
         }
 
         [HttpGet("/api/assets/suggestions")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Suggestions(string? q, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(q))
@@ -113,11 +116,6 @@ namespace FyreApp.Controllers
                 .Take(8);
 
             return Json(results);
-        }
-
-        public ActionResult Index()
-        {
-            return View();
         }
 
         // GET: /Assets/Details/5?tab=defects — the asset page, laid out like Uptick's

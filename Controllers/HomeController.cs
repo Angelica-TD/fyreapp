@@ -16,6 +16,7 @@ public class HomeController : Controller
     public HomeController(AppDbContext db) => _db = db;
 
     [HttpGet]
+    [AllowAnonymous] // the login page
     public IActionResult Index(string? returnUrl = null)
     {
         ViewData["HideBreadcrumb"] = true;

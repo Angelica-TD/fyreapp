@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FyreApp.Controllers;
 
 // Uptick "Remarks" = FyreApp defects, listed like Uptick's Remarks page
+[Authorize(Roles = "Admin")]
 public class RemarksController : Controller
 {
     private readonly IRemarkListService _list;

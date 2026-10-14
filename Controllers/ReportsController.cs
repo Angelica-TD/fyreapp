@@ -1,11 +1,13 @@
 using FyreApp.Infrastructure;
 using FyreApp.Services.Lists;
 using FyreApp.ViewModels.Lists;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FyreApp.Controllers;
 
 // Service reports, listed like Uptick's Reports page (no default filters, no Edit)
+[Authorize(Roles = "Admin")]
 public class ReportsController : Controller
 {
     private readonly IReportListService _list;

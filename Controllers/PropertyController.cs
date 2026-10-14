@@ -36,6 +36,7 @@ namespace FyreApp.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Index(string? search, List<string>? status, int page = 1, bool f = false, CancellationToken ct = default)
         {
             var filter = Filter(search, status, f);
@@ -45,6 +46,7 @@ namespace FyreApp.Controllers
 
         // Every property matching the current filters, as CSV
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Download(string? search, List<string>? status, bool f = false, CancellationToken ct = default) =>
             File(await _list.CsvAsync(Filter(search, status, f), ct), "text/csv", FyreApp.Infrastructure.CsvExport.FileName("properties"));
 

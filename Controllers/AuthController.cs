@@ -19,6 +19,7 @@ public class AuthController : Controller
     }
 
     [HttpPost]
+    [AllowAnonymous]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(HomeIndexVm vm)
     {
