@@ -30,6 +30,34 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // =========================================================
+    // SIDEBAR GROUPS (Customer data, People, ...)
+    // The group holding the current page is opened by the server; the others open and close on click
+    // and are remembered in localStorage. The sidebar renders twice (desktop + mobile), so both follow.
+    // =========================================================
+    const groupsKey = "sidebarGroupsOpen";
+    let openGroups = [];
+    try { openGroups = JSON.parse(localStorage.getItem(groupsKey) || "[]"); } catch { openGroups = []; }
+
+    function setGroup(key, open) {
+        document.querySelectorAll(`.sidebar-group[data-group="${key}"]`).forEach(function (group) {
+            group.classList.toggle("open", open);
+            group.querySelector(".sidebar-group-toggle")?.setAttribute("aria-expanded", open);
+        });
+    }
+
+    openGroups.forEach(key => setGroup(key, true));
+
+    document.querySelectorAll(".sidebar-group-toggle").forEach(function (toggle) {
+        toggle.addEventListener("click", function () {
+            const key = toggle.closest(".sidebar-group").dataset.group;
+            const open = !toggle.closest(".sidebar-group").classList.contains("open");
+            setGroup(key, open);
+            openGroups = open ? [...new Set([...openGroups, key])] : openGroups.filter(k => k !== key);
+            try { localStorage.setItem(groupsKey, JSON.stringify(openGroups)); } catch { }
+        });
+    });
+
+    // =========================================================
     // UPLOAD SIZE CHECK
     // File inputs with data-max-bytes refuse files over the server's limit before uploading;
     // otherwise the server cuts the upload off and the browser only shows a bare HTTP 400.

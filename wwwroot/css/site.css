@@ -239,6 +239,45 @@ body {
     font-weight: inherit;
 }
 
+/* ---- Groups (Customer data, People, ...): a heading that opens its links ---- */
+.sidebar-group-toggle {
+    text-decoration: none;
+    font-weight: inherit;
+    border: 0;
+}
+
+.sidebar-group.current > .sidebar-group-toggle {
+    color: var(--bs-primary, #337ab7);
+}
+
+.sidebar-chevron {
+    font-size: 0.75rem;
+    transition: transform var(--sidebar-transition);
+}
+
+.sidebar-group.open > .sidebar-group-toggle .sidebar-chevron {
+    transform: rotate(180deg);
+}
+
+.sidebar-group-items {
+    display: none;
+    padding-left: 1rem;
+}
+
+.sidebar-group.open > .sidebar-group-items {
+    display: flex;
+}
+
+/* Icon-only sidebar: no headings, every group's links show as icons */
+.app-sidebar.sidebar-collapsed .sidebar-group-toggle {
+    display: none;
+}
+
+.app-sidebar.sidebar-collapsed .sidebar-group-items {
+    display: flex;
+    padding-left: 0;
+}
+
 
 /* ============================================================
    MAIN CONTENT AREA
