@@ -172,6 +172,7 @@ public class TaskImporter : UptickImporter
         t.CreatedUtc = row.GetTimestampUtc("Created") ?? (t.CreatedUtc == default ? DateTime.UtcNow : t.CreatedUtc);
         t.CompletedUtc = row.GetTimestampUtc("Completed Date");
         t.Category = row.Get("Category");
+        t.UptickTechnician = Cap(row.Get("Assigned Technician"), 200);
         t.IsActive = row.GetBool("Is Active") ?? status is not (ClientTaskStatus.Completed or ClientTaskStatus.Cancelled);
 
         foreach (var s in covered.Where(s => !t.CoveredSchedules.Contains(s)))

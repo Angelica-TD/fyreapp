@@ -289,9 +289,13 @@ public class TaskController : Controller
     // Tasks list (React). Defaults match Uptick's Tasks page: active tasks, any category, any status.
     // category / status are "is" lists, or "is not" with categoryNot / statusNot.
     private static FyreApp.Services.Tasks.TaskFilter TaskFilterFrom(
-        string? search, string active, List<string>? category, bool categoryNot, List<ClientTaskStatus>? status, bool statusNot) => new()
+        string? search, string active, List<string>? category, bool categoryNot, List<ClientTaskStatus>? status, bool statusNot,
+        DateTime? dueFrom = null, DateTime? dueTo = null, string? technician = null) => new()
     {
         Search = search,
+        DueFrom = dueFrom,
+        DueTo = dueTo,
+        Technician = technician,
         Active = active switch { "yes" => true, "no" => false, _ => null },
         Category = category ?? new(),
         CategoryNot = categoryNot,
@@ -304,9 +308,10 @@ public class TaskController : Controller
         string? search, string active = "yes",
         [FromQuery] List<string>? category = null, bool categoryNot = false,
         [FromQuery] List<ClientTaskStatus>? status = null, bool statusNot = false,
+        DateTime? dueFrom = null, DateTime? dueTo = null, string? technician = null,
         int page = 1, CancellationToken ct = default)
     {
-        var filter = TaskFilterFrom(search, active, category, categoryNot, status, statusNot);
+        var filter = TaskFilterFrom(search, active, category, categoryNot, status, statusNot, dueFrom, dueTo, technician);
         filter.Page = page;
         var (total, current, items, categories) = await _taskList.SearchAsync(filter, ct);
         return Json(new { total, page = current, pages = FyreApp.ViewModels.Lists.ListFilters.Pages(total), items, categories });
@@ -317,8 +322,9 @@ public class TaskController : Controller
     public async Task<IActionResult> Download(
         string? search, string active = "yes",
         [FromQuery] List<string>? category = null, bool categoryNot = false,
-        [FromQuery] List<ClientTaskStatus>? status = null, bool statusNot = false, CancellationToken ct = default) =>
-        File(await _taskList.CsvAsync(TaskFilterFrom(search, active, category, categoryNot, status, statusNot), ct),
+        [FromQuery] List<ClientTaskStatus>? status = null, bool statusNot = false,
+        DateTime? dueFrom = null, DateTime? dueTo = null, string? technician = null, CancellationToken ct = default) =>
+        File(await _taskList.CsvAsync(TaskFilterFrom(search, active, category, categoryNot, status, statusNot, dueFrom, dueTo, technician), ct),
             "text/csv", FyreApp.Infrastructure.CsvExport.FileName("tasks"));
 
     public class TaskBulkRequest
@@ -332,6 +338,9 @@ public class TaskController : Controller
         // Status names as the list sends them, e.g. "InProgress"
         public List<string> Status { get; set; } = new();
         public bool StatusNot { get; set; }
+        public DateTime? DueFrom { get; set; }
+        public DateTime? DueTo { get; set; }
+        public string? Technician { get; set; }
 
         // "status" (NewStatus) or "assign" (TechUserId; empty = unassign)
         public string BulkAction { get; set; } = "";
@@ -347,7 +356,7 @@ public class TaskController : Controller
     {
         var selection = FyreApp.ViewModels.Lists.BulkSelection.From(req.Ids, req.AllMatching);
         var statuses = req.Status.Select(s => Enum.TryParse<ClientTaskStatus>(s, out var st) ? st : (ClientTaskStatus?)null).OfType<ClientTaskStatus>().ToList();
-        var filter = TaskFilterFrom(req.Search, req.Active, req.Category, req.CategoryNot, statuses, req.StatusNot);
+        var filter = TaskFilterFrom(req.Search, req.Active, req.Category, req.CategoryNot, statuses, req.StatusNot, req.DueFrom, req.DueTo, req.Technician);
 
         switch (req.BulkAction)
         {
