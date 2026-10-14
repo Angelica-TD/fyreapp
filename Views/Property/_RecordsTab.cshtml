@@ -1,7 +1,7 @@
 @model FyreApp.ViewModels.Sites.PropertyPageVm
 @using FyreApp.Infrastructure
 
-@* Uptick's Records tab: the property's service reports, newest first *@
+@* Uptick's Records tab: the property's service reports, newest first, then its quotes and schedules *@
 
 <div class="card property-card">
     <div class="card-header"><span>Service reports (@Model.Reports.Count)</span></div>
@@ -55,3 +55,95 @@
         </div>
     }
 </div>
+
+@* Uptick's quotes for the property (quotes export, matched on its ref) *@
+<div class="card property-card">
+    <div class="card-header"><span>Defect quotes (@Model.DefectQuotes.Count)</span></div>
+    @if (!Model.DefectQuotes.Any())
+    {
+        <div class="card-body text-muted">No quotes. They come from Uptick's quotes export (Import page).</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr><th>Ref</th><th>Date</th><th>Expiry</th><th>Scope of works</th><th class="text-end">Total</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var q in Model.DefectQuotes)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@q.Reference</td>
+                            <td class="text-nowrap">@(q.Date?.ToOrdinalDate() ?? "-")</td>
+                            <td class="text-nowrap">@(q.ExpiryDate?.ToOrdinalDate() ?? "-")</td>
+                            <td class="small" style="white-space: pre-line">@Short(q.ScopeOfWorks ?? q.Description)</td>
+                            <td class="text-end text-nowrap">@(q.Total?.ToString("C", Money) ?? "-")</td>
+                            <td><span class="badge @QuoteBadge(q.Status)">@(q.Status ?? "-")</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@* Uptick's sales quotes (sales quotes export: it names the property, so matched on name) *@
+@if (Model.SalesQuotes.Any())
+{
+    <div class="card property-card">
+        <div class="card-header"><span>Sales quotes (@Model.SalesQuotes.Count)</span></div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr><th>Ref</th><th>Created</th><th>Expiry</th><th>Template</th><th class="text-end">Subtotal</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var q in Model.SalesQuotes)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@q.Ref</td>
+                            <td class="text-nowrap">@(q.Created?.ToOrdinalDate() ?? "-")</td>
+                            <td class="text-nowrap">@(q.ExpiryDate?.ToOrdinalDate() ?? "-")</td>
+                            <td>@(q.Template ?? "-")</td>
+                            <td class="text-end text-nowrap">@(q.Subtotal?.ToString("C", Money) ?? "-")</td>
+                            <td><span class="badge @QuoteBadge(q.Status)">@(q.Status ?? "-")</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@* The property's fire safety schedules (Uptick's schedules export) *@
+@if (Model.Schedules.Any())
+{
+    <div class="card property-card">
+        <div class="card-header"><span>Schedules (@Model.Schedules.Count)</span></div>
+        <table class="table mb-0">
+            <thead><tr><th>Number</th><th>Date</th><th>Type</th><th>Issuer</th></tr></thead>
+            <tbody>
+                @foreach (var s in Model.Schedules)
+                {
+                    <tr><td>@(s.Number ?? "-")</td><td>@(s.Date?.ToOrdinalDate() ?? "-")</td><td>@(s.Type ?? "-")</td><td>@(s.Issuer ?? "-")</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@functions {
+    static readonly System.Globalization.CultureInfo Money = System.Globalization.CultureInfo.GetCultureInfo("en-AU");
+
+    static string? Short(string? s) => s == null ? null : s.Length > 160 ? s[..159] + "…" : s;
+
+    static string QuoteBadge(string? status) => status switch
+    {
+        "ACTIONED" or "APPROVED" or "COMPLETED" or "FINALISED" => "bg-success",
+        "SUBMITTED" => "bg-primary",
+        "DRAFT" => "bg-light text-dark border",
+        "DECLINED" => "bg-danger",
+        _ => "bg-secondary"
+    };
+}

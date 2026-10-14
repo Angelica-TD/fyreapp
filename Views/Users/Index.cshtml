@@ -154,6 +154,12 @@
                                 <td>
                                     @u.Name
                                     @if (u.ServiceGroup != null) { <div class="small text-muted">@u.ServiceGroup</div> }
+                                    @foreach (var a in item.Accreditations)
+                                    {
+                                        <div class="small"><i class="bi bi-patch-check text-muted"></i> @a.Type @a.Number
+                                            @if (a.Expiry is { } exp) { <span class="text-muted">· expires @exp.ToOrdinalDate()</span> }
+                                        </div>
+                                    }
                                 </td>
                                 <td>@if (u.Email != null) { <a href="mailto:@u.Email">@u.Email</a> } else { <text>-</text> }</td>
                                 <td>@UptickUser.LicenseLabel(u.LicenseType)</td>

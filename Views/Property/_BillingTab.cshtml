@@ -1,7 +1,8 @@
 @model FyreApp.ViewModels.Sites.PropertyPageVm
+@using FyreApp.Infrastructure
 
-@* Uptick's Billing tab, for what FyreApp holds: the property's and the client's billing requirements.
-   (Uptick's billing cards, contracts and invoices aren't imported.) *@
+@* Uptick's Billing tab: billing requirements, billing cards, billing contracts and invoices
+   (from Uptick's billing exports, matched on the property's ref and its Uptick billing card IDs) *@
 @{
     var site = Model.Site;
     var client = site.Client;
@@ -53,11 +54,149 @@
     </div>
 
     <div class="col-lg-6">
-        <div class="card property-card">
-            <div class="card-header"><span>Billing contracts and invoices</span></div>
-            <div class="card-body text-muted">
-                Billing cards, contracts and invoices are in Uptick and aren't imported into FyreApp yet.
+        @* Billing cards: the property's own, else the client's (Uptick's billing cards export) *@
+        @foreach (var (title, card) in new[] { ("Property billing card", Model.PropertyBillingCard), ("Client billing card", Model.ClientBillingCard) })
+        {
+            if (card == null) continue;
+            <div class="card property-card">
+                <div class="card-header">
+                    <div>
+                        <div>@title</div>
+                        <div class="small text-muted fw-normal">@card.Name@(card.Ref != null ? $" · {card.Ref}" : "")</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <dl class="row property-facts mb-0">
+                        <dt class="col-4">Attention</dt>
+                        <dd class="col-8">@(card.PostalAttention ?? "-")</dd>
+                        <dt class="col-4">Email</dt>
+                        <dd class="col-8">@if (card.PostalEmail != null) { <a href="mailto:@card.PostalEmail">@card.PostalEmail</a> } else { <text>-</text> }</dd>
+                        <dt class="col-4">Phone</dt>
+                        <dd class="col-8">@(card.PostalMobile ?? card.PostalBusinessHours ?? "-")</dd>
+                        <dt class="col-4">Postal address</dt>
+                        <dd class="col-8" style="white-space: pre-line">@(card.PostalAddress ?? "-")</dd>
+                        @if (card.BusinessNumber != null)
+                        {
+                            <dt class="col-4">ABN</dt>
+                            <dd class="col-8">@card.BusinessNumber</dd>
+                        }
+                        <dt class="col-4">Invoices</dt>
+                        <dd class="col-8">@(card.NumberOfInvoices?.ToString() ?? "-")</dd>
+                    </dl>
+                </div>
             </div>
+        }
+        @if (Model.PropertyBillingCard == null && Model.ClientBillingCard == null)
+        {
+            <div class="card property-card">
+                <div class="card-header"><span>Billing card</span></div>
+                <div class="card-body text-muted">No billing card. They come from Uptick's billing cards export (Import page).</div>
+            </div>
+        }
+
+        @* Billing contracts with their lines (Uptick's billing contracts and line items exports) *@
+        <div class="card property-card">
+            <div class="card-header"><span>Billing contracts</span></div>
+            @if (!Model.BillingContracts.Any())
+            {
+                <div class="card-body text-muted">Not covered by a billing contract.</div>
+            }
+            @foreach (var c in Model.BillingContracts)
+            {
+                var lines = Model.BillingContractLines.Where(l => l.ContractExternalId == c.ExternalId).ToList();
+                <div class="card-body border-bottom">
+                    <div class="d-flex justify-content-between">
+                        <strong>@c.Name</strong>
+                        @if (c.Active) { <span class="badge bg-success">Active</span> } else { <span class="badge bg-secondary">Inactive</span> }
+                    </div>
+                    <div class="small text-muted mb-2">
+                        @string.Join(" · ", new[] { c.Type, c.Frequency, c.InvoiceMode, c.AnnualValue is { } v ? $"{v.ToString("C", Money)} a year" : null }.Where(s => !string.IsNullOrWhiteSpace(s)))
+                    </div>
+                    <dl class="row property-facts small mb-2">
+                        <dt class="col-4">Term</dt>
+                        <dd class="col-8">@(c.StartDate?.ToOrdinalDate() ?? "-") to @(c.FinishDate?.ToOrdinalDate() ?? "ongoing")</dd>
+                        <dt class="col-4">Next due</dt>
+                        <dd class="col-8">@(c.NextDue?.ToOrdinalDate() ?? "-")</dd>
+                        @if (c.Notes != null)
+                        {
+                            <dt class="col-4">Notes</dt>
+                            <dd class="col-8" style="white-space: pre-line">@c.Notes</dd>
+                        }
+                    </dl>
+                    @if (lines.Any())
+                    {
+                        <table class="table table-sm mb-0">
+                            <thead><tr><th>Product</th><th>Description</th><th class="text-end">Price</th></tr></thead>
+                            <tbody>
+                                @foreach (var l in lines)
+                                {
+                                    <tr class="@(l.Visible ? "" : "text-muted")">
+                                        <td>@l.Product</td>
+                                        <td style="white-space: pre-line">@l.Description</td>
+                                        <td class="text-end text-nowrap">@(l.UnitPrice?.ToString("C", Money) ?? "-") <span class="small text-muted">@l.Type</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            }
         </div>
     </div>
 </div>
+
+@* Invoices (Uptick's invoices and credit notes exports) *@
+<div class="card property-card">
+    <div class="card-header">
+        <span>Invoices (@Model.InvoiceCount)</span>
+        @if (Model.InvoiceCount > Model.Invoices.Count) { <span class="small text-muted fw-normal">latest @Model.Invoices.Count shown</span> }
+    </div>
+    @if (!Model.Invoices.Any())
+    {
+        <div class="card-body text-muted">No invoices. They come from Uptick's invoices export (Import page).</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr><th>Number</th><th>Date</th><th>Due</th><th>Description</th><th>Task</th><th class="text-end">Total</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var i in Model.Invoices)
+                    {
+                        var credits = Model.CreditNotes.Where(c => c.InvoiceExternalId == i.ExternalId).ToList();
+                        <tr>
+                            <td class="text-nowrap">@i.Number</td>
+                            <td class="text-nowrap">@(i.Date?.ToOrdinalDate() ?? "-")</td>
+                            <td class="text-nowrap">@(i.DueDate?.ToOrdinalDate() ?? "-")</td>
+                            <td>@i.Description</td>
+                            <td class="text-nowrap">
+                                @if (i.TaskRef != null) { <a asp-controller="Task" asp-action="Index" asp-route-search="@i.TaskRef" asp-route-active="any">@i.TaskRef</a> }
+                                else { <text>-</text> }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                @(i.Total?.ToString("C", Money) ?? "-")
+                                @foreach (var c in credits) { <div class="small text-muted">@c.Number credit</div> }
+                            </td>
+                            <td><span class="badge @InvoiceBadge(i.Status)">@(i.Status ?? "-")</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@functions {
+    static readonly System.Globalization.CultureInfo Money = System.Globalization.CultureInfo.GetCultureInfo("en-AU");
+
+    static string InvoiceBadge(string? status) => status switch
+    {
+        "PAID" => "bg-success",
+        "AUTHORISED" => "bg-primary",
+        "VOIDED" or "DELETED" => "bg-secondary",
+        "DRAFT" or "SUBMITTED" => "bg-light text-dark border",
+        _ => "bg-secondary"
+    };
+}

@@ -222,6 +222,18 @@
                 </a>
             </li>
 
+            <!-- Products and stock (Admin only) -->
+            <li class="nav-item">
+                <a class="nav-link sidebar-link"
+                   asp-controller="Products"
+                   asp-action="Index"
+                   nav-active
+                   nav-active-controller-only>
+                    <i class="bi bi-box-seam sidebar-icon"></i>
+                    <span class="sidebar-label">Products</span>
+                </a>
+            </li>
+
             @if (UiFeatures.MaintenanceSchedules)
             {
                 <!-- Schedules (Admin only) -->

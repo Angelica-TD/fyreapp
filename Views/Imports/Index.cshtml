@@ -18,6 +18,15 @@
         UptickExportType.SecurityGroups => "Security groups",
         UptickExportType.ExtraFields => "Extra fields",
         UptickExportType.PromptQuestions => "Prompt questions",
+        UptickExportType.StockLevels => "Stock (annotated stocks)",
+        UptickExportType.BillingCards => "Billing cards",
+        UptickExportType.BillingContracts => "Billing contracts",
+        UptickExportType.BillingContractLineItems => "Billing contract line items",
+        UptickExportType.CreditNotes => "Credit notes",
+        UptickExportType.DefectQuotes => "Quotes (defect quotes)",
+        UptickExportType.SalesQuotes => "Sales quotes",
+        UptickExportType.PropertySchedules => "Schedules (property)",
+        UptickExportType.FormResponses => "Form responses",
         _ => t.ToString()
     };
 }
@@ -43,6 +52,11 @@
                     <li>Reports</li>
                     <li>Tasks (after routines, so routine tasks link to them). Reports and remarks link to their task in either order.</li>
                 </ol>
+                <p class="small text-muted mt-2 mb-0">
+                    Billing (billing cards, contracts and their line items, invoices, credit notes), quotes, sales quotes,
+                    schedules, form responses, products, warehouses, stock and accreditations can be imported at any time:
+                    they're matched to properties and tasks by their Uptick refs when shown.
+                </p>
                 <p class="small text-muted mt-2 mb-0">
                     Users, contractors and suppliers can be imported at any time. Like reference data, they're refreshed from each export.
                 </p>

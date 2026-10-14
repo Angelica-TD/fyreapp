@@ -20,6 +20,11 @@ public static class UptickJson
         return values.Count == 0 ? null : JsonSerializer.Serialize(values, Options);
     }
 
+    // One column's value from a stored row, e.g. a property's "Billing Card ID"
+    public static string? Value(string? json, string header) =>
+        Parse(json).Where(f => string.Equals(f.Header, header, StringComparison.OrdinalIgnoreCase))
+            .Select(f => f.Value.Trim()).FirstOrDefault(v => v != "");
+
     public static IReadOnlyList<(string Header, string Value)> Parse(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return [];

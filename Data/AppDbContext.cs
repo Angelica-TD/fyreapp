@@ -44,6 +44,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<SecurityGroup> SecurityGroups => Set<SecurityGroup>();
     public DbSet<ExtraField> ExtraFields => Set<ExtraField>();
     public DbSet<PromptQuestion> PromptQuestions => Set<PromptQuestion>();
+    public DbSet<BillingCard> BillingCards => Set<BillingCard>();
+    public DbSet<BillingContract> BillingContracts => Set<BillingContract>();
+    public DbSet<BillingContractLineItem> BillingContractLineItems => Set<BillingContractLineItem>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
+    public DbSet<DefectQuote> DefectQuotes => Set<DefectQuote>();
+    public DbSet<SalesQuote> SalesQuotes => Set<SalesQuote>();
+    public DbSet<PropertySchedule> PropertySchedules => Set<PropertySchedule>();
+    public DbSet<FormResponse> FormResponses => Set<FormResponse>();
+    public DbSet<Accreditation> Accreditations => Set<Accreditation>();
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+    public DbSet<StockLevel> StockLevels => Set<StockLevel>();
 
 
 
@@ -588,6 +601,32 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<ExtraField>().HasIndex(f => f.ExternalId).IsUnique();
         modelBuilder.Entity<PromptQuestion>().HasIndex(q => q.ExternalId).IsUnique();
 
+        // Uptick billing, quotes, forms and stock. Linked to properties and tasks by their Uptick refs (not
+        // foreign keys), so the exports can be imported in any order.
+        foreach (var type in new[]
+                 {
+                     typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem), typeof(Invoice), typeof(CreditNote),
+                     typeof(DefectQuote), typeof(SalesQuote), typeof(FormResponse), typeof(Accreditation), typeof(Product), typeof(Warehouse)
+                 })
+            modelBuilder.Entity(type).HasIndex(nameof(IUptickRecord.ExternalId)).IsUnique();
+        modelBuilder.Entity<BillingContract>().HasIndex(c => c.PropertyRef);
+        modelBuilder.Entity<BillingContractLineItem>().HasIndex(l => l.ContractExternalId);
+        modelBuilder.Entity<Invoice>(entity =>
+        {
+            entity.HasIndex(i => i.PropertyRef);
+            entity.HasIndex(i => i.TaskExternalId);
+        });
+        modelBuilder.Entity<CreditNote>().HasIndex(c => c.InvoiceExternalId);
+        modelBuilder.Entity<DefectQuote>(entity =>
+        {
+            entity.HasIndex(q => q.PropertyRef);
+            entity.HasIndex(q => q.Reference);
+        });
+        modelBuilder.Entity<SalesQuote>().HasIndex(q => q.PropertyName);
+        modelBuilder.Entity<PropertySchedule>().HasIndex(s => s.PropertyRef);
+        modelBuilder.Entity<FormResponse>().HasIndex(f => new { f.TargetContentType, f.TargetObjectId });
+        modelBuilder.Entity<StockLevel>().HasIndex(s => s.Product);
+
         modelBuilder.Entity<PropertyRoutineService>(entity =>
         {
             entity.HasOne(s => s.Site)
@@ -626,7 +665,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                  {
                      typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(ClientContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask),
                      typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(RoutineOccurrence),
-                     typeof(Contractor), typeof(Supplier), typeof(UptickUser), typeof(ExtraField), typeof(PromptQuestion)
+                     typeof(Contractor), typeof(Supplier), typeof(UptickUser), typeof(ExtraField), typeof(PromptQuestion),
+                     typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem), typeof(Invoice), typeof(CreditNote),
+                     typeof(DefectQuote), typeof(SalesQuote), typeof(PropertySchedule), typeof(FormResponse), typeof(Accreditation),
+                     typeof(Product), typeof(Warehouse), typeof(StockLevel)
                  })
         {
             modelBuilder.Entity(type).Property<string?>("UptickData").HasColumnType("json");

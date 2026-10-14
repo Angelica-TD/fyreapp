@@ -44,6 +44,21 @@ public class PropertyPageVm
     // Routines tab
     public PropertyRoutinesVm? Routines { get; init; }
 
+    // Billing tab (Uptick's billing exports)
+    public const int InvoicesShown = 100;
+    public BillingCard? PropertyBillingCard { get; init; }
+    public BillingCard? ClientBillingCard { get; init; }
+    public IReadOnlyList<BillingContract> BillingContracts { get; init; } = [];
+    public IReadOnlyList<BillingContractLineItem> BillingContractLines { get; init; } = [];
+    public IReadOnlyList<Invoice> Invoices { get; init; } = [];
+    public int InvoiceCount { get; init; }
+    public IReadOnlyList<CreditNote> CreditNotes { get; init; } = [];
+
+    // Records tab: service reports, Uptick's quotes and the property's schedules
+    public IReadOnlyList<DefectQuote> DefectQuotes { get; init; } = [];
+    public IReadOnlyList<SalesQuote> SalesQuotes { get; init; } = [];
+    public IReadOnlyList<PropertySchedule> Schedules { get; init; } = [];
+
     // Records tab (service reports) and Tasks tab
     public IReadOnlyList<ServiceReport> Reports { get; init; } = [];
     public IReadOnlyList<ClientTask> Tasks { get; init; } = [];

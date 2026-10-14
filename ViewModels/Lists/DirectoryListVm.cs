@@ -47,6 +47,9 @@ public class UptickUserListItemVm
 
     // Their security groups, split using the imported group names
     public IReadOnlyList<string> Groups { get; set; } = [];
+
+    // Their licences and accreditations (Uptick accreditations export, matched on name)
+    public IReadOnlyList<Accreditation> Accreditations { get; set; } = [];
 }
 
 public record LoginSummary(string Id, string? Role, bool IsActive)

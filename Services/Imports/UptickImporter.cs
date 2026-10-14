@@ -31,7 +31,22 @@ public enum UptickExportType
     // More reference data
     SecurityGroups = 16,
     ExtraFields = 17,
-    PromptQuestions = 18
+    PromptQuestions = 18,
+    Products = 19,
+    Warehouses = 20,
+    StockLevels = 21,
+    Accreditations = 22,
+
+    // Billing, quotes and forms (any order)
+    BillingCards = 23,
+    BillingContracts = 24,
+    BillingContractLineItems = 25,
+    Invoices = 26,
+    CreditNotes = 27,
+    DefectQuotes = 28,
+    SalesQuotes = 29,
+    PropertySchedules = 30,
+    FormResponses = 31
 }
 
 // Collects counts and grouped issues for one import run.
