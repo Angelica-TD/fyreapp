@@ -80,6 +80,15 @@ public class DataResetService : IDataResetService
             ("Property contacts", await _db.SiteContacts.CountAsync(ct)),
             ("Client contacts", await _db.ClientContacts.CountAsync(ct)),
             ("Timeline entries", await _db.TimelineEntries.CountAsync(ct)),
+            ("Invoices", await _db.Invoices.CountAsync(ct)),
+            ("Credit notes", await _db.CreditNotes.CountAsync(ct)),
+            ("Billing contract line items", await _db.BillingContractLineItems.CountAsync(ct)),
+            ("Billing contracts", await _db.BillingContracts.CountAsync(ct)),
+            ("Billing cards", await _db.BillingCards.CountAsync(ct)),
+            ("Defect quotes (Uptick)", await _db.DefectQuotes.CountAsync(ct)),
+            ("Sales quotes (Uptick)", await _db.SalesQuotes.CountAsync(ct)),
+            ("Property schedules", await _db.PropertySchedules.CountAsync(ct)),
+            ("Form responses", await _db.FormResponses.CountAsync(ct)),
             ("Assets", await _db.Assets.CountAsync(ct)),
             ("Properties", await _db.Sites.CountAsync(ct)),
             ("Clients", await _db.Clients.CountAsync(ct))
@@ -103,7 +112,11 @@ public class DataResetService : IDataResetService
             ("Asset catalogue", await _db.AssetCatalogue.CountAsync(ct)),
             ("Security groups", await _db.SecurityGroups.CountAsync(ct)),
             ("Extra fields", await _db.ExtraFields.CountAsync(ct)),
-            ("Prompt questions", await _db.PromptQuestions.CountAsync(ct))
+            ("Prompt questions", await _db.PromptQuestions.CountAsync(ct)),
+            ("Accreditations", await _db.Accreditations.CountAsync(ct)),
+            ("Products", await _db.Products.CountAsync(ct)),
+            ("Warehouses", await _db.Warehouses.CountAsync(ct)),
+            ("Stock levels", await _db.StockLevels.CountAsync(ct))
         };
 
     public async Task<IReadOnlyList<(string Table, int Count)>> ResetAsync(string? userName, CancellationToken ct = default)
@@ -130,6 +143,15 @@ public class DataResetService : IDataResetService
             ("Property contacts", await _db.SiteContacts.ExecuteDeleteAsync(ct)),
             ("Client contacts", await _db.ClientContacts.ExecuteDeleteAsync(ct)),
             ("Timeline entries", await _db.TimelineEntries.ExecuteDeleteAsync(ct)),
+            ("Invoices", await _db.Invoices.ExecuteDeleteAsync(ct)),
+            ("Credit notes", await _db.CreditNotes.ExecuteDeleteAsync(ct)),
+            ("Billing contract line items", await _db.BillingContractLineItems.ExecuteDeleteAsync(ct)),
+            ("Billing contracts", await _db.BillingContracts.ExecuteDeleteAsync(ct)),
+            ("Billing cards", await _db.BillingCards.ExecuteDeleteAsync(ct)),
+            ("Defect quotes (Uptick)", await _db.DefectQuotes.ExecuteDeleteAsync(ct)),
+            ("Sales quotes (Uptick)", await _db.SalesQuotes.ExecuteDeleteAsync(ct)),
+            ("Property schedules", await _db.PropertySchedules.ExecuteDeleteAsync(ct)),
+            ("Form responses", await _db.FormResponses.ExecuteDeleteAsync(ct)),
             ("Assets", await _db.Assets.ExecuteDeleteAsync(ct)),
             ("Properties", await _db.Sites.ExecuteDeleteAsync(ct)),
             ("Clients", await _db.Clients.ExecuteDeleteAsync(ct))

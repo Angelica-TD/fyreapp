@@ -1,4 +1,5 @@
 using FyreApp.Data;
+using FyreApp.Models;
 using FyreApp.ViewModels.Tasks;
 using Microsoft.EntityFrameworkCore;
 
@@ -47,6 +48,21 @@ public class TaskPageService : ITaskPageService
                 .OrderBy(d => d.Asset != null ? d.Asset.Name : "")
                 .ThenBy(d => d.Id)
                 .ToListAsync(ct),
+            // Uptick invoices and form responses name the task by its Uptick ID
+            Invoices = task.ExternalId == null ? [] : await _db.Invoices.AsNoTracking()
+                .Where(i => i.TaskExternalId == task.ExternalId)
+                .OrderByDescending(i => i.Date)
+                .ToListAsync(ct),
+            Forms = task.ExternalId == null ? [] : (await (
+                    from f in _db.FormResponses.AsNoTracking()
+                    where f.TargetContentType == FormResponse.TaskContentType && f.TargetObjectId == task.ExternalId
+                    join u in _db.UptickUsers on f.SubmitterExternalId equals u.ExternalId into submitters
+                    from u in submitters.DefaultIfEmpty()
+                    orderby f.SubmittedUtc
+                    select new { f, Name = u != null ? u.Name : null })
+                .ToListAsync(ct))
+                .Select(x => (x.f, x.Name))
+                .ToList(),
             Techs = (await _db.UptickUsers.AsNoTracking()
                     .Assignable()
                     .OrderBy(u => u.Name)

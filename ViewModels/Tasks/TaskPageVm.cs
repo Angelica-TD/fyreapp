@@ -17,6 +17,10 @@ public class TaskPageVm
     public IReadOnlyList<Defect> Repairs { get; set; } = [];
     public IReadOnlyList<string> Routines { get; set; } = [];
 
+    // Uptick invoices raised for this task, and forms submitted on it (with who submitted them)
+    public IReadOnlyList<Invoice> Invoices { get; set; } = [];
+    public IReadOnlyList<(FormResponse Form, string? Submitter)> Forms { get; set; } = [];
+
     // Technicians (Uptick users) to assign, for admins
     public IReadOnlyList<(string Id, string Name)> Techs { get; set; } = [];
 

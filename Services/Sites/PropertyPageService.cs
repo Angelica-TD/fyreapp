@@ -73,6 +73,19 @@ public class PropertyPageService : IPropertyPageService
                 Reports = await _db.ServiceReports.AsNoTracking()
                     .Where(r => r.SiteId == id)
                     .OrderByDescending(r => r.IssuedDate ?? r.InspectedDate)
+                    .ToListAsync(ct),
+                // Uptick's quotes and schedules, matched on the property's ref (sales quotes on its name)
+                DefectQuotes = site.ExternalId == null ? [] : await _db.DefectQuotes.AsNoTracking()
+                    .Where(q => q.PropertyRef == site.ExternalId)
+                    .OrderByDescending(q => q.Date)
+                    .ToListAsync(ct),
+                SalesQuotes = await _db.SalesQuotes.AsNoTracking()
+                    .Where(q => q.PropertyName == site.Name)
+                    .OrderByDescending(q => q.Created)
+                    .ToListAsync(ct),
+                Schedules = site.ExternalId == null ? [] : await _db.PropertySchedules.AsNoTracking()
+                    .Where(s => s.PropertyRef == site.ExternalId)
+                    .OrderByDescending(s => s.Date)
                     .ToListAsync(ct)
             },
             "tasks" => new PropertyPageVm
@@ -86,7 +99,7 @@ public class PropertyPageService : IPropertyPageService
                     .ThenByDescending(t => t.DueDateUtc)
                     .ToListAsync(ct)
             },
-            "billing" => new PropertyPageVm { Site = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere },
+            "billing" => await BillingAsync(site, openCount, mostSevere, ct),
             _ => new PropertyPageVm
             {
                 Site = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
@@ -94,6 +107,43 @@ public class PropertyPageService : IPropertyPageService
                 NotesOnly = query.NotesOnly,
                 ExtraFields = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(_db, ExtraField.PropertyContentType, site.UptickData, ct)
             }
+        };
+    }
+
+    // Billing tab: the property's and client's billing cards (named by ID in their Uptick rows), the property's
+    // billing contracts with their lines, and its invoices (newest first) with any credit notes
+    private async Task<PropertyPageVm> BillingAsync(Site site, int openCount, Defect? mostSevere, CancellationToken ct)
+    {
+        async Task<BillingCard?> Card(string? externalId) => externalId == null ? null
+            : await _db.BillingCards.AsNoTracking().FirstOrDefaultAsync(c => c.ExternalId == externalId, ct);
+
+        var contracts = site.ExternalId == null ? [] : await _db.BillingContracts.AsNoTracking()
+            .Where(c => c.PropertyRef == site.ExternalId)
+            .OrderByDescending(c => c.Active).ThenByDescending(c => c.StartDate)
+            .ToListAsync(ct);
+        var contractIds = contracts.Select(c => c.ExternalId).ToList();
+        var invoices = site.ExternalId == null ? [] : await _db.Invoices.AsNoTracking()
+            .Where(i => i.PropertyRef == site.ExternalId)
+            .OrderByDescending(i => i.Date).ThenByDescending(i => i.Number)
+            .Take(PropertyPageVm.InvoicesShown)
+            .ToListAsync(ct);
+        var invoiceIds = invoices.Select(i => i.ExternalId).ToList();
+
+        return new PropertyPageVm
+        {
+            Site = site, Tab = "billing", OpenRemarks = openCount, MostSevereRemark = mostSevere,
+            PropertyBillingCard = await Card(FyreApp.Services.Imports.UptickJson.Value(site.UptickData, "Billing Card ID")),
+            ClientBillingCard = await Card(FyreApp.Services.Imports.UptickJson.Value(site.Client.UptickData, "Billingcard ID")),
+            BillingContracts = contracts,
+            BillingContractLines = await _db.BillingContractLineItems.AsNoTracking()
+                .Where(l => contractIds.Contains(l.ContractExternalId))
+                .OrderBy(l => l.Id)
+                .ToListAsync(ct),
+            Invoices = invoices,
+            InvoiceCount = site.ExternalId == null ? 0 : await _db.Invoices.CountAsync(i => i.PropertyRef == site.ExternalId, ct),
+            CreditNotes = await _db.CreditNotes.AsNoTracking()
+                .Where(c => invoiceIds.Contains(c.InvoiceExternalId))
+                .ToListAsync(ct)
         };
     }
 

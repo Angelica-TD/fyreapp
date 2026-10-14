@@ -1,0 +1,95 @@
+@model FyreApp.ViewModels.Lists.ProductListVm
+
+@{
+    ViewData["Title"] = "Products";
+    var money = System.Globalization.CultureInfo.GetCultureInfo("en-AU");
+}
+
+@* Uptick's products with the stock each warehouse or van holds (products, warehouses and annotated stocks exports) *@
+@if (Model.Warehouses.Any())
+{
+    <div class="card mb-3">
+        <div class="card-header"><h2 class="h5 m-0">Warehouses</h2></div>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Name</th><th>Type</th><th>Manager</th><th class="text-end">Stock value</th></tr></thead>
+                <tbody>
+                    @foreach (var w in Model.Warehouses)
+                    {
+                        <tr>
+                            <td>@w.Name</td>
+                            <td>@(w.Type == "VAN" ? "Van" : w.Type == "FACILITY" ? "Facility" : w.Type ?? "-")</td>
+                            <td>@(w.Manager ?? "-")</td>
+                            <td class="text-end">@(w.StockValue?.ToString("C", money) ?? "-")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-header">
+        <h1 class="h4 m-0">Products</h1>
+        <div class="small text-muted">From Uptick's products export (Import page); stock from its annotated stocks export. Edited in Uptick.</div>
+    </div>
+    <div class="card-body">
+        <form method="get" asp-action="Index" class="row g-2 mb-3">
+            <div class="col-sm-8">
+                <input type="search" name="search" value="@Model.Search" class="form-control" placeholder="Search name, code, category or supplier" />
+            </div>
+            <div class="col-sm-4">
+                <select name="active" class="form-select" aria-label="Active" onchange="this.form.submit()">
+                    <option value="yes" selected="@(Model.Active == "yes")">Active</option>
+                    <option value="no" selected="@(Model.Active == "no")">Inactive</option>
+                    <option value="any" selected="@(Model.Active == "any")">Active or inactive</option>
+                </select>
+            </div>
+        </form>
+
+        <p class="small text-muted">@Model.Total product@(Model.Total == 1 ? "" : "s")</p>
+
+        @if (!Model.Items.Any())
+        {
+            <p class="text-muted">No products match. Products come from Uptick's products export (Import page).</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr><th>Name</th><th>Code</th><th>Type</th><th>Category</th><th>Supplier</th><th class="text-end">Cost</th><th class="text-end">Price</th><th>Stock</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var (p, stock) in Model.Items)
+                        {
+                            <tr class="@(p.Active ? "" : "text-muted")">
+                                <td>
+                                    @if (p.Starred) { <i class="bi bi-star-fill text-warning" title="Starred"></i> }
+                                    @p.Name
+                                    @if (p.UnitDescription != null && p.UnitDescription != p.Name) { <div class="small text-muted">@p.UnitDescription</div> }
+                                </td>
+                                <td class="small">@(p.Code ?? "-")</td>
+                                <td>@p.TypeLabel</td>
+                                <td>@(p.Category ?? "-")@(p.Subcategory != null ? $" / {p.Subcategory}" : "")</td>
+                                <td>@(p.Supplier ?? "-")</td>
+                                <td class="text-end">@(p.CostPrice?.ToString("C", money) ?? "-")</td>
+                                <td class="text-end">@(p.DefaultPrice?.ToString("C", money) ?? "-")</td>
+                                <td class="small text-nowrap">
+                                    @if (!stock.Any()) { <span class="text-muted">@(p.Stocked ? "None held" : "-")</span> }
+                                    @foreach (var s in stock)
+                                    {
+                                        <div><span class="@(s.OnHand < 0 ? "text-danger" : "")">@s.OnHand?.ToString("0.##")</span> <span class="text-muted">@s.Warehouse</span></div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @await Html.PartialAsync("_ListPager", (Model.Page, Model.Pages))
+        }
+    </div>
+</div>

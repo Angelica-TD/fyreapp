@@ -228,9 +228,39 @@
                             <div class="task-process-head">
                                 <i class="bi bi-receipt"></i> Invoices
                                 <span class="mx-1">·</span>
-                                <strong>@(Model.U("Invoiced") is "True" or "true" or "Yes" ? "Invoiced" : "Work pending")</strong>
+                                <strong>@(Model.Invoices.Any() || Model.U("Invoiced") is "True" or "true" or "Yes" ? "Invoiced" : "Work pending")</strong>
                             </div>
+                            @foreach (var i in Model.Invoices)
+                            {
+                                <div class="task-process-row">
+                                    <i class="bi bi-arrow-return-right text-muted"></i>
+                                    <span class="badge bg-light text-muted border">@(i.Status ?? "INVOICE")</span>
+                                    <span>@i.Number</span>
+                                    <span class="text-muted">@(i.Date?.ToOrdinalDate() ?? "")</span>
+                                    <span class="ms-auto">@(i.Total?.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-AU")) ?? "")</span>
+                                </div>
+                            }
                         </div>
+
+                        @if (Model.Forms.Any())
+                        {
+                            <div class="task-process mb-3">
+                                <div class="task-process-head">
+                                    <i class="bi bi-ui-checks"></i> Forms
+                                    <span class="mx-1">·</span>
+                                    <strong>@Model.Forms.Count submitted</strong>
+                                </div>
+                                @foreach (var (form, submitter) in Model.Forms)
+                                {
+                                    <div class="task-process-row">
+                                        <i class="bi bi-arrow-return-right text-muted"></i>
+                                        <span>@(form.Ref ?? "Form")</span>
+                                        <span class="text-muted">@(form.SubmittedUtc?.ToSydney().ToOrdinalDate() ?? "")@(submitter != null ? $" by {submitter}" : "")</span>
+                                        @if (!form.IsComplete) { <span class="badge bg-warning text-dark">Incomplete</span> }
+                                    </div>
+                                }
+                            </div>
+                        }
 
                         <div class="task-process mb-4">
                             <div class="task-process-head">
