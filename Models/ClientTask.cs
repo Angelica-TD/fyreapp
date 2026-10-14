@@ -91,4 +91,7 @@ public class ClientTask
     // Schedules an imported Uptick routine (I&T) task covers. One Uptick task can cover several
     // frequencies at a property (e.g. six-monthly and annual), so this is many-to-many.
     public ICollection<MaintenanceSchedule> CoveredSchedules { get; set; } = new List<MaintenanceSchedule>();
+
+    // Assets a routine task services (Work tab), saved when it was generated from routines
+    public ICollection<TaskAsset> Assets { get; set; } = new List<TaskAsset>();
 }

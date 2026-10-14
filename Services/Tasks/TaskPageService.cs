@@ -1,5 +1,6 @@
 using FyreApp.Data;
 using FyreApp.Models;
+using FyreApp.Services.Routines;
 using FyreApp.ViewModels.Tasks;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,17 +27,20 @@ public class TaskPageService : ITaskPageService
             .FirstOrDefaultAsync(t => t.Id == id, ct);
         if (task == null) return null;
 
+        // Routines this task was generated from (Routines page → Generate tasks)
+        var routines = await _db.RoutineOccurrences.AsNoTracking()
+            .Where(o => o.ClientTaskId == id)
+            .OrderBy(o => o.Routine)
+            .Select(o => new { o.SiteId, o.Routine, Type = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.RoutineServiceType.Name : null })
+            .ToListAsync(ct);
+
         return new TaskPageVm
         {
             Task = task,
             Tab = TaskPageVm.Tabs.Any(t => t.Key == tab) ? tab! : "task",
             Uptick = TaskPageVm.ParseUptick(task.UptickData),
-            // Routines this task was generated from (Routines page → Generate tasks)
-            Routines = await _db.RoutineOccurrences.AsNoTracking()
-                .Where(o => o.ClientTaskId == id)
-                .OrderBy(o => o.Routine)
-                .Select(o => o.Routine)
-                .ToListAsync(ct),
+            Routines = routines.Select(o => o.Routine).Distinct().ToList(),
+            ServiceAssets = await ServiceAssetsAsync(id, routines.Select(o => new RoutineAssets.SiteRoutine(o.SiteId, o.Routine, o.Type ?? RoutineAssets.RoutineType(o.Routine))).ToList(), ct),
             // Reports done on this task, and remarks it was raised to repair (linked from Uptick imports)
             Reports = await _db.ServiceReports.AsNoTracking()
                 .Where(r => r.ClientTaskId == id)
@@ -72,4 +76,29 @@ public class TaskPageService : ITaskPageService
                 .ToList()
         };
     }
+
+    // The assets the task services for its routines: saved when it was generated; for routine tasks generated
+    // before they were saved, worked out from the property's assets now
+    private async Task<IReadOnlyList<(string Routine, Asset Asset)>> ServiceAssetsAsync(
+        int taskId, IReadOnlyCollection<RoutineAssets.SiteRoutine> routines, CancellationToken ct)
+    {
+        var saved = await _db.TaskAssets.AsNoTracking()
+            .Where(a => a.ClientTaskId == taskId)
+            .Select(a => new { a.Id, a.Routine, a.Asset })
+            .ToListAsync(ct);
+        if (saved.Count > 0 || routines.Count == 0)
+            return Ordered(saved.Select(a => (a.Routine, a.Asset)));
+
+        var lines = await RoutineAssets.ForAsync(_db, routines, ct);
+        var assetIds = lines.SelectMany(g => g).Select(l => l.AssetId).Distinct().ToList();
+        var assets = await _db.Assets.AsNoTracking().Where(a => assetIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, ct);
+        return Ordered(lines.SelectMany(g => g).Select(l => (l.Routine, assets[l.AssetId])));
+    }
+
+    // By routine, then in inspection order
+    private static IReadOnlyList<(string Routine, Asset Asset)> Ordered(IEnumerable<(string Routine, Asset Asset)> lines) =>
+        lines.OrderBy(l => l.Routine)
+            .ThenBy(l => l.Asset.InspectionOrder == null).ThenBy(l => l.Asset.InspectionOrder)
+            .ThenBy(l => l.Asset.Ref).ThenBy(l => l.Asset.Name).ThenBy(l => l.Asset.Id)
+            .ToList();
 }

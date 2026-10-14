@@ -17,6 +17,9 @@ public class TaskPageVm
     public IReadOnlyList<Defect> Repairs { get; set; } = [];
     public IReadOnlyList<string> Routines { get; set; } = [];
 
+    // The assets it services for those routines (Work tab), by routine
+    public IReadOnlyList<(string Routine, Asset Asset)> ServiceAssets { get; set; } = [];
+
     // Uptick invoices raised for this task, and forms submitted on it (with who submitted them)
     public IReadOnlyList<Invoice> Invoices { get; set; } = [];
     public IReadOnlyList<(FormResponse Form, string? Submitter)> Forms { get; set; } = [];
@@ -48,7 +51,9 @@ public class TaskPageVm
     {
         get
         {
-            var line = (U("Description") ?? Task.Description)?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
+            // (skipping a heading such as "Scope of works:", which generated routine tasks start with)
+            var line = (U("Description") ?? Task.Description)?.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .FirstOrDefault(l => !l.EndsWith(':'))?.TrimStart('-', ' ');
             return line == null || line == Task.Title ? null : line.Length > 80 ? line[..79] + "…" : line;
         }
     }

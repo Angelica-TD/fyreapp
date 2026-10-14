@@ -66,15 +66,55 @@
         {
             <li class="nav-item">
                 <a class="nav-link @(key == Model.Tab ? "active" : "")" asp-action="Details" asp-route-id="@t.Id"
-                   asp-route-tab="@(key == "task" ? null : key)">@(key == "work" ? $"{label} ({Model.Repairs.Count})" : label)</a>
+                   asp-route-tab="@(key == "task" ? null : key)">@(key == "work" ? $"{label} ({Model.ServiceAssets.Count + Model.Repairs.Count})" : label)</a>
             </li>
         }
     </ul>
 
     @if (Model.Tab == "work")
     {
-        @* Work: the asset repairs this task does (remarks raised to be repaired on it) *@
+        @* Work: the assets it services for its routines, and the asset repairs it does (remarks raised to be repaired on it) *@
         <h2 class="h4 mb-3">Activities</h2>
+        @foreach (var routine in Model.ServiceAssets.GroupBy(a => a.Routine))
+        {
+            <div class="card property-card">
+                <div class="card-header">
+                    <span>Routine Service</span>
+                    <span class="small text-muted fw-normal">@routine.Key · @routine.Count() @(routine.Count() == 1 ? "asset" : "assets")</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr><th>Asset</th><th>Location</th><th>Variant</th><th>Make / model</th><th>Last service</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var (_, a) in routine)
+                            {
+                                <tr>
+                                    <td>
+                                        <a asp-controller="Assets" asp-action="Details" asp-route-id="@a.Id">@a.Name</a>
+                                    </td>
+                                    <td>@Dash(a.Location)</td>
+                                    <td>@Dash(a.Variant)</td>
+                                    <td>@Dash(string.Join(" ", new[] { a.Make, a.Model }.Where(s => !string.IsNullOrWhiteSpace(s))))</td>
+                                    <td class="text-nowrap">@(a.LastServiceDate?.ToOrdinalDate() ?? "-")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+        @if (Model.Routines.Any() && !Model.ServiceAssets.Any())
+        {
+            <div class="card property-card">
+                <div class="card-header"><span>Routine Service</span></div>
+                <div class="card-body text-muted fst-italic">
+                    No assets at this property for @string.Join(", ", Model.Routines). Assets are matched by their asset type's
+                    applicable routines (Uptick's asset types export).
+                </div>
+            </div>
+        }
         <div class="card property-card">
             <div class="card-header"><span>Asset Repair</span></div>
             @if (!Model.Repairs.Any())
