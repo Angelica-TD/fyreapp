@@ -1,6 +1,7 @@
 using FyreApp.Data;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
+using FyreApp.Services.Imports;
 using FyreApp.ViewModels.Lists;
 using Microsoft.EntityFrameworkCore;
 
@@ -131,22 +132,33 @@ public class DirectoryListService : IDirectoryListService
     {
         var page = await PageAsync(UptickUsers(filter), filter, ct);
         var logins = await LoginsAsync(page.Items.Select(u => u.Id).ToList(), ct);
+        var groupNames = await GroupNamesAsync(ct);
         return new DirectoryListVm<UptickUserListItemVm>
         {
             Filter = page.Filter,
             Total = page.Total,
-            Items = page.Items.Select(u => new UptickUserListItemVm { User = u, Login = logins.GetValueOrDefault(u.Id) }).ToList()
+            Items = page.Items.Select(u => new UptickUserListItemVm
+            {
+                User = u, Login = logins.GetValueOrDefault(u.Id),
+                Groups = UptickReferenceValues.SplitSecurityGroups(u.SecurityGroups, groupNames)
+            }).ToList()
         };
     }
+
+    // Uptick's security group names (groups export), to split users' "Security Groups"
+    private async Task<List<string>> GroupNamesAsync(CancellationToken ct) =>
+        await _db.SecurityGroups.AsNoTracking().Select(g => g.Name).ToListAsync(ct);
 
     public async Task<byte[]> UptickUsersCsvAsync(DirectoryFilter filter, CancellationToken ct = default)
     {
         var logins = await LoginsAsync(null, ct);
+        var groupNames = await GroupNamesAsync(ct);
         return CsvExport.Build(
             new[] { "ID", "Name", "Email", "Licence type", "Licence", "Security groups", "Service group", "Joined", "Last login", "FyreApp login" },
             (await UptickUsers(filter).ToListAsync(ct)).Select(u => new[]
             {
-                u.ExternalId, u.Name, u.Email, UptickUser.LicenseLabel(u.LicenseType), u.Licence, u.SecurityGroups, u.ServiceGroup,
+                u.ExternalId, u.Name, u.Email, UptickUser.LicenseLabel(u.LicenseType), u.Licence,
+                string.Join("; ", UptickReferenceValues.SplitSecurityGroups(u.SecurityGroups, groupNames)), u.ServiceGroup,
                 Date(u.JoinedUtc), Date(u.LastLoginUtc), logins.GetValueOrDefault(u.Id)?.Label ?? "No"
             }));
     }

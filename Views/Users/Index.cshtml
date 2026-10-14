@@ -157,7 +157,13 @@
                                 </td>
                                 <td>@if (u.Email != null) { <a href="mailto:@u.Email">@u.Email</a> } else { <text>-</text> }</td>
                                 <td>@UptickUser.LicenseLabel(u.LicenseType)</td>
-                                <td class="small">@(u.SecurityGroups ?? "-")</td>
+                                <td class="small">
+                                    @if (item.Groups.Any())
+                                    {
+                                        @foreach (var g in item.Groups) { <span class="badge bg-light text-dark border me-1">@g</span> }
+                                    }
+                                    else { <text>-</text> }
+                                </td>
                                 <td class="small">@(u.Licence ?? "-")</td>
                                 <td class="text-nowrap">@(u.LastLoginUtc.ToSydney().ToDisplayDate() ?? "Never")</td>
                                 <td class="text-nowrap">

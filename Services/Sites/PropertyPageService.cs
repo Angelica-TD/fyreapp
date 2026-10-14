@@ -91,7 +91,8 @@ public class PropertyPageService : IPropertyPageService
             {
                 Site = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
                 Timeline = await _timeline.ForPropertyAsync(site, query.NotesOnly, ct),
-                NotesOnly = query.NotesOnly
+                NotesOnly = query.NotesOnly,
+                ExtraFields = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(_db, ExtraField.PropertyContentType, site.UptickData, ct)
             }
         };
     }
