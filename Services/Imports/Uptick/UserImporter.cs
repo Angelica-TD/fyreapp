@@ -1,11 +1,14 @@
 using FyreApp.Data;
 using FyreApp.Models;
+using FyreApp.Services.Tasks;
+using FyreApp.Services.UserManagement;
 using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Imports.Uptick;
 
-// Uptick "Users" export -> UptickUser. A record of who's who in Uptick; it doesn't create FyreApp logins.
-// Refreshed from each export, like reference data.
+// Uptick "Users" export -> UptickUser, the source of truth for who's who. Refreshed from each export, like
+// reference data; FyreApp logins linked to these users then take their name and email from it. It doesn't
+// create logins (an admin gives those from the Users page).
 public class UserImporter : UptickImporter
 {
     public UserImporter(AppDbContext db) : base(db) { }
@@ -56,8 +59,24 @@ public class UserImporter : UptickImporter
 
         ctx.Result.Created = created;
         NoteUpdated(ctx, updated, dryRun, "users");
-        ctx.Result.Notes.Add("Uptick users are kept as a record only; they don't get a FyreApp login.");
+        if (dryRun)
+        {
+            ctx.Result.Notes.Add("FyreApp logins linked to these users will take their name and email from this export.");
+            return;
+        }
 
-        if (!dryRun) await Db.SaveChangesAsync(ct);
+        await Db.SaveChangesAsync(ct);
+
+        var sync = await UptickLoginSync.ApplyAsync(Db, ct);
+        var tasksAssigned = await TechnicianMatch.AssignImportedTasksAsync(Db, ct);
+        await Db.SaveChangesAsync(ct);
+        if (tasksAssigned > 0)
+            ctx.Result.Notes.Add($"{tasksAssigned} imported task{(tasksAssigned == 1 ? " was" : "s were")} assigned to the Uptick user Uptick names as the technician.");
+        if (sync.Linked > 0)
+            ctx.Result.Notes.Add($"{sync.Linked} FyreApp login{(sync.Linked == 1 ? " was" : "s were")} linked to the Uptick user with the same email.");
+        if (sync.Updated > 0)
+            ctx.Result.Notes.Add($"{sync.Updated} FyreApp login{(sync.Updated == 1 ? "" : "s")} took {(sync.Updated == 1 ? "its" : "their")} name and email from Uptick.");
+        ctx.Result.Notes.AddRange(sync.Problems);
+        ctx.Result.Notes.Add("Uptick users don't get a FyreApp login automatically; give one from the Users page.");
     }
 }

@@ -3,30 +3,50 @@
 @{
     ViewData["Title"] = "Edit User";
     var roles = (IReadOnlyList<string>)ViewBag.Roles;
+    var user = (FyreApp.Services.UserManagement.UserViewModel)ViewBag.User;
+    var linked = user.UptickUserId != null;
 }
 
 <h1>Edit User</h1>
 
 <div class="row">
     <div class="col-md-6">
-        <form asp-action="Edit" asp-route-id="@ViewBag.UserId" method="post">
+        <form asp-action="Edit" asp-route-id="@user.Id" method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-            <div class="mb-3">
-                <label asp-for="FirstName" class="form-label"></label>
-                <input asp-for="FirstName" class="form-control" />
-                <span asp-validation-for="FirstName" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="LastName" class="form-label"></label>
-                <input asp-for="LastName" class="form-control" />
-                <span asp-validation-for="LastName" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="Email" class="form-label"></label>
-                <input asp-for="Email" class="form-control" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
+            @if (linked)
+            {
+                <dl class="row mb-3">
+                    <dt class="col-sm-4">Uptick user</dt>
+                    <dd class="col-sm-8">@user.UptickName</dd>
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">@user.FullName</dd>
+                    <dt class="col-sm-4">Email (sign-in)</dt>
+                    <dd class="col-sm-8">@user.Email</dd>
+                </dl>
+                <p class="small text-muted">Name and email come from Uptick; change them there and import the Users export.</p>
+            }
+            else
+            {
+                <div class="alert alert-warning small">
+                    This login isn't linked to an Uptick user. Link it from the Users page so it takes its name and email from Uptick.
+                </div>
+                <div class="mb-3">
+                    <label asp-for="FirstName" class="form-label"></label>
+                    <input asp-for="FirstName" class="form-control" />
+                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="LastName" class="form-label"></label>
+                    <input asp-for="LastName" class="form-control" />
+                    <span asp-validation-for="LastName" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Email" class="form-label"></label>
+                    <input asp-for="Email" class="form-control" />
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
+            }
             <div class="mb-3">
                 <label asp-for="PhoneNumber" class="form-label"></label>
                 <input asp-for="PhoneNumber" class="form-control" />

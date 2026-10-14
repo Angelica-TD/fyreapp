@@ -13,6 +13,9 @@ public class DirectoryFilter
     // Users only: DESK, FIELD, CONTRACTOR, CUSTOMER or blank for all
     public string? License { get; set; }
 
+    // Users only: "yes" (has a FyreApp login), "no" or blank for all
+    public string? Login { get; set; }
+
     public int Page { get; set; } = 1;
 
     public static string NormaliseActive(string? active) =>
@@ -23,6 +26,7 @@ public class DirectoryFilter
         yield return FilterQuery.Kv("search", Search);
         yield return FilterQuery.Kv("active", Active);
         if (!string.IsNullOrWhiteSpace(License)) yield return FilterQuery.Kv("license", License);
+        if (!string.IsNullOrWhiteSpace(Login)) yield return FilterQuery.Kv("login", Login);
     }
 }
 
@@ -38,6 +42,11 @@ public class UptickUserListItemVm
 {
     public UptickUser User { get; set; } = null!;
 
-    // A FyreApp login with the same email
-    public bool HasFyreAppLogin { get; set; }
+    // The FyreApp login linked to this user, if they have one
+    public LoginSummary? Login { get; set; }
+}
+
+public record LoginSummary(string Id, string? Role, bool IsActive)
+{
+    public string Label => (Role ?? "No role") + (IsActive ? "" : " (inactive)");
 }

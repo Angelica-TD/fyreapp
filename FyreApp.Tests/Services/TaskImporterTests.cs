@@ -12,7 +12,7 @@ namespace FyreApp.Tests.Services;
 public class TaskImporterTests
 {
     private static readonly string[] Headers =
-        { "ID", "Ref", "Created", "Name", "Description", "Scope of works", "Status", "Priority", "Property Ref", "Property Name", "Client", "Category", "Due", "Completed Date", "Is Active" };
+        { "ID", "Ref", "Created", "Name", "Description", "Scope of works", "Status", "Priority", "Property Ref", "Property Name", "Client", "Category", "Due", "Completed Date", "Is Active", "Assigned Technician" };
 
     private static Stream Csv(params Dictionary<string, string>[] rows)
     {
@@ -147,18 +147,42 @@ public class TaskImporterTests
         using var db = DbContextFactory.Create();
         var (_, six, _) = await SeedAsync(db);
 
+        var wes = new UptickUser { ExternalId = "7", Name = "Wes Speedon", LicenseType = "FIELD" };
+        db.UptickUsers.Add(wes);
         await Import(db, dryRun: false, RoutineTask());
         var task = await db.ClientTasks.SingleAsync();
-        task.AssignedToUserId = "tech-1"; // FyreApp's own field
+        task.AssignedToUptickUserId = wes.Id; // assigned in FyreApp; Uptick names no technician
         await db.SaveChangesAsync();
 
         var second = await Import(db, dryRun: false, RoutineTask("COMPLETE"));
 
         Assert.Equal((0, 1, 0), (second.Created, second.Updated, second.SkippedExisting));
         await db.Entry(task).ReloadAsync();
-        Assert.Equal((ClientTaskStatus.Completed, "tech-1"), (task.Status, task.AssignedToUserId));
+        Assert.Equal((ClientTaskStatus.Completed, wes.Id), (task.Status, task.AssignedToUptickUserId));
         await db.Entry(six).ReloadAsync();
         Assert.Equal(new DateTime(2027, 4, 1), six.NextRunDate);
+    }
+
+    [Fact]
+    public async Task AssignedTechnician_IsMatchedToTheUptickUserOfThatName()
+    {
+        using var db = DbContextFactory.Create();
+        await SeedAsync(db);
+        var dwayne = new UptickUser { ExternalId = "9", Name = "Dwayne Page (Field Tech)", LicenseType = "FIELD" };
+        db.UptickUsers.Add(dwayne);
+        await db.SaveChangesAsync();
+
+        var known = RoutineTask();
+        known["Assigned Technician"] = "Dwayne Page";
+        var unknown = RoutineTask();
+        unknown["ID"] = "46617";
+        unknown["Ref"] = "T-46617";
+        unknown["Assigned Technician"] = "Someone New";
+        var result = await Import(db, dryRun: false, known, unknown);
+
+        Assert.Equal(dwayne.Id, (await db.ClientTasks.SingleAsync(t => t.ExternalId == "46616")).AssignedToUptickUserId);
+        Assert.Null((await db.ClientTasks.SingleAsync(t => t.ExternalId == "46617")).AssignedToUptickUserId);
+        Assert.Contains(result.Notes, n => n.StartsWith("1 task names a technician not found"));
     }
 
     [Fact]

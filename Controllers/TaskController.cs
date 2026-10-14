@@ -33,7 +33,14 @@ public class TaskController : Controller
     public async Task<IActionResult> Index()
     {
         var techs = (await GetTechSelectListAsync()).Where(t => t.Value != "").Select(t => (t.Value, t.Text)).ToList();
-        return View(new TaskIndexVm { Techs = techs });
+        var me = await _userManager.GetUserAsync(User);
+        return View(new TaskIndexVm
+        {
+            Techs = techs,
+            CanFilterMine = me?.UptickUserId != null,
+            // Technicians open the list on their own tasks
+            DefaultTechnician = me?.UptickUserId != null && User.IsInRole("Tech") && !User.IsInRole("Admin") ? "me" : ""
+        });
     }
 
     [HttpGet]
@@ -147,38 +154,25 @@ public class TaskController : Controller
         return RedirectToAction("Details", "Property", new { id = task.SiteId });
     }
 
+    // The task page, laid out like Uptick's (Task and Work tabs)
     [HttpGet]
-    public async Task<IActionResult> Details(int id)
+    public async Task<IActionResult> Details(int id, string? tab, [FromServices] FyreApp.Services.Tasks.ITaskPageService pages, CancellationToken ct = default)
     {
-        var clientTask = await _db.ClientTasks
-            .Include(s => s.Client)
-            .Include(s => s.Site)
-            .Include(t => t.AssignedTo)
-            .Include(t => t.CoveredSchedules).ThenInclude(s => s.MaintenanceInterval)
-            .FirstOrDefaultAsync(s => s.Id == id);
+        var vm = await pages.LoadAsync(id, tab, ct);
+        return vm == null ? NotFound() : View(vm);
+    }
 
-        if (clientTask == null)
-            return NotFound();
-
-        // Routines this task was generated from (Routines page → Generate tasks)
-        ViewBag.Routines = await _db.RoutineOccurrences
-            .Where(o => o.ClientTaskId == id)
-            .OrderBy(o => o.Routine)
-            .Select(o => o.Routine)
-            .ToListAsync();
-
-        // Reports done on this task, and remarks it was raised to repair (linked from Uptick imports)
-        ViewBag.Reports = await _db.ServiceReports.AsNoTracking()
-            .Where(r => r.ClientTaskId == id)
-            .OrderByDescending(r => r.InspectedDate)
-            .ToListAsync();
-        ViewBag.Repairs = await _db.Defects.AsNoTracking()
-            .Include(d => d.Asset)
-            .Where(d => d.RepairTaskId == id)
-            .OrderBy(d => d.Id)
-            .ToListAsync();
-
-        return View(clientTask);
+    // The page's "Assign field staff": the task's technician, an Uptick user (blank = unassign)
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Assign(int id, int? technicianId)
+    {
+        var (found, valid) = await _taskService.AssignTechAsync(id, technicianId);
+        if (!found) return NotFound();
+        TempData[valid ? "Success" : "Error"] = valid
+            ? (technicianId == null ? "Technician removed." : "Technician assigned.")
+            : "That Uptick user can't be assigned tasks.";
+        return RedirectToAction(nameof(Details), new { id });
     }
 
 
@@ -201,7 +195,7 @@ public class TaskController : Controller
                 Description = task.Description,
                 Priority = task.Priority,
                 Status = task.Status,
-                AssignedToUserId = task.AssignedToUserId,
+                AssignedToUptickUserId = task.AssignedToUptickUserId,
                 DueDateLocal = task.DueDateUtc.HasValue
                     ? TimeZoneInfo.ConvertTimeFromUtc(task.DueDateUtc.Value, sydneyTz)
                     : null
@@ -218,7 +212,7 @@ public class TaskController : Controller
                 .OrderBy(s => s.Name)
                 .Select(s => new SelectListItem { Value = s.Id.ToString(), Text = s.Name })
                 .ToListAsync(),
-            Techs = await GetTechSelectListAsync(task.AssignedToUserId)
+            Techs = await GetTechSelectListAsync(task.AssignedToUptickUserId)
         });
     }
 
@@ -253,7 +247,7 @@ public class TaskController : Controller
                     .OrderBy(s => s.Name)
                     .Select(s => new SelectListItem { Value = s.Id.ToString(), Text = s.Name })
                     .ToListAsync(),
-                Techs = await GetTechSelectListAsync(input.AssignedToUserId)
+                Techs = await GetTechSelectListAsync(input.AssignedToUptickUserId)
             });
         }
 
@@ -311,7 +305,7 @@ public class TaskController : Controller
         DateTime? dueFrom = null, DateTime? dueTo = null, string? technician = null,
         int page = 1, CancellationToken ct = default)
     {
-        var filter = TaskFilterFrom(search, active, category, categoryNot, status, statusNot, dueFrom, dueTo, technician);
+        var filter = TaskFilterFrom(search, active, category, categoryNot, status, statusNot, dueFrom, dueTo, await ResolveTechnicianAsync(technician));
         filter.Page = page;
         var (total, current, items, categories) = await _taskList.SearchAsync(filter, ct);
         return Json(new { total, page = current, pages = FyreApp.ViewModels.Lists.ListFilters.Pages(total), items, categories });
@@ -324,7 +318,7 @@ public class TaskController : Controller
         [FromQuery] List<string>? category = null, bool categoryNot = false,
         [FromQuery] List<ClientTaskStatus>? status = null, bool statusNot = false,
         DateTime? dueFrom = null, DateTime? dueTo = null, string? technician = null, CancellationToken ct = default) =>
-        File(await _taskList.CsvAsync(TaskFilterFrom(search, active, category, categoryNot, status, statusNot, dueFrom, dueTo, technician), ct),
+        File(await _taskList.CsvAsync(TaskFilterFrom(search, active, category, categoryNot, status, statusNot, dueFrom, dueTo, await ResolveTechnicianAsync(technician)), ct),
             "text/csv", FyreApp.Infrastructure.CsvExport.FileName("tasks"));
 
     public class TaskBulkRequest
@@ -342,10 +336,10 @@ public class TaskController : Controller
         public DateTime? DueTo { get; set; }
         public string? Technician { get; set; }
 
-        // "status" (NewStatus) or "assign" (TechUserId; empty = unassign)
+        // "status" (NewStatus) or "assign" (TechnicianId, an Uptick user id; empty = unassign)
         public string BulkAction { get; set; } = "";
         public string? NewStatus { get; set; }
-        public string? TechUserId { get; set; }
+        public string? TechnicianId { get; set; }
     }
 
     // Edit (React): change status or assign a technician, for the ticked tasks or all matching the filters
@@ -356,7 +350,7 @@ public class TaskController : Controller
     {
         var selection = FyreApp.ViewModels.Lists.BulkSelection.From(req.Ids, req.AllMatching);
         var statuses = req.Status.Select(s => Enum.TryParse<ClientTaskStatus>(s, out var st) ? st : (ClientTaskStatus?)null).OfType<ClientTaskStatus>().ToList();
-        var filter = TaskFilterFrom(req.Search, req.Active, req.Category, req.CategoryNot, statuses, req.StatusNot, req.DueFrom, req.DueTo, req.Technician);
+        var filter = TaskFilterFrom(req.Search, req.Active, req.Category, req.CategoryNot, statuses, req.StatusNot, req.DueFrom, req.DueTo, await ResolveTechnicianAsync(req.Technician));
 
         switch (req.BulkAction)
         {
@@ -364,34 +358,45 @@ public class TaskController : Controller
                 var changed = await _taskList.SetStatusAsync(selection, filter, newStatus, ct);
                 return Json(new { message = $"Set {FyreApp.Infrastructure.ListControllerExtensions.Plural(changed, "task", "tasks")} to {newStatus}." });
             case "assign":
-                var tech = string.IsNullOrWhiteSpace(req.TechUserId) ? null : req.TechUserId;
+                int? tech = int.TryParse(req.TechnicianId, out var technicianId) ? technicianId : null;
+                if (tech == null && !string.IsNullOrWhiteSpace(req.TechnicianId))
+                    return BadRequest(new { message = "That isn't an Uptick user." });
                 var assigned = await _taskList.AssignAsync(selection, filter, tech, ct);
                 return assigned is int n
                     ? Json(new { message = tech == null
                         ? $"Unassigned {FyreApp.Infrastructure.ListControllerExtensions.Plural(n, "task", "tasks")}."
                         : $"Assigned {FyreApp.Infrastructure.ListControllerExtensions.Plural(n, "task", "tasks")}." })
-                    : BadRequest(new { message = "That user isn't a technician." });
+                    : BadRequest(new { message = "That Uptick user can't be assigned tasks." });
             default:
                 return BadRequest(new { message = "Choose what to do." });
         }
     }
 
-    private async Task<List<SelectListItem>> GetTechSelectListAsync(string? selectedId = null)
+    // Technicians are Uptick users: field technicians and contractors, plus whoever the task already has
+    // (e.g. an office user Uptick assigned an imported task to)
+    private async Task<List<SelectListItem>> GetTechSelectListAsync(int? selectedId = null)
     {
-        var techs = await _userManager.GetUsersInRoleAsync("Tech");
-        var items = techs
-            .Where(t => t.IsActive)
-            .OrderBy(t => t.LastName)
-            .Select(t => new SelectListItem
+        var items = await _db.UptickUsers.AsNoTracking()
+            .Where(u => u.LicenseType == "FIELD" || u.LicenseType == "CONTRACTOR" || u.Id == selectedId)
+            .OrderBy(u => u.Name)
+            .Select(u => new SelectListItem
             {
-                Value = t.Id,
-                Text = $"{t.FirstName} {t.LastName}",
-                Selected = t.Id == selectedId
+                Value = u.Id.ToString(),
+                Text = u.LicenseType == "CONTRACTOR" ? u.Name + " (contractor)" : u.Name,
+                Selected = u.Id == selectedId
             })
-            .ToList();
+            .ToListAsync();
 
         items.Insert(0, new SelectListItem { Value = "", Text = "— Unassigned —" });
         return items;
+    }
+
+    // "me" in the technician filter: the Uptick user the signed-in login is linked to ("-1", no tasks, if none)
+    private async Task<string?> ResolveTechnicianAsync(string? technician)
+    {
+        if (technician != "me") return technician;
+        var me = await _userManager.GetUserAsync(User);
+        return me?.UptickUserId?.ToString() ?? "-1";
     }
 
 }

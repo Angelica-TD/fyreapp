@@ -291,7 +291,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<ClientTask>()
             .HasOne(t => t.AssignedTo)
             .WithMany()
-            .HasForeignKey(t => t.AssignedToUserId)
+            .HasForeignKey(t => t.AssignedToUptickUserId)
             .OnDelete(DeleteBehavior.SetNull)
             .IsRequired(false);
 
@@ -500,6 +500,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(u => u.SellRate).HasPrecision(12, 2);
             entity.Property(u => u.JoinedUtc).HasColumnType("timestamptz");
             entity.Property(u => u.LastLoginUtc).HasColumnType("timestamptz");
+        });
+
+        // One login per Uptick user
+        modelBuilder.Entity<ApplicationUser>(entity =>
+        {
+            entity.HasOne(a => a.UptickUser)
+                .WithOne()
+                .HasForeignKey<ApplicationUser>(a => a.UptickUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(a => a.UptickUserId).IsUnique();
         });
 
         modelBuilder.Entity<Defect>()

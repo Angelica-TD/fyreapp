@@ -2,7 +2,6 @@ using FyreApp.Data;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.ViewModels.Lists;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Tasks;
@@ -21,7 +20,8 @@ public class TaskFilter
     public DateTime? DueFrom { get; set; }
     public DateTime? DueTo { get; set; }
 
-    // "" any, "none" unassigned (in FyreApp and in Uptick), or a technician's user id
+    // "" any, "none" unassigned (in FyreApp and in Uptick), or a technician's Uptick user id
+    // ("me" is turned into the signed-in user's by the controller)
     public string? Technician { get; set; }
 
     public int Page { get; set; } = 1;
@@ -30,8 +30,9 @@ public class TaskFilter
 public record TaskListItem(
     int Id, string? DisplayRef, string? Category, string Title, string ClientName, string SiteAddress,
     string Priority, string Status, DateTime? DueDateUtc,
-    // The FyreApp technician, else who Uptick has it assigned to (imported tasks)
-    string? AssignedToUserId, string? AssignedToName, string? UptickTechnician);
+    // The technician (an Uptick user), and who Uptick has an imported task assigned to when that's
+    // someone else (or someone not among FyreApp's Uptick users)
+    int? AssignedToId, string? AssignedToName, string? UptickTechnician);
 
 public interface ITaskListService
 {
@@ -41,8 +42,9 @@ public interface ITaskListService
     // Edit → Change status. Completing goes through the task service, so linked schedules roll forward as usual.
     Task<int> SetStatusAsync(BulkSelection selection, TaskFilter filter, ClientTaskStatus status, CancellationToken ct = default);
 
-    // Edit → Assign technician (null = unassign). Returns null when the user isn't a technician.
-    Task<int?> AssignAsync(BulkSelection selection, TaskFilter filter, string? techUserId, CancellationToken ct = default);
+    // Edit → Assign technician (an Uptick user id; null = unassign). Returns null when there's no such
+    // Uptick user, or they're a client portal user.
+    Task<int?> AssignAsync(BulkSelection selection, TaskFilter filter, int? technicianId, CancellationToken ct = default);
 }
 
 // Tasks listed, filtered and edited like Uptick's Tasks page (React list on /Task)
@@ -50,13 +52,11 @@ public class TaskListService : ITaskListService
 {
     private readonly AppDbContext _db;
     private readonly IClientTaskService _tasks;
-    private readonly UserManager<ApplicationUser> _users;
 
-    public TaskListService(AppDbContext db, IClientTaskService tasks, UserManager<ApplicationUser> users)
+    public TaskListService(AppDbContext db, IClientTaskService tasks)
     {
         _db = db;
         _tasks = tasks;
-        _users = users;
     }
 
     // The one place the filters are applied, so the list, its download and "select all" always agree
@@ -93,9 +93,12 @@ public class TaskListService : ITaskListService
         }
 
         if (filter.Technician == "none")
-            q = q.Where(t => t.AssignedToUserId == null && t.UptickTechnician == null);
+            q = q.Where(t => t.AssignedToUptickUserId == null && t.UptickTechnician == null);
         else if (!string.IsNullOrWhiteSpace(filter.Technician))
-            q = q.Where(t => t.AssignedToUserId == filter.Technician);
+        {
+            var technicianId = int.TryParse(filter.Technician, out var id) ? id : -1;
+            q = q.Where(t => t.AssignedToUptickUserId == technicianId);
+        }
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
@@ -134,8 +137,9 @@ public class TaskListService : ITaskListService
             .Select(t => new TaskListItem(
                 t.Id, t.Ref ?? t.ExternalId ?? t.FyreRef, t.Category, t.Title, t.Client.Name,
                 t.Site.AddressDisplay ?? t.Site.Name, t.Priority.ToString(), t.Status.ToString(), t.DueDateUtc,
-                t.AssignedToUserId, t.AssignedTo != null ? t.AssignedTo.FirstName + " " + t.AssignedTo.LastName : null, t.UptickTechnician))
+                t.AssignedToUptickUserId, t.AssignedTo != null ? t.AssignedTo.Name : null, t.UptickTechnician))
             .ToListAsync(ct);
+        items = items.Select(i => i with { UptickTechnician = OtherUptickTechnician(i.AssignedToName, i.UptickTechnician) }).ToList();
 
         var categories = await _db.ClientTasks.AsNoTracking()
             .Where(t => t.Category != null)
@@ -155,7 +159,7 @@ public class TaskListService : ITaskListService
                 Ref = t.Ref ?? t.ExternalId ?? t.FyreRef, t.Category, t.Status, t.IsActive, t.Title, t.Priority,
                 t.DueDateUtc, t.CreatedUtc, t.CompletedUtc,
                 Client = t.Client.Name, PropertyRef = t.Site.ExternalId ?? t.Site.FyreRef, Property = t.Site.Name,
-                AssignedTo = t.AssignedTo != null ? t.AssignedTo.FirstName + " " + t.AssignedTo.LastName : null, t.UptickTechnician
+                AssignedTo = t.AssignedTo != null ? t.AssignedTo.Name : null, t.UptickTechnician
             })
             .ToListAsync(ct);
 
@@ -192,17 +196,24 @@ public class TaskListService : ITaskListService
         return tasks.Count;
     }
 
-    public async Task<int?> AssignAsync(BulkSelection selection, TaskFilter filter, string? techUserId, CancellationToken ct = default)
+    public async Task<int?> AssignAsync(BulkSelection selection, TaskFilter filter, int? technicianId, CancellationToken ct = default)
     {
-        if (techUserId != null)
+        if (technicianId != null)
         {
-            var user = await _users.FindByIdAsync(techUserId);
-            if (user == null || !await _users.IsInRoleAsync(user, "Tech")) return null;
+            var user = await _db.UptickUsers.FindAsync([technicianId], ct);
+            if (user == null || !TechnicianMatch.CanBeAssigned(user)) return null;
         }
 
         var tasks = await Selected(selection, filter).ToListAsync(ct);
-        foreach (var t in tasks) t.AssignedToUserId = techUserId;
+        foreach (var t in tasks) t.AssignedToUptickUserId = technicianId;
         await _db.SaveChangesAsync(ct);
         return tasks.Count;
     }
+
+    // Uptick's technician for an imported task, unless that's who it's assigned to anyway
+    public static string? OtherUptickTechnician(string? assignedToName, string? uptickTechnician) =>
+        uptickTechnician != null && assignedToName != null &&
+        string.Equals(UserManagement.UptickLoginSync.BareName(assignedToName), UserManagement.UptickLoginSync.BareName(uptickTechnician), StringComparison.OrdinalIgnoreCase)
+            ? null
+            : uptickTechnician;
 }

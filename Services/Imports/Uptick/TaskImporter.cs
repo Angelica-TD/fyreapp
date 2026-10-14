@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using FyreApp.Data;
 using FyreApp.Models;
 using FyreApp.Services.MaintenanceSchedules;
+using FyreApp.Services.Tasks;
 using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Imports.Uptick;
@@ -43,6 +44,10 @@ public class TaskImporter : UptickImporter
             .ToListAsync(ct);
         var schedulesBySiteMonths = schedules.ToLookup(s => (s.SiteId!.Value, s.MaintenanceInterval.Months));
 
+        // Uptick "Assigned Technician" names -> Uptick users
+        var technicianIds = await TechnicianMatch.IdsByNameAsync(Db, ct);
+        var unmatchedTechnicians = 0;
+
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var toCreate = new List<ClientTask>();
         var toUpdate = new Dictionary<int, Action<ClientTask>>();
@@ -81,16 +86,18 @@ public class TaskImporter : UptickImporter
                 : new List<MaintenanceSchedule>();
             if (covered.Count > 0) linked++;
             var clientId = clientIdBySite.GetValueOrDefault(siteId);
+            var technicianId = TechnicianMatch.Find(technicianIds, row.Get("Assigned Technician"));
+            if (technicianId == null && row.Get("Assigned Technician") != null) unmatchedTechnicians++;
 
             if (action == RowAction.Create)
             {
                 var task = new ClientTask { ExternalId = id };
-                Map(task, row, siteId, clientId, covered);
+                Map(task, row, siteId, clientId, covered, technicianId);
                 toCreate.Add(task);
             }
             else
             {
-                toUpdate[existingId] = t => Map(t, row, siteId, clientId, covered);
+                toUpdate[existingId] = t => Map(t, row, siteId, clientId, covered, technicianId);
             }
         }
 
@@ -106,6 +113,9 @@ public class TaskImporter : UptickImporter
         ctx.Result.Created = toCreate.Count;
         ctx.Result.Updated = toUpdate.Count;
         NoteNotInExport(ctx, existing, rows, "ID", "tasks");
+        if (unmatchedTechnicians > 0)
+            ctx.Result.Notes.Add($"{unmatchedTechnicians} task{(unmatchedTechnicians == 1 ? " names a technician" : "s name technicians")} not found " +
+                                 "in FyreApp's Uptick users, so left unassigned. Import Uptick's Users export to assign them.");
         if (linked > 0)
             ctx.Result.Notes.Add($"{linked} routine task{(linked == 1 ? "" : "s")} {(dryRun ? "will be" : "were")} linked to their property's maintenance schedules.");
         if (rolled > 0)
@@ -154,9 +164,9 @@ public class TaskImporter : UptickImporter
         return (reports, remarks);
     }
 
-    // Everything a task takes from its Uptick row, for new and updated tasks alike. FyreApp's own fields
-    // (assigned tech, routines it was generated from) are left alone.
-    private static void Map(ClientTask t, ImportRow row, int siteId, int clientId, IReadOnlyList<MaintenanceSchedule> covered)
+    // Everything a task takes from its Uptick row, for new and updated tasks alike. The technician is
+    // Uptick's when it names a known Uptick user; FyreApp's own fields (routines it was generated from) are left alone.
+    private static void Map(ClientTask t, ImportRow row, int siteId, int clientId, IReadOnlyList<MaintenanceSchedule> covered, int? technicianId)
     {
         var status = MapStatus(row.Get("Status"));
 
@@ -173,6 +183,8 @@ public class TaskImporter : UptickImporter
         t.CompletedUtc = row.GetTimestampUtc("Completed Date");
         t.Category = row.Get("Category");
         t.UptickTechnician = Cap(row.Get("Assigned Technician"), 200);
+        // Uptick's technician when they're a known Uptick user; otherwise any FyreApp assignment stays
+        if (technicianId != null) t.AssignedToUptickUserId = technicianId;
         t.IsActive = row.GetBool("Is Active") ?? status is not (ClientTaskStatus.Completed or ClientTaskStatus.Cancelled);
 
         foreach (var s in covered.Where(s => !t.CoveredSchedules.Contains(s)))

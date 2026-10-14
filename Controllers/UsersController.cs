@@ -19,62 +19,96 @@ public class UsersController : Controller
         _directory = directory;
     }
 
-    public async Task<IActionResult> Index()
+    // Everyone in Uptick (the source of truth for who's who) with their FyreApp login, plus any logins
+    // not linked to an Uptick user yet
+    [HttpGet]
+    public async Task<IActionResult> Index(string? search, string? license, string? login, int page = 1, CancellationToken ct = default) =>
+        View(new UsersIndexVm
+        {
+            List = await _directory.UptickUsersAsync(UsersFilter(search, license, login, page), ct),
+            Unlinked = await _userService.GetUnlinkedAsync(),
+            Linkable = await _userService.GetLinkableUptickUsersAsync()
+        });
+
+    // The old "Uptick users" page, now the Users page
+    [HttpGet]
+    public IActionResult Uptick(string? search, string? license, int page = 1) =>
+        RedirectToAction(nameof(Index), new { search, license, page });
+
+    [HttpGet]
+    public async Task<IActionResult> Download(string? search, string? license, string? login, CancellationToken ct = default) =>
+        File(await _directory.UptickUsersCsvAsync(UsersFilter(search, license, login, 1), ct), "text/csv", CsvExport.FileName("users"));
+
+    private static DirectoryFilter UsersFilter(string? search, string? license, string? login, int page) => new()
     {
-        var users = await _userService.GetAllAsync();
-        return View(users);
-    }
+        Search = search, License = license, Active = "any", Page = page,
+        Login = login?.ToLowerInvariant() is "yes" or "no" ? login.ToLowerInvariant() : null
+    };
 
-    // Users imported from Uptick (a record of who's who; they don't log in to FyreApp)
+    // Give an Uptick user a FyreApp login
     [HttpGet]
-    public async Task<IActionResult> Uptick(string? search, string? license, int page = 1, CancellationToken ct = default) =>
-        View(await _directory.UptickUsersAsync(new DirectoryFilter { Search = search, License = license, Active = "any", Page = page }, ct));
-
-    [HttpGet]
-    public async Task<IActionResult> UptickDownload(string? search, string? license, CancellationToken ct = default) =>
-        File(await _directory.UptickUsersCsvAsync(new DirectoryFilter { Search = search, License = license, Active = "any" }, ct),
-            "text/csv", CsvExport.FileName("uptick-users"));
-
-    [HttpGet]
-    public IActionResult Create()
+    public async Task<IActionResult> Create(int uptickUserId)
     {
+        var uptick = await _userService.GetUptickUserAsync(uptickUserId);
+        if (uptick == null) return NotFound();
+
+        ViewBag.Uptick = uptick;
         ViewBag.Roles = _userService.GetAvailableRoles();
-        return View(new UserCreateDto());
+        return View(new UserCreateDto
+        {
+            UptickUserId = uptickUserId,
+            Role = uptick.LicenseType == "DESK" ? "Admin" : "Tech"
+        });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(UserCreateDto dto)
     {
-        if (!ModelState.IsValid)
+        var uptick = await _userService.GetUptickUserAsync(dto.UptickUserId);
+        if (uptick == null) return NotFound();
+
+        IActionResult Form()
         {
+            ViewBag.Uptick = uptick;
             ViewBag.Roles = _userService.GetAvailableRoles();
             return View(dto);
         }
+
+        if (!ModelState.IsValid) return Form();
 
         var result = await _userService.CreateAsync(dto);
 
         switch (result.Status)
         {
             case UserCreateStatus.Success:
-                TempData["Success"] = "User created successfully.";
+                TempData["Success"] = $"{uptick.Name} can now sign in to FyreApp.";
+                return RedirectToAction(nameof(Index));
+
+            case UserCreateStatus.UptickUserNotFound:
+                return NotFound();
+
+            case UserCreateStatus.NoEmail:
+                ModelState.AddModelError(string.Empty, "This user has no email in Uptick. Add one in Uptick and import the Users export again.");
+                return Form();
+
+            case UserCreateStatus.AlreadyHasLogin:
+                TempData["Success"] = $"{uptick.Name} already has a FyreApp login.";
                 return RedirectToAction(nameof(Index));
 
             case UserCreateStatus.EmailAlreadyExists:
-                ModelState.AddModelError(nameof(dto.Email), "A user with this email already exists.");
-                ViewBag.Roles = _userService.GetAvailableRoles();
-                return View(dto);
+                ModelState.AddModelError(string.Empty,
+                    "A FyreApp login already uses this email. Link that login to this Uptick user from the Users page instead.");
+                return Form();
 
             case UserCreateStatus.InvalidRole:
                 ModelState.AddModelError(nameof(dto.Role), "Invalid role selected.");
-                ViewBag.Roles = _userService.GetAvailableRoles();
-                return View(dto);
+                return Form();
 
             default:
                 foreach (var error in result.Errors ?? [])
                     ModelState.AddModelError(string.Empty, error);
-                ViewBag.Roles = _userService.GetAvailableRoles();
-                return View(dto);
+                return Form();
         }
     }
 
@@ -93,7 +127,7 @@ public class UsersController : Controller
             Role = user.Role
         };
 
-        ViewBag.UserId = id;
+        ViewBag.User = user;
         ViewBag.Roles = _userService.GetAvailableRoles();
         return View(dto);
     }
@@ -102,12 +136,22 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(string id, UserEditDto dto)
     {
-        if (!ModelState.IsValid)
+        var user = await _userService.GetByIdAsync(id);
+        if (user == null) return NotFound();
+
+        IActionResult Form()
         {
-            ViewBag.UserId = id;
+            ViewBag.User = user;
             ViewBag.Roles = _userService.GetAvailableRoles();
             return View(dto);
         }
+
+        // A linked login's name and email come from Uptick, so the form doesn't send them
+        if (user.UptickUserId != null)
+            foreach (var key in new[] { nameof(dto.FirstName), nameof(dto.LastName), nameof(dto.Email) })
+                ModelState.Remove(key);
+
+        if (!ModelState.IsValid) return Form();
 
         var result = await _userService.UpdateAsync(id, dto);
 
@@ -122,23 +166,53 @@ public class UsersController : Controller
 
             case UserUpdateStatus.EmailAlreadyExists:
                 ModelState.AddModelError(nameof(dto.Email), "A user with this email already exists.");
-                ViewBag.UserId = id;
-                ViewBag.Roles = _userService.GetAvailableRoles();
-                return View(dto);
+                return Form();
 
             case UserUpdateStatus.InvalidRole:
                 ModelState.AddModelError(nameof(dto.Role), "Invalid role selected.");
-                ViewBag.UserId = id;
-                ViewBag.Roles = _userService.GetAvailableRoles();
-                return View(dto);
+                return Form();
 
             default:
                 foreach (var error in result.Errors ?? [])
                     ModelState.AddModelError(string.Empty, error);
-                ViewBag.UserId = id;
-                ViewBag.Roles = _userService.GetAvailableRoles();
-                return View(dto);
+                return Form();
         }
+    }
+
+    // Link a login made before Uptick was imported to its Uptick user
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Link(string id, int uptickUserId)
+    {
+        var result = await _userService.LinkAsync(id, uptickUserId);
+        switch (result.Status)
+        {
+            case UserLinkStatus.Success:
+                TempData["Success"] = result.Problem ?? "Login linked; it now takes its name and email from Uptick.";
+                return RedirectToAction(nameof(Index));
+            case UserLinkStatus.AlreadyHasLogin:
+                TempData["Error"] = "That Uptick user already has a FyreApp login.";
+                return RedirectToAction(nameof(Index));
+            default:
+                return NotFound();
+        }
+    }
+
+    // Link logins to Uptick users by email, refresh every linked login's name and email from Uptick, and
+    // assign imported tasks to the Uptick user their "Assigned Technician" names
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Sync()
+    {
+        var result = await _userService.SyncFromUptickAsync();
+        var parts = new List<string>
+        {
+            $"Logins: {result.Linked} linked by email, {result.Updated} updated from Uptick. " +
+            $"Imported tasks: {result.TasksAssigned} assigned to the technician Uptick names."
+        };
+        parts.AddRange(result.Problems);
+        TempData["Success"] = string.Join(" ", parts);
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]

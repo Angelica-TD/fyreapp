@@ -1,0 +1,24 @@
+@model FyreApp.ViewModels.Lists.LoginSummary
+
+<a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+<a asp-action="ResetPassword" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-secondary">Reset Password</a>
+
+@if (Model.IsActive)
+{
+    <form asp-action="Deactivate" asp-route-id="@Model.Id" method="post" class="d-inline">
+        <button type="submit" class="btn btn-sm btn-outline-warning"
+                onclick="return confirm('Deactivate this login?')">Deactivate</button>
+    </form>
+}
+else
+{
+    <form asp-action="Activate" asp-route-id="@Model.Id" method="post" class="d-inline">
+        <button type="submit" class="btn btn-sm btn-outline-success"
+                onclick="return confirm('Reactivate this login?')">Activate</button>
+    </form>
+}
+
+<form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-inline">
+    <button type="submit" class="btn btn-sm btn-outline-danger"
+            onclick="return confirm('Permanently delete this FyreApp login? The Uptick user stays.')">Delete login</button>
+</form>

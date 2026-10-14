@@ -47,6 +47,7 @@ builder.Services.AddScoped<FyreApp.Services.Lists.IPropertyListService, FyreApp.
 builder.Services.AddScoped<FyreApp.Services.Lists.IRemarkListService, FyreApp.Services.Lists.RemarkListService>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IReportListService, FyreApp.Services.Lists.ReportListService>();
 builder.Services.AddScoped<FyreApp.Services.Tasks.ITaskListService, FyreApp.Services.Tasks.TaskListService>();
+builder.Services.AddScoped<FyreApp.Services.Tasks.ITaskPageService, FyreApp.Services.Tasks.TaskPageService>();
 builder.Services.AddScoped<UptickImporter, AssetTypeImporter>();
 builder.Services.AddScoped<UptickImporter, AssetTypeVariantImporter>();
 builder.Services.AddScoped<UptickImporter, RemarkTypeImporter>();

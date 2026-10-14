@@ -102,22 +102,106 @@ public class DirectoryImportTests
         Assert.Equal(expected, new Supplier { PaymentTerms = terms, PaymentDay = day }.PaymentTermsLabel);
 
     [Fact]
-    public async Task UptickUsers_StaffFirst_FilterByLicence_AndMarkFyreAppLogins()
+    public async Task UptickUsers_StaffFirst_FilterByLicenceAndLogin_AndShowLinkedLogins()
     {
         using var db = DbContextFactory.Create();
+        var dwayne = new UptickUser { ExternalId = "9", Name = "Dwayne Page", Email = "FyreTech02@gmail.com", LicenseType = "FIELD" };
         db.UptickUsers.AddRange(
             new UptickUser { ExternalId = "13", Name = "Mermaid Central", Email = "graham@auadmin.com.au", LicenseType = "CUSTOMER" },
-            new UptickUser { ExternalId = "9", Name = "Dwayne Page", Email = "FyreTech02@gmail.com", LicenseType = "FIELD" },
+            dwayne,
             new UptickUser { ExternalId = "3", Name = "FyrePower Team", Email = "admin@fyrepower.com.au", LicenseType = "DESK" });
-        db.Users.Add(new ApplicationUser { Email = "fyretech02@gmail.com", UserName = "fyretech02@gmail.com" });
+        await db.SaveChangesAsync();
+        db.Users.Add(new ApplicationUser { Id = "dwayne", Email = "fyretech02@gmail.com", UserName = "fyretech02@gmail.com", UptickUserId = dwayne.Id });
         await db.SaveChangesAsync();
         var list = new DirectoryListService(db);
 
         var all = await list.UptickUsersAsync(new DirectoryFilter { Active = "any" });
         Assert.Equal(new[] { "FyrePower Team", "Dwayne Page", "Mermaid Central" }, all.Items.Select(i => i.User.Name));
-        Assert.Equal(new[] { false, true, false }, all.Items.Select(i => i.HasFyreAppLogin));
+        Assert.Equal(new[] { null, "dwayne", null }, all.Items.Select(i => i.Login?.Id));
 
         var customers = await list.UptickUsersAsync(new DirectoryFilter { Active = "any", License = "customer" });
         Assert.Equal("Mermaid Central", Assert.Single(customers.Items).User.Name);
+
+        var withLogin = await list.UptickUsersAsync(new DirectoryFilter { Active = "any", Login = "yes" });
+        Assert.Equal("Dwayne Page", Assert.Single(withLogin.Items).User.Name);
+        var withoutLogin = await list.UptickUsersAsync(new DirectoryFilter { Active = "any", Login = "no" });
+        Assert.Equal(2, withoutLogin.Total);
     }
+
+    [Fact]
+    public async Task UsersImport_LinksLoginsByEmail_AndTheyTakeTheirNameAndEmailFromUptick()
+    {
+        using var db = DbContextFactory.Create();
+        // Made in FyreApp before Uptick was imported
+        db.Users.AddRange(
+            new ApplicationUser { Id = "dwayne", FirstName = "D", LastName = "P", Email = "FYRETECH02@gmail.com", UserName = "FYRETECH02@gmail.com" },
+            new ApplicationUser { Id = "admin", FirstName = "Site", LastName = "Admin", Email = "admin@example.com", UserName = "admin@example.com" });
+        await db.SaveChangesAsync();
+
+        var result = await Import(db, Csv(UserHeader,
+            "9,\"2021-02-18 21:27:16\",\"\",\"Dwayne Page (Field Tech)\",\"fyretech02@gmail.com\",\"FIELD\",\"\",\"Technician\",\"\",\"\",\"\",\"\",\"\",\"\""));
+
+        Assert.Contains(result.Notes, n => n.Contains("1 FyreApp login was linked"));
+        var login = await db.Users.SingleAsync(u => u.Id == "dwayne");
+        var uptick = await db.UptickUsers.SingleAsync(u => u.ExternalId == "9");
+        Assert.Equal(uptick.Id, login.UptickUserId);
+        Assert.Equal(("Dwayne", "Page"), (login.FirstName, login.LastName));
+        Assert.Equal(("fyretech02@gmail.com", "FYRETECH02@GMAIL.COM"), (login.Email, login.NormalizedEmail));
+        // Not in Uptick: left as it is
+        var admin = await db.Users.SingleAsync(u => u.Id == "admin");
+        Assert.Equal((null, "Site"), (admin.UptickUserId, admin.FirstName));
+
+        // Renamed and new email in Uptick: the linked login follows
+        await Import(db, Csv(UserHeader,
+            "9,\"2021-02-18 21:27:16\",\"\",\"Dwayne R Page\",\"dwayne@fyrepower.com.au\",\"FIELD\",\"\",\"Technician\",\"\",\"\",\"\",\"\",\"\",\"\""));
+        login = await db.Users.SingleAsync(u => u.Id == "dwayne");
+        Assert.Equal(("Dwayne", "R Page", "dwayne@fyrepower.com.au", "DWAYNE@FYREPOWER.COM.AU"),
+            (login.FirstName, login.LastName, login.UserName, login.NormalizedUserName));
+    }
+
+    [Fact]
+    public async Task UsersImport_AssignsTasksImportedEarlier_ToTheTechnicianUptickNames()
+    {
+        using var db = DbContextFactory.Create();
+        var site = new Site { Name = "Ezfurn", Client = new Client { Name = "Ezfurn" } };
+        db.ClientTasks.AddRange(
+            new ClientTask { Site = site, Client = site.Client, Title = "Imported", UptickTechnician = "Dwayne Page" },
+            new ClientTask { Site = site, Client = site.Client, Title = "Someone else", UptickTechnician = "Not In Uptick" });
+        await db.SaveChangesAsync();
+
+        var result = await Import(db, Csv(UserHeader,
+            "9,\"2021-02-18 21:27:16\",\"\",\"Dwayne Page (Field Tech)\",\"fyretech02@gmail.com\",\"FIELD\",\"\",\"Technician\",\"\",\"\",\"\",\"\",\"\",\"\""));
+
+        var dwayne = await db.UptickUsers.SingleAsync();
+        Assert.Equal(dwayne.Id, (await db.ClientTasks.SingleAsync(t => t.Title == "Imported")).AssignedToUptickUserId);
+        Assert.Null((await db.ClientTasks.SingleAsync(t => t.Title == "Someone else")).AssignedToUptickUserId);
+        Assert.Contains(result.Notes, n => n.StartsWith("1 imported task was assigned"));
+    }
+
+    [Fact]
+    public async Task UsersImport_KeepsLoginEmail_WhenUpticksEmailBelongsToAnotherLogin()
+    {
+        using var db = DbContextFactory.Create();
+        var uptick = new UptickUser { ExternalId = "9", Name = "Dwayne Page", Email = "old@example.com", LicenseType = "FIELD" };
+        db.UptickUsers.Add(uptick);
+        await db.SaveChangesAsync();
+        db.Users.AddRange(
+            new ApplicationUser { Id = "dwayne", Email = "old@example.com", UserName = "old@example.com", UptickUserId = uptick.Id },
+            new ApplicationUser { Id = "other", Email = "taken@example.com", UserName = "taken@example.com" });
+        await db.SaveChangesAsync();
+
+        var result = await Import(db, Csv(UserHeader,
+            "9,\"2021-02-18 21:27:16\",\"\",\"Dwayne Page\",\"taken@example.com\",\"FIELD\",\"\",\"Technician\",\"\",\"\",\"\",\"\",\"\",\"\""));
+
+        Assert.Contains(result.Notes, n => n.Contains("belongs to another FyreApp login"));
+        Assert.Equal("old@example.com", (await db.Users.SingleAsync(u => u.Id == "dwayne")).Email);
+    }
+
+    [Theory]
+    [InlineData("Wes Speedon (Field Tech)", "Wes", "Speedon")]
+    [InlineData("Dwayne R Page", "Dwayne", "R Page")]
+    [InlineData("FyrePower", "FyrePower", "")]
+    [InlineData("(Office)", "(Office)", "")]
+    public void UptickName_SplitsIntoFirstAndLast(string name, string first, string last) =>
+        Assert.Equal((first, last), FyreApp.Services.UserManagement.UptickLoginSync.SplitName(name));
 }

@@ -41,7 +41,7 @@
                             <td>@t.Category</td>
                             <td>@t.Status</td>
                             <td class="text-nowrap">@t.DueDateUtc.ToDisplayDate()</td>
-                            <td>@(t.AssignedTo?.FullName ?? "")</td>
+                            <td>@(t.AssignedTo?.Name ?? t.UptickTechnician ?? "")</td>
                         </tr>
                     }
                 </tbody>

@@ -2,6 +2,7 @@ using FyreApp.Data;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.Services.MaintenanceSchedules;
+using FyreApp.Services.Tasks;
 using FyreApp.ViewModels.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
@@ -105,7 +106,7 @@ public class ClientTaskService : IClientTaskService
         if (task.Status != input.Status)
             task.IsActive = input.Status is not (ClientTaskStatus.Completed or ClientTaskStatus.Cancelled);
         task.Status = input.Status;
-        task.AssignedToUserId = input.AssignedToUserId;
+        task.AssignedToUptickUserId = input.AssignedToUptickUserId;
         task.DueDateUtc = input.DueDateLocal.HasValue
             ? TimeZoneInfo.ConvertTimeToUtc(input.DueDateLocal.Value, SydneyTz)
             : null;
@@ -183,19 +184,19 @@ public class ClientTaskService : IClientTaskService
             await _db.SaveChangesAsync();
     }
 
-    public async Task<(bool Found, bool TechValid)> AssignTechAsync(int taskId, string? techUserId)
+    public async Task<(bool Found, bool TechValid)> AssignTechAsync(int taskId, int? technicianId)
     {
         var task = await _db.ClientTasks.FindAsync(taskId);
         if (task is null) return (false, true);
 
-        if (techUserId != null)
+        if (technicianId != null)
         {
-            var user = await _userManager.FindByIdAsync(techUserId);
-            if (user == null || !await _userManager.IsInRoleAsync(user, "Tech"))
+            var user = await _db.UptickUsers.FindAsync(technicianId);
+            if (user == null || !TechnicianMatch.CanBeAssigned(user))
                 return (true, false);
         }
 
-        task.AssignedToUserId = techUserId;
+        task.AssignedToUptickUserId = technicianId;
         await _db.SaveChangesAsync();
         return (true, true);
     }

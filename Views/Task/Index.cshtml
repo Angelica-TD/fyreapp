@@ -21,6 +21,8 @@
     <div class="card-body">
         @Html.AntiForgeryToken()
         <div id="task-search-root" data-can-edit="@(User.IsInRole("Admin") ? "true" : "false")"
+             data-can-filter-mine="@(Model.CanFilterMine ? "true" : "false")"
+             data-default-technician="@Model.DefaultTechnician"
              data-techs="@System.Text.Json.JsonSerializer.Serialize(Model.Techs.Select(t => new { id = t.Id, name = t.Name }))"></div>
     </div>
 </div>
