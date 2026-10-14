@@ -113,6 +113,45 @@ public class RoutineTaskAssetTests
     }
 
     [Fact]
+    public void FromScope_ReadsTheRoutinesAnImportedTaskNames()
+    {
+        var routines = RoutineAssets.FromScope(7,
+            "- 09 - Fire Hose Reels (Section 9): Annual\r\n" +
+            "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Six-monthly\n" +
+            "- 06 - Fire Detection (Fire Panels) (AS1851-2012 Section 6): Monthly\n" +
+            "Quote to replace failed items as per service report.",
+            ["09 - Fire Hose Reels", Extinguishers, "06 - Fire Detection", "06 - Fire Detection (Fire Panels)"]);
+
+        Assert.Equal(new[]
+        {
+            new RoutineAssets.SiteRoutine(7, "09 - Fire Hose Reels: Annual", "09 - Fire Hose Reels"),
+            new RoutineAssets.SiteRoutine(7, Extinguishers + ": Six-monthly", Extinguishers),
+            new RoutineAssets.SiteRoutine(7, "06 - Fire Detection (Fire Panels): Monthly", "06 - Fire Detection (Fire Panels)")
+        }, routines);
+    }
+
+    [Fact]
+    public async Task WorkTab_ImportedRoutineTask_ListsTheAssetsForItsScopeOfWorks()
+    {
+        using var db = DbContextFactory.Create();
+        var (glory, _) = await SeedAsync(db);
+        db.RoutineServiceTypes.Add(new RoutineServiceType { Name = Extinguishers });
+        var task = new ClientTask
+        {
+            ClientId = glory.ClientId, SiteId = glory.Id, Title = "PM2026/10 Servicing", ExternalId = "46682",
+            UptickData = """{"Scope of works":"- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"}"""
+        };
+        db.ClientTasks.Add(task);
+        await db.SaveChangesAsync();
+
+        var vm = (await new TaskPageService(db).LoadAsync(task.Id, "work"))!;
+
+        Assert.Equal(new[] { Extinguishers + ": Annual" }, vm.ServiceRoutines);
+        Assert.Equal(new[] { "FE Kitchen", "FE Hall" }, vm.ServiceAssets.Select(a => a.Asset.Name));
+        Assert.Empty(vm.Routines); // not generated from routines
+    }
+
+    [Fact]
     public void RoutineType_DropsTheLevel()
     {
         Assert.Equal(Extinguishers, RoutineAssets.RoutineType(Extinguishers + ": Six-monthly"));

@@ -1,5 +1,6 @@
 using FyreApp.Data;
 using FyreApp.Models;
+using FyreApp.Services.Imports;
 using FyreApp.Services.Routines;
 using FyreApp.ViewModels.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -34,13 +35,19 @@ public class TaskPageService : ITaskPageService
             .Select(o => new { o.SiteId, o.Routine, Type = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.RoutineServiceType.Name : null })
             .ToListAsync(ct);
 
+        var siteRoutines = routines.Select(o => new RoutineAssets.SiteRoutine(o.SiteId, o.Routine, o.Type ?? RoutineAssets.RoutineType(o.Routine))).ToList();
+        // Imported Uptick routine tasks name theirs in "Scope of works" ("- 10 - … (AS1851-2012 Section 10): Annual")
+        if (siteRoutines.Count == 0 && UptickJson.Value(task.UptickData, "Scope of works") is { } scope)
+            siteRoutines = RoutineAssets.FromScope(task.SiteId, scope, await _db.RoutineServiceTypes.AsNoTracking().Select(t => t.Name).ToListAsync(ct)).ToList();
+
         return new TaskPageVm
         {
             Task = task,
             Tab = TaskPageVm.Tabs.Any(t => t.Key == tab) ? tab! : "task",
             Uptick = TaskPageVm.ParseUptick(task.UptickData),
             Routines = routines.Select(o => o.Routine).Distinct().ToList(),
-            ServiceAssets = await ServiceAssetsAsync(id, routines.Select(o => new RoutineAssets.SiteRoutine(o.SiteId, o.Routine, o.Type ?? RoutineAssets.RoutineType(o.Routine))).ToList(), ct),
+            ServiceRoutines = siteRoutines.Select(r => r.Routine).ToList(),
+            ServiceAssets = await ServiceAssetsAsync(id, siteRoutines, ct),
             // Reports done on this task, and remarks it was raised to repair (linked from Uptick imports)
             Reports = await _db.ServiceReports.AsNoTracking()
                 .Where(r => r.ClientTaskId == id)

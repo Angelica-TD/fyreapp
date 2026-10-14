@@ -105,12 +105,12 @@
                 </div>
             </div>
         }
-        @if (Model.Routines.Any() && !Model.ServiceAssets.Any())
+        @if (Model.ServiceRoutines.Any() && !Model.ServiceAssets.Any())
         {
             <div class="card property-card">
                 <div class="card-header"><span>Routine Service</span></div>
                 <div class="card-body text-muted fst-italic">
-                    No assets at this property for @string.Join(", ", Model.Routines). Assets are matched by their asset type's
+                    No assets at this property for @string.Join(", ", Model.ServiceRoutines). Assets are matched by their asset type's
                     applicable routines (Uptick's asset types export).
                 </div>
             </div>
