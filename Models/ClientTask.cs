@@ -75,6 +75,11 @@ public class ClientTask
 
     public string? AssignedToUserId { get; set; }
     public ApplicationUser? AssignedTo { get; set; }
+
+    // Who Uptick has it assigned to (Uptick "Assigned Technician", e.g. "Dwayne Page"), for imported tasks.
+    // Just a name: Uptick technicians aren't FyreApp logins. Assigning a FyreApp technician takes over.
+    [StringLength(200)]
+    public string? UptickTechnician { get; set; }
     public string? CreatedByUserId { get; set; }
 
     // Set when this task was auto-generated from a routine MaintenanceSchedule

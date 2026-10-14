@@ -192,6 +192,16 @@ if (app.Environment.IsDevelopment())
     DbInitialiser.Seed(context);
 }
 
+// The roles the app uses must exist (in every environment), or creating e.g. a technician fails with
+// "Role TECH does not exist". Only adds missing ones.
+using (var scope = app.Services.CreateScope())
+{
+    var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    foreach (var role in FyreApp.Services.UserManagement.UserManagementService.Roles)
+        if (!await roles.RoleExistsAsync(role))
+            await roles.CreateAsync(new IdentityRole(role));
+}
+
 // --------------------------------------------------
 // Middleware
 // --------------------------------------------------

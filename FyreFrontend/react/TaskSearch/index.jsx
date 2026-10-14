@@ -18,8 +18,32 @@ const STATUS_BADGES = {
   Cancelled:  'bg-secondary',
 }
 
-// Defaults match Uptick's Tasks page: active tasks, any category, any status
-const DEFAULTS = { active: 'yes', category: [], categoryNot: false, status: [], statusNot: false }
+// Defaults match Uptick's Tasks page: active tasks, any category, any status.
+// technician: '' any, 'none' unassigned, else a technician's user id
+const DEFAULTS = {
+  active: 'yes', category: [], categoryNot: false, status: [], statusNot: false,
+  dueFrom: '', dueTo: '', technician: ''
+}
+
+// Filters from the page's address, so other pages can link to a filtered list
+// (e.g. Routines → Generate tasks → "Assign them": /Task?category=I%26T&dueFrom=…&dueTo=…&technician=none)
+function filtersFromUrl() {
+  const q = new URLSearchParams(window.location.search)
+  return {
+    query: q.get('search') ?? '',
+    filters: {
+      ...DEFAULTS,
+      active: q.get('active') ?? DEFAULTS.active,
+      category: q.getAll('category'),
+      categoryNot: q.get('categoryNot') === 'true',
+      status: q.getAll('status'),
+      statusNot: q.get('statusNot') === 'true',
+      dueFrom: q.get('dueFrom') ?? '',
+      dueTo: q.get('dueTo') ?? '',
+      technician: q.get('technician') ?? ''
+    }
+  }
+}
 
 function DueDate({ iso, status }) {
   if (!iso) return <span className="text-muted">—</span>
@@ -34,25 +58,31 @@ function DueDate({ iso, status }) {
   )
 }
 
-const columns = [
-  { key: 'displayRef', label: 'Ref', render: row => <a href={`/Task/Details/${row.id}`} onClick={e => e.stopPropagation()}>{row.displayRef ?? '—'}</a> },
-  {
-    key: 'category',
-    label: 'Category',
-    render: row => row.category ? <span className="badge bg-dark">{row.category.toUpperCase()}</span> : <span className="text-muted">—</span>
-  },
-  {
-    key: 'status',
-    label: 'Status',
-    render: row => (
-      <span className={`badge ${STATUS_BADGES[row.status] ?? 'bg-secondary'}`}>{statusLabel(row.status).toUpperCase()}</span>
+// Who's doing it: the FyreApp technician (a dropdown for admins, to assign straight from the list),
+// and who Uptick has an imported task assigned to
+function Technician({ row, canEdit, techs, onAssign }) {
+  const uptick = row.uptickTechnician && (
+    <div className="small text-muted" title="Assigned in Uptick">{row.uptickTechnician} · Uptick</div>
+  )
+  if (!canEdit) {
+    return (
+      <>
+        {row.assignedToName ?? (row.uptickTechnician ? null : <span className="text-muted">Unassigned</span>)}
+        {uptick}
+      </>
     )
-  },
-  { key: 'title',       label: 'Task' },
-  { key: 'clientName',  label: 'Client' },
-  { key: 'siteAddress', label: 'Property' },
-  { key: 'dueDateUtc',  label: 'Due', render: row => <DueDate iso={row.dueDateUtc} status={row.status} /> }
-]
+  }
+  return (
+    <div onClick={e => e.stopPropagation()}>
+      <select className="form-select form-select-sm" style={{ minWidth: '11rem' }} aria-label={`Technician for ${row.displayRef ?? 'task'}`}
+              value={row.assignedToUserId ?? ''} onChange={e => onAssign(row, e.target.value)}>
+        <option value="">Unassigned</option>
+        {techs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+      </select>
+      {uptick}
+    </div>
+  )
+}
 
 function filterParams(query, filters) {
   const params = new URLSearchParams({ search: query, active: filters.active })
@@ -60,30 +90,48 @@ function filterParams(query, filters) {
   filters.status.forEach(s => params.append('status', s))
   if (filters.categoryNot) params.set('categoryNot', 'true')
   if (filters.statusNot) params.set('statusNot', 'true')
+  if (filters.dueFrom) params.set('dueFrom', filters.dueFrom)
+  if (filters.dueTo) params.set('dueTo', filters.dueTo)
+  if (filters.technician) params.set('technician', filters.technician)
   return params
 }
 
+// The filters as the bulk endpoint takes them (no empty dates, which wouldn't parse)
+function filterBody(query, filters) {
+  return {
+    search: query, ...filters,
+    dueFrom: filters.dueFrom || null, dueTo: filters.dueTo || null, technician: filters.technician || null
+  }
+}
+
 function TaskSearch({ canEdit, techs }) {
-  const [query, setQuery]     = useState('')
-  const [filters, setFilters] = useState(DEFAULTS)
+  const [initial] = useState(filtersFromUrl)
+  const [query, setQuery]     = useState(initial.query)
+  const [filters, setFilters] = useState(initial.filters)
   const [page, setPage]       = useState(1)
   const [showFilters, setShowFilters] = useState(true)
   const [data, setData]       = useState({ total: 0, pages: 1, items: [], categories: [] })
   const [loading, setLoading] = useState(true)
   const [reload, setReload]   = useState(0)
   const [editing, setEditing] = useState(false)
-  const [bulkAction, setBulkAction] = useState('status')
+  const [bulkAction, setBulkAction] = useState('assign')
   const [newStatus, setNewStatus]   = useState('Completed')
   const [techUserId, setTechUserId] = useState('')
   const [busy, setBusy]       = useState(false)
   const [message, setMessage] = useState(null)
 
   const set = patch => setFilters(f => ({ ...f, ...patch }))
-  const activeCount = (filters.active !== 'any' ? 1 : 0) + (filters.category.length > 0 ? 1 : 0) + (filters.status.length > 0 ? 1 : 0)
+  const activeCount = (filters.active !== 'any' ? 1 : 0) + (filters.category.length > 0 ? 1 : 0)
+    + (filters.status.length > 0 ? 1 : 0) + (filters.dueFrom || filters.dueTo ? 1 : 0) + (filters.technician ? 1 : 0)
   const selection = useSelection(data.items, data.total, `${query}|${JSON.stringify(filters)}|${page}|${reload}`)
 
-  // A new search or filter starts again at page 1
-  useEffect(() => { setPage(1) }, [query, filters])
+  // A new search or filter starts again at page 1, and the address keeps the filters (back button, sharing)
+  useEffect(() => {
+    setPage(1)
+    const params = filterParams(query, filters)
+    if (!query) params.delete('search')
+    window.history.replaceState(null, '', `${window.location.pathname}?${params}`)
+  }, [query, filters])
 
   useEffect(() => {
     let stale = false // ignore a slower, older response
@@ -100,7 +148,7 @@ function TaskSearch({ canEdit, techs }) {
     setBusy(true)
     try {
       const res = await postJson('/api/tasks/bulk', {
-        ids: selection.ids, allMatching: selection.allMatching, search: query, ...filters,
+        ids: selection.ids, allMatching: selection.allMatching, ...filterBody(query, filters),
         bulkAction, newStatus, techUserId
       })
       setMessage(res.message)
@@ -112,6 +160,52 @@ function TaskSearch({ canEdit, techs }) {
       setBusy(false)
     }
   }
+
+  // One task, from its row's dropdown. The row updates in place; the list isn't reloaded, so it doesn't
+  // vanish from an "Unassigned" filter while the admin works down the page.
+  async function assignOne(row, userId) {
+    try {
+      await postJson('/api/tasks/bulk', {
+        ids: [row.id], allMatching: false, ...filterBody(query, DEFAULTS), active: 'any',
+        bulkAction: 'assign', techUserId: userId
+      })
+      const name = techs.find(t => t.id === userId)?.name ?? null
+      setData(d => ({
+        ...d,
+        items: d.items.map(i => i.id === row.id ? { ...i, assignedToUserId: userId || null, assignedToName: name } : i)
+      }))
+      setMessage(userId ? `${row.displayRef ?? 'Task'} assigned to ${name}.` : `${row.displayRef ?? 'Task'} unassigned.`)
+    } catch (err) {
+      alert(err.message)
+    }
+  }
+
+  const columns = [
+    { key: 'displayRef', label: 'Ref', render: row => <a className="text-nowrap" href={`/Task/Details/${row.id}`} onClick={e => e.stopPropagation()}>{row.displayRef ?? '—'}</a> },
+    {
+      key: 'category',
+      label: 'Category',
+      render: row => row.category ? <span className="badge bg-dark">{row.category.toUpperCase()}</span> : <span className="text-muted">—</span>
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: row => (
+        <span className={`badge ${STATUS_BADGES[row.status] ?? 'bg-secondary'}`}>{statusLabel(row.status).toUpperCase()}</span>
+      )
+    },
+    { key: 'title',       label: 'Task' },
+    { key: 'clientName',  label: 'Client' },
+    { key: 'siteAddress', label: 'Property' },
+    { key: 'dueDateUtc',  label: 'Due', render: row => <DueDate iso={row.dueDateUtc} status={row.status} /> },
+    { key: 'technician',  label: 'Technician', render: row => <Technician row={row} canEdit={canEdit} techs={techs} onAssign={assignOne} /> }
+  ]
+
+  const noTechs = canEdit && techs.length === 0 && (
+    <p className="small text-muted mb-0">
+      No technicians yet. Add one under <a href="/Users/Create">Users</a> with the Tech role to assign tasks.
+    </p>
+  )
 
   return (
     <>
@@ -135,6 +229,20 @@ function TaskSearch({ canEdit, techs }) {
                         onChange={status => set({ status })}
                         isNot={filters.statusNot} onIsNotChange={statusNot => set({ statusNot })} />
         </FilterRow>
+        <FilterRow label="Due" htmlFor="taskDueFrom">
+          <input id="taskDueFrom" type="date" className="form-control w-auto" aria-label="Due from"
+                 value={filters.dueFrom} onChange={e => set({ dueFrom: e.target.value })} />
+          <span className="text-muted">to</span>
+          <input type="date" className="form-control w-auto" aria-label="Due to"
+                 value={filters.dueTo} onChange={e => set({ dueTo: e.target.value })} />
+        </FilterRow>
+        <FilterRow label="Technician" htmlFor="taskTechFilter">
+          <select id="taskTechFilter" className="form-select" value={filters.technician} onChange={e => set({ technician: e.target.value })}>
+            <option value="">Any value</option>
+            <option value="none">Unassigned</option>
+            {techs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </FilterRow>
       </FilterPanel>
 
       <SelectionBar selection={selection} total={data.total} noun="Tasks" nounSingular="Task" canEdit={canEdit}
@@ -154,6 +262,22 @@ function TaskSearch({ canEdit, techs }) {
         <p>You have selected {selection.count.toLocaleString()} tasks. What do you want to do?</p>
 
         <div className="form-check">
+          <input className="form-check-input" type="radio" name="taskBulkAction" id="task-assign"
+                 checked={bulkAction === 'assign'} onChange={() => setBulkAction('assign')} />
+          <label className="form-check-label" htmlFor="task-assign">Assign technician</label>
+        </div>
+        {bulkAction === 'assign' && (
+          <div className="border rounded p-3 my-2">
+            <label className="form-label" htmlFor="taskTech">Technician</label>
+            <select id="taskTech" className="form-select" value={techUserId} onChange={e => setTechUserId(e.target.value)}>
+              <option value="">— Unassigned —</option>
+              {techs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+            {noTechs}
+          </div>
+        )}
+
+        <div className="form-check">
           <input className="form-check-input" type="radio" name="taskBulkAction" id="task-status"
                  checked={bulkAction === 'status'} onChange={() => setBulkAction('status')} />
           <label className="form-check-label" htmlFor="task-status">Change status</label>
@@ -169,22 +293,9 @@ function TaskSearch({ canEdit, techs }) {
             </p>
           </div>
         )}
-
-        <div className="form-check">
-          <input className="form-check-input" type="radio" name="taskBulkAction" id="task-assign"
-                 checked={bulkAction === 'assign'} onChange={() => setBulkAction('assign')} />
-          <label className="form-check-label" htmlFor="task-assign">Assign technician</label>
-        </div>
-        {bulkAction === 'assign' && (
-          <div className="border rounded p-3 my-2">
-            <label className="form-label" htmlFor="taskTech">Technician</label>
-            <select id="taskTech" className="form-select" value={techUserId} onChange={e => setTechUserId(e.target.value)}>
-              <option value="">— Unassigned —</option>
-              {techs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
-        )}
       </Modal>
+
+      {noTechs}
     </>
   )
 }

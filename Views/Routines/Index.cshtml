@@ -31,6 +31,10 @@
         {
             <div class="alert alert-success alert-dismissible fade show" role="alert">
                 @ok
+                @if (TempData["TasksLink"] is string tasksLink)
+                {
+                    <a class="alert-link ms-1" href="@tasksLink">Assign them on the Tasks list</a>
+                }
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         }

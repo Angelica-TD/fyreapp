@@ -53,10 +53,25 @@ public class RoutinesController : Controller
             ? $"No tasks generated: none of the selected routines are pending.{Skipped(result)}"
             : $"Generated {result.TasksCreated} task{(result.TasksCreated == 1 ? "" : "s")} from {result.RoutinesUsed} routine{(result.RoutinesUsed == 1 ? "" : "s")}.{Skipped(result)}";
 
+        if (result.TasksCreated > 0)
+            TempData["TasksLink"] = TasksToAssignUrl(filter);
+
         return Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl!) : RedirectToAction(nameof(Index));
 
         static string Skipped(GenerateRoutineTasksResult r) =>
             r.RoutinesSkipped == 0 ? "" : $" {r.RoutinesSkipped} skipped (task already raised, complete or cancelled).";
+    }
+
+    // The Tasks list showing the routine tasks just generated that still need a technician. Generated tasks are
+    // due at the end of their routines' month, so the due filter covers whole months.
+    private string TasksToAssignUrl(RoutineFilter filter)
+    {
+        var query = new List<string> { "category=I%26T", "technician=none" };
+        if (filter.DueFrom is DateTime from)
+            query.Add($"dueFrom={new DateTime(from.Year, from.Month, 1):yyyy-MM-dd}");
+        if (filter.DueTo is DateTime to)
+            query.Add($"dueTo={new DateTime(to.Year, to.Month, DateTime.DaysInMonth(to.Year, to.Month)):yyyy-MM-dd}");
+        return $"{Url.Action("Index", "Task")}?{string.Join("&", query)}";
     }
 
     // Without "f" (first visit, sidebar link) the Uptick-style defaults apply; once the filter form has been

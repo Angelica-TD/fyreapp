@@ -5,7 +5,9 @@ namespace FyreApp.Services.UserManagement;
 
 public class UserManagementService : IUserManagementService
 {
-    private static readonly string[] AllowedRoles = ["Admin", "Tech", "Developer"];
+    // Every role the app uses; created at startup if missing (Program.cs)
+    public static readonly string[] Roles = ["Admin", "Tech", "Developer"];
+    private static readonly string[] AllowedRoles = Roles;
 
     private readonly UserManager<ApplicationUser> _userManager;
 

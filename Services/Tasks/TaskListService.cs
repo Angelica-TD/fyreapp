@@ -16,12 +16,22 @@ public class TaskFilter
     public bool CategoryNot { get; set; }
     public List<ClientTaskStatus> Status { get; set; } = new();
     public bool StatusNot { get; set; }
+
+    // Due between these dates (inclusive), e.g. a month of routine tasks
+    public DateTime? DueFrom { get; set; }
+    public DateTime? DueTo { get; set; }
+
+    // "" any, "none" unassigned (in FyreApp and in Uptick), or a technician's user id
+    public string? Technician { get; set; }
+
     public int Page { get; set; } = 1;
 }
 
 public record TaskListItem(
     int Id, string? DisplayRef, string? Category, string Title, string ClientName, string SiteAddress,
-    string Priority, string Status, DateTime? DueDateUtc);
+    string Priority, string Status, DateTime? DueDateUtc,
+    // The FyreApp technician, else who Uptick has it assigned to (imported tasks)
+    string? AssignedToUserId, string? AssignedToName, string? UptickTechnician);
 
 public interface ITaskListService
 {
@@ -71,6 +81,22 @@ public class TaskListService : ITaskListService
             q = filter.StatusNot ? q.Where(t => !statuses.Contains(t.Status)) : q.Where(t => statuses.Contains(t.Status));
         }
 
+        if (filter.DueFrom is DateTime from)
+        {
+            var fromUtc = DateTime.SpecifyKind(from.Date, DateTimeKind.Utc);
+            q = q.Where(t => t.DueDateUtc >= fromUtc);
+        }
+        if (filter.DueTo is DateTime to)
+        {
+            var beforeUtc = DateTime.SpecifyKind(to.Date.AddDays(1), DateTimeKind.Utc);
+            q = q.Where(t => t.DueDateUtc < beforeUtc);
+        }
+
+        if (filter.Technician == "none")
+            q = q.Where(t => t.AssignedToUserId == null && t.UptickTechnician == null);
+        else if (!string.IsNullOrWhiteSpace(filter.Technician))
+            q = q.Where(t => t.AssignedToUserId == filter.Technician);
+
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             var term = filter.Search.Trim().ToLower();
@@ -107,7 +133,8 @@ public class TaskListService : ITaskListService
             .Take(ListFilters.PageSize)
             .Select(t => new TaskListItem(
                 t.Id, t.Ref ?? t.ExternalId ?? t.FyreRef, t.Category, t.Title, t.Client.Name,
-                t.Site.AddressDisplay ?? t.Site.Name, t.Priority.ToString(), t.Status.ToString(), t.DueDateUtc))
+                t.Site.AddressDisplay ?? t.Site.Name, t.Priority.ToString(), t.Status.ToString(), t.DueDateUtc,
+                t.AssignedToUserId, t.AssignedTo != null ? t.AssignedTo.FirstName + " " + t.AssignedTo.LastName : null, t.UptickTechnician))
             .ToListAsync(ct);
 
         var categories = await _db.ClientTasks.AsNoTracking()
@@ -128,18 +155,18 @@ public class TaskListService : ITaskListService
                 Ref = t.Ref ?? t.ExternalId ?? t.FyreRef, t.Category, t.Status, t.IsActive, t.Title, t.Priority,
                 t.DueDateUtc, t.CreatedUtc, t.CompletedUtc,
                 Client = t.Client.Name, PropertyRef = t.Site.ExternalId ?? t.Site.FyreRef, Property = t.Site.Name,
-                AssignedTo = t.AssignedTo != null ? t.AssignedTo.FirstName + " " + t.AssignedTo.LastName : null
+                AssignedTo = t.AssignedTo != null ? t.AssignedTo.FirstName + " " + t.AssignedTo.LastName : null, t.UptickTechnician
             })
             .ToListAsync(ct);
 
         return CsvExport.Build(
             new[] { "Ref", "Category", "Status", "Active", "Task", "Priority", "Due", "Created", "Completed",
-                    "Client", "Property ref", "Property", "Assigned to" },
+                    "Client", "Property ref", "Property", "Assigned to", "Uptick technician" },
             rows.Select(r => new[]
             {
                 r.Ref, r.Category, r.Status.ToString(), r.IsActive ? "Yes" : "No", r.Title, r.Priority.ToString(),
                 CsvExport.Date(r.DueDateUtc), CsvExport.Date(r.CreatedUtc.ToSydney()), CsvExport.Date(r.CompletedUtc?.ToSydney()),
-                r.Client, r.PropertyRef, r.Property, r.AssignedTo
+                r.Client, r.PropertyRef, r.Property, r.AssignedTo, r.UptickTechnician
             }));
     }
 
