@@ -1,0 +1,15 @@
+@model (FyreApp.ViewModels.Lists.DirectoryFilter Filter, string Placeholder)
+
+@* Search + Active for the contractor and supplier lists; changing Active submits *@
+<form method="get" asp-action="Index" class="row g-2 mb-3">
+    <div class="col-sm-8 col-lg-9">
+        <input type="search" name="search" value="@Model.Filter.Search" class="form-control" placeholder="@Model.Placeholder" />
+    </div>
+    <div class="col-sm-4 col-lg-3">
+        <select name="active" class="form-select" aria-label="Active" onchange="this.form.submit()">
+            <option value="active" selected="@(Model.Filter.Active == "active")">Active</option>
+            <option value="inactive" selected="@(Model.Filter.Active == "inactive")">Inactive</option>
+            <option value="any" selected="@(Model.Filter.Active == "any")">Active or inactive</option>
+        </select>
+    </div>
+</form>

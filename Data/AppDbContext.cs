@@ -33,6 +33,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<AssetTypeVariant> AssetTypeVariants => Set<AssetTypeVariant>();
     public DbSet<RemarkType> RemarkTypes => Set<RemarkType>();
+    public DbSet<Contractor> Contractors => Set<Contractor>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<UptickUser> UptickUsers => Set<UptickUser>();
     public DbSet<RoutineServiceType> RoutineServiceTypes => Set<RoutineServiceType>();
     public DbSet<RoutineServiceLevel> RoutineServiceLevels => Set<RoutineServiceLevel>();
     public DbSet<RoutineOccurrence> RoutineOccurrences => Set<RoutineOccurrence>();
@@ -464,6 +467,31 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(r => r.Active).HasDefaultValue(true).HasSentinel(true);
         });
 
+        modelBuilder.Entity<Contractor>(entity =>
+        {
+            entity.HasIndex(c => c.ExternalId).IsUnique();
+            entity.Property(c => c.Active).HasDefaultValue(true).HasSentinel(true);
+            entity.Property(c => c.CreatedUtc).HasColumnType("timestamptz");
+            entity.Property(c => c.UpdatedUtc).HasColumnType("timestamptz");
+        });
+
+        modelBuilder.Entity<Supplier>(entity =>
+        {
+            entity.HasIndex(s => s.ExternalId).IsUnique();
+            entity.Property(s => s.Active).HasDefaultValue(true).HasSentinel(true);
+            entity.Property(s => s.CreatedUtc).HasColumnType("timestamptz");
+            entity.Property(s => s.UpdatedUtc).HasColumnType("timestamptz");
+        });
+
+        modelBuilder.Entity<UptickUser>(entity =>
+        {
+            entity.HasIndex(u => u.ExternalId).IsUnique();
+            entity.Property(u => u.CostRate).HasPrecision(12, 2);
+            entity.Property(u => u.SellRate).HasPrecision(12, 2);
+            entity.Property(u => u.JoinedUtc).HasColumnType("timestamptz");
+            entity.Property(u => u.LastLoginUtc).HasColumnType("timestamptz");
+        });
+
         modelBuilder.Entity<Defect>()
             .HasOne(d => d.RemarkTypeRef)
             .WithMany(r => r.Defects)
@@ -541,7 +569,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         foreach (var type in new[]
                  {
                      typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(ClientContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask),
-                     typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(RoutineOccurrence)
+                     typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(RoutineOccurrence),
+                     typeof(Contractor), typeof(Supplier), typeof(UptickUser)
                  })
         {
             modelBuilder.Entity(type).Property<string?>("UptickData").HasColumnType("json");

@@ -49,6 +49,9 @@ public sealed class ImportRow
     public int? GetInt(string header) =>
         int.TryParse(Get(header), NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : null;
 
+    public decimal? GetDecimal(string header) =>
+        decimal.TryParse(Get(header)?.TrimStart('$'), NumberStyles.Number, CultureInfo.InvariantCulture, out var n) ? n : null;
+
     public double? GetDouble(string header) =>
         double.TryParse(Get(header), NumberStyles.Float, CultureInfo.InvariantCulture, out var n) ? n : null;
 
