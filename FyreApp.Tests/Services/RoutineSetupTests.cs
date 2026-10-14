@@ -120,6 +120,94 @@ public class RoutineSetupTests
         Assert.Equal("14 - Emergency planning in facilities", Assert.Single(Assert.Single(grid.Groups).Rows).Routine);
     }
 
+    // A six-monthly + annual service from Oct 2026, whose first routine (Mar 2027) already has a task
+    private static async Task<(FyreApp.Data.AppDbContext Db, Site Site, RoutineServiceType Type, PropertyRoutineService Service)> WithServiceAsync()
+    {
+        var (db, site, type) = await SeedAsync();
+        var svc = new RoutineSetupService(db);
+        await svc.AddAsync(site.Id, new AddRoutineServicesInput
+        {
+            StartDate = new DateTime(2026, 10, 1), LastAnnualDate = new DateTime(2026, 3, 15), EndDate = new DateTime(2028, 12, 31),
+            Levels = type.Levels.Where(l => l.Active).Select(l => l.Id).ToList()
+        }, "admin");
+        var first = await db.RoutineOccurrences.OrderBy(o => o.DueDate).FirstAsync();
+        first.Status = RoutineOccurrenceStatus.Generated;
+        first.ClientTask = new ClientTask { Site = site, ClientId = site.ClientId, Title = "PM2027/03 Emergency Planning" };
+        await db.SaveChangesAsync();
+        return (db, site, type, await db.PropertyRoutineServices.SingleAsync());
+    }
+
+    [Fact]
+    public async Task Edit_ForecastsAgain_AndKeepsRoutinesThatHaveATask()
+    {
+        var (db, site, type, service) = await WithServiceAsync();
+        using var _ = db;
+        // Before: Mar 2027 annual (task raised), Sep 2027 six-monthly, Mar 2028 annual, Sep 2028 six-monthly
+        Assert.Equal(4, await db.RoutineOccurrences.CountAsync());
+        var annual = type.Levels.Single(l => l.Name == "Annual");
+
+        var result = await new RoutineSetupService(db).UpdateAsync(service.Id, new EditRoutineServiceInput
+        {
+            StartDate = new DateTime(2026, 10, 1), LastAnnualDate = new DateTime(2026, 3, 15), EndDate = new DateTime(2029, 12, 31),
+            Subcontractor = "Rays Advantage Electrical", Levels = new() { annual.Id }
+        });
+
+        Assert.Equal((true, site.Id, (string?)null, 3, 2, 1), (result.Found, result.SiteId, result.Error, result.Removed, result.Added, result.Kept));
+        var routines = await db.RoutineOccurrences.OrderBy(o => o.DueDate).ToListAsync();
+        // The Mar 2027 one with its task is kept (not forecast twice); the rest are annuals to the new end date
+        Assert.Equal(new[] { Day(2027, 3, 1), Day(2028, 3, 1), Day(2029, 3, 1) }, routines.Select(o => o.DueDate));
+        Assert.NotNull(routines[0].ClientTaskId);
+        Assert.Equal(new[] { null, "Rays Advantage Electrical", "Rays Advantage Electrical" }, routines.Select(o => o.Subcontractor));
+        var saved = await db.PropertyRoutineServices.Include(s => s.Levels).SingleAsync();
+        Assert.Equal(("Annual", Day(2029, 12, 31)), (Assert.Single(saved.Levels).Name, saved.EndDate));
+    }
+
+    [Fact]
+    public async Task Edit_NeedsALevel_AndAnUnknownServiceIsNotFound()
+    {
+        var (db, _, _, service) = await WithServiceAsync();
+        using var __ = db;
+        var svc = new RoutineSetupService(db);
+
+        var noLevels = await svc.UpdateAsync(service.Id, new EditRoutineServiceInput { StartDate = new DateTime(2026, 10, 1), LastAnnualDate = new DateTime(2026, 3, 1) });
+        Assert.Equal("Tick at least one level (or remove the routine service).", noLevels.Error);
+        Assert.Equal(4, await db.RoutineOccurrences.CountAsync());
+        Assert.False((await svc.UpdateAsync(999, new EditRoutineServiceInput())).Found);
+        Assert.Null(await svc.EditFormAsync(999));
+    }
+
+    [Fact]
+    public async Task EditForm_HasTheServicesDatesAndLevels()
+    {
+        var (db, _, _, service) = await WithServiceAsync();
+        using var _ = db;
+
+        var form = (await new RoutineSetupService(db).EditFormAsync(service.Id))!;
+
+        Assert.Equal("14 - Emergency planning in facilities", form.RoutineType);
+        Assert.Equal(new[] { "Six-monthly", "Annual" }, form.Levels.Select(l => l.Name));
+        Assert.Equal(2, form.Input.Levels.Count);
+        Assert.Equal((Day(2026, 10, 1), Day(2026, 3, 15)), (form.Input.StartDate, form.Input.LastAnnualDate));
+    }
+
+    [Fact]
+    public async Task Remove_DeletesPendingRoutines_AndKeepsOnesWithATask()
+    {
+        var (db, site, _, service) = await WithServiceAsync();
+        using var _ = db;
+        var svc = new RoutineSetupService(db);
+        Assert.Equal(3, Assert.Single(await svc.ListAsync(site.Id)).PendingRoutines);
+
+        var result = await svc.RemoveAsync(service.Id);
+
+        Assert.Equal((true, 3, 1), (result.Found, result.Removed, result.Kept));
+        Assert.Equal(0, await db.PropertyRoutineServices.CountAsync());
+        var kept = await db.RoutineOccurrences.SingleAsync();
+        Assert.Equal((Day(2027, 3, 1), (int?)null), (kept.DueDate, kept.PropertyRoutineServiceId));
+        Assert.Empty(await svc.ListAsync(site.Id));
+        Assert.False((await svc.RemoveAsync(service.Id)).Found);
+    }
+
     [Theory]
     [InlineData(false, true, "Start date and last annual date are required.")]
     [InlineData(true, false, "Tick at least one routine type and level.")]

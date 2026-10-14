@@ -37,6 +37,43 @@ public class RoutineLevelOptionVm
     public bool DefaultEnabled { get; set; }
 }
 
+// One routine service on the property's Routines tab
+public class RoutineServiceSummaryVm
+{
+    public int Id { get; set; }
+    public string RoutineType { get; set; } = string.Empty;
+    public IReadOnlyList<string> Levels { get; set; } = [];
+    public DateTime StartDate { get; set; }
+    public DateTime LastAnnualDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public string? Subcontractor { get; set; }
+
+    // Forecast routines still waiting for a task, and when the next is due
+    public int PendingRoutines { get; set; }
+    public DateTime? NextDue { get; set; }
+}
+
+// Edit routine service page
+public class EditRoutineServiceVm
+{
+    public int Id { get; set; }
+    public int SiteId { get; set; }
+    public string SiteName { get; set; } = string.Empty;
+    public string RoutineType { get; set; } = string.Empty;
+    public IReadOnlyList<RoutineLevelOptionVm> Levels { get; set; } = [];
+    public IReadOnlyList<string> Contractors { get; set; } = [];
+    public EditRoutineServiceInput Input { get; set; } = new();
+}
+
+public class EditRoutineServiceInput
+{
+    public DateTime? StartDate { get; set; }
+    public DateTime? LastAnnualDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public string? Subcontractor { get; set; }
+    public List<int> Levels { get; set; } = new();
+}
+
 // What the modal posts
 public class AddRoutineServicesInput
 {

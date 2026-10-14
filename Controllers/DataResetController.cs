@@ -19,7 +19,8 @@ public class DataResetController : Controller
         return View(new DataResetVm
         {
             Enabled = await _resetService.IsEnabledAsync(ct),
-            Counts = await _resetService.GetCountsAsync(ct)
+            Counts = await _resetService.GetCountsAsync(ct),
+            Kept = await _resetService.GetKeptCountsAsync(ct)
         });
     }
 
@@ -52,6 +53,7 @@ public class DataResetController : Controller
         {
             Enabled = false,
             Counts = await _resetService.GetCountsAsync(ct),
+            Kept = await _resetService.GetKeptCountsAsync(ct),
             Deleted = deleted
         });
     }

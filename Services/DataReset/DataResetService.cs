@@ -12,12 +12,17 @@ public interface IDataResetService
     // Row counts of everything the reset would delete, in deletion order.
     Task<IReadOnlyList<(string Table, int Count)>> GetCountsAsync(CancellationToken ct = default);
 
+    // Row counts of the reference data the reset keeps (it doesn't change between imports)
+    Task<IReadOnlyList<(string Table, int Count)>> GetKeptCountsAsync(CancellationToken ct = default);
+
     // Deletes all client data and switches the reset off again. Returns rows deleted per table.
     Task<IReadOnlyList<(string Table, int Count)>> ResetAsync(string? userName, CancellationToken ct = default);
 }
 
 // Wipes clients and everything that hangs off them (sites, assets, schedules, tasks, quotes, ...).
-// Reference data (users, intervals, asset types, service offerings/types, asset catalogue) is kept.
+// Reference data, which doesn't change between imports, is kept: logins and Uptick users, contractors and suppliers,
+// asset / remark / routine types and levels, intervals, service offerings and types, the asset catalogue and settings.
+// Nothing it deletes cascades into those tables.
 public class DataResetService : IDataResetService
 {
     public const string EnabledKey = "DataReset:Enabled";
@@ -68,14 +73,34 @@ public class DataResetService : IDataResetService
             ("Tasks", await _db.ClientTasks.CountAsync(ct)),
             ("Maintenance history", await _db.MaintenanceHistory.CountAsync(ct)),
             ("Routines", await _db.RoutineOccurrences.CountAsync(ct)),
+            ("Routine services", await _db.PropertyRoutineServices.CountAsync(ct)),
             ("Maintenance schedules", await _db.MaintenanceSchedules.CountAsync(ct)),
             ("Defects", await _db.Defects.CountAsync(ct)),
             ("Service reports", await _db.ServiceReports.CountAsync(ct)),
             ("Property contacts", await _db.SiteContacts.CountAsync(ct)),
             ("Client contacts", await _db.ClientContacts.CountAsync(ct)),
+            ("Timeline entries", await _db.TimelineEntries.CountAsync(ct)),
             ("Assets", await _db.Assets.CountAsync(ct)),
             ("Properties", await _db.Sites.CountAsync(ct)),
             ("Clients", await _db.Clients.CountAsync(ct))
+        };
+
+    public async Task<IReadOnlyList<(string Table, int Count)>> GetKeptCountsAsync(CancellationToken ct = default) =>
+        new List<(string, int)>
+        {
+            ("FyreApp logins", await _db.Users.CountAsync(ct)),
+            ("Uptick users", await _db.UptickUsers.CountAsync(ct)),
+            ("Contractors", await _db.Contractors.CountAsync(ct)),
+            ("Suppliers", await _db.Suppliers.CountAsync(ct)),
+            ("Asset types", await _db.AssetTypes.CountAsync(ct)),
+            ("Asset type variants", await _db.AssetTypeVariants.CountAsync(ct)),
+            ("Remark types", await _db.RemarkTypes.CountAsync(ct)),
+            ("Routine service types", await _db.RoutineServiceTypes.CountAsync(ct)),
+            ("Routine service levels", await _db.RoutineServiceLevels.CountAsync(ct)),
+            ("Maintenance intervals", await _db.MaintenanceIntervals.CountAsync(ct)),
+            ("Service offerings", await _db.ServiceOfferings.CountAsync(ct)),
+            ("Service types", await _db.ServiceTypes.CountAsync(ct)),
+            ("Asset catalogue", await _db.AssetCatalogue.CountAsync(ct))
         };
 
     public async Task<IReadOnlyList<(string Table, int Count)>> ResetAsync(string? userName, CancellationToken ct = default)
@@ -101,6 +126,7 @@ public class DataResetService : IDataResetService
             ("Service reports", await _db.ServiceReports.ExecuteDeleteAsync(ct)),
             ("Property contacts", await _db.SiteContacts.ExecuteDeleteAsync(ct)),
             ("Client contacts", await _db.ClientContacts.ExecuteDeleteAsync(ct)),
+            ("Timeline entries", await _db.TimelineEntries.ExecuteDeleteAsync(ct)),
             ("Assets", await _db.Assets.ExecuteDeleteAsync(ct)),
             ("Properties", await _db.Sites.ExecuteDeleteAsync(ct)),
             ("Clients", await _db.Clients.ExecuteDeleteAsync(ct))
