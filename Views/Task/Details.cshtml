@@ -75,10 +75,11 @@
 
             <dt class="col-sm-3">Assigned To</dt>
             <dd class="col-sm-9">
-                @(Model.AssignedTo?.FullName ?? (Model.UptickTechnician == null ? "Unassigned" : null))
-                @if (Model.UptickTechnician != null)
+                @{ var uptickOther = FyreApp.Services.Tasks.TaskListService.OtherUptickTechnician(Model.AssignedTo?.Name, Model.UptickTechnician); }
+                @(Model.AssignedTo?.Name ?? (Model.UptickTechnician == null ? "Unassigned" : null))
+                @if (uptickOther != null)
                 {
-                    <div class="small text-muted">@Model.UptickTechnician · assigned in Uptick</div>
+                    <div class="small text-muted">@uptickOther · assigned in Uptick</div>
                 }
             </dd>
 

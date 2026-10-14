@@ -2,19 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Services.UserManagement;
 
+// Gives an Uptick user a FyreApp login; their name and email come from Uptick
 public class UserCreateDto
 {
     [Required]
-    [Display(Name = "First Name")]
-    public string FirstName { get; set; } = string.Empty;
-
-    [Required]
-    [Display(Name = "Last Name")]
-    public string LastName { get; set; } = string.Empty;
-
-    [Required]
-    [EmailAddress]
-    public string Email { get; set; } = string.Empty;
+    public int UptickUserId { get; set; }
 
     [Phone]
     [Display(Name = "Phone Number")]

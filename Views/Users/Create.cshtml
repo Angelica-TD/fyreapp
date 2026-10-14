@@ -1,32 +1,30 @@
 @model FyreApp.Services.UserManagement.UserCreateDto
+@using FyreApp.Models
 
 @{
-    ViewData["Title"] = "Add User";
+    ViewData["Title"] = "Give FyreApp login";
     var roles = (IReadOnlyList<string>)ViewBag.Roles;
+    var uptick = (UptickUser)ViewBag.Uptick;
 }
 
-<h1>Add User</h1>
+<h1>Give FyreApp login</h1>
 
 <div class="row">
     <div class="col-md-6">
+        <dl class="row mb-3">
+            <dt class="col-sm-4">Uptick user</dt>
+            <dd class="col-sm-8">@uptick.Name</dd>
+            <dt class="col-sm-4">Email (sign-in)</dt>
+            <dd class="col-sm-8">@(uptick.Email ?? "None in Uptick")</dd>
+            <dt class="col-sm-4">Licence type</dt>
+            <dd class="col-sm-8">@UptickUser.LicenseLabel(uptick.LicenseType)</dd>
+        </dl>
+        <p class="small text-muted">Name and email come from Uptick and update when the Users export is imported.</p>
+
         <form asp-action="Create" method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <input type="hidden" asp-for="UptickUserId" />
 
-            <div class="mb-3">
-                <label asp-for="FirstName" class="form-label"></label>
-                <input asp-for="FirstName" class="form-control" />
-                <span asp-validation-for="FirstName" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="LastName" class="form-label"></label>
-                <input asp-for="LastName" class="form-control" />
-                <span asp-validation-for="LastName" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="Email" class="form-label"></label>
-                <input asp-for="Email" class="form-control" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
             <div class="mb-3">
                 <label asp-for="PhoneNumber" class="form-label"></label>
                 <input asp-for="PhoneNumber" class="form-control" />
@@ -49,7 +47,7 @@
                 <span asp-validation-for="Role" class="text-danger"></span>
             </div>
 
-            <button type="submit" class="btn btn-primary">Create User</button>
+            <button type="submit" class="btn btn-primary">Give login</button>
             <a asp-action="Index" class="btn btn-outline-secondary ms-2">Cancel</a>
         </form>
     </div>

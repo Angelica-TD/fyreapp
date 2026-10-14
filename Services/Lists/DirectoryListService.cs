@@ -90,7 +90,8 @@ public class DirectoryListService : IDirectoryListService
                 s.PurchasingEmail, s.PaymentTermsLabel, s.AccountingOrganisation, s.Active ? "Yes" : "No"
             }));
 
-    // ---- Uptick users (the export only has a licence type, no active flag)
+    // ---- Users: everyone in Uptick's Users export, with the FyreApp login linked to each
+    // (the export only has a licence type, no active flag)
 
     private IQueryable<UptickUser> UptickUsers(DirectoryFilter filter)
     {
@@ -100,6 +101,10 @@ public class DirectoryListService : IDirectoryListService
             var license = filter.License.ToUpper();
             q = q.Where(u => u.LicenseType == license);
         }
+        if (filter.Login == "yes")
+            q = q.Where(u => _db.Users.Any(a => a.UptickUserId == u.Id));
+        else if (filter.Login == "no")
+            q = q.Where(u => !_db.Users.Any(a => a.UptickUserId == u.Id));
         if (Term(filter) is { } term)
             q = q.Where(u => u.Name.ToLower().Contains(term) ||
                              (u.Email != null && u.Email.ToLower().Contains(term)) ||
@@ -109,34 +114,40 @@ public class DirectoryListService : IDirectoryListService
             .ThenBy(u => u.Name);
     }
 
-    private async Task<HashSet<string>> LoginEmailsAsync(CancellationToken ct) =>
-        (await _db.Users.AsNoTracking().Where(u => u.Email != null).Select(u => u.Email!).ToListAsync(ct))
-        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    // The linked logins (with their role) by Uptick user id
+    private async Task<Dictionary<int, LoginSummary>> LoginsAsync(IReadOnlyCollection<int>? uptickUserIds, CancellationToken ct)
+    {
+        var q = _db.Users.AsNoTracking().Where(a => a.UptickUserId != null);
+        if (uptickUserIds != null) q = q.Where(a => uptickUserIds.Contains(a.UptickUserId!.Value));
+        var rows = await q.Select(a => new
+        {
+            a.Id, UptickUserId = a.UptickUserId!.Value, a.IsActive,
+            Role = (from ur in _db.UserRoles join r in _db.Roles on ur.RoleId equals r.Id where ur.UserId == a.Id select r.Name).FirstOrDefault()
+        }).ToListAsync(ct);
+        return rows.ToDictionary(r => r.UptickUserId, r => new LoginSummary(r.Id, r.Role, r.IsActive));
+    }
 
     public async Task<DirectoryListVm<UptickUserListItemVm>> UptickUsersAsync(DirectoryFilter filter, CancellationToken ct = default)
     {
         var page = await PageAsync(UptickUsers(filter), filter, ct);
-        var logins = await LoginEmailsAsync(ct);
+        var logins = await LoginsAsync(page.Items.Select(u => u.Id).ToList(), ct);
         return new DirectoryListVm<UptickUserListItemVm>
         {
             Filter = page.Filter,
             Total = page.Total,
-            Items = page.Items.Select(u => new UptickUserListItemVm
-            {
-                User = u, HasFyreAppLogin = u.Email != null && logins.Contains(u.Email)
-            }).ToList()
+            Items = page.Items.Select(u => new UptickUserListItemVm { User = u, Login = logins.GetValueOrDefault(u.Id) }).ToList()
         };
     }
 
     public async Task<byte[]> UptickUsersCsvAsync(DirectoryFilter filter, CancellationToken ct = default)
     {
-        var logins = await LoginEmailsAsync(ct);
+        var logins = await LoginsAsync(null, ct);
         return CsvExport.Build(
             new[] { "ID", "Name", "Email", "Licence type", "Licence", "Security groups", "Service group", "Joined", "Last login", "FyreApp login" },
             (await UptickUsers(filter).ToListAsync(ct)).Select(u => new[]
             {
                 u.ExternalId, u.Name, u.Email, UptickUser.LicenseLabel(u.LicenseType), u.Licence, u.SecurityGroups, u.ServiceGroup,
-                Date(u.JoinedUtc), Date(u.LastLoginUtc), u.Email != null && logins.Contains(u.Email) ? "Yes" : "No"
+                Date(u.JoinedUtc), Date(u.LastLoginUtc), logins.GetValueOrDefault(u.Id)?.Label ?? "No"
             }));
     }
 }

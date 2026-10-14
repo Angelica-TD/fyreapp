@@ -24,5 +24,5 @@ public class EditClientTaskVm
     public DateTime? DueDateLocal { get; set; }
 
     public ClientTaskStatus Status { get; set; } = ClientTaskStatus.Open;
-    public string? AssignedToUserId { get; set; }
+    public int? AssignedToUptickUserId { get; set; }
 }

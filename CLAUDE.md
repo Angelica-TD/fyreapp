@@ -43,7 +43,7 @@ FyreApp is an **ASP.NET Core MVC (.NET 10) application** with a **hybrid fronten
 - **FyreFrontend/react/** — React components (`ClientSearch`, `TaskSearch`, plus shared components). Each component is a separate Vite entry point built to `wwwroot/js/react/`.
 - **FyreFrontend/scss/** — Bootstrap 5 SCSS customizations, compiled to `wwwroot/css/`.
 - React components use local `useState`/`useEffect` and the Fetch API — no Redux, Zustand, or React Query.
-- List pages mirror Uptick's (same default filters, filter count, reset, server-side paging). Properties, Assets, Remarks, Reports, Routines, Contractors, Suppliers and Uptick users are server-rendered Razor with query-string filters (`Views/Shared/_ListPager.cshtml`, `ViewModels/Lists`); the Clients and Tasks lists are React islands using `shared/ListControls.jsx` against paged `/api/clients` and `/api/tasks`. Every list has Download (CSV of the current filters) and, for admins, row / page / "select all matching" selection with an Edit modal (`wwwroot/js/list-selection.js` + `_SelectionToolbar` / `_BulkFormFields` for Razor; `useSelection` / `SelectionBar` for React). Each list service has one `Filtered` query shared by the list, its download and select-all.
+- List pages mirror Uptick's (same default filters, filter count, reset, server-side paging). Properties, Assets, Remarks, Reports, Routines, Contractors, Suppliers and Users (Uptick users, each with its linked FyreApp login) are server-rendered Razor with query-string filters (`Views/Shared/_ListPager.cshtml`, `ViewModels/Lists`); the Clients and Tasks lists are React islands using `shared/ListControls.jsx` against paged `/api/clients` and `/api/tasks`. Every list has Download (CSV of the current filters) and, for admins, row / page / "select all matching" selection with an Edit modal (`wwwroot/js/list-selection.js` + `_SelectionToolbar` / `_BulkFormFields` for Razor; `useSelection` / `SelectionBar` for React). Each list service has one `Filtered` query shared by the list, its download and select-all.
 - Components mount on `#[component-name]-root` divs in Razor views.
 
 ### Key Domain Models
@@ -55,9 +55,9 @@ FyreApp is an **ASP.NET Core MVC (.NET 10) application** with a **hybrid fronten
 | `Asset` | Equipment at a Site; N:N with `AssetType` |
 | `MaintenanceSchedule` | Recurring maintenance plan linking Asset + Site + interval |
 | `MaintenanceHistory` | Audit log of completed maintenance events |
-| `ClientTask` | Work items with status, priority, and due date |
+| `ClientTask` | Work items with status, priority, and due date; assigned to an `UptickUser` (technician) |
 | `ServiceQuote` | Proposals with a `ClientToken` (Guid) for public/unauthenticated viewing |
-| `ApplicationUser` | Extends `IdentityUser` with FirstName, LastName, IsActive |
+| `ApplicationUser` | A FyreApp login (`IdentityUser` + FirstName, LastName, IsActive), linked to the `UptickUser` it takes its name and email from |
 
 ### Authentication
 

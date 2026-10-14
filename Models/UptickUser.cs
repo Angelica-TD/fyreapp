@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations;
 namespace FyreApp.Models;
 
 // A login in Uptick (Uptick "Users" export): office staff, technicians, contractors and client portal users.
-// Kept as a record of who's who; it doesn't give anyone a FyreApp login. A FyreApp user with the same
-// email is the same person.
+// The source of truth for who's who. Anyone who signs in to FyreApp has a login (ApplicationUser) linked to
+// one of these, which takes its name and email from here.
 public class UptickUser
 {
     public int Id { get; set; }

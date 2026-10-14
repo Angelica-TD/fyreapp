@@ -19,28 +19,29 @@ const STATUS_BADGES = {
 }
 
 // Defaults match Uptick's Tasks page: active tasks, any category, any status.
-// technician: '' any, 'none' unassigned, else a technician's user id
-const DEFAULTS = {
+// technician: '' any, 'none' unassigned, 'me' the signed-in technician's tasks, else an Uptick user id.
+// Technicians open the list on their own tasks (defaultTechnician 'me').
+const defaultsFor = defaultTechnician => ({
   active: 'yes', category: [], categoryNot: false, status: [], statusNot: false,
-  dueFrom: '', dueTo: '', technician: ''
-}
+  dueFrom: '', dueTo: '', technician: defaultTechnician
+})
 
 // Filters from the page's address, so other pages can link to a filtered list
 // (e.g. Routines → Generate tasks → "Assign them": /Task?category=I%26T&dueFrom=…&dueTo=…&technician=none)
-function filtersFromUrl() {
+function filtersFromUrl(defaults) {
   const q = new URLSearchParams(window.location.search)
   return {
     query: q.get('search') ?? '',
     filters: {
-      ...DEFAULTS,
-      active: q.get('active') ?? DEFAULTS.active,
+      ...defaults,
+      active: q.get('active') ?? defaults.active,
       category: q.getAll('category'),
       categoryNot: q.get('categoryNot') === 'true',
       status: q.getAll('status'),
       statusNot: q.get('statusNot') === 'true',
       dueFrom: q.get('dueFrom') ?? '',
       dueTo: q.get('dueTo') ?? '',
-      technician: q.get('technician') ?? ''
+      technician: q.get('technician') ?? defaults.technician
     }
   }
 }
@@ -58,8 +59,8 @@ function DueDate({ iso, status }) {
   )
 }
 
-// Who's doing it: the FyreApp technician (a dropdown for admins, to assign straight from the list),
-// and who Uptick has an imported task assigned to
+// Who's doing it: the technician, an Uptick user (a dropdown for admins, to assign straight from the list),
+// and who Uptick has an imported task assigned to when that's someone else
 function Technician({ row, canEdit, techs, onAssign }) {
   const uptick = row.uptickTechnician && (
     <div className="small text-muted" title="Assigned in Uptick">{row.uptickTechnician} · Uptick</div>
@@ -72,12 +73,15 @@ function Technician({ row, canEdit, techs, onAssign }) {
       </>
     )
   }
+  const current = row.assignedToId == null ? '' : String(row.assignedToId)
+  // Someone outside the list (e.g. office staff Uptick assigned it to) still shows as assigned
+  const others = current && !techs.some(t => t.id === current) ? [{ id: current, name: row.assignedToName }] : []
   return (
     <div onClick={e => e.stopPropagation()}>
       <select className="form-select form-select-sm" style={{ minWidth: '11rem' }} aria-label={`Technician for ${row.displayRef ?? 'task'}`}
-              value={row.assignedToUserId ?? ''} onChange={e => onAssign(row, e.target.value)}>
+              value={current} onChange={e => onAssign(row, e.target.value)}>
         <option value="">Unassigned</option>
-        {techs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        {[...others, ...techs].map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
       </select>
       {uptick}
     </div>
@@ -104,8 +108,9 @@ function filterBody(query, filters) {
   }
 }
 
-function TaskSearch({ canEdit, techs }) {
-  const [initial] = useState(filtersFromUrl)
+function TaskSearch({ canEdit, techs, canFilterMine, defaultTechnician }) {
+  const [DEFAULTS] = useState(() => defaultsFor(defaultTechnician))
+  const [initial] = useState(() => filtersFromUrl(DEFAULTS))
   const [query, setQuery]     = useState(initial.query)
   const [filters, setFilters] = useState(initial.filters)
   const [page, setPage]       = useState(1)
@@ -116,13 +121,13 @@ function TaskSearch({ canEdit, techs }) {
   const [editing, setEditing] = useState(false)
   const [bulkAction, setBulkAction] = useState('assign')
   const [newStatus, setNewStatus]   = useState('Completed')
-  const [techUserId, setTechUserId] = useState('')
+  const [technicianId, setTechnicianId] = useState('')
   const [busy, setBusy]       = useState(false)
   const [message, setMessage] = useState(null)
 
   const set = patch => setFilters(f => ({ ...f, ...patch }))
   const activeCount = (filters.active !== 'any' ? 1 : 0) + (filters.category.length > 0 ? 1 : 0)
-    + (filters.status.length > 0 ? 1 : 0) + (filters.dueFrom || filters.dueTo ? 1 : 0) + (filters.technician ? 1 : 0)
+    + (filters.status.length > 0 ? 1 : 0) + (filters.dueFrom || filters.dueTo ? 1 : 0) + (filters.technician !== DEFAULTS.technician ? 1 : 0)
   const selection = useSelection(data.items, data.total, `${query}|${JSON.stringify(filters)}|${page}|${reload}`)
 
   // A new search or filter starts again at page 1, and the address keeps the filters (back button, sharing)
@@ -130,6 +135,8 @@ function TaskSearch({ canEdit, techs }) {
     setPage(1)
     const params = filterParams(query, filters)
     if (!query) params.delete('search')
+    // A technician who picks "Any value" keeps it on reload, rather than going back to their own tasks
+    if (!filters.technician && DEFAULTS.technician) params.set('technician', '')
     window.history.replaceState(null, '', `${window.location.pathname}?${params}`)
   }, [query, filters])
 
@@ -149,7 +156,7 @@ function TaskSearch({ canEdit, techs }) {
     try {
       const res = await postJson('/api/tasks/bulk', {
         ids: selection.ids, allMatching: selection.allMatching, ...filterBody(query, filters),
-        bulkAction, newStatus, techUserId
+        bulkAction, newStatus, technicianId
       })
       setMessage(res.message)
       setEditing(false)
@@ -163,18 +170,18 @@ function TaskSearch({ canEdit, techs }) {
 
   // One task, from its row's dropdown. The row updates in place; the list isn't reloaded, so it doesn't
   // vanish from an "Unassigned" filter while the admin works down the page.
-  async function assignOne(row, userId) {
+  async function assignOne(row, id) {
     try {
       await postJson('/api/tasks/bulk', {
-        ids: [row.id], allMatching: false, ...filterBody(query, DEFAULTS), active: 'any',
-        bulkAction: 'assign', techUserId: userId
+        ids: [row.id], allMatching: false, ...filterBody(query, { ...DEFAULTS, technician: '' }), active: 'any',
+        bulkAction: 'assign', technicianId: id
       })
-      const name = techs.find(t => t.id === userId)?.name ?? null
+      const name = techs.find(t => t.id === id)?.name ?? (String(row.assignedToId) === id ? row.assignedToName : null)
       setData(d => ({
         ...d,
-        items: d.items.map(i => i.id === row.id ? { ...i, assignedToUserId: userId || null, assignedToName: name } : i)
+        items: d.items.map(i => i.id === row.id ? { ...i, assignedToId: id ? Number(id) : null, assignedToName: id ? name : null } : i)
       }))
-      setMessage(userId ? `${row.displayRef ?? 'Task'} assigned to ${name}.` : `${row.displayRef ?? 'Task'} unassigned.`)
+      setMessage(id ? `${row.displayRef ?? 'Task'} assigned to ${name}.` : `${row.displayRef ?? 'Task'} unassigned.`)
     } catch (err) {
       alert(err.message)
     }
@@ -203,7 +210,8 @@ function TaskSearch({ canEdit, techs }) {
 
   const noTechs = canEdit && techs.length === 0 && (
     <p className="small text-muted mb-0">
-      No technicians yet. Add one under <a href="/Users/Create">Users</a> with the Tech role to assign tasks.
+      No technicians yet. Technicians are Uptick's field users and contractors: import Uptick's Users
+      export on the <a href="/Imports">Import</a> page.
     </p>
   )
 
@@ -239,6 +247,7 @@ function TaskSearch({ canEdit, techs }) {
         <FilterRow label="Technician" htmlFor="taskTechFilter">
           <select id="taskTechFilter" className="form-select" value={filters.technician} onChange={e => set({ technician: e.target.value })}>
             <option value="">Any value</option>
+            {canFilterMine && <option value="me">My tasks</option>}
             <option value="none">Unassigned</option>
             {techs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
@@ -269,7 +278,7 @@ function TaskSearch({ canEdit, techs }) {
         {bulkAction === 'assign' && (
           <div className="border rounded p-3 my-2">
             <label className="form-label" htmlFor="taskTech">Technician</label>
-            <select id="taskTech" className="form-select" value={techUserId} onChange={e => setTechUserId(e.target.value)}>
+            <select id="taskTech" className="form-select" value={technicianId} onChange={e => setTechnicianId(e.target.value)}>
               <option value="">— Unassigned —</option>
               {techs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
@@ -302,5 +311,6 @@ function TaskSearch({ canEdit, techs }) {
 
 const el = document.getElementById('task-search-root')
 if (el) createRoot(el).render(
-  <TaskSearch canEdit={el.dataset.canEdit === 'true'} techs={JSON.parse(el.dataset.techs || '[]')} />
+  <TaskSearch canEdit={el.dataset.canEdit === 'true'} techs={JSON.parse(el.dataset.techs || '[]')}
+              canFilterMine={el.dataset.canFilterMine === 'true'} defaultTechnician={el.dataset.defaultTechnician || ''} />
 )

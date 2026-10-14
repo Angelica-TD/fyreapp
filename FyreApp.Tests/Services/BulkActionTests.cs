@@ -131,7 +131,7 @@ public class BulkActionTests
             new ClientTask { Title = "Two", ClientId = a.ClientId, SiteId = a.Id });
         await db.SaveChangesAsync();
         var taskService = new Mock<IClientTaskService>();
-        var svc = new TaskListService(db, taskService.Object, null!);
+        var svc = new TaskListService(db, taskService.Object);
 
         Assert.Equal(2, await svc.SetStatusAsync(All, new TaskFilter(), ClientTaskStatus.Completed));
         taskService.Verify(s => s.CompleteAsync(It.IsAny<int>()), Times.Exactly(2));

@@ -1,6 +1,6 @@
 namespace FyreApp.Services.UserManagement;
 
-public enum UserCreateStatus { Success, EmailAlreadyExists, InvalidRole, Failed }
+public enum UserCreateStatus { Success, UptickUserNotFound, NoEmail, AlreadyHasLogin, EmailAlreadyExists, InvalidRole, Failed }
 public record UserCreateResult(UserCreateStatus Status, string? UserId = null, IEnumerable<string>? Errors = null);
 
 public enum UserUpdateStatus { Success, NotFound, EmailAlreadyExists, InvalidRole, Failed }
@@ -17,3 +17,6 @@ public record UserDeleteResult(UserDeleteStatus Status);
 
 public enum UserResetPasswordStatus { Success, NotFound, Failed }
 public record UserResetPasswordResult(UserResetPasswordStatus Status, IEnumerable<string>? Errors = null);
+
+public enum UserLinkStatus { Success, NotFound, UptickUserNotFound, AlreadyHasLogin }
+public record UserLinkResult(UserLinkStatus Status, string? Problem = null);

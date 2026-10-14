@@ -131,6 +131,9 @@ namespace FyreApp.Migrations
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
+                    b.Property<int?>("UptickUserId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -143,6 +146,9 @@ namespace FyreApp.Migrations
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("UptickUserId")
+                        .IsUnique();
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
@@ -560,8 +566,8 @@ namespace FyreApp.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AssignedToUserId")
-                        .HasColumnType("text");
+                    b.Property<int?>("AssignedToUptickUserId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Category")
                         .HasMaxLength(50)
@@ -630,7 +636,7 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AssignedToUserId");
+                    b.HasIndex("AssignedToUptickUserId");
 
                     b.HasIndex("ClientId");
 
@@ -2111,6 +2117,16 @@ namespace FyreApp.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FyreApp.Models.ApplicationUser", b =>
+                {
+                    b.HasOne("FyreApp.Models.UptickUser", "UptickUser")
+                        .WithOne()
+                        .HasForeignKey("FyreApp.Models.ApplicationUser", "UptickUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("UptickUser");
+                });
+
             modelBuilder.Entity("FyreApp.Models.Asset", b =>
                 {
                     b.HasOne("FyreApp.Models.AssetTypeVariant", "AssetTypeVariant")
@@ -2153,9 +2169,9 @@ namespace FyreApp.Migrations
 
             modelBuilder.Entity("FyreApp.Models.ClientTask", b =>
                 {
-                    b.HasOne("FyreApp.Models.ApplicationUser", "AssignedTo")
+                    b.HasOne("FyreApp.Models.UptickUser", "AssignedTo")
                         .WithMany()
-                        .HasForeignKey("AssignedToUserId")
+                        .HasForeignKey("AssignedToUptickUserId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("FyreApp.Models.Client", "Client")

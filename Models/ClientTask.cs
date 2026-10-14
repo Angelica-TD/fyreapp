@@ -73,11 +73,13 @@ public class ClientTask
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedUtc { get; set; }
 
-    public string? AssignedToUserId { get; set; }
-    public ApplicationUser? AssignedTo { get; set; }
+    // The technician doing it: an Uptick user (Uptick is the source of truth for who's who). They see it
+    // under "My tasks" when they sign in with the FyreApp login linked to that Uptick user.
+    public int? AssignedToUptickUserId { get; set; }
+    public UptickUser? AssignedTo { get; set; }
 
-    // Who Uptick has it assigned to (Uptick "Assigned Technician", e.g. "Dwayne Page"), for imported tasks.
-    // Just a name: Uptick technicians aren't FyreApp logins. Assigning a FyreApp technician takes over.
+    // Who Uptick has it assigned to (Uptick "Assigned Technician", e.g. "Dwayne Page"), for imported tasks,
+    // exactly as the export names them. Matched to an Uptick user by name to set AssignedTo.
     [StringLength(200)]
     public string? UptickTechnician { get; set; }
     public string? CreatedByUserId { get; set; }

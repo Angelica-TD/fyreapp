@@ -1,8 +1,12 @@
+using FyreApp.Data;
 using FyreApp.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.UserManagement;
 
+// FyreApp logins. Uptick is the source of truth for who's who: a login is given to an Uptick user and takes
+// its name and email from them (UptickLoginSync); FyreApp only adds the role, phone, password and active flag.
 public class UserManagementService : IUserManagementService
 {
     // Every role the app uses; created at startup if missing (Program.cs)
@@ -10,29 +14,41 @@ public class UserManagementService : IUserManagementService
     private static readonly string[] AllowedRoles = Roles;
 
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly AppDbContext _db;
 
-    public UserManagementService(UserManager<ApplicationUser> userManager)
+    public UserManagementService(UserManager<ApplicationUser> userManager, AppDbContext db)
     {
         _userManager = userManager;
+        _db = db;
     }
 
     public IReadOnlyList<string> GetAvailableRoles() => AllowedRoles;
 
-    public async Task<IEnumerable<UserViewModel>> GetAllAsync()
+    public async Task<IReadOnlyList<UserViewModel>> GetUnlinkedAsync()
     {
-        var users = _userManager.Users
+        var users = await _userManager.Users
+            .Where(u => u.UptickUserId == null)
             .OrderBy(u => u.LastName)
             .ThenBy(u => u.FirstName)
-            .ToList();
+            .ToListAsync();
 
         var result = new List<UserViewModel>();
         foreach (var u in users)
         {
             var roles = await _userManager.GetRolesAsync(u);
-            result.Add(Map(u, roles.FirstOrDefault() ?? string.Empty));
+            result.Add(Map(u, roles.FirstOrDefault() ?? string.Empty, null));
         }
         return result;
     }
+
+    public async Task<IReadOnlyList<UptickUser>> GetLinkableUptickUsersAsync() =>
+        await _db.UptickUsers.AsNoTracking()
+            .Where(u => u.LicenseType != "CUSTOMER" && !_db.Users.Any(a => a.UptickUserId == u.Id))
+            .OrderBy(u => u.Name)
+            .ToListAsync();
+
+    public Task<UptickUser?> GetUptickUserAsync(int id) =>
+        _db.UptickUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
 
     public async Task<UserViewModel?> GetByIdAsync(string id)
     {
@@ -40,7 +56,9 @@ public class UserManagementService : IUserManagementService
         if (user == null) return null;
 
         var roles = await _userManager.GetRolesAsync(user);
-        return Map(user, roles.FirstOrDefault() ?? string.Empty);
+        var uptickName = user.UptickUserId == null ? null
+            : await _db.UptickUsers.Where(u => u.Id == user.UptickUserId).Select(u => u.Name).FirstOrDefaultAsync();
+        return Map(user, roles.FirstOrDefault() ?? string.Empty, uptickName);
     }
 
     public async Task<UserCreateResult> CreateAsync(UserCreateDto dto)
@@ -48,18 +66,28 @@ public class UserManagementService : IUserManagementService
         if (!AllowedRoles.Contains(dto.Role))
             return new UserCreateResult(UserCreateStatus.InvalidRole);
 
-        var existing = await _userManager.FindByEmailAsync(dto.Email);
-        if (existing != null)
+        var uptick = await _db.UptickUsers.FindAsync(dto.UptickUserId);
+        if (uptick == null)
+            return new UserCreateResult(UserCreateStatus.UptickUserNotFound);
+        if (string.IsNullOrWhiteSpace(uptick.Email))
+            return new UserCreateResult(UserCreateStatus.NoEmail);
+        if (await _db.Users.AnyAsync(u => u.UptickUserId == uptick.Id))
+            return new UserCreateResult(UserCreateStatus.AlreadyHasLogin);
+
+        var email = uptick.Email.Trim();
+        if (await _userManager.FindByEmailAsync(email) != null)
             return new UserCreateResult(UserCreateStatus.EmailAlreadyExists);
 
+        var (first, last) = UptickLoginSync.SplitName(uptick.Name);
         var user = new ApplicationUser
         {
-            FirstName = dto.FirstName,
-            LastName = dto.LastName,
-            Email = dto.Email,
-            UserName = dto.Email,
+            FirstName = first,
+            LastName = last,
+            Email = email,
+            UserName = email,
             PhoneNumber = dto.PhoneNumber,
-            IsActive = true
+            IsActive = true,
+            UptickUserId = uptick.Id
         };
 
         var createResult = await _userManager.CreateAsync(user, dto.Password);
@@ -71,6 +99,7 @@ public class UserManagementService : IUserManagementService
         return new UserCreateResult(UserCreateStatus.Success, UserId: user.Id);
     }
 
+    // A linked login only changes its phone and role here; its name and email come from Uptick
     public async Task<UserUpdateResult> UpdateAsync(string id, UserEditDto dto)
     {
         if (!AllowedRoles.Contains(dto.Role))
@@ -80,18 +109,21 @@ public class UserManagementService : IUserManagementService
         if (user == null)
             return new UserUpdateResult(UserUpdateStatus.NotFound);
 
-        if (user.Email != dto.Email)
+        if (user.UptickUserId == null)
         {
-            var existing = await _userManager.FindByEmailAsync(dto.Email);
-            if (existing != null && existing.Id != id)
-                return new UserUpdateResult(UserUpdateStatus.EmailAlreadyExists);
+            if (user.Email != dto.Email)
+            {
+                var existing = await _userManager.FindByEmailAsync(dto.Email);
+                if (existing != null && existing.Id != id)
+                    return new UserUpdateResult(UserUpdateStatus.EmailAlreadyExists);
 
-            user.Email = dto.Email;
-            user.UserName = dto.Email;
+                user.Email = dto.Email;
+                user.UserName = dto.Email;
+            }
+
+            user.FirstName = dto.FirstName;
+            user.LastName = dto.LastName;
         }
-
-        user.FirstName = dto.FirstName;
-        user.LastName = dto.LastName;
         user.PhoneNumber = dto.PhoneNumber;
 
         var updateResult = await _userManager.UpdateAsync(user);
@@ -108,6 +140,34 @@ public class UserManagementService : IUserManagementService
         }
 
         return new UserUpdateResult(UserUpdateStatus.Success);
+    }
+
+    // Links a login made before Uptick was imported to its Uptick user, which then sets its name and email
+    public async Task<UserLinkResult> LinkAsync(string id, int uptickUserId)
+    {
+        var logins = await _db.Users.ToListAsync();
+        var user = logins.FirstOrDefault(u => u.Id == id);
+        if (user == null)
+            return new UserLinkResult(UserLinkStatus.NotFound);
+
+        var uptick = await _db.UptickUsers.FindAsync(uptickUserId);
+        if (uptick == null)
+            return new UserLinkResult(UserLinkStatus.UptickUserNotFound);
+        if (logins.Any(u => u.UptickUserId == uptickUserId && u.Id != id))
+            return new UserLinkResult(UserLinkStatus.AlreadyHasLogin);
+
+        user.UptickUserId = uptick.Id;
+        var problem = UptickLoginSync.Apply(user, uptick, logins, out _);
+        await _db.SaveChangesAsync();
+        return new UserLinkResult(UserLinkStatus.Success, problem);
+    }
+
+    public async Task<UptickLoginSync.Result> SyncFromUptickAsync()
+    {
+        var result = await UptickLoginSync.ApplyAsync(_db);
+        var tasksAssigned = await FyreApp.Services.Tasks.TechnicianMatch.AssignImportedTasksAsync(_db);
+        await _db.SaveChangesAsync();
+        return result with { TasksAssigned = tasksAssigned };
     }
 
     public async Task<UserDeactivateResult> DeactivateAsync(string id)
@@ -164,7 +224,7 @@ public class UserManagementService : IUserManagementService
         return new UserResetPasswordResult(UserResetPasswordStatus.Success);
     }
 
-    private static UserViewModel Map(ApplicationUser u, string role) => new()
+    private static UserViewModel Map(ApplicationUser u, string role, string? uptickName) => new()
     {
         Id = u.Id,
         FirstName = u.FirstName,
@@ -172,6 +232,8 @@ public class UserManagementService : IUserManagementService
         Email = u.Email ?? string.Empty,
         PhoneNumber = u.PhoneNumber ?? string.Empty,
         Role = role,
-        IsActive = u.IsActive
+        IsActive = u.IsActive,
+        UptickUserId = u.UptickUserId,
+        UptickName = uptickName
     };
 }
