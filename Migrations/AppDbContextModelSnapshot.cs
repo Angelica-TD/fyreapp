@@ -952,6 +952,49 @@ namespace FyreApp.Migrations
                     b.ToTable("MaintenanceSchedules");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.PropertyRoutineService", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<DateTime>("LastAnnualDate")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<int>("RoutineServiceTypeId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SiteId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Subcontractor")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoutineServiceTypeId");
+
+                    b.HasIndex("SiteId");
+
+                    b.ToTable("PropertyRoutineServices");
+                });
+
             modelBuilder.Entity("FyreApp.Models.Quote", b =>
                 {
                     b.Property<int>("Id")
@@ -1134,6 +1177,9 @@ namespace FyreApp.Migrations
                     b.Property<int?>("MaintenanceScheduleId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("PropertyRoutineServiceId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Routine")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -1173,6 +1219,8 @@ namespace FyreApp.Migrations
                         .IsUnique();
 
                     b.HasIndex("MaintenanceScheduleId");
+
+                    b.HasIndex("PropertyRoutineServiceId");
 
                     b.HasIndex("RoutineServiceLevelId");
 
@@ -2087,6 +2135,21 @@ namespace FyreApp.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("PropertyRoutineServiceLevels", b =>
+                {
+                    b.Property<int>("LevelsId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PropertyRoutineServiceId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("LevelsId", "PropertyRoutineServiceId");
+
+                    b.HasIndex("PropertyRoutineServiceId");
+
+                    b.ToTable("PropertyRoutineServiceLevels");
+                });
+
             modelBuilder.Entity("AssetAssetType", b =>
                 {
                     b.HasOne("FyreApp.Models.AssetType", null)
@@ -2268,6 +2331,25 @@ namespace FyreApp.Migrations
                     b.Navigation("Site");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.PropertyRoutineService", b =>
+                {
+                    b.HasOne("FyreApp.Models.RoutineServiceType", "RoutineServiceType")
+                        .WithMany()
+                        .HasForeignKey("RoutineServiceTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.Site", "Site")
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RoutineServiceType");
+
+                    b.Navigation("Site");
+                });
+
             modelBuilder.Entity("FyreApp.Models.Quote", b =>
                 {
                     b.HasOne("FyreApp.Models.Client", "Client")
@@ -2351,6 +2433,11 @@ namespace FyreApp.Migrations
                         .HasForeignKey("MaintenanceScheduleId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("FyreApp.Models.PropertyRoutineService", "PropertyRoutineService")
+                        .WithMany("Occurrences")
+                        .HasForeignKey("PropertyRoutineServiceId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("FyreApp.Models.RoutineServiceLevel", "RoutineServiceLevel")
                         .WithMany()
                         .HasForeignKey("RoutineServiceLevelId")
@@ -2365,6 +2452,8 @@ namespace FyreApp.Migrations
                     b.Navigation("ClientTask");
 
                     b.Navigation("MaintenanceSchedule");
+
+                    b.Navigation("PropertyRoutineService");
 
                     b.Navigation("RoutineServiceLevel");
 
@@ -2562,6 +2651,21 @@ namespace FyreApp.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("PropertyRoutineServiceLevels", b =>
+                {
+                    b.HasOne("FyreApp.Models.RoutineServiceLevel", null)
+                        .WithMany()
+                        .HasForeignKey("LevelsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.PropertyRoutineService", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyRoutineServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("FyreApp.Models.Asset", b =>
                 {
                     b.Navigation("Defects");
@@ -2596,6 +2700,11 @@ namespace FyreApp.Migrations
                     b.Navigation("GeneratedTasks");
 
                     b.Navigation("MaintenanceHistory");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.PropertyRoutineService", b =>
+                {
+                    b.Navigation("Occurrences");
                 });
 
             modelBuilder.Entity("FyreApp.Models.Quote", b =>

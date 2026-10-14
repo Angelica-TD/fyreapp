@@ -95,6 +95,7 @@ public class DataResetService : IDataResetService
             ("Tasks", await _db.ClientTasks.ExecuteDeleteAsync(ct)),
             ("Maintenance history", await _db.MaintenanceHistory.ExecuteDeleteAsync(ct)),
             ("Routines", await _db.RoutineOccurrences.ExecuteDeleteAsync(ct)),
+            ("Routine services", await _db.PropertyRoutineServices.ExecuteDeleteAsync(ct)),
             ("Maintenance schedules", await _db.MaintenanceSchedules.ExecuteDeleteAsync(ct)),
             ("Defects", await _db.Defects.ExecuteDeleteAsync(ct)),
             ("Service reports", await _db.ServiceReports.ExecuteDeleteAsync(ct)),

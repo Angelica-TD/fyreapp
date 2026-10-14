@@ -40,6 +40,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<RoutineServiceType> RoutineServiceTypes => Set<RoutineServiceType>();
     public DbSet<RoutineServiceLevel> RoutineServiceLevels => Set<RoutineServiceLevel>();
     public DbSet<RoutineOccurrence> RoutineOccurrences => Set<RoutineOccurrence>();
+    public DbSet<PropertyRoutineService> PropertyRoutineServices => Set<PropertyRoutineService>();
 
 
 
@@ -571,6 +572,34 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(o => o.ExternalId).IsUnique();
             entity.HasIndex(o => new { o.DueDate, o.Status }); // the Routines page filters on these
             entity.HasIndex(o => o.SiteId);
+
+            // Removing a routine service removes the occurrences it forecast
+            entity.HasOne(o => o.PropertyRoutineService)
+                .WithMany(s => s.Occurrences)
+                .HasForeignKey(o => o.PropertyRoutineServiceId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired(false);
+        });
+
+        modelBuilder.Entity<PropertyRoutineService>(entity =>
+        {
+            entity.HasOne(s => s.Site)
+                .WithMany()
+                .HasForeignKey(s => s.SiteId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(s => s.RoutineServiceType)
+                .WithMany()
+                .HasForeignKey(s => s.RoutineServiceTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(s => s.Levels)
+                .WithMany()
+                .UsingEntity("PropertyRoutineServiceLevels");
+
+            entity.Property(s => s.StartDate).HasColumnType("timestamptz");
+            entity.Property(s => s.LastAnnualDate).HasColumnType("timestamptz");
+            entity.Property(s => s.EndDate).HasColumnType("timestamptz");
+            entity.Property(s => s.CreatedUtc).HasColumnType("timestamptz");
+            entity.HasIndex(s => s.SiteId);
         });
 
         // FyreApp refs ("C-1001", "P-1001", ...) are assigned on insert by a Postgres trigger

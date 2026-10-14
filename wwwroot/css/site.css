@@ -478,6 +478,21 @@ a.routine-marker:hover {
     margin-bottom: 0.35rem;
 }
 
+/* Property → Routines → Add routine services: level chips are ticked pills, as Uptick's */
+.routine-level-chip .bi {
+    display: none;
+}
+
+.btn-check:checked + .routine-level-chip .bi {
+    display: inline;
+}
+
+/* Hidden rows (filtered out) and levels (type not ticked); d-flex would otherwise win over [hidden] */
+.add-routines-table tr[hidden],
+.add-routines-table .js-routine-levels[hidden] {
+    display: none !important;
+}
+
 /* ============================================================
    TASK PAGE (laid out like Uptick's: Task / Work tabs, three columns)
    ============================================================ */

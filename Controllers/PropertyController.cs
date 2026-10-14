@@ -192,14 +192,34 @@ namespace FyreApp.Controllers
             return RedirectToAction("Details", new { id = siteId, tab = "assets" });
         }
 
+        // Routines tab → Add routine services: a routine service per ticked routine type, with its occurrences forecast
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AddRoutineServices(int id, FyreApp.ViewModels.Routines.AddRoutineServicesInput input,
+            [FromServices] FyreApp.Services.Routines.IRoutineSetupService routineSetup, CancellationToken ct)
+        {
+            var result = await routineSetup.AddAsync(id, input, User.Identity?.Name, ct);
+            if (result.Error != null)
+                TempData["Error"] = result.Error;
+            else
+                TempData["Success"] = $"Added {result.Services} routine service{(result.Services == 1 ? "" : "s")}: " +
+                                      $"{result.Occurrences} routine{(result.Occurrences == 1 ? "" : "s")} forecast.";
+            return RedirectToAction(nameof(Details), new { id, tab = "routines", year = (result.FirstDue ?? input.StartDate)?.Year });
+        }
+
         // GET: /Property/Details/5?tab=assets — the property page, one Uptick-style tab at a time
         public async Task<IActionResult> Details(
             int id, string? tab, int? year, string? active, int? assetType, string? search, bool closed = false, bool notes = false,
-            CancellationToken ct = default)
+            [FromServices] FyreApp.Services.Routines.IRoutineSetupService? routineSetup = null, CancellationToken ct = default)
         {
             var page = await _page.LoadAsync(id, new FyreApp.Services.Sites.PropertyPageQuery(tab, year, active, assetType, search, closed, notes), ct);
             if (page == null)
                 return NotFound();
+
+            // Routines tab: Uptick's "Add routine services" modal, for admins
+            if (page.Tab == "routines" && routineSetup != null && User.IsInRole("Admin"))
+                ViewBag.AddRoutines = await routineSetup.FormAsync(id, ct);
 
             // As Uptick: Home / Properties / P-0391
             ViewData["Breadcrumbs"] = new List<(string Text, string? Url)>
