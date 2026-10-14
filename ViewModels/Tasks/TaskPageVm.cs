@@ -17,6 +17,10 @@ public class TaskPageVm
     public IReadOnlyList<Defect> Repairs { get; set; } = [];
     public IReadOnlyList<string> Routines { get; set; } = [];
 
+    // The routines its Work tab lists assets for: the ones it was generated from, or for imported Uptick tasks
+    // the ones its scope of works names
+    public IReadOnlyList<string> ServiceRoutines { get; set; } = [];
+
     // The assets it services for those routines (Work tab), by routine
     public IReadOnlyList<(string Routine, Asset Asset)> ServiceAssets { get; set; } = [];
 

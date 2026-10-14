@@ -54,6 +54,27 @@ public static class RoutineAssets
     public static IReadOnlyList<string> Lines(string? value) =>
         (value ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+    // The routines an imported Uptick task's "Scope of works" names, one per line:
+    // "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"
+    // → "10 - Portable and Wheeled Fire Extinguishers: Annual". Lines not starting with a known routine are skipped.
+    public static IReadOnlyList<SiteRoutine> FromScope(int siteId, string scope, IEnumerable<string> routineTypes)
+    {
+        // Longest first, so "06 - Fire Detection (Fire Panels)" wins over a shorter name it starts with
+        var types = routineTypes.OrderByDescending(t => t.Length).ToList();
+        var routines = new List<SiteRoutine>();
+        foreach (var line in Lines(scope))
+        {
+            var text = line.TrimStart('-', ' ');
+            var type = types.FirstOrDefault(t => text.StartsWith(t, StringComparison.OrdinalIgnoreCase));
+            if (type == null) continue;
+
+            var i = text.LastIndexOf(": ", StringComparison.Ordinal);
+            var level = i < type.Length ? null : text[(i + 2)..].Trim();
+            routines.Add(new SiteRoutine(siteId, string.IsNullOrEmpty(level) ? type : $"{type}: {level}", type));
+        }
+        return routines.DistinctBy(r => r.Routine).ToList();
+    }
+
     // "10 - Portable and Wheeled Fire Extinguishers: Six-monthly" → "10 - Portable and Wheeled Fire Extinguishers"
     public static string RoutineType(string routine)
     {
