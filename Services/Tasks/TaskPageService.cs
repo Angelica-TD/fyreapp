@@ -29,19 +29,19 @@ public class TaskPageService : ITaskPageService
             .FirstOrDefaultAsync(t => t.Id == id, ct);
         if (task == null) return null;
 
-        // Routines this task was generated from (Routines page → Generate tasks); for imported Uptick routine tasks, the
-        // property's raised routines its scope of works names ("- 10 - … (AS1851-2012 Section 10): Annual") that are due in its month
+        // Routines this task was generated from (Routines page → Generate tasks)
         var routines = await _db.RoutineOccurrences.AsNoTracking()
             .Include(o => o.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
             .Where(o => o.ClientTaskId == id)
             .ToListAsync(ct);
-        var visits = routines.Count > 0 ? routines : await RoutineCompletion.InScopeAsync(_db, _db.RoutineOccurrences.AsNoTracking()
-            .Where(o => o.ClientTaskId == null && (o.Status == RoutineOccurrenceStatus.Generated || o.Status == RoutineOccurrenceStatus.Complete)), task, ct);
 
         var siteRoutines = routines.Select(o => new RoutineAssets.SiteRoutine(o.SiteId, o.Routine, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Routine))).ToList();
         // Imported tasks list assets for every routine their scope names, even ones whose routine isn't imported
         if (siteRoutines.Count == 0 && UptickJson.Value(task.UptickData, "Scope of works") is { } scope)
             siteRoutines = RoutineAssets.FromScope(task.SiteId, scope, await _db.RoutineServiceTypes.AsNoTracking().Select(t => t.Name).ToListAsync(ct)).ToList();
+        var visits = routines.Count > 0
+            ? routines.OrderBy(o => o.Routine).ThenBy(o => o.DueDate).Select(o => (o.Routine, (RoutineOccurrence?)o)).ToList()
+            : await NearestRoutinesAsync(task, siteRoutines.Select(r => r.Routine).ToList(), ct);
         var serviceAssets = await ServiceAssetsAsync(id, siteRoutines, ct);
         var assetIds = serviceAssets.Select(a => a.Asset.Id).Distinct().ToList();
 
@@ -53,7 +53,7 @@ public class TaskPageService : ITaskPageService
             Routines = routines.Select(o => o.Routine).Distinct().Order().ToList(),
             ServiceRoutines = siteRoutines.Select(r => r.Routine).ToList(),
             ServiceAssets = serviceAssets,
-            Visits = visits.OrderBy(o => o.Routine).ThenBy(o => o.DueDate).ToList(),
+            Visits = visits,
             OpenRemarks = await _db.Defects.AsNoTracking()
                 .Where(d => d.Active && d.AssetId != null && assetIds.Contains(d.AssetId.Value))
                 .GroupBy(d => d.AssetId!.Value)
@@ -93,12 +93,78 @@ public class TaskPageService : ITaskPageService
                 .Select(u => (u.Id.ToString(), u.LicenseType == "CONTRACTOR" ? u.Name + " (contractor)" : u.Name))
                 .ToList()
         };
+        vm.PerformedOn = await PerformedAsync(task, serviceAssets, ct);
         vm.Remarks = await RemarksAsync(vm, assetIds, ct);
         return vm;
     }
 
+    // An imported Uptick routine task's routines, one per routine its scope of works names: the property's raised or
+    // completed routine of that name due in the task's month, else nearest it (within a couple of months either side)
+    private async Task<List<(string Routine, RoutineOccurrence? Occurrence)>> NearestRoutinesAsync(
+        ClientTask task, IReadOnlyList<string> names, CancellationToken ct)
+    {
+        if (names.Count == 0 || task.DueDateUtc is not DateTime due) return names.Order().Select(n => (n, (RoutineOccurrence?)null)).ToList();
+
+        var from = due.AddMonths(-2);
+        var to = due.AddMonths(2);
+        var found = (await _db.RoutineOccurrences.AsNoTracking()
+                .Where(o => o.SiteId == task.SiteId && (o.ClientTaskId == null || o.ClientTaskId == task.Id)
+                            && (o.Status == RoutineOccurrenceStatus.Generated || o.Status == RoutineOccurrenceStatus.Complete)
+                            && o.DueDate >= from && o.DueDate <= to)
+                .ToListAsync(ct))
+            .Where(o => names.Contains(o.Routine, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+        return names.Order()
+            .Select(n => (n, found.Where(o => string.Equals(o.Routine, n, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(o => o.DueDate.Year == due.Year && o.DueDate.Month == due.Month ? 0 : 1)
+                .ThenBy(o => Math.Abs((o.DueDate - due).Ticks))
+                .FirstOrDefault()))
+            .ToList();
+    }
+
+    // Which of its assets the task serviced. Uptick's exports give only each asset's last service date, so that goes to
+    // the property's task whose scope of works names the asset's routine and that was being worked on then: the one
+    // performed that day, else the one started most recently by then. So a later task servicing the asset doesn't
+    // count for an earlier one still open.
+    private async Task<IReadOnlyDictionary<int, DateTime>> PerformedAsync(
+        ClientTask task, IReadOnlyList<(string Routine, Asset Asset)> serviceAssets, CancellationToken ct)
+    {
+        static bool During((DateTime From, DateTime? To) w, DateTime d) => d >= w.From && (w.To is not DateTime to || d <= to);
+
+        var window = TaskPageVm.WorkWindow(task);
+        var serviced = serviceAssets
+            .Where(a => a.Asset.LastServiceDate is DateTime d && During(window, d.Date))
+            .Select(a => (Type: RoutineAssets.RoutineType(a.Routine), a.Asset.Id, Date: a.Asset.LastServiceDate!.Value.Date))
+            .ToList();
+        if (serviced.Count == 0) return new Dictionary<int, DateTime>();
+
+        // The property's other tasks around then (ones due well before can't win: they started earlier), and the
+        // routines their scopes name
+        var dueFrom = DateTime.SpecifyKind(window.From.AddMonths(-3), DateTimeKind.Utc);
+        var dueTo = DateTime.SpecifyKind(serviced.Max(s => s.Date).AddMonths(3), DateTimeKind.Utc);
+        var types = await _db.RoutineServiceTypes.AsNoTracking().Select(t => t.Name).ToListAsync(ct);
+        var others = (await _db.ClientTasks.AsNoTracking()
+                .Where(t => t.SiteId == task.SiteId && t.Id != task.Id && t.Status != ClientTaskStatus.Cancelled
+                            && (t.DueDateUtc == null || (t.DueDateUtc >= dueFrom && t.DueDateUtc <= dueTo)))
+                .ToListAsync(ct))
+            .Select(t => (Window: TaskPageVm.WorkWindow(t),
+                          Types: RoutineAssets.FromScope(t.SiteId, TaskPageVm.Scope(t) ?? "", types).Select(r => r.RoutineType).ToHashSet(StringComparer.OrdinalIgnoreCase)))
+            .Where(t => t.Types.Count > 0)
+            .ToList();
+
+        var performed = new Dictionary<int, DateTime>();
+        foreach (var (type, assetId, date) in serviced)
+        {
+            var rivals = others.Where(o => o.Types.Contains(type) && During(o.Window, date)).Select(o => o.Window).ToList();
+            var ours = window.To == date
+                       || (!rivals.Any(r => r.To == date) && !rivals.Any(r => r.From > window.From));
+            if (ours) performed.TryAdd(assetId, date);
+        }
+        return performed;
+    }
+
     // The Remark registry: remarks identified on the task (Uptick's "Created on Task Ref"), and ones it resolved: remarks it
-    // was raised to repair, and remarks on the assets it services closed off while its work was being done
+    // was raised to repair, and remarks on the assets it serviced closed off while its work was being done
     private async Task<IReadOnlyList<(Defect Remark, bool Resolved)>> RemarksAsync(TaskPageVm vm, List<int> assetIds, CancellationToken ct)
     {
         var task = vm.Task;
@@ -111,7 +177,7 @@ public class TaskPageService : ITaskPageService
                             || (!d.Active && d.AssetId != null && assetIds.Contains(d.AssetId.Value) && d.InactiveUtc >= since)))
             .ToListAsync(ct);
 
-        bool ClosedDuringWork(Defect d) => d.InactiveUtc?.ToSydney().Date is DateTime closed
+        bool ClosedDuringWork(Defect d) => d.AssetId is int assetId && vm.PerformedOn.ContainsKey(assetId) && d.InactiveUtc?.ToSydney().Date is DateTime closed
             && closed >= vm.WorkFrom && (vm.WorkTo is not DateTime to || closed <= to);
 
         return remarks

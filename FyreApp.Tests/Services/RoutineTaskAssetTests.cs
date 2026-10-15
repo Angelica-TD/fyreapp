@@ -149,6 +149,8 @@ public class RoutineTaskAssetTests
         Assert.Equal(new[] { Extinguishers + ": Annual" }, vm.ServiceRoutines);
         Assert.Equal(new[] { "FE Kitchen", "FE Hall" }, vm.ServiceAssets.Select(a => a.Asset.Name));
         Assert.Empty(vm.Routines); // not generated from routines
+        // Its routine still heads the Work tab, without an ID or due date (none imported)
+        Assert.Equal((Extinguishers + ": Annual", (RoutineOccurrence?)null), Assert.Single(vm.Visits));
     }
 
     [Fact]
@@ -182,8 +184,8 @@ public class RoutineTaskAssetTests
 
         var vm = (await new TaskPageService(db).LoadAsync(task.Id, "work"))!;
 
-        // The property's routine its scope names, due in the task's month
-        Assert.Equal("49441", Assert.Single(vm.Visits).ExternalId);
+        // The property's routine its scope names, due nearest the task
+        Assert.Equal("49441", Assert.Single(vm.Visits).Occurrence!.ExternalId);
         // Serviced this month: the kitchen extinguisher, not the hall's (serviced last year)
         Assert.Equal(new DateTime(2026, 10, 14), vm.Performed(kitchen));
         Assert.Null(vm.Performed(hall));
@@ -192,6 +194,43 @@ public class RoutineTaskAssetTests
         Assert.Equal(new[] { ("Flow test 10 @ 1.26 L/sec", false), ("Flow test/ 96.6 L/m", true) },
             vm.Remarks.Select(r => (r.Remark.Description!, r.Resolved)).OrderBy(r => r.Item2));
         Assert.Equal(new Dictionary<int, int> { [kitchen.Id] = 1, [hall.Id] = 1 }, vm.OpenRemarks);
+    }
+
+    // Two of the property's tasks name the extinguisher routine in their scope of works: October's, and November's
+    [Theory]
+    // October's still open; November's serviced it on the 5th → November's, not October's
+    [InlineData(null, "2026-11-05", "2026-11-05", false, true)]
+    // October's done late on 3 Nov, November's still open → October's
+    [InlineData("2026-11-03", null, "2026-11-03", true, false)]
+    // Serviced in October, before November's started → October's
+    [InlineData(null, null, "2026-10-14", true, false)]
+    public async Task WorkTab_AnAssetsServiceGoesToTheTaskWhoseScopeCoversItThatDidIt(
+        string? octoberPerformed, string? novemberPerformed, string serviced, bool october, bool november)
+    {
+        using var db = DbContextFactory.Create();
+        var (glory, _) = await SeedAsync(db);
+        db.RoutineServiceTypes.Add(new RoutineServiceType { Name = Extinguishers });
+        ClientTask Task(string title, int month, string? performed) => new()
+        {
+            ClientId = glory.ClientId, SiteId = glory.Id, Title = title, ExternalId = title, Ref = "T-" + title,
+            DueDateUtc = DateTime.SpecifyKind(new DateTime(2026, month, 28), DateTimeKind.Utc),
+            UptickData = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string?>
+            {
+                ["Scope of works"] = $"- {Extinguishers} (AS1851-2012 Section 10): {(month == 10 ? "Annual" : "Six-monthly")}",
+                ["Performed Date"] = performed == null ? null : performed + " 15:09:00"
+            }.Where(kv => kv.Value != null).ToDictionary())
+        };
+        var oct = Task("46682", 10, octoberPerformed);
+        var nov = Task("46900", 11, novemberPerformed);
+        db.ClientTasks.AddRange(oct, nov);
+        var kitchen = await db.Assets.SingleAsync(a => a.Name == "FE Kitchen");
+        kitchen.LastServiceDate = DateTime.Parse(serviced);
+        kitchen.Compliance = "Pass";
+        await db.SaveChangesAsync();
+
+        var pages = new TaskPageService(db);
+        Assert.Equal(october, (await pages.LoadAsync(oct.Id, "work"))!.Performed(kitchen) != null);
+        Assert.Equal(november, (await pages.LoadAsync(nov.Id, "work"))!.Performed(kitchen) != null);
     }
 
     [Fact]
