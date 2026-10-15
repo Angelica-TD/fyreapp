@@ -91,16 +91,17 @@
                     <div class="table-responsive">
                         <table class="table align-middle mb-0">
                             <thead>
-                                <tr><th>ID</th><th>Routine</th><th class="work-progress">Activities</th></tr>
+                                <tr><th>ID</th><th>Routine</th><th title="Not in Uptick's exports">Visit fee</th><th class="work-progress">Activities</th></tr>
                             </thead>
                             <tbody>
-                                @foreach (var v in Model.Visits)
+                                @foreach (var (name, v) in Model.Visits)
                                 {
-                                    var assets = Model.ServiceAssets.Where(a => string.Equals(a.Routine, v.Routine, StringComparison.OrdinalIgnoreCase)).ToList();
+                                    var assets = Model.ServiceAssets.Where(a => string.Equals(a.Routine, name, StringComparison.OrdinalIgnoreCase)).ToList();
                                     var done = assets.Count(a => Model.Performed(a.Asset) != null);
                                     <tr>
-                                        <td class="text-nowrap">@(v.ExternalId ?? v.Id.ToString())</td>
-                                        <td>@v.Routine (@v.DueDate.ToOrdinalDate())</td>
+                                        <td class="text-nowrap">@(v == null ? "-" : v.ExternalId ?? v.Id.ToString())</td>
+                                        <td>@name@(v == null ? "" : $" ({v.DueDate.ToOrdinalDate()})")</td>
+                                        <td class="text-nowrap text-muted">-</td>
                                         <td class="work-progress text-nowrap">
                                             <div class="d-flex align-items-center gap-2">
                                                 <div class="progress flex-grow-1" role="progressbar" aria-label="Assets serviced" aria-valuenow="@done" aria-valuemin="0" aria-valuemax="@assets.Count">

@@ -25,37 +25,37 @@ public class TaskPageVm
     // The assets it services for those routines (Work tab), by routine
     public IReadOnlyList<(string Routine, Asset Asset)> ServiceAssets { get; set; } = [];
 
-    // The routines themselves, with their IDs and due dates (Work tab's Asset Maintenance summary)
-    public IReadOnlyList<RoutineOccurrence> Visits { get; set; } = [];
+    // Its routines (Work tab's Asset Maintenance summary), each with its routine record (ID, due date) when found
+    public IReadOnlyList<(string Routine, RoutineOccurrence? Occurrence)> Visits { get; set; } = [];
 
     // Remarks identified or resolved on this task (Work tab's Remark registry), and each serviced asset's open remarks
     public IReadOnlyList<(Defect Remark, bool Resolved)> Remarks { get; set; } = [];
     public IReadOnlyDictionary<int, int> OpenRemarks { get; set; } = new Dictionary<int, int>();
 
-    // When the task's work was done: from its due month (or scheduled date, if earlier) to when it was performed or
-    // completed. Uptick's exports don't say which task serviced an asset, so an asset whose last service falls in
-    // this window counts as performed on it.
-    public DateTime WorkFrom
+    // The assets serviced on this task, with the date (their last service, claimed by this task: see TaskPageService)
+    public IReadOnlyDictionary<int, DateTime> PerformedOn { get; set; } = new Dictionary<int, DateTime>();
+
+    public DateTime? Performed(Asset a) => PerformedOn.TryGetValue(a.Id, out var d) ? d : null;
+
+    public DateTime WorkFrom => WorkWindow(Task).From;
+    public DateTime? WorkTo => WorkWindow(Task).To;
+
+    // When a task's work is done: from its due month (or scheduled date, if earlier) to when it was performed or
+    // completed (open-ended until then)
+    public static (DateTime From, DateTime? To) WorkWindow(ClientTask t)
     {
-        get
-        {
-            var from = Task.DueDateUtc is DateTime due ? new DateTime(due.Year, due.Month, 1) : Task.CreatedUtc.ToSydney().Date;
-            return UDate("Scheduled Date") is DateTime scheduled && scheduled < from ? scheduled : from;
-        }
+        DateTime? UDate(string header) =>
+            UptickJson.Value(t.UptickData, header) is { } s
+            && DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d) ? d.Date : null;
+
+        var from = t.DueDateUtc is DateTime due ? new DateTime(due.Year, due.Month, 1) : t.CreatedUtc.ToSydney().Date;
+        if (UDate("Scheduled Date") is DateTime scheduled && scheduled < from) from = scheduled;
+        return (from, t.CompletedUtc?.ToSydney().Date ?? UDate("Performed Date"));
     }
-
-    public DateTime? WorkTo => Task.CompletedUtc?.ToSydney().Date ?? UDate("Performed Date");
-
-    // The date the asset was serviced on this task, if it has been
-    public DateTime? Performed(Asset a) =>
-        a.LastServiceDate is DateTime d && d.Date >= WorkFrom && (WorkTo is not DateTime to || d.Date <= to) ? d.Date : null;
 
     // Work tab: assets serviced and repairs resolved, of all of them
     public int WorkDone => ServiceAssets.Count(a => Performed(a.Asset) != null) + Repairs.Count(r => !r.Active);
     public int WorkTotal => ServiceAssets.Count + Repairs.Count;
-
-    private DateTime? UDate(string header) =>
-        U(header) is { } s && DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d) ? d.Date : null;
 
     // Uptick invoices raised for this task, and forms submitted on it (with who submitted them)
     public IReadOnlyList<Invoice> Invoices { get; set; } = [];
@@ -96,7 +96,9 @@ public class TaskPageVm
     }
 
     // Scope of works: Uptick's column, else the FyreApp description
-    public string? ScopeOfWorks => Task.ExternalId != null ? U("Scope of works") : Task.Description;
+    public string? ScopeOfWorks => Scope(Task);
+
+    public static string? Scope(ClientTask t) => t.ExternalId != null ? UptickJson.Value(t.UptickData, "Scope of works") : t.Description;
 
     public IReadOnlyList<string> Tags =>
         (U("Tags") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
