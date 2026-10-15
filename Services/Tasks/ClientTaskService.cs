@@ -2,6 +2,7 @@ using FyreApp.Data;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.Services.MaintenanceSchedules;
+using FyreApp.Services.Routines;
 using FyreApp.Services.Tasks;
 using FyreApp.ViewModels.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -170,17 +171,10 @@ public class ClientTaskService : IClientTaskService
         foreach (var s in covered.Where(s => ScheduleCoverage.Covers(task, s.NextRunDate)))
             await _scheduleService.CompleteAsync(s.Id, notes: task.Ref == null ? null : $"Task {task.Ref} completed");
 
-        // Routines the task was generated from are complete too, as in Uptick (dates are stored as UTC midnight)
-        var today = DateTime.SpecifyKind(DateTime.UtcNow.ToSydney().Date, DateTimeKind.Utc);
-        var routines = await _db.RoutineOccurrences
-            .Where(o => o.ClientTaskId == task.Id && o.Status == RoutineOccurrenceStatus.Generated)
-            .ToListAsync();
-        foreach (var o in routines)
-        {
-            o.Status = RoutineOccurrenceStatus.Complete;
-            o.CompletedDate = today;
-        }
-        if (routines.Count > 0)
+        // Its routines are complete too, as in Uptick; one done late moves the property's later routines of that type
+        // on, so the next falls an interval after the work was done (dates are stored as UTC midnight)
+        var result = await RoutineCompletion.CompleteAsync(_db, task, (task.CompletedUtc ?? DateTime.UtcNow).ToSydney());
+        if (result.Completed > 0)
             await _db.SaveChangesAsync();
     }
 
