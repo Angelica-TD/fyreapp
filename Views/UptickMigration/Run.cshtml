@@ -1,0 +1,66 @@
+@model FyreApp.ViewModels.Uptick.UptickRunReportVm
+@{
+    var run = Model.Run;
+    ViewData["Title"] = $"Uptick migration run {run.Id}";
+    string When(DateTime? utc) => utc is { } d ? d.ToSydney().ToOrdinalDateTime() : "–";
+    var ok = Model.Results.Where(r => r.Status is "Ok" or "Empty" or "Incomplete").ToList();
+}
+
+<h1 class="m-0 mb-1">@run.Kind run @(run.Resource != null ? $": {run.Resource}" : "")</h1>
+<p class="text-muted mb-3">
+    @When(run.StartedUtc) → @When(run.FinishedUtc) · @run.Status · @run.Requests.ToString("N0") requests
+    @if (run.Throttled > 0) { <span class="text-warning">· throttled @run.Throttled×</span> }
+    @if (run.StartedBy != null) { <span>· by @run.StartedBy</span> }
+</p>
+@if (run.Error != null)
+{
+    <div class="alert alert-danger">@run.Error</div>
+}
+
+<ul class="list-inline small">
+    <li class="list-inline-item">Endpoints: <strong>@Model.Results.Count</strong></li>
+    <li class="list-inline-item">Copied OK: <strong>@ok.Count</strong></li>
+    <li class="list-inline-item">Received: <strong>@ok.Sum(r => r.Received).ToString("N0")</strong></li>
+    <li class="list-inline-item">New: <strong>@ok.Sum(r => r.Created).ToString("N0")</strong></li>
+    <li class="list-inline-item">Changed: <strong>@ok.Sum(r => r.Updated).ToString("N0")</strong></li>
+    <li class="list-inline-item">Deleted in Uptick: <strong>@ok.Sum(r => r.Deleted).ToString("N0")</strong></li>
+</ul>
+
+<div class="table-responsive">
+    <table class="table table-sm align-middle">
+        <thead>
+            <tr>
+                <th>Endpoint</th><th>Status</th><th>Mode</th>
+                <th class="text-end">Uptick</th><th class="text-end">Received</th><th class="text-end">New</th>
+                <th class="text-end">Changed</th><th class="text-end">Deleted</th><th class="text-end">Held</th>
+                <th class="text-end">Requests</th><th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model.Results)
+            {
+                <tr class="@(r.Status is "Excluded" ? "text-muted" : "")">
+                    <td><code>@r.Resource</code></td>
+                    <td>@r.Status</td>
+                    <td class="small">@r.Mode</td>
+                    <td class="text-end">@(r.UptickCount?.ToString("N0") ?? "–")</td>
+                    <td class="text-end">@r.Received.ToString("N0")</td>
+                    <td class="text-end">@r.Created.ToString("N0")</td>
+                    <td class="text-end">@r.Updated.ToString("N0")</td>
+                    <td class="text-end">@r.Deleted.ToString("N0")</td>
+                    <td class="text-end">@r.Copied.ToString("N0")</td>
+                    <td class="text-end">@r.Requests</td>
+                    <td class="small">
+                        @if (r.Error != null) { <div class="text-danger text-break">@r.Error</div> }
+                        @if (r.Warning != null) { <div class="text-warning-emphasis">@r.Warning</div> }
+                        @if (r.IncrementalNote != null) { <div class="text-muted">@r.IncrementalNote</div> }
+                        @if (r.FieldsAdded.Count > 0) { <div>Fields added: @string.Join(", ", r.FieldsAdded)</div> }
+                        @if (r.FieldsRemoved.Count > 0) { <div class="text-warning-emphasis">Fields removed: @string.Join(", ", r.FieldsRemoved)</div> }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<a asp-action="Index">Back to Uptick migration</a>

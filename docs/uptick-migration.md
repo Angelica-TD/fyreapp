@@ -31,9 +31,9 @@ dispatches and task sessions (~20 k each). 81 endpoints are empty for FyreApp's 
 orders, IoT, inbox, etc.); a handful are forbidden to the current API login (`logins`, `constance`,
 `standardbundles`, `customsqlreports`, …).
 
-**A Full run is ~720 requests: about 12 minutes at 60 requests/minute**, plus files (§8). That is 490 data pages
-(217 of them the Timeline), 108 schema requests, 81 count checks of empty endpoints and ~40 `updatedsince`
-verification queries. The client-side budget (§3.1) means a run can never exceed 60 requests in a minute.
+**A Full run is ~620 requests: about 10–12 minutes at 60 requests/minute**, plus files (§8). That is ~500 data
+pages (217 of them the Timeline; pages overlap slightly, §3.1), one page for each of the 81 empty endpoints and ~40
+`updatedsince` verification queries. The client-side budget (§3.1) means a run can never exceed 60 requests in a minute.
 
 ## 2. Principles
 
@@ -90,8 +90,14 @@ verification queries. The client-side budget (§3.1) means a run can never excee
   stop the run and report it (as Airbyte does). On `5xx`, timeouts or `429` without the header, exponential
   backoff. At most 5 retries per request, then that endpoint fails for this run.
 - `IAsyncEnumerable<UptickResource> ListAsync(endpoint, updatedSince?, fields?)` follows `links.next`.
-- `Task<EndpointSchema> DescribeAsync(endpoint)` wraps `OPTIONS`. Each run stores the schema it saw, and flags
-  fields added, removed or retyped since the previous run.
+- Each page starts 50 rows before the previous one ended, so a record deleted in Uptick mid-run can't shift the
+  next page and make a record be skipped (and then wrongly marked deleted).
+- No `Accept` header: the API root answers `406` to `application/vnd.api+json`; without one, every endpoint
+  returns JSON:API.
+- Field changes are noticed from the records themselves: each Full run stores the attribute and relationship
+  names of an endpoint's first record and flags names added or removed since the previous run. (`OPTIONS` also
+  describes fields, with types and relationship targets, which helps when writing mappers, but costs a request
+  per endpoint, so runs don't use it.)
 
 ### 3.2 Raw copy: `UptickRecord`
 
@@ -141,7 +147,7 @@ All started from the admin page (§9); none scheduled.
 
 | Run | What | Requests (approx.) |
 |---|---|---|
-| **Full** | Every enabled endpoint in full, then map. Detects deletions. The first run, and the final run at cutover. | ~720 → ~12 min |
+| **Full** | Every enabled endpoint in full, then map. Detects deletions. The first run, and the final run at cutover. | ~620 → ~10–12 min |
 | **Refresh** | Changes since the last run: verified endpoints with `updatedsince = Cursor − 10 min`, the rest in full. Then map pending records. For keeping FyreApp current while it's being built. | ~250 → ~4 min (most of it the endpoints that can't filter) |
 | **Single endpoint** | Full or refresh of one endpoint, e.g. after fixing its mapper. | as needed |
 | **Re-map** | Rebuild typed tables from the raw copy. No API calls. | 0 |
@@ -347,5 +353,11 @@ correspondence and files; they can't get all of Uptick into FyreApp.
    current login until then.
 2. **Rate limit.** Start at 60 requests/minute. Worth asking Uptick support whether more is fine for a one-off
    migration (it mostly matters for files).
-3. **Storage account.** An AWS account and S3 bucket in Sydney (§8), needed by the Files phase; the first run
+3. **Invoice line items.** `invoicelineitems` is ordered by `index` (its position on the invoice, almost always
+   0), so offset paging returns the same ~15 k of its ~23 k records however often or with whatever page size it's
+   read; `sort`, ID filters and `include` from invoices aren't available. The run marks it **Incomplete**. Only
+   `invoice=<id>` (one invoice per request) gets them all: ~20.6 k requests (~6 h) for every invoice, or ~10 k
+   (~3 h) for just the invoices whose held line items don't add up to their subtotal. Refresh can then use
+   `updatedsince` (one page while fewer than 5,000 changed).
+4. **Storage account.** An AWS account and S3 bucket in Sydney (§8), needed by the Files phase; the first run
    measures the total file size so the cost is known first.

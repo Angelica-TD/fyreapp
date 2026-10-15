@@ -2856,6 +2856,164 @@ namespace FyreApp.Migrations
                     b.ToTable("TimelineEntries");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.UptickEndpointState", b =>
+                {
+                    b.Property<string>("Resource")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("CopiedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("CursorUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("IncrementalCheckedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IncrementalVerified")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastFullRunUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastRefreshUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Schema")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int?>("UptickCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Resource");
+
+                    b.ToTable("UptickEndpointStates");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.UptickMigrationRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("FinishedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Report")
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("Requests")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Resource")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("StartedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("StartedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("Throttled")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartedUtc");
+
+                    b.ToTable("UptickMigrationRuns");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.UptickRecord", b =>
+                {
+                    b.Property<string>("Resource")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("UptickId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Attributes")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("ChangedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DeletedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("FetchedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("MappedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Relationships")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("SeenUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Resource", "UptickId");
+
+                    b.HasIndex("Relationships");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Relationships"), "gin");
+
+                    b.HasIndex("Resource", "MappedUtc")
+                        .HasFilter("\"MappedUtc\" IS NULL");
+
+                    b.HasIndex("Resource", "UpdatedUtc");
+
+                    b.ToTable("UptickRecords");
+                });
+
             modelBuilder.Entity("FyreApp.Models.UptickUser", b =>
                 {
                     b.Property<int>("Id")

@@ -1,0 +1,239 @@
+@model FyreApp.ViewModels.Uptick.UptickMigrationPageVm
+@using FyreApp.Services.Uptick.Migration
+@{
+    ViewData["Title"] = "Uptick migration";
+    string When(DateTime? utc) => utc is { } d ? d.ToSydney().ToOrdinalDateTime() : "–";
+    string StatusClass(string? s) => s switch
+    {
+        "Ok" or "Completed" => "bg-success",
+        "Empty" or "Excluded" => "bg-secondary",
+        "Forbidden" or "NotFound" or "Incomplete" or "Cancelled" or "Interrupted" => "bg-warning text-dark",
+        "Failed" => "bg-danger",
+        "Running" => "bg-primary",
+        _ => "bg-light text-dark"
+    };
+    var running = Model.Current != null;
+}
+
+<h1 class="m-0 mb-1">Uptick migration</h1>
+<p class="text-muted mb-3">
+    Copies Uptick's data into FyreApp through Uptick's API, read-only: nothing here changes Uptick.
+    See <code>docs/uptick-migration.md</code>.
+</p>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success">@ok</div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger">@err</div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6">Connection</h2>
+                @if (!Model.Configured)
+                {
+                    <div class="alert alert-warning small mb-2">
+                        Not configured. Set <code>Uptick:Api:ClientId</code>, <code>ClientSecret</code>, <code>Username</code> and
+                        <code>Password</code> (user secrets in development; <code>Uptick__Api__…</code> in <code>/etc/fyreapp.env</code> in production).
+                    </div>
+                }
+                <dl class="row small mb-2">
+                    <dt class="col-5">API</dt><dd class="col-7 text-break">@Model.BaseUrl</dd>
+                    <dt class="col-5">Login</dt><dd class="col-7 text-break">@(string.IsNullOrEmpty(Model.Username) ? "–" : Model.Username)</dd>
+                    <dt class="col-5">Access</dt><dd class="col-7">Read-only token</dd>
+                    <dt class="col-5">Pace</dt><dd class="col-7">At most @Model.MaxRequestsPerMinute requests/minute, @Model.PageSize.ToString("N0") rows each</dd>
+                </dl>
+                <form method="post" asp-action="Test">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-sm btn-outline-secondary" disabled="@(!Model.Configured)">Test connection</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6">Run</h2>
+                <div id="run-progress" class="@(running ? "" : "d-none")">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>
+                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            <strong id="run-kind">@Model.Current?.Kind run</strong>
+                            <span id="run-text" class="text-muted small ms-1">
+                                @if (Model.Current?.Progress is { } p)
+                                {
+                                    @($"{p.Resource} ({p.EndpointNumber}/{p.EndpointCount}): {p.Received:N0}{(p.Total is { } t ? $" of {t:N0}" : "")} · {p.Requests:N0} requests")
+                                }
+                                else
+                                {
+                                    @("starting…")
+                                }
+                            </span>
+                        </span>
+                        <form method="post" asp-action="Cancel">
+                            @Html.AntiForgeryToken()
+                            <button class="btn btn-sm btn-outline-danger" disabled="@(Model.Current?.Cancelling == true)">Cancel</button>
+                        </form>
+                    </div>
+                    <div class="progress" role="progressbar" style="height: 6px">
+                        <div id="run-bar" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                @if (!running)
+                {
+                    <p class="small text-muted mb-2">
+                        <strong>Full</strong>: every record of every endpoint, and finds records deleted in Uptick (~12 minutes).
+                        <strong>Refresh</strong>: only what changed since the last run, for endpoints where Uptick can tell; the rest in full.
+                    </p>
+                    <div class="d-flex gap-2">
+                        <form method="post" asp-action="Start">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="kind" value="@UptickRunKind.Full" />
+                            <button class="btn btn-primary" disabled="@(!Model.Configured)">Full run</button>
+                        </form>
+                        <form method="post" asp-action="Start">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="kind" value="@UptickRunKind.Refresh" />
+                            <button class="btn btn-outline-primary" disabled="@(!Model.Configured || Model.Endpoints.Count == 0)">Refresh</button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="h5">Endpoints <span class="text-muted small fw-normal">@Model.Copied.ToString("N0") records held</span></h2>
+@if (Model.Endpoints.Count == 0)
+{
+    <p class="text-muted">No run yet. A Full run lists Uptick's endpoints and copies them.</p>
+}
+else
+{
+    <div class="table-responsive mb-4">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Endpoint</th>
+                    <th class="text-end">Uptick</th>
+                    <th class="text-end">Held</th>
+                    <th>Refresh</th>
+                    <th>Last full</th>
+                    <th>Last refresh</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Model.Endpoints)
+                {
+                    var mismatch = e.UptickCount is { } uc && uc != e.CopiedCount && e.Status == "Ok";
+                    <tr class="@(e.Enabled ? "" : "text-muted")">
+                        <td><code>@e.Resource</code></td>
+                        <td class="text-end">@(e.UptickCount?.ToString("N0") ?? "–")</td>
+                        <td class="text-end @(mismatch ? "text-danger fw-semibold" : "")" title="@(mismatch ? "Differs from Uptick's count" : null)">@e.CopiedCount.ToString("N0")</td>
+                        <td class="small">@(!e.Enabled ? "" : e.IncrementalVerified ? "Changes only" : "Full")</td>
+                        <td class="small text-nowrap">@When(e.LastFullRunUtc)</td>
+                        <td class="small text-nowrap">@When(e.LastRefreshUtc)</td>
+                        <td>
+                            <span class="badge @StatusClass(e.Status)">@(e.Status ?? "Not run")</span>
+                            @if (e.LastError != null)
+                            {
+                                <div class="small text-danger text-break">@e.LastError</div>
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">
+                            @if (e.Enabled && !running)
+                            {
+                                <form method="post" asp-action="Start" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="kind" value="@UptickRunKind.Full" />
+                                    <input type="hidden" name="resource" value="@e.Resource" />
+                                    <button class="btn btn-sm btn-link p-0" title="Copy every record of this endpoint">Run</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<h2 class="h5">Runs</h2>
+@if (Model.Runs.Count == 0)
+{
+    <p class="text-muted">None yet.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr><th>Started</th><th>Kind</th><th>By</th><th>Status</th><th class="text-end">Requests</th><th class="text-end">Throttled</th><th>Took</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Runs)
+                {
+                    <tr>
+                        <td class="text-nowrap">@When(r.StartedUtc)</td>
+                        <td>@r.Kind@(r.Resource != null ? $": {r.Resource}" : "")</td>
+                        <td class="small">@r.StartedBy</td>
+                        <td>
+                            <span class="badge @StatusClass(r.Status)">@r.Status</span>
+                            @if (r.Error != null)
+                            {
+                                <div class="small text-danger text-break">@r.Error</div>
+                            }
+                        </td>
+                        <td class="text-end">@r.Requests.ToString("N0")</td>
+                        <td class="text-end @(r.Throttled > 0 ? "text-warning fw-semibold" : "")">@r.Throttled</td>
+                        <td class="small text-nowrap">@(r.FinishedUtc is { } f ? $"{(f - r.StartedUtc).TotalMinutes:0.0} min" : "")</td>
+                        <td><a asp-action="Run" asp-route-id="@r.Id">Report</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/signalr/dist/browser/signalr.js"></script>
+    <script>
+        (async () => {
+            const box = document.getElementById("run-progress");
+            if (box.classList.contains("d-none")) return;
+            const text = document.getElementById("run-text");
+            const bar = document.getElementById("run-bar");
+            const fmt = n => n.toLocaleString();
+            const show = p => {
+                if (!p) return;
+                text.textContent = `${p.resource} (${p.endpointNumber}/${p.endpointCount}): ${fmt(p.received)}`
+                    + (p.total != null ? ` of ${fmt(p.total)}` : "") + ` · ${fmt(p.requests)} requests`
+                    + (p.throttled ? ` · throttled ${p.throttled}×` : "");
+                bar.style.width = `${Math.round(100 * (p.endpointNumber - 1) / p.endpointCount)}%`;
+            };
+            const connection = new signalR.HubConnectionBuilder().withUrl("/hubs/importProgress").withAutomaticReconnect().build();
+            connection.on("uptickProgress", show);
+            connection.on("uptickFinished", () => location.reload());
+            try {
+                await connection.start();
+                await connection.invoke("JoinImport", "@UptickMigrationRunner.ProgressGroup");
+            } catch {
+                // No live updates: poll instead
+                setInterval(async () => {
+                    const r = await fetch("@Url.Action("Status")", { headers: { Accept: "application/json" } });
+                    const s = r.ok ? await r.json() : null;
+                    if (!s) location.reload(); else show(s.progress);
+                }, 3000);
+            }
+        })();
+    </script>
+}
