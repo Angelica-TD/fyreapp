@@ -1,4 +1,5 @@
 using FyreApp.Data;
+using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.Services.Imports;
 using FyreApp.Services.Routines;
@@ -28,26 +29,36 @@ public class TaskPageService : ITaskPageService
             .FirstOrDefaultAsync(t => t.Id == id, ct);
         if (task == null) return null;
 
-        // Routines this task was generated from (Routines page → Generate tasks)
+        // Routines this task was generated from (Routines page → Generate tasks); for imported Uptick routine tasks, the
+        // property's raised routines its scope of works names ("- 10 - … (AS1851-2012 Section 10): Annual") that are due in its month
         var routines = await _db.RoutineOccurrences.AsNoTracking()
+            .Include(o => o.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
             .Where(o => o.ClientTaskId == id)
-            .OrderBy(o => o.Routine)
-            .Select(o => new { o.SiteId, o.Routine, Type = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.RoutineServiceType.Name : null })
             .ToListAsync(ct);
+        var visits = routines.Count > 0 ? routines : await RoutineCompletion.InScopeAsync(_db, _db.RoutineOccurrences.AsNoTracking()
+            .Where(o => o.ClientTaskId == null && (o.Status == RoutineOccurrenceStatus.Generated || o.Status == RoutineOccurrenceStatus.Complete)), task, ct);
 
-        var siteRoutines = routines.Select(o => new RoutineAssets.SiteRoutine(o.SiteId, o.Routine, o.Type ?? RoutineAssets.RoutineType(o.Routine))).ToList();
-        // Imported Uptick routine tasks name theirs in "Scope of works" ("- 10 - … (AS1851-2012 Section 10): Annual")
+        var siteRoutines = routines.Select(o => new RoutineAssets.SiteRoutine(o.SiteId, o.Routine, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Routine))).ToList();
+        // Imported tasks list assets for every routine their scope names, even ones whose routine isn't imported
         if (siteRoutines.Count == 0 && UptickJson.Value(task.UptickData, "Scope of works") is { } scope)
             siteRoutines = RoutineAssets.FromScope(task.SiteId, scope, await _db.RoutineServiceTypes.AsNoTracking().Select(t => t.Name).ToListAsync(ct)).ToList();
+        var serviceAssets = await ServiceAssetsAsync(id, siteRoutines, ct);
+        var assetIds = serviceAssets.Select(a => a.Asset.Id).Distinct().ToList();
 
-        return new TaskPageVm
+        var vm = new TaskPageVm
         {
             Task = task,
             Tab = TaskPageVm.Tabs.Any(t => t.Key == tab) ? tab! : "task",
             Uptick = TaskPageVm.ParseUptick(task.UptickData),
-            Routines = routines.Select(o => o.Routine).Distinct().ToList(),
+            Routines = routines.Select(o => o.Routine).Distinct().Order().ToList(),
             ServiceRoutines = siteRoutines.Select(r => r.Routine).ToList(),
-            ServiceAssets = await ServiceAssetsAsync(id, siteRoutines, ct),
+            ServiceAssets = serviceAssets,
+            Visits = visits.OrderBy(o => o.Routine).ThenBy(o => o.DueDate).ToList(),
+            OpenRemarks = await _db.Defects.AsNoTracking()
+                .Where(d => d.Active && d.AssetId != null && assetIds.Contains(d.AssetId.Value))
+                .GroupBy(d => d.AssetId!.Value)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(g => g.Key, g => g.Count, ct),
             // Reports done on this task, and remarks it was raised to repair (linked from Uptick imports)
             Reports = await _db.ServiceReports.AsNoTracking()
                 .Where(r => r.ClientTaskId == id)
@@ -82,6 +93,33 @@ public class TaskPageService : ITaskPageService
                 .Select(u => (u.Id.ToString(), u.LicenseType == "CONTRACTOR" ? u.Name + " (contractor)" : u.Name))
                 .ToList()
         };
+        vm.Remarks = await RemarksAsync(vm, assetIds, ct);
+        return vm;
+    }
+
+    // The Remark registry: remarks identified on the task (Uptick's "Created on Task Ref"), and ones it resolved: remarks it
+    // was raised to repair, and remarks on the assets it services closed off while its work was being done
+    private async Task<IReadOnlyList<(Defect Remark, bool Resolved)>> RemarksAsync(TaskPageVm vm, List<int> assetIds, CancellationToken ct)
+    {
+        var task = vm.Task;
+        var since = DateTime.SpecifyKind(vm.WorkFrom.AddDays(-1), DateTimeKind.Utc);
+        var remarks = await _db.Defects.AsNoTracking()
+            .Include(d => d.Asset)
+            .Where(d => d.SiteId == task.SiteId
+                        && ((task.Ref != null && d.RaisedOnTaskRef == task.Ref)
+                            || d.RepairTaskId == task.Id
+                            || (!d.Active && d.AssetId != null && assetIds.Contains(d.AssetId.Value) && d.InactiveUtc >= since)))
+            .ToListAsync(ct);
+
+        bool ClosedDuringWork(Defect d) => d.InactiveUtc?.ToSydney().Date is DateTime closed
+            && closed >= vm.WorkFrom && (vm.WorkTo is not DateTime to || closed <= to);
+
+        return remarks
+            .Select(d => (d, Resolved: !d.Active && (d.RepairTaskId == task.Id || ClosedDuringWork(d))))
+            .Where(r => r.Resolved || r.d.RaisedOnTaskRef == task.Ref && task.Ref != null)
+            .OrderBy(r => r.d.Asset?.InspectionOrder == null).ThenBy(r => r.d.Asset?.InspectionOrder).ThenBy(r => r.d.Asset?.Name)
+            .ThenBy(r => r.Resolved).ThenBy(r => r.d.Id)
+            .ToList();
     }
 
     // The assets the task services for its routines: saved when it was generated; for routine tasks generated

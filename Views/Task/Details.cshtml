@@ -66,88 +66,194 @@
         {
             <li class="nav-item">
                 <a class="nav-link @(key == Model.Tab ? "active" : "")" asp-action="Details" asp-route-id="@t.Id"
-                   asp-route-tab="@(key == "task" ? null : key)">@(key == "work" ? $"{label} ({Model.ServiceAssets.Count + Model.Repairs.Count})" : label)</a>
+                   asp-route-tab="@(key == "task" ? null : key)">
+                    @if (key == "work")
+                    {
+                        @($"{label} ({Model.WorkDone}/{Model.WorkTotal})")
+                        @if (Model.WorkTotal > 0 && Model.WorkDone == Model.WorkTotal) { <i class="bi bi-check-circle-fill"></i> }
+                    }
+                    else { @label }</a>
             </li>
         }
     </ul>
 
     @if (Model.Tab == "work")
     {
-        @* Work: the assets it services for its routines, and the asset repairs it does (remarks raised to be repaired on it) *@
-        <h2 class="h4 mb-3">Activities</h2>
-        @foreach (var routine in Model.ServiceAssets.GroupBy(a => a.Routine))
+        @* Work, as Uptick lays it out: Asset Maintenance (the routines it does, then the assets it services for them and
+           whether each was serviced), any asset repairs, and the Remark registry (remarks identified or resolved on it) *@
+        <h2 class="h4 pb-2 mb-3 border-bottom">Activities</h2>
+        @if (Model.ServiceAssets.Any() || Model.ServiceRoutines.Any())
         {
+            <h3 class="h5 mb-2">Asset Maintenance</h3>
             <div class="card property-card">
-                <div class="card-header">
-                    <span>Routine Service</span>
-                    <span class="small text-muted fw-normal">@routine.Key · @routine.Count() @(routine.Count() == 1 ? "asset" : "assets")</span>
-                </div>
-                <div class="table-responsive">
-                    <table class="table align-middle mb-0">
-                        <thead>
-                            <tr><th>Asset</th><th>Location</th><th>Variant</th><th>Make / model</th><th>Last service</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var (_, a) in routine)
-                            {
-                                <tr>
-                                    <td>
-                                        <a asp-controller="Assets" asp-action="Details" asp-route-id="@a.Id">@a.Name</a>
-                                    </td>
-                                    <td>@Dash(a.Location)</td>
-                                    <td>@Dash(a.Variant)</td>
-                                    <td>@Dash(string.Join(" ", new[] { a.Make, a.Model }.Where(s => !string.IsNullOrWhiteSpace(s))))</td>
-                                    <td class="text-nowrap">@(a.LastServiceDate?.ToOrdinalDate() ?? "-")</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                @if (Model.Visits.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr><th>ID</th><th>Routine</th><th class="work-progress">Activities</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var v in Model.Visits)
+                                {
+                                    var assets = Model.ServiceAssets.Where(a => string.Equals(a.Routine, v.Routine, StringComparison.OrdinalIgnoreCase)).ToList();
+                                    var done = assets.Count(a => Model.Performed(a.Asset) != null);
+                                    <tr>
+                                        <td class="text-nowrap">@(v.ExternalId ?? v.Id.ToString())</td>
+                                        <td>@v.Routine (@v.DueDate.ToOrdinalDate())</td>
+                                        <td class="work-progress text-nowrap">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="progress flex-grow-1" role="progressbar" aria-label="Assets serviced" aria-valuenow="@done" aria-valuemin="0" aria-valuemax="@assets.Count">
+                                                    <div class="progress-bar bg-success" style="width: @(assets.Count == 0 ? 0 : done * 100 / assets.Count)%"></div>
+                                                </div>
+                                                <span>@done / @assets.Count</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                @if (Model.ServiceAssets.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr><th>Asset</th><th>Routine</th><th>Performed</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var (routine, a) in Model.ServiceAssets)
+                                {
+                                    var performed = Model.Performed(a);
+                                    var identified = Model.Remarks.Count(r => !r.Resolved && r.Remark.AssetId == a.Id);
+                                    <tr>
+                                        <td>
+                                            <a asp-controller="Assets" asp-action="Details" asp-route-id="@a.Id">@(a.Ref != null ? $"{a.Ref} - {a.Name}" : a.Name)</a>
+                                            @if (Model.OpenRemarks.TryGetValue(a.Id, out var open))
+                                            {
+                                                <span class="badge bg-secondary" title="@open open @(open == 1 ? "remark" : "remarks")">@open</span>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(a.Location)) { <div class="small text-muted">@a.Location</div> }
+                                        </td>
+                                        <td>@routine</td>
+                                        <td class="text-nowrap">
+                                            @if (performed is DateTime on)
+                                            {
+                                                @if (AssetCompliance.ListBadge(a.Compliance) is { } result) { <span class="badge @result.Css">@result.Text</span> }
+                                                <div class="text-muted">@on.ToOrdinalDate()</div>
+                                            }
+                                            else { <span class="text-muted">-</span> }
+                                        </td>
+                                        <td class="text-nowrap text-end">
+                                            @if (identified > 0)
+                                            {
+                                                <span class="text-danger" title="@identified @(identified == 1 ? "remark" : "remarks") identified on this task">
+                                                    <i class="bi bi-exclamation-triangle-fill"></i>+@identified
+                                                </span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="card-body text-muted fst-italic">
+                        No assets at this property for @string.Join(", ", Model.ServiceRoutines). Assets are matched by their asset type's
+                        applicable routines (Uptick's asset types export).
+                    </div>
+                }
             </div>
         }
-        @if (Model.ServiceRoutines.Any() && !Model.ServiceAssets.Any())
+        @if (Model.Repairs.Any() || !Model.ServiceRoutines.Any())
         {
+            <h3 class="h5 mb-2">Asset Repair</h3>
             <div class="card property-card">
-                <div class="card-header"><span>Routine Service</span></div>
-                <div class="card-body text-muted fst-italic">
-                    No assets at this property for @string.Join(", ", Model.ServiceRoutines). Assets are matched by their asset type's
-                    applicable routines (Uptick's asset types export).
-                </div>
+                @if (!Model.Repairs.Any())
+                {
+                    <div class="card-body text-muted fst-italic">No asset repairs on this task.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr><th>Asset</th><th>Remark</th><th>Description</th><th>Resolution</th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var d in Model.Repairs)
+                                {
+                                    <tr>
+                                        <td>
+                                            @if (d.Asset != null)
+                                            {
+                                                <a asp-controller="Assets" asp-action="Details" asp-route-id="@d.Asset.Id">@d.Asset.Name</a>
+                                                @if (!string.IsNullOrWhiteSpace(d.Asset.Location)) { <div class="small text-muted">@d.Asset.Location</div> }
+                                            }
+                                            else { <span class="text-muted">-</span> }
+                                        </td>
+                                        <td class="text-nowrap">
+                                            @if (d.Active) { <span class="small fw-semibold text-warning">TO RESOLVE</span> }
+                                            else { <span class="small fw-semibold text-success">RESOLVED</span> }
+                                            @await Html.PartialAsync("_RemarkRef", d)
+                                            @if (d.RemarkType != null) { <div class="small text-muted">@d.RemarkType</div> }
+                                        </td>
+                                        <td>@Dash(d.Description)</td>
+                                        <td>@Dash(d.Resolution)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
             </div>
         }
+
+        <h3 class="h5 mb-2 mt-4">Remark registry</h3>
         <div class="card property-card">
-            <div class="card-header"><span>Asset Repair</span></div>
-            @if (!Model.Repairs.Any())
+            @if (!Model.Remarks.Any())
             {
-                <div class="card-body text-muted fst-italic">No asset repairs on this task.</div>
+                <div class="card-body text-muted fst-italic">No remarks identified or resolved on this task.</div>
             }
             else
             {
+                var resolvedCount = Model.Remarks.Count(r => r.Resolved);
+                var identifiedCount = Model.Remarks.Count - resolvedCount;
+                <div class="card-body d-flex gap-2 pb-0">
+                    @if (resolvedCount > 0) { <span class="badge bg-success">@resolvedCount @(resolvedCount == 1 ? "REMARK" : "REMARKS") RESOLVED</span> }
+                    @if (identifiedCount > 0) { <span class="badge bg-warning text-dark">@identifiedCount @(identifiedCount == 1 ? "REMARK" : "REMARKS") IDENTIFIED</span> }
+                </div>
                 <div class="table-responsive">
                     <table class="table align-middle mb-0">
                         <thead>
-                            <tr><th>Asset</th><th>Remark</th><th>Description</th><th>Resolution</th></tr>
+                            <tr><th>Asset</th><th>Remarks</th></tr>
                         </thead>
                         <tbody>
-                            @foreach (var d in Model.Repairs)
+                            @foreach (var byAsset in Model.Remarks.GroupBy(r => r.Remark.AssetId))
                             {
+                                var a = byAsset.First().Remark.Asset;
                                 <tr>
-                                    <td>
-                                        @if (d.Asset != null)
+                                    <td class="align-top">
+                                        @if (a != null)
                                         {
-                                            <a asp-controller="Assets" asp-action="Details" asp-route-id="@d.Asset.Id">@d.Asset.Name</a>
-                                            @if (!string.IsNullOrWhiteSpace(d.Asset.Location)) { <div class="small text-muted">@d.Asset.Location</div> }
+                                            <a asp-controller="Assets" asp-action="Details" asp-route-id="@a.Id">@(a.Ref != null ? $"{a.Ref} - {a.Name}" : a.Name)</a>
                                         }
-                                        else { <span class="text-muted">-</span> }
+                                        else { <span class="text-muted">Property</span> }
                                     </td>
-                                    <td class="text-nowrap">
-                                        @if (d.Active) { <span class="small fw-semibold text-warning">TO RESOLVE</span> }
-                                        else { <span class="small fw-semibold text-success">RESOLVED</span> }
-                                        @await Html.PartialAsync("_RemarkRef", d)
-                                        @if (d.RemarkType != null) { <div class="small text-muted">@d.RemarkType</div> }
+                                    <td>
+                                        @foreach (var (d, isResolved) in byAsset)
+                                        {
+                                            <div class="d-flex gap-3 align-items-baseline py-1">
+                                                @if (isResolved) { <span class="badge bg-success">RESOLVED</span> }
+                                                else { <span class="badge bg-warning text-dark">ADDED</span> }
+                                                <span class="text-nowrap">@await Html.PartialAsync("_RemarkRef", d)</span>
+                                                <span>@Dash(d.Description)</span>
+                                            </div>
+                                        }
                                     </td>
-                                    <td>@Dash(d.Description)</td>
-                                    <td>@Dash(d.Resolution)</td>
                                 </tr>
                             }
                         </tbody>
@@ -155,7 +261,10 @@
                 </div>
             }
         </div>
-        <p class="small text-muted">Charges, products and actions aren't in Uptick's exports, so they aren't shown here.</p>
+        <p class="small text-muted">
+            Products, quantities, costs, visit fees, actions and who serviced each asset aren't in Uptick's exports, so they
+            aren't shown here. An asset counts as performed when its last service falls while the task's work was being done.
+        </p>
     }
     else
     {

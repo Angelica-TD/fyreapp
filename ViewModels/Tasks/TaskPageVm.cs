@@ -1,3 +1,4 @@
+using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.Services.Imports;
 
@@ -23,6 +24,38 @@ public class TaskPageVm
 
     // The assets it services for those routines (Work tab), by routine
     public IReadOnlyList<(string Routine, Asset Asset)> ServiceAssets { get; set; } = [];
+
+    // The routines themselves, with their IDs and due dates (Work tab's Asset Maintenance summary)
+    public IReadOnlyList<RoutineOccurrence> Visits { get; set; } = [];
+
+    // Remarks identified or resolved on this task (Work tab's Remark registry), and each serviced asset's open remarks
+    public IReadOnlyList<(Defect Remark, bool Resolved)> Remarks { get; set; } = [];
+    public IReadOnlyDictionary<int, int> OpenRemarks { get; set; } = new Dictionary<int, int>();
+
+    // When the task's work was done: from its due month (or scheduled date, if earlier) to when it was performed or
+    // completed. Uptick's exports don't say which task serviced an asset, so an asset whose last service falls in
+    // this window counts as performed on it.
+    public DateTime WorkFrom
+    {
+        get
+        {
+            var from = Task.DueDateUtc is DateTime due ? new DateTime(due.Year, due.Month, 1) : Task.CreatedUtc.ToSydney().Date;
+            return UDate("Scheduled Date") is DateTime scheduled && scheduled < from ? scheduled : from;
+        }
+    }
+
+    public DateTime? WorkTo => Task.CompletedUtc?.ToSydney().Date ?? UDate("Performed Date");
+
+    // The date the asset was serviced on this task, if it has been
+    public DateTime? Performed(Asset a) =>
+        a.LastServiceDate is DateTime d && d.Date >= WorkFrom && (WorkTo is not DateTime to || d.Date <= to) ? d.Date : null;
+
+    // Work tab: assets serviced and repairs resolved, of all of them
+    public int WorkDone => ServiceAssets.Count(a => Performed(a.Asset) != null) + Repairs.Count(r => !r.Active);
+    public int WorkTotal => ServiceAssets.Count + Repairs.Count;
+
+    private DateTime? UDate(string header) =>
+        U(header) is { } s && DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d) ? d.Date : null;
 
     // Uptick invoices raised for this task, and forms submitted on it (with who submitted them)
     public IReadOnlyList<Invoice> Invoices { get; set; } = [];
