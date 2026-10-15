@@ -152,6 +152,49 @@ public class RoutineTaskAssetTests
     }
 
     [Fact]
+    public async Task WorkTab_ImportedRoutineTask_ShowsItsRoutinesWhatWasServicedAndItsRemarks()
+    {
+        using var db = DbContextFactory.Create();
+        var (glory, calce) = await SeedAsync(db);
+        db.RoutineServiceTypes.Add(new RoutineServiceType { Name = Extinguishers });
+        DateTime Utc(int month, int day) => DateTime.SpecifyKind(new DateTime(2026, month, day), DateTimeKind.Utc);
+        var annual = new RoutineOccurrence { Site = glory, ExternalId = "49441", Routine = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineOccurrenceStatus.Generated };
+        db.RoutineOccurrences.AddRange(annual,
+            new RoutineOccurrence { Site = glory, Routine = Extinguishers + ": Annual", DueDate = Utc(11, 1), Status = RoutineOccurrenceStatus.Generated },
+            new RoutineOccurrence { Site = calce, Routine = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineOccurrenceStatus.Generated });
+        var task = new ClientTask
+        {
+            ClientId = glory.ClientId, SiteId = glory.Id, Title = "PM2026/10 Servicing", Ref = "T-46682", ExternalId = "46682", DueDateUtc = Utc(10, 31),
+            UptickData = """{"Scope of works":"- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"}"""
+        };
+        db.ClientTasks.Add(task);
+        var kitchen = await db.Assets.SingleAsync(a => a.Name == "FE Kitchen");
+        var hall = await db.Assets.SingleAsync(a => a.Name == "FE Hall");
+        kitchen.LastServiceDate = new DateTime(2026, 10, 14);
+        kitchen.Compliance = "Pass";
+        hall.LastServiceDate = new DateTime(2025, 10, 9);
+        db.Defects.AddRange(
+            new Defect { Site = glory, Asset = kitchen, Description = "Flow test 10 @ 1.26 L/sec", RaisedOnTaskRef = "T-46682" },
+            new Defect { Site = glory, Asset = kitchen, Description = "Flow test/ 96.6 L/m", Active = false, InactiveUtc = Utc(10, 14).AddHours(4) },
+            new Defect { Site = glory, Asset = hall, Description = "Closed last month", Active = false, InactiveUtc = Utc(9, 20) },
+            new Defect { Site = glory, Asset = hall, Description = "Still open", RaisedOnTaskRef = "T-40000" });
+        await db.SaveChangesAsync();
+
+        var vm = (await new TaskPageService(db).LoadAsync(task.Id, "work"))!;
+
+        // The property's routine its scope names, due in the task's month
+        Assert.Equal("49441", Assert.Single(vm.Visits).ExternalId);
+        // Serviced this month: the kitchen extinguisher, not the hall's (serviced last year)
+        Assert.Equal(new DateTime(2026, 10, 14), vm.Performed(kitchen));
+        Assert.Null(vm.Performed(hall));
+        Assert.Equal((1, 2), (vm.WorkDone, vm.WorkTotal));
+        // Identified on the task, and closed off while it was being done
+        Assert.Equal(new[] { ("Flow test 10 @ 1.26 L/sec", false), ("Flow test/ 96.6 L/m", true) },
+            vm.Remarks.Select(r => (r.Remark.Description!, r.Resolved)).OrderBy(r => r.Item2));
+        Assert.Equal(new Dictionary<int, int> { [kitchen.Id] = 1, [hall.Id] = 1 }, vm.OpenRemarks);
+    }
+
+    [Fact]
     public void RoutineType_DropsTheLevel()
     {
         Assert.Equal(Extinguishers, RoutineAssets.RoutineType(Extinguishers + ": Six-monthly"));

@@ -23,21 +23,10 @@ public static class RoutineCompletion
             .Include(o => o.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
             .Where(o => o.ClientTaskId == task.Id && o.Status == RoutineOccurrenceStatus.Generated)
             .ToListAsync(ct);
-        if (routines.Count == 0 && task.DueDateUtc is DateTime taskDue
-            && UptickJson.Value(task.UptickData, "Scope of works") is { } scope)
-        {
-            var names = RoutineAssets.FromScope(task.SiteId, scope, await db.RoutineServiceTypes.Select(t => t.Name).ToListAsync(ct))
-                .Select(r => r.Routine).ToList();
-            var monthStart = new DateTime(taskDue.Year, taskDue.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-            var monthEnd = monthStart.AddMonths(1);
-            routines = (await db.RoutineOccurrences
-                    .Include(o => o.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
-                    .Where(o => o.SiteId == task.SiteId && o.ClientTaskId == null && o.Status == RoutineOccurrenceStatus.Generated
-                                && o.DueDate >= monthStart && o.DueDate < monthEnd)
-                    .ToListAsync(ct))
-                .Where(o => names.Contains(o.Routine, StringComparer.OrdinalIgnoreCase))
-                .ToList();
-        }
+        if (routines.Count == 0)
+            routines = await InScopeAsync(db, db.RoutineOccurrences
+                .Include(o => o.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
+                .Where(o => o.ClientTaskId == null && o.Status == RoutineOccurrenceStatus.Generated), task, ct);
 
         var moved = 0;
         var monthsLate = 0;
@@ -80,6 +69,27 @@ public static class RoutineCompletion
         }
 
         return new Result(routines.Count, moved, monthsLate);
+    }
+
+    // For an imported Uptick task: the property's routines (of those given) its scope of works names that are due in
+    // the task's month
+    public static async Task<List<RoutineOccurrence>> InScopeAsync(
+        AppDbContext db, IQueryable<RoutineOccurrence> occurrences, ClientTask task, CancellationToken ct = default)
+    {
+        if (task.DueDateUtc is not DateTime taskDue || UptickJson.Value(task.UptickData, "Scope of works") is not { } scope)
+            return [];
+
+        var names = RoutineAssets.FromScope(task.SiteId, scope, await db.RoutineServiceTypes.Select(t => t.Name).ToListAsync(ct))
+            .Select(r => r.Routine).ToList();
+        if (names.Count == 0) return [];
+
+        var monthStart = new DateTime(taskDue.Year, taskDue.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var monthEnd = monthStart.AddMonths(1);
+        return (await occurrences
+                .Where(o => o.SiteId == task.SiteId && o.DueDate >= monthStart && o.DueDate < monthEnd)
+                .ToListAsync(ct))
+            .Where(o => names.Contains(o.Routine, StringComparer.OrdinalIgnoreCase))
+            .ToList();
     }
 
     // Whole months between the due month and the month it was done, when it was done after its tolerance
