@@ -33,14 +33,16 @@ orders, IoT, inbox, etc.); a handful are forbidden to the current API login (`lo
 
 **A Full run is ~620 requests: about 10–12 minutes at 60 requests/minute**, plus files (§8). That is ~500 data
 pages (217 of them the Timeline; pages overlap slightly, §3.1), one page for each of the 81 empty endpoints and ~40
-`updatedsince` verification queries. The client-side budget (§3.1) means a run can never exceed 60 requests in a minute.
+`updatedsince` verification queries. The first Full run also fetches invoice line items an invoice at a time for
+~10,000 invoices (~3 h, §4.5); later Full runs fetch only invoices changed since. The client-side budget (§3.1)
+means a run can never exceed 60 requests in a minute.
 
 ## 2. Principles
 
 1. **Read-only towards Uptick.** Nothing FyreApp does changes anything in Uptick: a read-only token, and an API
    client that can only send `GET` and `OPTIONS`.
 2. **Copy everything raw first, then map.** Every record of every endpoint lands verbatim in one table. Typed
-   FyreApp tables (Client, Site, Asset, …) are built from it. All of Uptick's data is in FyreApp after the first
+   FyreApp tables (Client, Property, Asset, …) are built from it. All of Uptick's data is in FyreApp after the first
    run, including data no screen uses yet; mapping is added screen by screen without downloading again, and a
    mapping bug is fixed by re-mapping.
 3. **Link by Uptick ID.** The API gives real IDs for every relationship, so FyreApp stops matching on refs and
@@ -71,7 +73,7 @@ pages (217 of them the Timeline; pages overlap slightly, §3.1), one page for ea
           └───────┬────────┘
                   │  upsert typed rows, FKs by UptickId
                   ▼
-     Client · Site · Asset · ClientTask · Defect · ServiceReport · TimelineEntry · Invoice · …
+     Client · Property · Asset · ClientTask · Remark · Report · TimelineEvent · Invoice · …
 ```
 
 ### 3.1 UptickApiClient
@@ -202,68 +204,105 @@ Each endpoint fetches and commits independently. A failure records `LastError`, 
 and the run carries on with the other endpoints. Re-running picks up the failed ones.
 
 **Endpoints paging can't read whole** (`UptickEndpoints.FilledPerParent`). `invoicelineitems` is sorted by
-`index` (0 on almost every line), so its order changes between requests: one pass over all 22,857 rows returns
-only ~15,000 distinct lines. It's copied after `invoices`, paged as usual, then every invoice whose held lines
-don't add up to its `subtotal` (or that has none) is fetched with `invoice=<id>`. That request returns all of an
-invoice's lines, so held lines it doesn't return are marked deleted; lines of a deleted invoice are too. If
-Uptick ever ignored the filter (returned another invoice's lines) the endpoint fails rather than marking lines
-deleted. An invoice fetched this way gets `ChildrenFetchedUtc` and isn't fetched again until the invoice
-itself changes (a line added or removed changes its subtotal), so ones that never add up (Xero-synced invoices
-with no lines in Uptick, discounts) cost one request ever. The first fill is ~10,000 invoices (~3 h); later Full
-runs fetch only invoices changed since. Completeness is lines held
-against Uptick's count.
+`index` (0 on almost every line), so offset pages overlap and skip: a pass over all 22,857 rows returns only
+~15,000 distinct lines, the same ones however often it's repeated (pages are capped at 5,000). It's copied after
+`invoices`, paged as usual, then every invoice whose held lines don't add up to its `subtotal` (or that has none)
+is fetched with `invoice=<id>`. That request returns all of an invoice's lines, so held lines it doesn't return
+are marked deleted; lines of a deleted invoice are too. If Uptick ever ignored the filter (returned another
+invoice's lines) the endpoint fails rather than marking lines deleted. An invoice fetched this way gets
+`ChildrenFetchedUtc` and isn't fetched again until the invoice itself changes (a line added or removed changes
+its subtotal), so ones that never add up (Xero-synced invoices with no lines in Uptick, discounts) cost one
+request ever. The first fill is ~10,000 invoices (~3 h); later Full runs fetch only invoices changed since.
+
+A few lines the fill can't reach: a $0 line, or one its invoice's `subtotal` leaves out (invoice 7627: lines
+$298, subtotal $183), doesn't change the sum, so the invoice looks complete. The first prod run held 22,855 of
+22,857 for exactly these two. When lines are still short after the fill, the endpoint is paged again under
+`updatedsince` dates two months apart, newest first (`SweepStepMonths`): it's the only filter Uptick honours on
+line items, and each date returns them in another order, so the lines plain paging skips turn up. It stops once
+nothing is missing, or past the oldest line held: ~150 requests (~3 min) if it goes all the way back.
+Completeness is lines held against Uptick's count.
 
 ## 5. Data model changes
 
 1. **`UptickId` (bigint, unique, nullable) on every mapped entity.** It replaces `ExternalId`, which holds a ref
-   on some entities (Site: "P-0712"; Client) and an Uptick ID on others (Asset, Defect). Refs move to their own
+   on some entities (Property: "P-0712"; Client) and an Uptick ID on others (Asset, Remark). Refs move to their own
    column (`Ref`) where Uptick has one (properties `ref`, assets `uptick_ref` "A-41642", quotes, invoices).
    `DisplayRef` keeps working off `Ref`.
 2. **Foreign keys instead of copied names.** e.g. `DefectQuote.PropertyRef/PropertyName/ClientName` become
-   `SiteId` / `ClientId`; `Invoice.TaskExternalId` becomes `ClientTaskId`; `ServiceReport.TaskExternalId`,
-   `Defect.RepairTaskExternalId` likewise.
+   `PropertyId` / `ClientId`; `Invoice.TaskExternalId` becomes `ClientTaskId`; `Report.TaskExternalId`,
+   `Remark.RepairTaskExternalId` likewise.
 3. **Fields the exports never had**, e.g. `Asset.LastServicedById` (API `serviced_by`) replacing today's guess
    from reports in `AssetPageService.LastServiceByAsync`.
-4. **`TimelineEntry`**: `UptickId` (unique) plus `Latitude` / `Longitude` for the "· Map" link; `Key`
+4. **`TimelineEvent`**: `UptickId` (unique) plus `Latitude` / `Longitude` for the "· Map" link; `Key`
    (`trackedchange`, `general` = note, `correspondence`, …).
 5. **New entities** for the rest (§6), added as the screens that use them are built; the raw copy already holds
-   their data.
+   their data. They take Uptick's name for the resource (`ReportItem`, `RemarkEvent`, `Dispatch`, …).
+6. **Uptick's names for existing entities.** The screens and controllers already use Uptick's words (Properties,
+   Remarks, Reports, Routines); the entity classes, tables and foreign keys are renamed to match, each in the
+   phase that maps it (§10), so a mapper is written against the new name once. Each rename is a table rename
+   (`RenameTable` / `RenameColumn`, no data copied) and carries its FKs and navigation properties
+   (`SiteId` → `PropertyId`, `Defect.RepairTaskExternalId` → `Remark.RepairTaskId`, …). URLs don't change.
+
+   | FyreApp entity today | Renamed to | Uptick endpoint |
+   |---|---|---|
+   | Site / SiteContact | Property / PropertyContact | `properties` / `propertycontacts` |
+   | Defect | Remark | `remarks` |
+   | ServiceReport | Report | `reports` |
+   | RoutineOccurrence | Routine | `routines` |
+   | PropertyRoutineService | RoutineService | `routineservices` |
+   | TaskAsset | ServiceTask | `servicetasks` |
+   | TimelineEntry | TimelineEvent | `timelineevents` |
+   | FormResponse | DynamicFormResponse | `dynamicformresponses` |
+   | StockLevel | Stock | `stock` |
+   | ServiceQuote (FyreApp's own proposals) / SalesQuote | Proposal / ServiceQuote | — / `servicequotes` |
+
+   Kept as they are:
+   - **ClientTask** (`tasks`): `Task` would clash with `System.Threading.Tasks.Task` throughout the async code.
+   - **UptickUser** (`users`): `User` clashes with `ControllerBase.User` and is easily confused with
+     `ApplicationUser`, the FyreApp login.
+   - **SecurityGroup** (`groups`): `Group` is too generic to read on its own.
+   - Names that already match: Client, ClientContact, Asset, AssetType, AssetTypeVariant, RemarkType,
+     Contractor, Supplier, RoutineServiceType, RoutineServiceLevel, DefectQuote, Invoice, CreditNote,
+     BillingCard, BillingContract, BillingContractLineItem, Product, Warehouse, Accreditation, ExtraField,
+     PropertySchedule, PromptQuestion.
+   - FyreApp-native entities with no Uptick counterpart (MaintenanceSchedule, MaintenanceInterval,
+     MaintenanceHistory, AssetCatalogue, ServiceOffering, ServiceType, Quote, QuoteLineItem).
 
 FyreApp-native rows (created in FyreApp, `UptickId` null) are left as they are. The `UptickData` jsonb columns on
 typed entities are dropped once their entity is mapped from the raw copy.
 
 ## 6. Resource map
 
-Existing FyreApp entities and the endpoint each is mapped from:
+Existing FyreApp entities (under their names after §5.6) and the endpoint each is mapped from:
 
 | FyreApp entity | Uptick endpoint(s) | Today's file import |
 |---|---|---|
 | Client | `clients` | (placeholders from properties) |
 | ClientContact | `clientcontacts`, `contacts` | ClientContacts |
-| Site | `properties` (+ `addresses`) | Properties |
-| SiteContact | `propertycontacts`, `contacts` | PropertyContacts |
+| Property | `properties` (+ `addresses`) | Properties |
+| PropertyContact | `propertycontacts`, `contacts` | PropertyContacts |
 | Asset | `assets` | Assets |
 | AssetType / AssetTypeVariant | `assettypes` / `assettypevariants` | AssetTypes / AssetTypeVariants |
 | UptickUser | `users` | Users |
 | SecurityGroup | `groups` | SecurityGroups |
 | Contractor / Supplier | `contractors` (+ `contractorcontacts`) / `suppliers` | Contractors / Suppliers |
 | ClientTask | `tasks` | Tasks |
-| TaskAsset | `servicetasks` | (generated from routines) |
-| Defect | `remarks` | Remarks |
+| ServiceTask | `servicetasks` | (generated from routines) |
+| Remark | `remarks` | Remarks |
 | RemarkType | `remarktypes` | RemarkTypes |
-| ServiceReport | `reports` | Reports |
+| Report | `reports` | Reports |
 | RoutineServiceType / RoutineServiceLevel | `routineservicetypes` / `routineservicelevels` (+ `routineserviceleveltypes`) | same |
-| PropertyRoutineService | `routineservices` | (FyreApp-native) |
-| RoutineOccurrence | `routines` | (routines export) |
-| TimelineEntry | `timelineevents` | (derived from imports) |
+| RoutineService | `routineservices` | (FyreApp-native) |
+| Routine | `routines` | (routines export) |
+| TimelineEvent | `timelineevents` | (derived from imports) |
 | DefectQuote | `defectquotes` | DefectQuotes |
-| SalesQuote | `servicequotes` | SalesQuotes |
+| ServiceQuote | `servicequotes` | SalesQuotes |
 | Invoice / CreditNote | `invoices` / `creditnotes` | Invoices / CreditNotes |
 | BillingCard / BillingContract / BillingContractLineItem | `billingcards` / `billingcontracts` / `billingcontractlineitems` | same |
-| Product / Warehouse / StockLevel | `products` / `warehouses` / `stock` | same |
+| Product / Warehouse / Stock | `products` / `warehouses` / `stock` | same |
 | Accreditation | `accreditations` | Accreditations |
 | ExtraField | `extrafields` | ExtraFields |
-| FormResponse | `dynamicformresponses` | FormResponses |
+| DynamicFormResponse | `dynamicformresponses` | FormResponses |
 | PropertySchedule | `propertyschedules` | PropertySchedules |
 | PromptQuestion | `promptquestions` | PromptQuestions |
 
@@ -332,7 +371,12 @@ Each is one PR.
 
 1. **API client + raw copy + Full / Refresh runs + admin page + reconciliation.** After this, all of Uptick's
    data (except files) is in FyreApp's database, verified by count. No screen changes yet.
-2. **Timeline.** `TimelineEntry` mapper; drop the made-up "was created" entries and import-derived "Uptick"
+Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Property`, `PropertyContact` in 3;
+`Remark`, `Report`, `Routine`, `RoutineService`, `ServiceTask` in 4; `Proposal` / `ServiceQuote`, `Stock` in 5 (today's
+`ServiceQuote` becomes `Proposal` first, in the same migration, so the name is free);
+`DynamicFormResponse` in 6.
+
+2. **Timeline.** `TimelineEvent` mapper; drop the made-up "was created" entries and import-derived "Uptick"
    changes. (Designed earlier: notes, Map link, template wording.)
 3. **Core records:** clients, properties, contacts, users, asset types/variants, assets. `UptickId` + `Ref`
    columns and FKs; `LocalEdit` (§7), since the asset form already edits migrated fields; file importers for
