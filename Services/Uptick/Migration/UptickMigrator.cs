@@ -362,7 +362,7 @@ public class UptickMigrator
     {
         var parents = await _db.UptickRecords.AsNoTracking()
             .Where(r => r.Resource == spec.Parent)
-            .Select(r => new { r.UptickId, r.Attributes, r.DeletedUtc })
+            .Select(r => new { r.UptickId, r.Attributes, r.DeletedUtc, r.ChangedUtc, r.ChildrenFetchedUtc })
             .ToListAsync(ct);
         var children = await _db.UptickRecords.AsNoTracking()
             .Where(r => r.Resource == resource && r.DeletedUtc == null)
@@ -379,13 +379,15 @@ public class UptickMigrator
         var deletedParents = parents.Where(p => p.DeletedUtc != null).Select(p => p.UptickId).ToHashSet();
         await MarkDeletedAsync(resource, held.Where(h => deletedParents.Contains(h.Key)).SelectMany(h => h.Value.Ids).ToList(), result, ct);
 
+        // Fetched before and unchanged since: what it holds is all Uptick has, even if it doesn't add up (no lines
+        // in Uptick, as with invoices synced from Xero, or a discount). A line added or removed changes the invoice.
         var todo = parents
-            .Where(p => p.DeletedUtc == null)
+            .Where(p => p.DeletedUtc == null && (p.ChildrenFetchedUtc == null || p.ChangedUtc > p.ChildrenFetchedUtc))
             .Where(p => !held.TryGetValue(p.UptickId, out var h) || Math.Abs(h.Sum - Amount(p.Attributes, spec.ParentAmount)) >= 0.005m)
             .Select(p => p.UptickId)
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToList();
-        result.Note = $"{todo.Count:N0} {spec.Parent} fetched one at a time (records not adding up to their {spec.ParentAmount}).";
+        result.Note = $"{todo.Count:N0} {spec.Parent} fetched one at a time (records not adding up to their {spec.ParentAmount}, and not fetched since they last changed).";
 
         foreach (var parentId in todo)
         {
@@ -403,6 +405,10 @@ public class UptickMigrator
 
             if (held.TryGetValue(parentId, out var h))
                 await MarkDeletedAsync(resource, h.Ids.Where(id => !returned.Contains(id)).ToList(), result, ct);
+            var parent = await _db.UptickRecords.SingleAsync(r => r.Resource == spec.Parent && r.UptickId == parentId, ct);
+            parent.ChildrenFetchedUtc = Now;
+            await _db.SaveChangesAsync(ct);
+            _db.ChangeTracker.Clear();
             report((pull.Received, result.UptickCount));
         }
     }

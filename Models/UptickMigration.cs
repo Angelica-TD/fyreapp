@@ -37,6 +37,10 @@ public class UptickRecord
 
     // When FyreApp's own tables last took it in; null = waiting to be mapped
     public DateTime? MappedUtc { get; set; }
+
+    // A parent (e.g. an invoice) whose child records were fetched for it alone (§4.5): not fetched again until it
+    // changes
+    public DateTime? ChildrenFetchedUtc { get; set; }
 }
 
 // Where the migration is with one endpoint (§3.3)

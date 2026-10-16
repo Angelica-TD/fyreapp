@@ -500,4 +500,27 @@ public class UptickMigratorTests
         Assert.Contains("ignored the invoice filter", lines.Error);
         Assert.Equal(0, await db.UptickRecords.CountAsync(r => r.Resource == "invoicelineitems" && r.DeletedUtc != null));
     }
+
+    [Fact]
+    public async Task An_invoice_that_never_adds_up_is_fetched_again_only_once_it_changes()
+    {
+        await using var db = DbContextFactory.Create();
+        var api = new FakeApi();
+        // Invoice 20 has no lines in Uptick (synced from Xero)
+        api.Endpoints["invoicelineitems"] = [Line(1, 10, "40.0000")];
+        api.Endpoints["invoices"] = [Invoice(10, "40.0000"), Invoice(20, "175.0000")];
+        var (migrator, clock) = Migrator(db, api);
+        await migrator.RunAsync(UptickRunKind.Full, null, null);
+        Assert.Equal([("invoicelineitems", "invoice", "20")], api.Filtered);
+
+        api.Filtered.Clear();
+        clock.Now = Now.AddDays(1);
+        await migrator.RunAsync(UptickRunKind.Full, null, null);
+        Assert.Empty(api.Filtered);
+
+        api.Endpoints["invoices"][1] = Invoice(20, "180.0000");
+        clock.Now = Now.AddDays(2);
+        await migrator.RunAsync(UptickRunKind.Full, null, null);
+        Assert.Equal([("invoicelineitems", "invoice", "20")], api.Filtered);
+    }
 }

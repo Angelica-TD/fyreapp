@@ -2969,6 +2969,9 @@ namespace FyreApp.Migrations
                     b.Property<DateTime>("ChangedUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("ChildrenFetchedUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("CreatedUtc")
                         .HasColumnType("timestamp with time zone");
 

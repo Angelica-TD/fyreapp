@@ -201,6 +201,18 @@ is kept per run. At cutover it's the sign-off that FyreApp holds everything.
 Each endpoint fetches and commits independently. A failure records `LastError`, leaves the cursor where it was,
 and the run carries on with the other endpoints. Re-running picks up the failed ones.
 
+**Endpoints paging can't read whole** (`UptickEndpoints.FilledPerParent`). `invoicelineitems` is sorted by
+`index` (0 on almost every line), so its order changes between requests: one pass over all 22,857 rows returns
+only ~15,000 distinct lines. It's copied after `invoices`, paged as usual, then every invoice whose held lines
+don't add up to its `subtotal` (or that has none) is fetched with `invoice=<id>`. That request returns all of an
+invoice's lines, so held lines it doesn't return are marked deleted; lines of a deleted invoice are too. If
+Uptick ever ignored the filter (returned another invoice's lines) the endpoint fails rather than marking lines
+deleted. An invoice fetched this way gets `ChildrenFetchedUtc` and isn't fetched again until the invoice
+itself changes (a line added or removed changes its subtotal), so ones that never add up (Xero-synced invoices
+with no lines in Uptick, discounts) cost one request ever. The first fill is ~10,000 invoices (~3 h); later Full
+runs fetch only invoices changed since. Completeness is lines held
+against Uptick's count.
+
 ## 5. Data model changes
 
 1. **`UptickId` (bigint, unique, nullable) on every mapped entity.** It replaces `ExternalId`, which holds a ref
@@ -353,11 +365,7 @@ correspondence and files; they can't get all of Uptick into FyreApp.
    current login until then.
 2. **Rate limit.** Start at 60 requests/minute. Worth asking Uptick support whether more is fine for a one-off
    migration (it mostly matters for files).
-3. **Invoice line items.** `invoicelineitems` is ordered by `index` (its position on the invoice, almost always
-   0), so offset paging returns the same ~15 k of its ~23 k records however often or with whatever page size it's
-   read; `sort`, ID filters and `include` from invoices aren't available. The run marks it **Incomplete**. Only
-   `invoice=<id>` (one invoice per request) gets them all: ~20.6 k requests (~6 h) for every invoice, or ~10 k
-   (~3 h) for just the invoices whose held line items don't add up to their subtotal. Refresh can then use
-   `updatedsince` (one page while fewer than 5,000 changed).
+3. **Invoice line items.** Decided: fetched an invoice at a time for invoices whose held lines don't add up to
+   their subtotal (§4.5).
 4. **Storage account.** An AWS account and S3 bucket in Sydney (§8), needed by the Files phase; the first run
    measures the total file size so the cost is known first.
