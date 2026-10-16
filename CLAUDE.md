@@ -81,6 +81,11 @@ FyreApp is an **ASP.NET Core MVC (.NET 10) application** with a **hybrid fronten
 | `Auth:Enabled` | Set to `false` in dev to bypass login |
 | `Email` | SMTP settings (MailKit); dev default targets smtp4dev on localhost:25 |
 | `GoogleMaps:BrowserKey` / `GoogleMaps:ApiKey` | Maps integration keys |
+| `Uptick:Api` | Uptick API migration (`docs/uptick-migration.md`): `BaseUrl` (pinned API version), pace and page size in `appsettings.json`; `ClientId`, `ClientSecret`, `Username`, `Password` are secrets (user secrets in dev, `Uptick__Api__*` in `/etc/fyreapp.env` in prod) |
+
+### Uptick API migration
+
+`Services/Uptick/` copies Uptick's data into FyreApp through its REST API, read-only (token `scope=read`, only `GET` requests), at most 60 requests/minute. Admin page: `/UptickMigration` (Full / Refresh runs, per-endpoint counts, run reports). Every endpoint lands verbatim in `UptickRecord` (jsonb); mapping into FyreApp's own tables is added phase by phase (see the design doc). The CSV/Excel importers on the Imports page remain until each entity is mapped from the API.
 
 ### Testing
 

@@ -58,12 +58,32 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
     public DbSet<StockLevel> StockLevels => Set<StockLevel>();
     public DbSet<TaskAsset> TaskAssets => Set<TaskAsset>();
+    public DbSet<UptickRecord> UptickRecords => Set<UptickRecord>();
+    public DbSet<UptickEndpointState> UptickEndpointStates => Set<UptickEndpointState>();
+    public DbSet<UptickMigrationRun> UptickMigrationRuns => Set<UptickMigrationRun>();
 
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // The raw copy of Uptick's API (docs/uptick-migration.md §3.2)
+        modelBuilder.Entity<UptickRecord>(entity =>
+        {
+            entity.HasKey(r => new { r.Resource, r.UptickId });
+            entity.Property(r => r.Attributes).HasColumnType("jsonb");
+            entity.Property(r => r.Relationships).HasColumnType("jsonb");
+            entity.HasIndex(r => new { r.Resource, r.UpdatedUtc });
+            entity.HasIndex(r => new { r.Resource, r.MappedUtc }).HasFilter("\"MappedUtc\" IS NULL");
+            entity.HasIndex(r => r.Relationships).HasMethod("gin");
+        });
+        modelBuilder.Entity<UptickEndpointState>().Property(s => s.Schema).HasColumnType("jsonb");
+        modelBuilder.Entity<UptickMigrationRun>(entity =>
+        {
+            entity.Property(r => r.Report).HasColumnType("jsonb");
+            entity.HasIndex(r => r.StartedUtc);
+        });
 
         // Client → Sites (1:N)
         modelBuilder.Entity<Client>(entity =>

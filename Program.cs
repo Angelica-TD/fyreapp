@@ -87,6 +87,17 @@ builder.Services.AddScoped<IServiceOfferingService, ServiceOfferingService>();
 builder.Services.AddScoped<IQuoteService, QuoteService>();
 
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
+
+// Uptick API migration (docs/uptick-migration.md): one client for the whole app, so every run shares its
+// request budget and token
+builder.Services.Configure<FyreApp.Services.Uptick.Api.UptickApiOptions>(builder.Configuration.GetSection("Uptick:Api"));
+builder.Services.AddHttpClient(FyreApp.Services.Uptick.Api.UptickApiClient.HttpClientName);
+builder.Services.AddSingleton<FyreApp.Services.Uptick.Api.IUptickApiClient, FyreApp.Services.Uptick.Api.UptickApiClient>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Migration.UptickMigrator>();
+builder.Services.AddSingleton<FyreApp.Services.Uptick.Migration.UptickMigrationRunner>();
+builder.Services.AddSingleton<FyreApp.Services.Uptick.Migration.IUptickMigrationRunner>(sp =>
+    sp.GetRequiredService<FyreApp.Services.Uptick.Migration.UptickMigrationRunner>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<FyreApp.Services.Uptick.Migration.UptickMigrationRunner>());
 builder.Services.AddScoped<IEmailService, EmailService>();
 
 builder.Services.AddControllersWithViews(options =>
