@@ -25,7 +25,7 @@ public class UptickMigratorTests
         // Uptick's count is higher than what it returns (records lost in paging)
         public Dictionary<string, int> ReportedCount { get; } = new();
         public List<(string Endpoint, DateTime? Since)> Calls { get; } = [];
-        // Records paging never returns (only a filtered request does), as with invoicelineitems
+        // Records plain paging never returns (a filtered or updatedsince request does), as with invoicelineitems
         public HashSet<string> SkippedByPaging { get; } = [];
         public bool IgnoresFilter { get; set; }
         public List<(string Endpoint, string Field, string Value)> Filtered { get; } = [];
@@ -61,7 +61,7 @@ public class UptickMigratorTests
                 if (!IgnoresFilter) records = records.Where(r => r.Relationships.Contains($"\"id\":\"{f.Value}\"")).ToList();
                 count = records.Count;
             }
-            else
+            else if (updatedSinceUtc == null)
                 records = records.Where(r => !SkippedByPaging.Contains(endpoint + "/" + r.Id)).ToList();
             if (records.Count == 0) { Requests++; yield return new UptickPage(count, []); yield break; }
             foreach (var chunk in records.Chunk(PageSize))
@@ -522,5 +522,45 @@ public class UptickMigratorTests
         clock.Now = Now.AddDays(2);
         await migrator.RunAsync(UptickRunKind.Full, null, null);
         Assert.Equal([("invoicelineitems", "invoice", "20")], api.Filtered);
+    }
+
+    [Fact]
+    public async Task Line_items_whose_invoice_adds_up_without_them_are_found_under_updatedsince()
+    {
+        await using var db = DbContextFactory.Create();
+        var api = new FakeApi();
+        // Line 3 is $0; line 5 is left out of its invoice's subtotal (as with invoice 7627 in Uptick). Paging skips
+        // both, and their invoices add up without them, so the fill doesn't fetch either invoice.
+        api.Endpoints["invoicelineitems"] =
+            [Line(1, 10, "40.0000"), Line(2, 10, "60.0000"), Line(3, 10, "0.0000"), Line(4, 11, "25.0000"), Line(5, 11, "115.0000")];
+        api.Endpoints["invoices"] = [Invoice(10, "100.0000"), Invoice(11, "25.0000")];
+        api.SkippedByPaging.UnionWith(["invoicelineitems/3", "invoicelineitems/5"]);
+
+        var run = await Migrator(db, api).Migrator.RunAsync(UptickRunKind.Full, null, null);
+
+        Assert.Empty(api.Filtered);
+        Assert.Contains(("invoicelineitems", (DateTime?)Now.AddMonths(-UptickMigrator.SweepStepMonths)), api.Calls);
+        var lines = Report(run).Single(r => r.Resource == "invoicelineitems");
+        Assert.Equal(("Ok", 5, 5, 5), (lines.Status, lines.Received, lines.Created, lines.Copied));
+        Assert.Contains("2 more found paging under 1 updatedsince dates", lines.Note);
+    }
+
+    [Fact]
+    public async Task The_updatedsince_sweep_stops_past_the_oldest_record_held()
+    {
+        await using var db = DbContextFactory.Create();
+        var api = new FakeApi();
+        // Uptick counts a line no request ever returns
+        api.Endpoints["invoicelineitems"] = [Line(1, 10, "40.0000")];
+        api.Endpoints["invoices"] = [Invoice(10, "40.0000")];
+        api.ReportedCount["invoicelineitems"] = 2;
+
+        var run = await Migrator(db, api).Migrator.RunAsync(UptickRunKind.Full, null, null);
+
+        // Lines were last updated 30 days ago: the first date, two months back, is already past them
+        Assert.Single(api.Calls, c => c.Endpoint == "invoicelineitems" && c.Since != null);
+        var lines = Report(run).Single(r => r.Resource == "invoicelineitems");
+        Assert.Equal("Incomplete", lines.Status);
+        Assert.Contains("0 more found paging under 1 updatedsince dates", lines.Note);
     }
 }
