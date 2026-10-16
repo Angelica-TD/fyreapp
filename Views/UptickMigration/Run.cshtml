@@ -53,6 +53,7 @@
                     <td class="small">
                         @if (r.Error != null) { <div class="text-danger text-break">@r.Error</div> }
                         @if (r.Warning != null) { <div class="text-warning-emphasis">@r.Warning</div> }
+                        @if (r.Note != null) { <div>@r.Note</div> }
                         @if (r.IncrementalNote != null) { <div class="text-muted">@r.IncrementalNote</div> }
                         @if (r.FieldsAdded.Count > 0) { <div>Fields added: @string.Join(", ", r.FieldsAdded)</div> }
                         @if (r.FieldsRemoved.Count > 0) { <div class="text-warning-emphasis">Fields removed: @string.Join(", ", r.FieldsRemoved)</div> }

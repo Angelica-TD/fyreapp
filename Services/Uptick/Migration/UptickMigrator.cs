@@ -41,6 +41,9 @@ public sealed class UptickEndpointResult
     public bool? IncrementalVerified { get; set; }
     public string? IncrementalNote { get; set; }
 
+    // Endpoints filled one parent at a time: how many parents were fetched (§4.5)
+    public string? Note { get; set; }
+
     public List<string> FieldsAdded { get; set; } = [];
     public List<string> FieldsRemoved { get; set; } = [];
 
@@ -109,7 +112,9 @@ public class UptickMigrator
             var states = await SyncEndpointListAsync(ct);
             var todo = states
                 .Where(s => onlyResource == null || string.Equals(s.Resource, onlyResource, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(s => s.Resource, StringComparer.Ordinal)
+                // Endpoints filled per parent go after the parent they're checked against
+                .OrderBy(s => UptickEndpoints.FilledPerParent.ContainsKey(s.Resource))
+                .ThenBy(s => s.Resource, StringComparer.Ordinal)
                 .ToList();
 
             for (var i = 0; i < todo.Count; i++)
@@ -188,13 +193,28 @@ public class UptickMigrator
         {
             var pull = await PullAsync(state.Resource, since, started, result, report, ct);
 
-            // Fewer records than Uptick counts: its pages aren't in a stable order (e.g. invoicelineitems, sorted
-            // by a mostly-zero "index"), so offset paging skips some. Reported, not passed off as complete.
-            var incomplete = !changesOnly && result.UptickCount is { } count && pull.Received < count;
+            // Pages that skip records (invoicelineitems): the rest are fetched one parent at a time, and what's
+            // held is what counts against Uptick's count, as records filled in earlier runs needn't come again
+            var perParent = changesOnly ? null : UptickEndpoints.FilledPerParent.GetValueOrDefault(state.Resource);
+            var got = pull.Received;
+            if (perParent != null)
+            {
+                await FillPerParentAsync(state.Resource, perParent, started, result, pull, report, ct);
+                got = await _db.UptickRecords.CountAsync(r => r.Resource == state.Resource && r.DeletedUtc == null, ct);
+            }
+            result.Received = pull.Received;
+            result.Unchanged = Math.Max(0, pull.Received - result.Created - result.Updated - result.Restored);
+
+            // Fewer records than Uptick counts: its pages aren't in a stable order, so offset paging skipped some.
+            // Reported, not passed off as complete.
+            var incomplete = !changesOnly && result.UptickCount is { } count && got < count;
+            if (incomplete && perParent != null)
+                result.Warning = $"Uptick reported {result.UptickCount} records; {got} are held.";
 
             if (!changesOnly)
             {
-                await MarkDeletionsAsync(state, started, pull.Received, result, ct);
+                // Per-parent endpoints find their deletions parent by parent instead
+                if (perParent == null) await MarkDeletionsAsync(state, started, pull.Received, result, ct);
                 CheckSchema(state, pull.Fields, result);
                 if (kind == UptickRunKind.Full && pull.MaxUpdatedUtc != null && !incomplete)
                     await VerifyIncrementalAsync(state, started, pull, result, ct);
@@ -257,76 +277,179 @@ public class UptickMigrator
         Action<(int, int?)> report, CancellationToken ct)
     {
         var pull = new Pull();
-        var verifyFrom = runStart - VerifyWindow;
 
-        await foreach (var page in _api.ListAsync(resource, since, ct))
+        await foreach (var page in _api.ListAsync(resource, since, ct: ct))
         {
             result.UptickCount ??= page.Count;
             pull.Fields ??= page.Records.Count > 0 ? FieldsOf(page.Records[0]) : null;
 
-            // Pages overlap a little (UptickApiClient.PageOverlap): the last copy of a record wins
-            var records = page.Records.GroupBy(r => r.Id).Select(g => g.Last()).ToList();
-            var ids = records.Select(r => r.Id).ToList();
-            var existing = await _db.UptickRecords
-                .Where(r => r.Resource == resource && ids.Contains(r.UptickId))
-                .ToDictionaryAsync(r => r.UptickId, ct);
-
-            var now = Now;
-            foreach (var record in records)
-            {
-                if (record.UpdatedUtc is { } updated)
-                {
-                    if (pull.MaxUpdatedUtc == null || updated > pull.MaxUpdatedUtc) pull.MaxUpdatedUtc = updated;
-                    if (updated >= verifyFrom) pull.RecentlyUpdated[record.Id] = updated;
-                }
-
-                if (!existing.TryGetValue(record.Id, out var row))
-                {
-                    _db.UptickRecords.Add(new UptickRecord
-                    {
-                        Resource = resource, UptickId = record.Id, Type = record.Type,
-                        Attributes = record.Attributes, Relationships = record.Relationships, Hash = record.Hash,
-                        CreatedUtc = record.CreatedUtc, UpdatedUtc = record.UpdatedUtc,
-                        FetchedUtc = now, ChangedUtc = now, SeenUtc = runStart
-                    });
-                    result.Created++;
-                    pull.Received++;
-                    continue;
-                }
-
-                // Seen already this run (an overlapping page): nothing new to count
-                var seenThisRun = row.SeenUtc >= runStart;
-                if (!seenThisRun) pull.Received++;
-                row.SeenUtc = runStart;
-                if (row.Hash != record.Hash)
-                {
-                    row.Type = record.Type;
-                    row.Attributes = record.Attributes;
-                    row.Relationships = record.Relationships;
-                    row.Hash = record.Hash;
-                    row.CreatedUtc = record.CreatedUtc;
-                    row.UpdatedUtc = record.UpdatedUtc;
-                    row.ChangedUtc = now;
-                    row.MappedUtc = null;
-                    if (!seenThisRun) result.Updated++;
-                }
-                if (row.DeletedUtc != null)
-                {
-                    row.DeletedUtc = null;
-                    row.MappedUtc = null;
-                    result.Restored++;
-                }
-            }
-
-            await _db.SaveChangesAsync(ct);
-            _db.ChangeTracker.Clear();
-
+            await StorePageAsync(resource, page.Records, runStart, result, pull, ct);
             report((pull.Received, result.UptickCount));
         }
 
-        result.Received = pull.Received;
-        result.Unchanged = Math.Max(0, pull.Received - result.Created - result.Updated - result.Restored);
         return pull;
+    }
+
+    // Stores what's new or changed in one page, counting each record once per run
+    private async Task StorePageAsync(string resource, IReadOnlyList<UptickResource> pageRecords, DateTime runStart,
+        UptickEndpointResult result, Pull pull, CancellationToken ct)
+    {
+        var verifyFrom = runStart - VerifyWindow;
+
+        // Pages overlap a little (UptickApiClient.PageOverlap): the last copy of a record wins
+        var records = pageRecords.GroupBy(r => r.Id).Select(g => g.Last()).ToList();
+        var ids = records.Select(r => r.Id).ToList();
+        var existing = await _db.UptickRecords
+            .Where(r => r.Resource == resource && ids.Contains(r.UptickId))
+            .ToDictionaryAsync(r => r.UptickId, ct);
+
+        var now = Now;
+        foreach (var record in records)
+        {
+            if (record.UpdatedUtc is { } updated)
+            {
+                if (pull.MaxUpdatedUtc == null || updated > pull.MaxUpdatedUtc) pull.MaxUpdatedUtc = updated;
+                if (updated >= verifyFrom) pull.RecentlyUpdated[record.Id] = updated;
+            }
+
+            if (!existing.TryGetValue(record.Id, out var row))
+            {
+                _db.UptickRecords.Add(new UptickRecord
+                {
+                    Resource = resource, UptickId = record.Id, Type = record.Type,
+                    Attributes = record.Attributes, Relationships = record.Relationships, Hash = record.Hash,
+                    CreatedUtc = record.CreatedUtc, UpdatedUtc = record.UpdatedUtc,
+                    FetchedUtc = now, ChangedUtc = now, SeenUtc = runStart
+                });
+                result.Created++;
+                pull.Received++;
+                continue;
+            }
+
+            // Seen already this run (an overlapping page): nothing new to count
+            var seenThisRun = row.SeenUtc >= runStart;
+            if (!seenThisRun) pull.Received++;
+            row.SeenUtc = runStart;
+            if (row.Hash != record.Hash)
+            {
+                row.Type = record.Type;
+                row.Attributes = record.Attributes;
+                row.Relationships = record.Relationships;
+                row.Hash = record.Hash;
+                row.CreatedUtc = record.CreatedUtc;
+                row.UpdatedUtc = record.UpdatedUtc;
+                row.ChangedUtc = now;
+                row.MappedUtc = null;
+                if (!seenThisRun) result.Updated++;
+            }
+            if (row.DeletedUtc != null)
+            {
+                row.DeletedUtc = null;
+                row.MappedUtc = null;
+                result.Restored++;
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+        _db.ChangeTracker.Clear();
+    }
+
+    // Fetches again, one parent at a time, the records of every parent whose records held don't add up to it, or
+    // that has none (§4.5): what paging skipped, and what changed or was deleted since. A parent's fetch returns
+    // all its records, so any held for it that don't come back were deleted in Uptick.
+    private async Task FillPerParentAsync(string resource, UptickEndpoints.PerParent spec, DateTime runStart,
+        UptickEndpointResult result, Pull pull, Action<(int, int?)> report, CancellationToken ct)
+    {
+        var parents = await _db.UptickRecords.AsNoTracking()
+            .Where(r => r.Resource == spec.Parent)
+            .Select(r => new { r.UptickId, r.Attributes, r.DeletedUtc })
+            .ToListAsync(ct);
+        var children = await _db.UptickRecords.AsNoTracking()
+            .Where(r => r.Resource == resource && r.DeletedUtc == null)
+            .Select(r => new { r.UptickId, r.Attributes, r.Relationships })
+            .ToListAsync(ct);
+
+        var held = children
+            .Select(c => (c.UptickId, Parent: RelatedId(c.Relationships, spec.Filter), Amount: Amount(c.Attributes, spec.ChildAmount)))
+            .Where(c => c.Parent != null)
+            .GroupBy(c => c.Parent!)
+            .ToDictionary(g => g.Key, g => (Ids: g.Select(c => c.UptickId).ToHashSet(), Sum: g.Sum(c => c.Amount)));
+
+        // Records of parents deleted in Uptick went with them
+        var deletedParents = parents.Where(p => p.DeletedUtc != null).Select(p => p.UptickId).ToHashSet();
+        await MarkDeletedAsync(resource, held.Where(h => deletedParents.Contains(h.Key)).SelectMany(h => h.Value.Ids).ToList(), result, ct);
+
+        var todo = parents
+            .Where(p => p.DeletedUtc == null)
+            .Where(p => !held.TryGetValue(p.UptickId, out var h) || Math.Abs(h.Sum - Amount(p.Attributes, spec.ParentAmount)) >= 0.005m)
+            .Select(p => p.UptickId)
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToList();
+        result.Note = $"{todo.Count:N0} {spec.Parent} fetched one at a time (records not adding up to their {spec.ParentAmount}).";
+
+        foreach (var parentId in todo)
+        {
+            ct.ThrowIfCancellationRequested();
+            var returned = new HashSet<string>();
+            await foreach (var page in _api.ListAsync(resource, filter: (spec.Filter, parentId), ct: ct))
+            {
+                // A filter Uptick ignored would return other parents' records, and make this parent's look deleted
+                if (page.Records.FirstOrDefault(r => RelatedId(r.Relationships, spec.Filter) != parentId) is { } other)
+                    throw new UptickApiException(0,
+                        $"Uptick ignored the {spec.Filter} filter on {resource} (asked for {parentId}, got a record of {RelatedId(other.Relationships, spec.Filter) ?? "none"}).");
+                await StorePageAsync(resource, page.Records, runStart, result, pull, ct);
+                returned.UnionWith(page.Records.Select(r => r.Id));
+            }
+
+            if (held.TryGetValue(parentId, out var h))
+                await MarkDeletedAsync(resource, h.Ids.Where(id => !returned.Contains(id)).ToList(), result, ct);
+            report((pull.Received, result.UptickCount));
+        }
+    }
+
+    private async Task MarkDeletedAsync(string resource, List<string> ids, UptickEndpointResult result, CancellationToken ct)
+    {
+        foreach (var chunk in ids.Chunk(5000))
+        {
+            var rows = await _db.UptickRecords
+                .Where(r => r.Resource == resource && chunk.Contains(r.UptickId) && r.DeletedUtc == null)
+                .ToListAsync(ct);
+            var now = Now;
+            foreach (var row in rows)
+            {
+                row.DeletedUtc = now;
+                row.MappedUtc = null;
+            }
+            result.Deleted += rows.Count;
+            await _db.SaveChangesAsync(ct);
+            _db.ChangeTracker.Clear();
+        }
+    }
+
+    // The id of a JSON:API to-one relationship, e.g. "invoice": {"data": {"id": "129"}}
+    private static string? RelatedId(string relationships, string name)
+    {
+        using var doc = JsonDocument.Parse(relationships);
+        return doc.RootElement.ValueKind == JsonValueKind.Object
+               && doc.RootElement.TryGetProperty(name, out var rel) && rel.ValueKind == JsonValueKind.Object
+               && rel.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object
+               && data.TryGetProperty("id", out var id)
+            ? id.ToString()
+            : null;
+    }
+
+    // A money attribute, which Uptick sends as a string ("67.5000"); missing or blank counts as 0
+    private static decimal Amount(string attributes, string name)
+    {
+        using var doc = JsonDocument.Parse(attributes);
+        if (!doc.RootElement.TryGetProperty(name, out var v)) return 0;
+        return v.ValueKind switch
+        {
+            JsonValueKind.Number => v.GetDecimal(),
+            JsonValueKind.String when decimal.TryParse(v.GetString(), System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture, out var d) => d,
+            _ => 0
+        };
     }
 
     // A full pull that didn't return a record means Uptick deleted it (§4.3)
@@ -405,7 +528,7 @@ public class UptickMigrator
         }
 
         var got = new Dictionary<string, DateTime?>();
-        await foreach (var page in _api.ListAsync(state.Resource, runStart - VerifyWindow, ct))
+        await foreach (var page in _api.ListAsync(state.Resource, runStart - VerifyWindow, ct: ct))
             foreach (var r in page.Records)
                 got[r.Id] = r.UpdatedUtc;
 

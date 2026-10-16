@@ -25,6 +25,10 @@ public class UptickMigratorTests
         // Uptick's count is higher than what it returns (records lost in paging)
         public Dictionary<string, int> ReportedCount { get; } = new();
         public List<(string Endpoint, DateTime? Since)> Calls { get; } = [];
+        // Records paging never returns (only a filtered request does), as with invoicelineitems
+        public HashSet<string> SkippedByPaging { get; } = [];
+        public bool IgnoresFilter { get; set; }
+        public List<(string Endpoint, string Field, string Value)> Filtered { get; } = [];
         public int PageSize { get; set; } = 2;
         public Action? OnPage { get; set; }
 
@@ -42,7 +46,7 @@ public class UptickMigratorTests
         }
 
         public async IAsyncEnumerable<UptickPage> ListAsync(string endpoint, DateTime? updatedSinceUtc = null,
-            [EnumeratorCancellation] CancellationToken ct = default)
+            (string Field, string Value)? filter = null, [EnumeratorCancellation] CancellationToken ct = default)
         {
             Calls.Add((endpoint, updatedSinceUtc));
             if (Fail.TryGetValue(endpoint, out var status)) throw new UptickApiException(status, $"Uptick returned {status}.");
@@ -51,6 +55,14 @@ public class UptickMigratorTests
                 .Where(r => updatedSinceUtc == null || IgnoresUpdatedSince.Contains(endpoint) || r.UpdatedUtc >= updatedSinceUtc)
                 .ToList();
             var count = ReportedCount.GetValueOrDefault(endpoint, records.Count);
+            if (filter is { } f)
+            {
+                Filtered.Add((endpoint, f.Field, f.Value));
+                if (!IgnoresFilter) records = records.Where(r => r.Relationships.Contains($"\"id\":\"{f.Value}\"")).ToList();
+                count = records.Count;
+            }
+            else
+                records = records.Where(r => !SkippedByPaging.Contains(endpoint + "/" + r.Id)).ToList();
             if (records.Count == 0) { Requests++; yield return new UptickPage(count, []); yield break; }
             foreach (var chunk in records.Chunk(PageSize))
             {
@@ -72,6 +84,13 @@ public class UptickMigratorTests
     private static UptickResource Asset(int id, string name = "Extinguisher", int daysAgo = 30) =>
         new("Asset", id.ToString(), JsonSerializer.Serialize(new { name, location = "Kitchen" }),
             """{"property":{"data":{"type":"Property","id":"7"}}}""", Now.AddDays(-400), Now.AddDays(-daysAgo));
+
+    private static UptickResource Invoice(int id, string subtotal) =>
+        new("Invoice", id.ToString(), JsonSerializer.Serialize(new { number = $"S{id}", subtotal }), "{}", Now.AddDays(-400), Now.AddDays(-30));
+
+    private static UptickResource Line(int id, int invoice, string subtotal) =>
+        new("InvoiceLineItem", id.ToString(), JsonSerializer.Serialize(new { subtotal, index = 0 }),
+            "{\"invoice\":{\"data\":{\"type\":\"Invoice\",\"id\":\"" + invoice + "\"}}}", Now.AddDays(-400), Now.AddDays(-30));
 
     private static (UptickMigrator Migrator, FixedClock Clock) Migrator(AppDbContext db, FakeApi api)
     {
@@ -390,5 +409,95 @@ public class UptickMigratorTests
         Assert.NotNull(run.FinishedUtc);
         Assert.Equal(2, await db.UptickRecords.CountAsync()); // the first page
         Assert.Equal("Cancelled", (await db.UptickMigrationRuns.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task Line_items_paging_skips_are_fetched_an_invoice_at_a_time()
+    {
+        await using var db = DbContextFactory.Create();
+        var api = new FakeApi();
+        api.Endpoints["invoicelineitems"] = [Line(1, 10, "40.0000"), Line(2, 10, "60.0000"), Line(3, 11, "25.0000"), Line(4, 12, "5.0000")];
+        api.Endpoints["invoices"] = [Invoice(10, "100.0000"), Invoice(11, "25.0000"), Invoice(12, "5.0000")];
+        // Paging returns lines 1, 3 and 4 only; Uptick still counts 4
+        api.SkippedByPaging.Add("invoicelineitems/2");
+
+        var run = await Migrator(db, api).Migrator.RunAsync(UptickRunKind.Full, null, null);
+
+        // Invoices are copied first, so the line items are checked against this run's invoices
+        Assert.Equal(["invoices", "invoicelineitems"], api.Calls.Select(c => c.Endpoint).Distinct());
+        // Only invoice 10 didn't add up
+        Assert.Equal([("invoicelineitems", "invoice", "10")], api.Filtered);
+        var lines = Report(run).Single(r => r.Resource == "invoicelineitems");
+        Assert.Equal(("Ok", 4, 4, 4, 4), (lines.Status, lines.UptickCount, lines.Received, lines.Created, lines.Copied));
+        Assert.Contains("1 invoices fetched one at a time", lines.Note);
+        Assert.Equal(4, await db.UptickRecords.CountAsync(r => r.Resource == "invoicelineitems" && r.DeletedUtc == null));
+    }
+
+    [Fact]
+    public async Task A_later_run_keeps_line_items_filled_earlier_and_finds_deleted_ones()
+    {
+        await using var db = DbContextFactory.Create();
+        var api = new FakeApi();
+        api.Endpoints["invoicelineitems"] = [Line(1, 10, "40.0000"), Line(2, 10, "60.0000"), Line(3, 11, "25.0000")];
+        api.Endpoints["invoices"] = [Invoice(10, "100.0000"), Invoice(11, "25.0000")];
+        api.SkippedByPaging.Add("invoicelineitems/2");
+        var (migrator, clock) = Migrator(db, api);
+        await migrator.RunAsync(UptickRunKind.Full, null, null);
+
+        // Line 3 is deleted in Uptick, taking invoice 11 to 0; line 2 is still skipped by paging
+        api.Endpoints["invoicelineitems"] = [Line(1, 10, "40.0000"), Line(2, 10, "60.0000")];
+        api.Endpoints["invoices"] = [Invoice(10, "100.0000"), Invoice(11, "0.0000")];
+        api.Filtered.Clear();
+        clock.Now = Now.AddDays(1);
+
+        var run = await migrator.RunAsync(UptickRunKind.Full, null, null);
+
+        // Invoice 10 adds up with line 2 held from before: not fetched again
+        Assert.Equal([("invoicelineitems", "invoice", "11")], api.Filtered);
+        var lines = Report(run).Single(r => r.Resource == "invoicelineitems");
+        Assert.Equal(("Ok", 1, 2), (lines.Status, lines.Deleted, lines.Copied));
+        Assert.NotNull((await db.UptickRecords.SingleAsync(r => r.Resource == "invoicelineitems" && r.UptickId == "3")).DeletedUtc);
+        Assert.Null((await db.UptickRecords.SingleAsync(r => r.Resource == "invoicelineitems" && r.UptickId == "2")).DeletedUtc);
+    }
+
+    [Fact]
+    public async Task Line_items_of_a_deleted_invoice_are_deleted_with_it()
+    {
+        await using var db = DbContextFactory.Create();
+        var api = new FakeApi();
+        // Ten invoices of one line each (few enough deletions for the safety share to allow them)
+        api.Endpoints["invoicelineitems"] = Enumerable.Range(10, 10).Select(i => Line(i, i, "40.0000")).ToList();
+        api.Endpoints["invoices"] = Enumerable.Range(10, 10).Select(i => Invoice(i, "40.0000")).ToList();
+        var (migrator, clock) = Migrator(db, api);
+        await migrator.RunAsync(UptickRunKind.Full, null, null);
+
+        // Invoice 19 is deleted in Uptick, and its line with it
+        api.Endpoints["invoicelineitems"].RemoveAt(9);
+        api.Endpoints["invoices"].RemoveAt(9);
+        api.Filtered.Clear();
+        clock.Now = Now.AddDays(1);
+
+        var run = await migrator.RunAsync(UptickRunKind.Full, null, null);
+
+        Assert.Empty(api.Filtered);
+        Assert.Equal((1, 9), (Report(run).Single(r => r.Resource == "invoicelineitems").Deleted,
+            await db.UptickRecords.CountAsync(r => r.Resource == "invoicelineitems" && r.DeletedUtc == null)));
+    }
+
+    [Fact]
+    public async Task Stops_filling_if_Uptick_ignores_the_invoice_filter()
+    {
+        await using var db = DbContextFactory.Create();
+        var api = new FakeApi { IgnoresFilter = true };
+        api.Endpoints["invoicelineitems"] = [Line(1, 10, "40.0000"), Line(2, 10, "60.0000"), Line(3, 11, "25.0000")];
+        api.Endpoints["invoices"] = [Invoice(10, "100.0000"), Invoice(11, "25.0000")];
+        api.SkippedByPaging.Add("invoicelineitems/2");
+
+        var run = await Migrator(db, api).Migrator.RunAsync(UptickRunKind.Full, null, null);
+
+        var lines = Report(run).Single(r => r.Resource == "invoicelineitems");
+        Assert.Equal("Failed", lines.Status);
+        Assert.Contains("ignored the invoice filter", lines.Error);
+        Assert.Equal(0, await db.UptickRecords.CountAsync(r => r.Resource == "invoicelineitems" && r.DeletedUtc != null));
     }
 }
