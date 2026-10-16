@@ -19,7 +19,8 @@
 
 <ul class="list-inline small">
     <li class="list-inline-item">Endpoints: <strong>@Model.Results.Count</strong></li>
-    <li class="list-inline-item">Copied OK: <strong>@ok.Count</strong></li>
+    @{ var incomplete = ok.Count(r => r.Status == "Incomplete"); }
+    <li class="list-inline-item">Copied: <strong>@ok.Count</strong>@if (incomplete > 0) { <span class="text-warning"> (@incomplete incomplete)</span> }</li>
     <li class="list-inline-item">Received: <strong>@ok.Sum(r => r.Received).ToString("N0")</strong></li>
     <li class="list-inline-item">New: <strong>@ok.Sum(r => r.Created).ToString("N0")</strong></li>
     <li class="list-inline-item">Changed: <strong>@ok.Sum(r => r.Updated).ToString("N0")</strong></li>

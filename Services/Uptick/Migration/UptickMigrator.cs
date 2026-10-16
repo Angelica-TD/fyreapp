@@ -69,6 +69,9 @@ public class UptickMigrator
     // Don't mark records deleted when a full pull returned less than this share of what was held (an API hiccup)
     internal const double DeletionSafetyShare = 0.9;
 
+    // Gap between the updatedsince dates a per-parent endpoint still short after its fill is paged under (§4.5)
+    internal const int SweepStepMonths = 2;
+
     private static readonly JsonSerializerOptions ReportJson = new() { WriteIndented = false };
 
     private readonly AppDbContext _db;
@@ -201,6 +204,8 @@ public class UptickMigrator
             {
                 await FillPerParentAsync(state.Resource, perParent, started, result, pull, report, ct);
                 got = await _db.UptickRecords.CountAsync(r => r.Resource == state.Resource && r.DeletedUtc == null, ct);
+                if (result.UptickCount is { } uptickCount && got < uptickCount)
+                    got = await SweepAsync(state.Resource, uptickCount, got, started, result, pull, report, ct);
             }
             result.Received = pull.Received;
             result.Unchanged = Math.Max(0, pull.Received - result.Created - result.Updated - result.Restored);
@@ -411,6 +416,36 @@ public class UptickMigrator
             _db.ChangeTracker.Clear();
             report((pull.Received, result.UptickCount));
         }
+    }
+
+    // Records the fill can't reach: a $0 line, or one its invoice's subtotal leaves out, doesn't change the sum, so
+    // the invoice looks complete and isn't fetched. updatedsince is the only filter Uptick honours on them, and each
+    // date returns the records in another order, so paging under a series of dates turns up the ones plain paging
+    // skips. Goes back until nothing is missing or past the oldest record held. Returns the records held.
+    private async Task<int> SweepAsync(string resource, int uptickCount, int held, DateTime runStart,
+        UptickEndpointResult result, Pull pull, Action<(int, int?)> report, CancellationToken ct)
+    {
+        var oldest = await _db.UptickRecords
+            .Where(r => r.Resource == resource && r.DeletedUtc == null)
+            .MinAsync(r => r.UpdatedUtc, ct);
+        if (oldest == null) return held;
+
+        var before = held;
+        var dates = 0;
+        for (var since = runStart.AddMonths(-SweepStepMonths); held < uptickCount; since = since.AddMonths(-SweepStepMonths))
+        {
+            await foreach (var page in _api.ListAsync(resource, since, ct: ct))
+            {
+                await StorePageAsync(resource, page.Records, runStart, result, pull, ct);
+                report((pull.Received, result.UptickCount));
+            }
+            dates++;
+            held = await _db.UptickRecords.CountAsync(r => r.Resource == resource && r.DeletedUtc == null, ct);
+            if (since <= oldest) break;
+        }
+
+        result.Note += $" {held - before:N0} more found paging under {dates} updatedsince dates.";
+        return held;
     }
 
     private async Task MarkDeletedAsync(string resource, List<string> ids, UptickEndpointResult result, CancellationToken ct)
