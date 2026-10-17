@@ -173,7 +173,7 @@ namespace FyreApp.Controllers
             if (!await _context.Assets.AnyAsync(a => a.Id == id, ct)) return NotFound();
             if (!string.IsNullOrWhiteSpace(text))
             {
-                _context.TimelineEntries.Add(new TimelineEntry { AssetId = id, Author = await _context.AuthorNameAsync(User, ct), IsNote = true, Text = text.Trim() });
+                _context.TimelineEvents.Add(new TimelineEvent { AssetId = id, Author = await _context.AuthorNameAsync(User, ct), IsNote = true, Text = text.Trim() });
                 await _context.SaveChangesAsync(ct);
             }
             return RedirectToAction(nameof(Details), new { id });

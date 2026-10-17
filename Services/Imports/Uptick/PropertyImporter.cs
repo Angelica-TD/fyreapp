@@ -1,4 +1,3 @@
-using FyreApp.Services.Timeline;
 using FyreApp.Data;
 using FyreApp.Models;
 using Microsoft.EntityFrameworkCore;
@@ -152,17 +151,8 @@ public class PropertyImporter : UptickImporter
 
         // Placeholders get the full details from their row; properties changed in Uptick are updated
         await ApplyUpdatesAsync(Db.Sites, toFill.ToDictionary(p => p.Key, p => (Action<Site>)(s => CopyFrom(s, p.Value))), s => s.Id, ct);
-        // Fields changed in Uptick show on the property's Timeline, as Uptick shows them
-        await ApplyUpdatesAsync(Db.Sites, toUpdate.ToDictionary(p => p.Key, p => (Action<Site>)(s =>
-        {
-            var before = TimelineLog.PropertyFields(s);
-            CopyFrom(s, p.Value);
-            foreach (var change in TimelineLog.Changes(before, TimelineLog.PropertyFields(s), TimelineLog.UptickAuthor, TimelineLog.UpdatedInUptick(s.UptickData)))
-            {
-                change.SiteId = s.Id;
-                Db.TimelineEntries.Add(change);
-            }
-        })), s => s.Id, ct);
+        // What changed shows on the property's Timeline from Uptick's own (the timelineevents migration)
+        await ApplyUpdatesAsync(Db.Sites, toUpdate.ToDictionary(p => p.Key, p => (Action<Site>)(s => CopyFrom(s, p.Value))), s => s.Id, ct);
 
         Db.Sites.AddRange(toCreate);
         await Db.SaveChangesAsync(ct);

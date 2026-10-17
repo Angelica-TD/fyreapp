@@ -776,8 +776,21 @@ a.routine-marker:hover {
 }
 
 /* Timeline: changes and notes read as in Uptick, e.g. "Access note was changed to ..." */
+.timeline-text {
+    overflow-wrap: anywhere;
+}
+
+/* Notes keep their line breaks */
+.timeline-body {
+    white-space: pre-line;
+}
+
 .timeline-text em {
     font-style: italic;
+}
+
+.timeline-text p {
+    margin: 0;
 }
 
 .timeline-toggle {

@@ -563,4 +563,33 @@ public class UptickMigratorTests
         Assert.Equal("Incomplete", lines.Status);
         Assert.Contains("0 more found paging under 1 updatedsince dates", lines.Note);
     }
+
+    [Fact]
+    public async Task A_run_maps_what_it_copied_and_a_repeat_run_maps_only_what_changed()
+    {
+        await using var db = DbContextFactory.Create();
+        var api = new FakeApi();
+        UptickResource Note(string text) => new("TimelineEvent", "5",
+            JsonSerializer.Serialize(new { key = "general", type = "C", text, data = new { }, object_id = 7, author_name = "Wes Speedon" }),
+            """{"content_type":{"data":{"type":"ContentType","id":"19"}}}""", Now.AddDays(-2), Now.AddDays(-2));
+        api.Endpoints["timelineevents"] = [Note("Gate code is 1234")];
+        var clock = new FixedClock(Now);
+        var mapping = new FyreApp.Services.Uptick.Mapping.UptickMapping(db,
+            [new FyreApp.Services.Uptick.Mapping.TimelineEventMapper(db)], NullLogger<FyreApp.Services.Uptick.Mapping.UptickMapping>.Instance, clock);
+        var migrator = new UptickMigrator(db, api, NullLogger<UptickMigrator>.Instance, clock, mapping);
+
+        var first = Report(await migrator.RunAsync(UptickRunKind.Full, null, "admin")).Single();
+        Assert.Equal(1, first.Mapped);
+        Assert.Equal("Gate code is 1234", (await db.TimelineEvents.SingleAsync()).Html);
+
+        clock.Now = Now.AddHours(1);
+        var unchanged = Report(await migrator.RunAsync(UptickRunKind.Full, null, "admin")).Single();
+        Assert.Equal(0, unchanged.Mapped);
+
+        clock.Now = Now.AddHours(2);
+        api.Endpoints["timelineevents"] = [Note("Gate code is 4321")];
+        var changed = Report(await migrator.RunAsync(UptickRunKind.Full, null, "admin")).Single();
+        Assert.Equal(1, changed.Mapped);
+        Assert.Equal("Gate code is 4321", (await db.TimelineEvents.SingleAsync()).Html);
+    }
 }

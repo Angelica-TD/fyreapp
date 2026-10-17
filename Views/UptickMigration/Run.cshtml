@@ -34,7 +34,7 @@
                 <th>Endpoint</th><th>Status</th><th>Mode</th>
                 <th class="text-end">Uptick</th><th class="text-end">Received</th><th class="text-end">New</th>
                 <th class="text-end">Changed</th><th class="text-end">Deleted</th><th class="text-end">Held</th>
-                <th class="text-end">Requests</th><th>Notes</th>
+                <th class="text-end">Mapped</th><th class="text-end">Requests</th><th>Notes</th>
             </tr>
         </thead>
         <tbody>
@@ -50,11 +50,15 @@
                     <td class="text-end">@r.Updated.ToString("N0")</td>
                     <td class="text-end">@r.Deleted.ToString("N0")</td>
                     <td class="text-end">@r.Copied.ToString("N0")</td>
+                    <td class="text-end">@(r.Mapped?.ToString("N0") ?? "")</td>
                     <td class="text-end">@r.Requests</td>
                     <td class="small">
                         @if (r.Error != null) { <div class="text-danger text-break">@r.Error</div> }
                         @if (r.Warning != null) { <div class="text-warning-emphasis">@r.Warning</div> }
                         @if (r.Note != null) { <div>@r.Note</div> }
+                        @if (r.MapError != null) { <div class="text-danger text-break">Mapping stopped: @r.MapError</div> }
+                        @if (r.MapFailed > 0) { <div class="text-warning-emphasis">@r.MapFailed.ToString("N0") couldn't be mapped: @string.Join("; ", r.MapErrors)</div> }
+                        @if (r.MapSeconds is { } ms) { <div class="text-muted">Mapped in @ms.ToString("0.#") s</div> }
                         @if (r.IncrementalNote != null) { <div class="text-muted">@r.IncrementalNote</div> }
                         @if (r.FieldsAdded.Count > 0) { <div>Fields added: @string.Join(", ", r.FieldsAdded)</div> }
                         @if (r.FieldsRemoved.Count > 0) { <div class="text-warning-emphasis">Fields removed: @string.Join(", ", r.FieldsRemoved)</div> }

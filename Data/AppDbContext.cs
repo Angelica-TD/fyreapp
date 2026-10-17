@@ -36,7 +36,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<Contractor> Contractors => Set<Contractor>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<UptickUser> UptickUsers => Set<UptickUser>();
-    public DbSet<TimelineEntry> TimelineEntries => Set<TimelineEntry>();
+    public DbSet<TimelineEvent> TimelineEvents => Set<TimelineEvent>();
     public DbSet<RoutineServiceType> RoutineServiceTypes => Set<RoutineServiceType>();
     public DbSet<RoutineServiceLevel> RoutineServiceLevels => Set<RoutineServiceLevel>();
     public DbSet<RoutineOccurrence> RoutineOccurrences => Set<RoutineOccurrence>();
@@ -173,13 +173,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(a => a.InactiveDate).HasColumnType("timestamptz");
         });
 
-        modelBuilder.Entity<TimelineEntry>(entity =>
+        modelBuilder.Entity<TimelineEvent>(entity =>
         {
             entity.HasOne(e => e.Site).WithMany().HasForeignKey(e => e.SiteId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.Asset).WithMany().HasForeignKey(e => e.AssetId).OnDelete(DeleteBehavior.Cascade);
             entity.Property(e => e.WhenUtc).HasColumnType("timestamptz");
             entity.HasIndex(e => new { e.SiteId, e.WhenUtc });
             entity.HasIndex(e => new { e.AssetId, e.WhenUtc });
+            entity.HasIndex(e => e.UptickId).IsUnique();
+            entity.HasIndex(e => new { e.UptickObjectType, e.UptickObjectId });
         });
 
         modelBuilder.Entity<SiteContact>(entity =>

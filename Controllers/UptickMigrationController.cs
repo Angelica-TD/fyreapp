@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FyreApp.Data;
 using FyreApp.Services.Uptick.Api;
+using FyreApp.Services.Uptick.Mapping;
 using FyreApp.Services.Uptick.Migration;
 using FyreApp.ViewModels.Uptick;
 using Microsoft.AspNetCore.Authorization;
@@ -18,9 +19,12 @@ public class UptickMigrationController : Controller
     private readonly IUptickApiClient _api;
     private readonly IUptickMigrationRunner _runner;
     private readonly UptickApiOptions _options;
+    private readonly UptickMapping _mapping;
 
-    public UptickMigrationController(AppDbContext db, IUptickApiClient api, IUptickMigrationRunner runner, IOptions<UptickApiOptions> options)
+    public UptickMigrationController(AppDbContext db, IUptickApiClient api, IUptickMigrationRunner runner, IOptions<UptickApiOptions> options,
+        UptickMapping mapping)
     {
+        _mapping = mapping;
         _db = db;
         _api = api;
         _runner = runner;
@@ -38,6 +42,7 @@ public class UptickMigrationController : Controller
             MaxRequestsPerMinute = _options.MaxRequestsPerMinute,
             PageSize = _options.PageSize,
             Current = _runner.Current,
+            Mapped = _mapping.Resources,
             Endpoints = await _db.UptickEndpointStates.AsNoTracking().OrderBy(s => s.Resource).ToListAsync(ct),
             Runs = await _db.UptickMigrationRuns.AsNoTracking()
                 .OrderByDescending(r => r.StartedUtc).Take(15)
@@ -70,7 +75,8 @@ public class UptickMigrationController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public IActionResult Start(UptickRunKind kind, string? resource)
     {
-        if (!_api.IsConfigured)
+        // A Re-map only reads what's held
+        if (!_api.IsConfigured && kind != UptickRunKind.Remap)
             TempData["Error"] = "The Uptick API isn't configured.";
         else if (!_runner.TryStart(kind, string.IsNullOrWhiteSpace(resource) ? null : resource, User.Identity?.Name))
             TempData["Error"] = "A run is already in progress.";

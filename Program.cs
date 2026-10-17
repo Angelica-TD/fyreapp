@@ -94,6 +94,9 @@ builder.Services.Configure<FyreApp.Services.Uptick.Api.UptickApiOptions>(builder
 builder.Services.AddHttpClient(FyreApp.Services.Uptick.Api.UptickApiClient.HttpClientName);
 builder.Services.AddSingleton<FyreApp.Services.Uptick.Api.IUptickApiClient, FyreApp.Services.Uptick.Api.UptickApiClient>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Migration.UptickMigrator>();
+// Mappers from the raw copy into FyreApp's tables, in the order they run (docs/uptick-migration.md §3.4)
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.TimelineEventMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.UptickMapping>();
 builder.Services.AddSingleton<FyreApp.Services.Uptick.Migration.UptickMigrationRunner>();
 builder.Services.AddSingleton<FyreApp.Services.Uptick.Migration.IUptickMigrationRunner>(sp =>
     sp.GetRequiredService<FyreApp.Services.Uptick.Migration.UptickMigrationRunner>());

@@ -2,6 +2,7 @@ using System.Text.Json;
 using FyreApp.Data;
 using FyreApp.Models;
 using FyreApp.Services.Uptick.Api;
+using FyreApp.Services.Uptick.Mapping;
 using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Uptick.Migration;
@@ -11,7 +12,9 @@ public enum UptickRunKind
     // Every record of every endpoint; also finds records deleted in Uptick
     Full,
     // Only what changed since the last run, where Uptick can say what changed (§4.1)
-    Refresh
+    Refresh,
+    // No requests to Uptick: maps every record held for the mapped endpoints again (§3.4), e.g. after a mapper changes
+    Remap
 }
 
 // What a run did with one endpoint: the reconciliation report (§4.4)
@@ -51,6 +54,14 @@ public sealed class UptickEndpointResult
     public string? Error { get; set; }
     public int Requests { get; set; }
     public double Seconds { get; set; }
+
+    // Endpoints mapped into FyreApp's own tables (§3.4): records taken in this run, records that couldn't be (with
+    // the first few reasons), or why mapping stopped
+    public int? Mapped { get; set; }
+    public int MapFailed { get; set; }
+    public List<string> MapErrors { get; set; } = [];
+    public string? MapError { get; set; }
+    public double? MapSeconds { get; set; }
 }
 
 public sealed record UptickProgress(
@@ -78,13 +89,16 @@ public class UptickMigrator
     private readonly IUptickApiClient _api;
     private readonly ILogger<UptickMigrator> _logger;
     private readonly TimeProvider _clock;
+    private readonly UptickMapping? _mapping;
 
-    public UptickMigrator(AppDbContext db, IUptickApiClient api, ILogger<UptickMigrator> logger, TimeProvider? clock = null)
+    public UptickMigrator(AppDbContext db, IUptickApiClient api, ILogger<UptickMigrator> logger, TimeProvider? clock = null,
+        UptickMapping? mapping = null)
     {
         _db = db;
         _api = api;
         _logger = logger;
         _clock = clock ?? TimeProvider.System;
+        _mapping = mapping;
     }
 
     // Whole milliseconds: Postgres keeps microseconds, so a time with finer ticks would read back earlier than it
@@ -112,30 +126,10 @@ public class UptickMigrator
         var results = new List<UptickEndpointResult>();
         try
         {
-            var states = await SyncEndpointListAsync(ct);
-            var todo = states
-                .Where(s => onlyResource == null || string.Equals(s.Resource, onlyResource, StringComparison.OrdinalIgnoreCase))
-                // Endpoints filled per parent go after the parent they're checked against
-                .OrderBy(s => UptickEndpoints.FilledPerParent.ContainsKey(s.Resource))
-                .ThenBy(s => s.Resource, StringComparer.Ordinal)
-                .ToList();
-
-            for (var i = 0; i < todo.Count; i++)
-            {
-                ct.ThrowIfCancellationRequested();
-                var state = todo[i];
-                if (!state.Enabled)
-                {
-                    results.Add(new UptickEndpointResult { Resource = state.Resource, Status = "Excluded", Warning = UptickEndpoints.WhyExcluded(state.Resource) });
-                    continue;
-                }
-
-                var number = i + 1;
-                results.Add(await MigrateEndpointAsync(state, kind,
-                    p => progress?.Report(new UptickProgress(state.Resource, number, todo.Count, p.Received, p.Total, _api.Requests, _api.Throttled)),
-                    ct));
-            }
-
+            if (kind == UptickRunKind.Remap)
+                await RemapAsync(onlyResource, results, progress, ct);
+            else
+                await CopyAsync(kind, onlyResource, results, progress, ct);
             run.Status = "Completed";
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -158,6 +152,75 @@ public class UptickMigrator
         _db.UptickMigrationRuns.Update(run);
         await _db.SaveChangesAsync(CancellationToken.None);
         return run;
+    }
+
+    // Copies the endpoints, then maps what came in new or changed into FyreApp's own tables
+    private async Task CopyAsync(UptickRunKind kind, string? onlyResource, List<UptickEndpointResult> results,
+        IProgress<UptickProgress>? progress, CancellationToken ct)
+    {
+        var states = await SyncEndpointListAsync(ct);
+        var todo = states
+            .Where(s => onlyResource == null || string.Equals(s.Resource, onlyResource, StringComparison.OrdinalIgnoreCase))
+            // Endpoints filled per parent go after the parent they're checked against
+            .OrderBy(s => UptickEndpoints.FilledPerParent.ContainsKey(s.Resource))
+            .ThenBy(s => s.Resource, StringComparer.Ordinal)
+            .ToList();
+
+        for (var i = 0; i < todo.Count; i++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var state = todo[i];
+            if (!state.Enabled)
+            {
+                results.Add(new UptickEndpointResult { Resource = state.Resource, Status = "Excluded", Warning = UptickEndpoints.WhyExcluded(state.Resource) });
+                continue;
+            }
+
+            var number = i + 1;
+            results.Add(await MigrateEndpointAsync(state, kind,
+                p => progress?.Report(new UptickProgress(state.Resource, number, todo.Count, p.Received, p.Total, _api.Requests, _api.Throttled)),
+                ct));
+        }
+
+        await MapWaitingAsync(results, progress, ct);
+    }
+
+    // Maps the records waiting in each mapped endpoint the run copied, adding to its result
+    private async Task MapWaitingAsync(List<UptickEndpointResult> results, IProgress<UptickProgress>? progress, CancellationToken ct)
+    {
+        if (_mapping == null) return;
+        foreach (var resource in _mapping.Resources)
+        {
+            var result = results.FirstOrDefault(r => string.Equals(r.Resource, resource, StringComparison.OrdinalIgnoreCase));
+            if (result == null || result.Status is "Excluded" or "NotRun") continue;
+            await MapOneAsync(resource, remap: false, result, progress, ct);
+        }
+    }
+
+    // Maps every record held again, without asking Uptick for anything
+    private async Task RemapAsync(string? onlyResource, List<UptickEndpointResult> results, IProgress<UptickProgress>? progress,
+        CancellationToken ct)
+    {
+        if (_mapping == null) return;
+        foreach (var resource in _mapping.Resources.Where(r => onlyResource == null || string.Equals(r, onlyResource, StringComparison.OrdinalIgnoreCase)))
+        {
+            var result = new UptickEndpointResult { Resource = resource, Mode = "Map" };
+            results.Add(result);
+            await MapOneAsync(resource, remap: true, result, progress, ct);
+            result.Status = result.MapError == null ? "Ok" : "Failed";
+            result.Copied = await _db.UptickRecords.CountAsync(r => r.Resource == resource && r.DeletedUtc == null, ct);
+        }
+    }
+
+    private async Task MapOneAsync(string resource, bool remap, UptickEndpointResult result, IProgress<UptickProgress>? progress,
+        CancellationToken ct)
+    {
+        // Run even with nothing waiting: records FyreApp has taken in since (e.g. from a file import) get linked
+        var total = await _db.UptickRecords.CountAsync(r => r.Resource == resource && (remap || r.MappedUtc == null), ct);
+        progress?.Report(new UptickProgress(resource, 1, 1, 0, total, _api.Requests, _api.Throttled, $"Mapping {resource}"));
+        await _mapping!.MapAsync(resource, remap, result,
+            mapped => progress?.Report(new UptickProgress(resource, 1, 1, mapped, total, _api.Requests, _api.Throttled, $"Mapping {resource}")),
+            ct);
     }
 
     // One state row per endpoint the API lists; excluded ones are kept but disabled
