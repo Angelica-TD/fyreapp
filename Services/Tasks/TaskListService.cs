@@ -136,7 +136,7 @@ public class TaskListService : ITaskListService
             .Take(ListFilters.PageSize)
             .Select(t => new TaskListItem(
                 t.Id, t.Ref ?? t.ExternalId ?? t.FyreRef, t.Category, t.Title, t.Client.Name,
-                t.Site.AddressDisplay ?? t.Site.Name, t.Priority.ToString(), t.Status.ToString(), t.DueDateUtc,
+                t.Property.AddressDisplay ?? t.Property.Name, t.Priority.ToString(), t.Status.ToString(), t.DueDateUtc,
                 t.AssignedToUptickUserId, t.AssignedTo != null ? t.AssignedTo.Name : null, t.UptickTechnician))
             .ToListAsync(ct);
         items = items.Select(i => i with { UptickTechnician = OtherUptickTechnician(i.AssignedToName, i.UptickTechnician) }).ToList();
@@ -158,7 +158,7 @@ public class TaskListService : ITaskListService
             {
                 Ref = t.Ref ?? t.ExternalId ?? t.FyreRef, t.Category, t.Status, t.IsActive, t.Title, t.Priority,
                 t.DueDateUtc, t.CreatedUtc, t.CompletedUtc,
-                Client = t.Client.Name, PropertyRef = t.Site.ExternalId ?? t.Site.FyreRef, Property = t.Site.Name,
+                Client = t.Client.Name, PropertyRef = t.Property.ExternalId ?? t.Property.FyreRef, Property = t.Property.Name,
                 AssignedTo = t.AssignedTo != null ? t.AssignedTo.Name : null, t.UptickTechnician
             })
             .ToListAsync(ct);

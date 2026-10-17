@@ -30,7 +30,7 @@ public class RemarkListService : IRemarkListService
 
     public Task<Defect?> FindAsync(int id, CancellationToken ct = default) =>
         _db.Defects.AsNoTracking()
-            .Include(d => d.Site).ThenInclude(s => s.Client)
+            .Include(d => d.Property).ThenInclude(s => s.Client)
             .Include(d => d.Asset).ThenInclude(a => a!.AssetTypes)
             .Include(d => d.RemarkTypeRef)
             .Include(d => d.RepairTask)
@@ -54,7 +54,7 @@ public class RemarkListService : IRemarkListService
         if (filter.PropertyStatus.Count > 0)
         {
             var statuses = filter.PropertyStatus.Select(s => s.ToUpperInvariant()).ToList();
-            q = q.Where(d => d.Site.Status != null && statuses.Contains(d.Site.Status));
+            q = q.Where(d => d.Property.Status != null && statuses.Contains(d.Property.Status));
         }
 
         if (filter.Severity.Count > 0)
@@ -72,8 +72,8 @@ public class RemarkListService : IRemarkListService
                 (d.RemarkType != null && d.RemarkType.ToLower().Contains(term)) ||
                 (d.Description != null && d.Description.ToLower().Contains(term)) ||
                 (d.Asset != null && d.Asset.Name.ToLower().Contains(term)) ||
-                d.Site.Name.ToLower().Contains(term) ||
-                (d.Site.ExternalId != null && d.Site.ExternalId.ToLower().Contains(term)));
+                d.Property.Name.ToLower().Contains(term) ||
+                (d.Property.ExternalId != null && d.Property.ExternalId.ToLower().Contains(term)));
         }
 
         // Newest first: made in FyreApp, then Uptick IDs numerically
@@ -107,7 +107,7 @@ public class RemarkListService : IRemarkListService
             {
                 d.Id, d.ExternalId, d.FyreRef, d.SeverityLabel, d.RemarkType, d.AssetId,
                 AssetName = d.Asset != null ? d.Asset.Name : null,
-                d.SiteId, PropertyRef = d.Site.ExternalId ?? d.Site.FyreRef, PropertyName = d.Site.Name,
+                d.PropertyId, PropertyRef = d.Property.ExternalId ?? d.Property.FyreRef, PropertyName = d.Property.Name,
                 d.QuoteStatus, d.QuoteRef
             })
             .ToListAsync(ct);
@@ -132,7 +132,7 @@ public class RemarkListService : IRemarkListService
                 RemarkType = d.RemarkType,
                 AssetId = d.AssetId,
                 AssetName = d.AssetName,
-                SiteId = d.SiteId,
+                PropertyId = d.PropertyId,
                 PropertyRef = d.PropertyRef,
                 PropertyName = d.PropertyName,
                 QuoteStatus = d.QuoteStatus,
@@ -148,7 +148,7 @@ public class RemarkListService : IRemarkListService
             {
                 d.ExternalId, d.FyreRef, d.SeverityLabel, d.RemarkType, d.Status, d.Active, d.Description, d.Resolution, d.Location,
                 Asset = d.Asset != null ? d.Asset.Name : null,
-                PropertyRef = d.Site.ExternalId ?? d.Site.FyreRef, Property = d.Site.Name, Client = d.Site.Client.Name,
+                PropertyRef = d.Property.ExternalId ?? d.Property.FyreRef, Property = d.Property.Name, Client = d.Property.Client.Name,
                 d.RaisedUtc, d.QuoteRef, d.QuoteStatus, d.RepairTaskRef
             })
             .ToListAsync(ct);
@@ -180,13 +180,13 @@ public class RemarkListService : IRemarkListService
     public async Task<int> GenerateRepairTasksAsync(BulkSelection selection, RemarkFilter filter, BulkTaskInput input, string? userId, CancellationToken ct = default)
     {
         var defects = await Selected(selection, filter)
-            .Include(d => d.Site)
+            .Include(d => d.Property)
             .Include(d => d.Asset)
             .ToListAsync(ct);
 
         input.Category ??= "Repair";
         var tasks = BulkTaskBuilder.PerProperty(
-            defects, d => d.Site,
+            defects, d => d.Property,
             d => $"{RefOf(d.ExternalId, d.FyreRef)} {d.RemarkType}{(d.Asset != null ? $" ({d.Asset.Name})" : "")}{(string.IsNullOrWhiteSpace(d.Description) ? "" : $": {d.Description}")}",
             input, "Defect repairs", userId);
 
@@ -194,10 +194,10 @@ public class RemarkListService : IRemarkListService
         await _db.SaveChangesAsync(ct);
 
         // Each defect records its repair task (FyreApp ref, assigned by the database on insert)
-        var taskBySite = tasks.ToDictionary(t => t.SiteId);
+        var taskBySite = tasks.ToDictionary(t => t.PropertyId);
         foreach (var d in defects)
         {
-            var task = taskBySite[d.SiteId];
+            var task = taskBySite[d.PropertyId];
             d.RepairTaskRef = task.DisplayRef;
             d.RepairTaskStatus = "Open";
         }

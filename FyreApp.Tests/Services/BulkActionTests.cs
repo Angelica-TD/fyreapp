@@ -18,21 +18,21 @@ namespace FyreApp.Tests.Services;
 // List pages' Edit actions and downloads
 public class BulkActionTests
 {
-    private static async Task<(Site A, Site B)> SeedAsync(AppDbContext db)
+    private static async Task<(Property A, Property B)> SeedAsync(AppDbContext db)
     {
         var client = new Client { Name = "Sails Ministry", PrimaryContactName = "Russell McClue" };
-        var a = new Site { Name = "The Glory Well Church", ExternalId = "P-2241", Status = "ACTIVE", Client = client };
-        var b = new Site { Name = "Cold Front Air Conditioning", ExternalId = "P-1690", Status = "ACTIVE", Client = client };
+        var a = new Property { Name = "The Glory Well Church", ExternalId = "P-2241", Status = "ACTIVE", Client = client };
+        var b = new Property { Name = "Cold Front Air Conditioning", ExternalId = "P-1690", Status = "ACTIVE", Client = client };
         db.Assets.AddRange(
-            new Asset { Name = "DCP AB(E) 4.5KG", Ref = "1", Location = "Kitchen", Site = a },
-            new Asset { Name = "Fire Blanket", Ref = "2", Site = a },
-            new Asset { Name = "Fire Hose Reel", Ref = "1", Site = b });
+            new Asset { Name = "DCP AB(E) 4.5KG", Ref = "1", Location = "Kitchen", Property = a },
+            new Asset { Name = "Fire Blanket", Ref = "2", Property = a },
+            new Asset { Name = "Fire Hose Reel", Ref = "1", Property = b });
         await db.SaveChangesAsync();
 
         db.Defects.AddRange(
-            new Defect { ExternalId = "54214", Site = a, Asset = db.Assets.Local.First(x => x.Name == "DCP AB(E) 4.5KG"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true, Description = "Expired" },
-            new Defect { ExternalId = "54212", Site = a, Asset = db.Assets.Local.First(x => x.Name == "Fire Blanket"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true },
-            new Defect { ExternalId = "54179", Site = b, Asset = db.Assets.Local.First(x => x.Name == "Fire Hose Reel"), RemarkType = "00 - Asset Failed", SeverityLabel = "Critical defect", Active = true });
+            new Defect { ExternalId = "54214", Property = a, Asset = db.Assets.Local.First(x => x.Name == "DCP AB(E) 4.5KG"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true, Description = "Expired" },
+            new Defect { ExternalId = "54212", Property = a, Asset = db.Assets.Local.First(x => x.Name == "Fire Blanket"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true },
+            new Defect { ExternalId = "54179", Property = b, Asset = db.Assets.Local.First(x => x.Name == "Fire Hose Reel"), RemarkType = "00 - Asset Failed", SeverityLabel = "Critical defect", Active = true });
         await db.SaveChangesAsync();
         return (a, b);
     }
@@ -74,11 +74,11 @@ public class BulkActionTests
         using var db = DbContextFactory.Create();
         var (a, _) = await SeedAsync(db);
         var svc = new AssetListService(db);
-        var atA = await db.Assets.Where(x => x.SiteId == a.Id).Select(x => x.Id).ToListAsync();
+        var atA = await db.Assets.Where(x => x.PropertyId == a.Id).Select(x => x.Id).ToListAsync();
 
         var created = await svc.GenerateTasksAsync(new BulkSelection(atA, false), new AssetFilter(), new BulkTaskInput(), null);
         var task = await db.ClientTasks.SingleAsync();
-        Assert.Equal((1, "Asset works", a.Id), (created, task.Title, task.SiteId));
+        Assert.Equal((1, "Asset works", a.Id), (created, task.Title, task.PropertyId));
         Assert.Contains("- 1 - DCP AB(E) 4.5KG (Kitchen)", task.Description);
         Assert.Contains("- 2 - Fire Blanket", task.Description);
 
@@ -127,8 +127,8 @@ public class BulkActionTests
         using var db = DbContextFactory.Create();
         var (a, _) = await SeedAsync(db);
         db.ClientTasks.AddRange(
-            new ClientTask { Title = "One", ClientId = a.ClientId, SiteId = a.Id },
-            new ClientTask { Title = "Two", ClientId = a.ClientId, SiteId = a.Id });
+            new ClientTask { Title = "One", ClientId = a.ClientId, PropertyId = a.Id },
+            new ClientTask { Title = "Two", ClientId = a.ClientId, PropertyId = a.Id });
         await db.SaveChangesAsync();
         var taskService = new Mock<IClientTaskService>();
         var svc = new TaskListService(db, taskService.Object);

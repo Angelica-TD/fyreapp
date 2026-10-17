@@ -55,16 +55,16 @@ public class TimelineTests
         await Import(db, UptickExportType.Properties, Csv(PropertyHeaders, changed));
 
         // The change is on Uptick's own timeline, which the migration brings in; the import doesn't make one up
-        Assert.Equal("Please send reminder email", (await db.Sites.SingleAsync()).AccessNote);
+        Assert.Equal("Please send reminder email", (await db.Properties.SingleAsync()).AccessNote);
         Assert.Empty(db.TimelineEvents);
-        Assert.Empty(await new TimelineService(db).ForPropertyAsync(await db.Sites.SingleAsync(), notesOnly: false));
+        Assert.Empty(await new TimelineService(db).ForPropertyAsync(await db.Properties.SingleAsync(), notesOnly: false));
     }
 
     [Fact]
     public async Task AssetReimport_UpdatesTheAsset_AndLeavesTheTimelineToUptick()
     {
         using var db = DbContextFactory.Create();
-        db.Sites.Add(new Site { Name = "Kamber", ExternalId = "P-3330", Client = new Client { Name = "Kamber" } });
+        db.Properties.Add(new Property { Name = "Kamber", ExternalId = "P-3330", Client = new Client { Name = "Kamber" } });
         await db.SaveChangesAsync();
         var row = new Dictionary<string, string>
         {
@@ -96,7 +96,7 @@ public class TimelineTests
         var asset = new Asset
         {
             Name = "002 - DCP", Location = "Upstairs", IsActive = true, AssetTypes = { extinguisher },
-            Site = new Site { Name = "Kamber", Client = new Client { Name = "Kamber" } }
+            Property = new Property { Name = "Kamber", Client = new Client { Name = "Kamber" } }
         };
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
@@ -124,7 +124,7 @@ public class TimelineTests
         var asset = new Asset
         {
             Name = "001 - DCP", Variant = "DCP AB(E) 4.5KG", AssetTypes = { new AssetType { Name = "Fire Extinguisher" } },
-            Site = new Site { Name = "Kamber", Client = new Client { Name = "Kamber" } }
+            Property = new Property { Name = "Kamber", Client = new Client { Name = "Kamber" } }
         };
         db.Assets.Add(asset);
         await db.SaveChangesAsync();

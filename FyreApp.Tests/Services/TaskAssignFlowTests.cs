@@ -19,18 +19,18 @@ public class TaskAssignFlowTests
 {
     private static DateTime Day(int y, int m, int d) => new(y, m, d, 0, 0, 0, DateTimeKind.Utc);
 
-    private static async Task<Site> SeedAsync(AppDbContext db)
+    private static async Task<Property> SeedAsync(AppDbContext db)
     {
-        var site = new Site { Name = "Ezfurn", ExternalId = "P-0391", Status = "ACTIVE", Client = new Client { Name = "Ezfurn" } };
-        var other = new Site { Name = "Kamber", ExternalId = "P-3330", Status = "ACTIVE", Client = new Client { Name = "Kamber" } };
+        var site = new Property { Name = "Ezfurn", ExternalId = "P-0391", Status = "ACTIVE", Client = new Client { Name = "Ezfurn" } };
+        var other = new Property { Name = "Kamber", ExternalId = "P-3330", Status = "ACTIVE", Client = new Client { Name = "Kamber" } };
         db.RoutineOccurrences.AddRange(
-            new RoutineOccurrence { Site = site, Routine = "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", ServiceGroup = "Servicing - Portables & Fire Equipment", DueDate = Day(2026, 11, 30) },
-            new RoutineOccurrence { Site = other, Routine = "11 - Fire Blankets: Six-monthly", ServiceGroup = "Servicing - Portables & Fire Equipment", DueDate = Day(2026, 11, 30) },
-            new RoutineOccurrence { Site = site, Routine = "06 - Fire Detection (Fire Panels): Monthly", ServiceGroup = "Fire Detection", DueDate = Day(2026, 12, 31) });
+            new RoutineOccurrence { Property = site, Routine = "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", ServiceGroup = "Servicing - Portables & Fire Equipment", DueDate = Day(2026, 11, 30) },
+            new RoutineOccurrence { Property = other, Routine = "11 - Fire Blankets: Six-monthly", ServiceGroup = "Servicing - Portables & Fire Equipment", DueDate = Day(2026, 11, 30) },
+            new RoutineOccurrence { Property = site, Routine = "06 - Fire Detection (Fire Panels): Monthly", ServiceGroup = "Fire Detection", DueDate = Day(2026, 12, 31) });
         // Already in hand: imported from Uptick with its technician, and one made in FyreApp
         db.ClientTasks.AddRange(
-            new ClientTask { Site = site, Client = site.Client, Title = "PM2026/11 Imported", Category = "I&T", DueDateUtc = Day(2026, 11, 30), UptickTechnician = "Dwayne Page" },
-            new ClientTask { Site = site, Client = site.Client, Title = "Repair", Category = "Repair", DueDateUtc = Day(2026, 11, 15) });
+            new ClientTask { Property = site, Client = site.Client, Title = "PM2026/11 Imported", Category = "I&T", DueDateUtc = Day(2026, 11, 30), UptickTechnician = "Dwayne Page" },
+            new ClientTask { Property = site, Client = site.Client, Title = "Repair", Category = "Repair", DueDateUtc = Day(2026, 11, 15) });
         await db.SaveChangesAsync();
         return site;
     }

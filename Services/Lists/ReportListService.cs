@@ -29,9 +29,9 @@ public class ReportListService : IReportListService
                 (r.Ref != null && r.Ref.ToLower().Contains(term)) ||
                 (r.ReportType != null && r.ReportType.ToLower().Contains(term)) ||
                 (r.TaskRef != null && r.TaskRef.ToLower().Contains(term)) ||
-                r.Site.Name.ToLower().Contains(term) ||
-                (r.Site.ExternalId != null && r.Site.ExternalId.ToLower().Contains(term)) ||
-                r.Site.Client.Name.ToLower().Contains(term));
+                r.Property.Name.ToLower().Contains(term) ||
+                (r.Property.ExternalId != null && r.Property.ExternalId.ToLower().Contains(term)) ||
+                r.Property.Client.Name.ToLower().Contains(term));
         }
 
         // Newest first: made in FyreApp, then Uptick IDs numerically
@@ -57,12 +57,12 @@ public class ReportListService : IReportListService
                 Title = r.ReportType,
                 Compliant = r.Compliant,
                 Issued = r.IssuedDate,
-                SiteId = r.SiteId,
-                PropertyRef = r.Site.ExternalId ?? r.Site.FyreRef,
-                PropertyName = r.Site.Name,
-                ClientId = r.Site.ClientId,
-                ClientName = r.Site.Client.Name,
-                ClientContact = r.Site.Client.PrimaryContactName,
+                PropertyId = r.PropertyId,
+                PropertyRef = r.Property.ExternalId ?? r.Property.FyreRef,
+                PropertyName = r.Property.Name,
+                ClientId = r.Property.ClientId,
+                ClientName = r.Property.Client.Name,
+                ClientContact = r.Property.Client.PrimaryContactName,
                 TaskRef = r.TaskRef
             })
             .ToListAsync(ct);
@@ -76,7 +76,7 @@ public class ReportListService : IReportListService
             .Select(r => new
             {
                 Ref = r.Ref ?? r.ExternalId ?? r.FyreRef, r.ReportType, r.Compliant, r.IssuedDate, r.InspectedDate,
-                PropertyRef = r.Site.ExternalId ?? r.Site.FyreRef, Property = r.Site.Name, Client = r.Site.Client.Name,
+                PropertyRef = r.Property.ExternalId ?? r.Property.FyreRef, Property = r.Property.Name, Client = r.Property.Client.Name,
                 r.TaskRef, r.TaskName, r.Technician, r.Published
             })
             .ToListAsync(ct);

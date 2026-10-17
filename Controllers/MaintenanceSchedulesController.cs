@@ -103,11 +103,11 @@ namespace FyreApp.Controllers
         {
             MaintenanceSchedule schedule = null;
 
-            if (targetType == ScheduleTargetType.Site)
+            if (targetType == ScheduleTargetType.Property)
             {
                 schedule = await _context.MaintenanceSchedules
                     .Include(s => s.MaintenanceInterval)
-                    .FirstOrDefaultAsync(s => s.TargetType == targetType && s.SiteId == targetId);
+                    .FirstOrDefaultAsync(s => s.TargetType == targetType && s.PropertyId == targetId);
             }
             else if (targetType == ScheduleTargetType.Asset)
             {
@@ -122,7 +122,7 @@ namespace FyreApp.Controllers
                 schedule = new MaintenanceSchedule
                 {
                     TargetType = targetType,
-                    SiteId = targetType == ScheduleTargetType.Site ? targetId : null,
+                    PropertyId = targetType == ScheduleTargetType.Property ? targetId : null,
                     AssetId = targetType == ScheduleTargetType.Asset ? targetId : null,
                     StartDate = DateTime.UtcNow
                 };
@@ -152,7 +152,7 @@ namespace FyreApp.Controllers
                 schedule = new MaintenanceSchedule
                 {
                     TargetType = targetType,
-                    SiteId = targetType == ScheduleTargetType.Site ? targetId : null,
+                    PropertyId = targetType == ScheduleTargetType.Property ? targetId : null,
                     AssetId = targetType == ScheduleTargetType.Asset ? targetId : null
                 };
                 _context.MaintenanceSchedules.Add(schedule);
@@ -164,7 +164,7 @@ namespace FyreApp.Controllers
 
             await _context.SaveChangesAsync();
 
-            if (targetType == ScheduleTargetType.Site)
+            if (targetType == ScheduleTargetType.Property)
                 return RedirectToAction("Details", "Property", new { id = targetId });
             else
                 return RedirectToAction("Details", "Assets", new { id = targetId });
@@ -193,9 +193,9 @@ namespace FyreApp.Controllers
                 NextRunDate = startUtc.AddMonths(interval.Months)
             };
 
-            if (targetType == ScheduleTargetType.Site)
+            if (targetType == ScheduleTargetType.Property)
             {
-                schedule.SiteId = targetId;
+                schedule.PropertyId = targetId;
             }
             else if (targetType == ScheduleTargetType.Asset)
             {
@@ -209,7 +209,7 @@ namespace FyreApp.Controllers
             _context.MaintenanceSchedules.Add(schedule);
             await _context.SaveChangesAsync();
 
-            return targetType == ScheduleTargetType.Site
+            return targetType == ScheduleTargetType.Property
                 ? RedirectToAction("Details", "Property", new { id = targetId })
                 : RedirectToAction("Details", "Assets", new { id = targetId });
         }

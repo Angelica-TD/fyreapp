@@ -115,8 +115,8 @@ public class UptickBillingImportTests
     public async Task TaskPage_ShowsItsInvoices_AndFormsWithWhoSubmittedThem()
     {
         using var db = DbContextFactory.Create();
-        var site = new Site { Name = "Ezfurn", ExternalId = "P-0391", Client = new Client { Name = "Ezfurn" } };
-        var task = new ClientTask { Site = site, Client = site.Client, Title = "PM2026/10", ExternalId = "46502" };
+        var site = new Property { Name = "Ezfurn", ExternalId = "P-0391", Client = new Client { Name = "Ezfurn" } };
+        var task = new ClientTask { Property = site, Client = site.Client, Title = "PM2026/10", ExternalId = "46502" };
         db.ClientTasks.Add(task);
         db.UptickUsers.Add(new UptickUser { ExternalId = "305", Name = "Wes Speedon (Field Tech)", LicenseType = "FIELD" });
         db.Invoices.AddRange(

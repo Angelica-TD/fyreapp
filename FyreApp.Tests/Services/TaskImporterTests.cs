@@ -28,12 +28,12 @@ public class TaskImporterTests
             .ImportAsync(Csv(rows), "tasks.csv", UptickExportType.Tasks, dryRun);
 
     // A property with six-monthly and annual schedules, both next due 1 Oct 2026
-    private static async Task<(Site Site, MaintenanceSchedule SixMonthly, MaintenanceSchedule Annual)> SeedAsync(AppDbContext db)
+    private static async Task<(Property Property, MaintenanceSchedule SixMonthly, MaintenanceSchedule Annual)> SeedAsync(AppDbContext db)
     {
-        var site = new Site { Name = "Acme HQ", ExternalId = "P-0010", Client = new Client { Name = "Acme" } };
+        var site = new Property { Name = "Acme HQ", ExternalId = "P-0010", Client = new Client { Name = "Acme" } };
         MaintenanceSchedule Schedule(int months, string name) => new()
         {
-            TargetType = ScheduleTargetType.Site, Site = site, IsActive = true,
+            TargetType = ScheduleTargetType.Property, Property = site, IsActive = true,
             MaintenanceInterval = new MaintenanceInterval { Name = name, Months = months },
             StartDate = new DateTime(2026, 4, 1, 0, 0, 0, DateTimeKind.Utc),
             NextRunDate = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc)
@@ -67,7 +67,7 @@ public class TaskImporterTests
         Assert.Equal(1, result.Created);
         Assert.Empty(result.Skipped);
         var task = await db.ClientTasks.Include(t => t.CoveredSchedules).SingleAsync();
-        Assert.Equal(("T-46616", "T-46616", site.Id, site.ClientId), (task.Ref, task.DisplayRef, task.SiteId, task.ClientId));
+        Assert.Equal(("T-46616", "T-46616", site.Id, site.ClientId), (task.Ref, task.DisplayRef, task.PropertyId, task.ClientId));
         Assert.Equal(ClientTaskStatus.Open, task.Status);
         Assert.Equal(("I&T", true), (task.Category, task.IsActive));
         Assert.Equal(new DateTime(2026, 10, 31), task.DueDateUtc);
@@ -117,13 +117,13 @@ public class TaskImporterTests
         var row = RoutineTask("CANCELLED");
         row["Category"] = "Repair";
         row["Property Ref"] = "P-9999";
-        row["Property Name"] = "Old Site";
+        row["Property Name"] = "Old Property";
 
         var result = await Import(db, dryRun: false, row);
 
         Assert.Equal(1, result.Created);
-        var task = await db.ClientTasks.Include(t => t.CoveredSchedules).Include(t => t.Site).SingleAsync();
-        Assert.Equal(("P-9999", true), (task.Site.ExternalId, task.Site.IsPlaceholder));
+        var task = await db.ClientTasks.Include(t => t.CoveredSchedules).Include(t => t.Property).SingleAsync();
+        Assert.Equal(("P-9999", true), (task.Property.ExternalId, task.Property.IsPlaceholder));
         Assert.Equal(ClientTaskStatus.Cancelled, task.Status);
         Assert.Empty(task.CoveredSchedules);
     }

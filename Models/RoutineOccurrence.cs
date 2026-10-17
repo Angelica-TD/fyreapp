@@ -21,8 +21,8 @@ public class RoutineOccurrence
     [StringLength(64)]
     public string? ExternalId { get; set; }
 
-    public int SiteId { get; set; }
-    public Site Site { get; set; } = null!;
+    public int PropertyId { get; set; }
+    public Property Property { get; set; } = null!;
 
     // "<routine service type>: <level>" as Uptick names it
     [Required, StringLength(300)]

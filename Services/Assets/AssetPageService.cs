@@ -34,7 +34,7 @@ public class AssetPageService : IAssetPageService
     }
 
     private IQueryable<Asset> WithDetails() => _db.Assets
-        .Include(a => a.Site).ThenInclude(s => s.Client)
+        .Include(a => a.Property).ThenInclude(s => s.Client)
         .Include(a => a.AssetTypes)
         .Include(a => a.AssetTypeVariant);
 
@@ -70,7 +70,7 @@ public class AssetPageService : IAssetPageService
     private async Task<string?> LastServiceByAsync(Asset asset, CancellationToken ct) =>
         asset.LastServiceDate is not { } date ? null
         : await _db.ServiceReports.AsNoTracking()
-            .Where(r => r.SiteId == asset.SiteId && r.InspectedDate == date && r.Technician != null)
+            .Where(r => r.PropertyId == asset.PropertyId && r.InspectedDate == date && r.Technician != null)
             .OrderByDescending(r => r.IssuedDate)
             .Select(r => r.Technician)
             .FirstOrDefaultAsync(ct);

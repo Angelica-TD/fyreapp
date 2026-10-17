@@ -116,7 +116,7 @@ public abstract class UptickImporter
     }
 
     protected async Task<Dictionary<string, int>> LoadSiteIdsByRefAsync(CancellationToken ct) =>
-        (await Db.Sites.AsNoTracking()
+        (await Db.Properties.AsNoTracking()
             .Where(s => s.ExternalId != null && s.ExternalId != "")
             .Select(s => new { s.Id, s.ExternalId })
             .ToListAsync(ct))
@@ -174,11 +174,11 @@ public abstract class UptickImporter
             .ToDictionary(g => g.Key, g => g.Single().Id, StringComparer.OrdinalIgnoreCase);
 
         Client? unassigned = null;
-        var placeholders = new List<(string Ref, Site Site)>();
+        var placeholders = new List<(string Ref, Property Property)>();
 
         foreach (var (propertyRef, row) in missing)
         {
-            var site = new Site
+            var site = new Property
             {
                 ExternalId = propertyRef,
                 Name = row.Get(propertyNameHeader) ?? propertyRef,
@@ -209,7 +209,7 @@ public abstract class UptickImporter
             return;
         }
 
-        Db.Sites.AddRange(placeholders.Select(p => p.Site));
+        Db.Properties.AddRange(placeholders.Select(p => p.Property));
         await Db.SaveChangesAsync(ct);
         foreach (var (propertyRef, site) in placeholders) sitesByRef[propertyRef] = site.Id;
     }

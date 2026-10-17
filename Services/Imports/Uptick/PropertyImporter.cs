@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Imports.Uptick;
 
-// Uptick "Properties" export -> Site. Client matched on Client.ExternalId ("Client ID"), then client name.
+// Uptick "Properties" export -> Property. Client matched on Client.ExternalId ("Client ID"), then client name.
 // An existing site with the same client + name but no ExternalId is linked rather than duplicated.
 // Placeholder sites (created by other imports) with the same ref are filled in.
 public class PropertyImporter : UptickImporter
@@ -28,7 +28,7 @@ public class PropertyImporter : UptickImporter
             .GroupBy(c => c.Name.Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
 
-        var sites = await Db.Sites.AsNoTracking()
+        var sites = await Db.Properties.AsNoTracking()
             .Select(s => new { s.Id, s.ClientId, s.Name, s.ExternalId, s.IsPlaceholder, s.UptickData })
             .ToListAsync(ct);
 
@@ -50,10 +50,10 @@ public class PropertyImporter : UptickImporter
             clientsByExt, clientsByName, dryRun, ctx, ct);
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var toCreate = new List<Site>();
+        var toCreate = new List<Property>();
         var toLink = new Dictionary<int, string>();
-        var toFill = new Dictionary<int, Site>();
-        var toUpdate = new Dictionary<int, Site>();
+        var toFill = new Dictionary<int, Property>();
+        var toUpdate = new Dictionary<int, Property>();
 
         foreach (var row in rows)
         {
@@ -74,7 +74,7 @@ public class PropertyImporter : UptickImporter
 
             var name = row.Get("Name") ?? propertyRef!;
 
-            var site = new Site
+            var site = new Property
             {
                 ClientId = clientId,
                 Name = name,
@@ -145,21 +145,21 @@ public class PropertyImporter : UptickImporter
         if (toLink.Count > 0)
         {
             var ids = toLink.Keys.ToList();
-            foreach (var s in await Db.Sites.Where(s => ids.Contains(s.Id)).ToListAsync(ct))
+            foreach (var s in await Db.Properties.Where(s => ids.Contains(s.Id)).ToListAsync(ct))
                 s.ExternalId = toLink[s.Id];
         }
 
         // Placeholders get the full details from their row; properties changed in Uptick are updated
-        await ApplyUpdatesAsync(Db.Sites, toFill.ToDictionary(p => p.Key, p => (Action<Site>)(s => CopyFrom(s, p.Value))), s => s.Id, ct);
+        await ApplyUpdatesAsync(Db.Properties, toFill.ToDictionary(p => p.Key, p => (Action<Property>)(s => CopyFrom(s, p.Value))), s => s.Id, ct);
         // What changed shows on the property's Timeline from Uptick's own (the timelineevents migration)
-        await ApplyUpdatesAsync(Db.Sites, toUpdate.ToDictionary(p => p.Key, p => (Action<Site>)(s => CopyFrom(s, p.Value))), s => s.Id, ct);
+        await ApplyUpdatesAsync(Db.Properties, toUpdate.ToDictionary(p => p.Key, p => (Action<Property>)(s => CopyFrom(s, p.Value))), s => s.Id, ct);
 
-        Db.Sites.AddRange(toCreate);
+        Db.Properties.AddRange(toCreate);
         await Db.SaveChangesAsync(ct);
     }
 
     // Everything a property takes from its Uptick row (built as `from`)
-    private static void CopyFrom(Site s, Site from)
+    private static void CopyFrom(Property s, Property from)
     {
         // A moved address needs looking up again
         if (!string.Equals(s.AddressDisplay, from.AddressDisplay, StringComparison.Ordinal))
@@ -250,8 +250,8 @@ public class PropertyImporter : UptickImporter
             ? address[..^", Australia".Length]
             : address;
 
-    // Mirrors the [StringLength] limits on Site
-    private static string? TooLong(Site s)
+    // Mirrors the [StringLength] limits on Property
+    private static string? TooLong(Property s)
     {
         if (s.ExternalId?.Length > 64) return "Ref";
         if (s.AddressDisplay?.Length > 300) return "Address";

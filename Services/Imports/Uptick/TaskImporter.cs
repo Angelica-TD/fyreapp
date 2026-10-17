@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Imports.Uptick;
 
-// Uptick "Tasks" export -> ClientTask, matched to Site on "Property Ref".
+// Uptick "Tasks" export -> ClientTask, matched to Property on "Property Ref".
 // Routine (I&T) tasks are linked to the property's schedules for the frequencies in their "Scope of works",
 // so FyreApp sees which schedules Uptick has already raised a task for. A completed one that covers a
 // schedule's next occurrence rolls the schedule forward, as completing it in FyreApp would.
@@ -35,14 +35,14 @@ public class TaskImporter : UptickImporter
         await AddPlaceholderSitesAsync(rows.Where(r => NewOrChanged(r, "ID", existing)).ToList(), sitesByRef, "Property Name", dryRun, ctx, ct);
 
         // Placeholder ids are negative in a dry run; the client only matters when saving
-        var clientIdBySite = await Db.Sites.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.ClientId, ct);
+        var clientIdBySite = await Db.Properties.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.ClientId, ct);
 
-        // Site schedules by (site, interval months), tracked so they can be linked and rolled forward
+        // Property schedules by (site, interval months), tracked so they can be linked and rolled forward
         var schedules = await Db.MaintenanceSchedules
             .Include(s => s.MaintenanceInterval)
-            .Where(s => s.TargetType == ScheduleTargetType.Site && s.SiteId != null && s.IsActive)
+            .Where(s => s.TargetType == ScheduleTargetType.Property && s.PropertyId != null && s.IsActive)
             .ToListAsync(ct);
-        var schedulesBySiteMonths = schedules.ToLookup(s => (s.SiteId!.Value, s.MaintenanceInterval.Months));
+        var schedulesBySiteMonths = schedules.ToLookup(s => (s.PropertyId!.Value, s.MaintenanceInterval.Months));
 
         // Uptick "Assigned Technician" names -> Uptick users
         var technicianIds = await TechnicianMatch.IdsByNameAsync(Db, ct);
@@ -172,7 +172,7 @@ public class TaskImporter : UptickImporter
 
         t.Ref = row.Get("Ref");
         t.UptickData = row.ToJson();
-        t.SiteId = siteId;
+        t.PropertyId = siteId;
         t.ClientId = clientId;
         t.Title = Truncate(row.Get("Name") ?? FirstLine(row.Get("Description")) ?? row.Get("Ref") ?? row.Get("ID")!, 120);
         t.Description = BuildDescription(row.Get("Description"), row.Get("Scope of works"));
@@ -237,12 +237,12 @@ public class TaskImporter : UptickImporter
 
     private async Task<(int Id, int ClientId)> GetNoPropertySiteAsync(bool dryRun, CancellationToken ct)
     {
-        var site = await Db.Sites.FirstOrDefaultAsync(s => s.IsPlaceholder && s.ExternalId == null && s.Name == NoPropertySiteName, ct);
+        var site = await Db.Properties.FirstOrDefaultAsync(s => s.IsPlaceholder && s.ExternalId == null && s.Name == NoPropertySiteName, ct);
         if (site != null) return (site.Id, site.ClientId);
         if (dryRun) return (int.MinValue, 0);
 
-        site = new Site { Name = NoPropertySiteName, IsPlaceholder = true, Active = false, Client = await GetUnassignedClientAsync(ct) };
-        Db.Sites.Add(site);
+        site = new Property { Name = NoPropertySiteName, IsPlaceholder = true, Active = false, Client = await GetUnassignedClientAsync(ct) };
+        Db.Properties.Add(site);
         await Db.SaveChangesAsync(ct);
         return (site.Id, site.ClientId);
     }

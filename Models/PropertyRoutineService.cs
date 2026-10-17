@@ -10,8 +10,8 @@ public class PropertyRoutineService
 {
     public int Id { get; set; }
 
-    public int SiteId { get; set; }
-    public Site Site { get; set; } = null!;
+    public int PropertyId { get; set; }
+    public Property Property { get; set; } = null!;
 
     public int RoutineServiceTypeId { get; set; }
     public RoutineServiceType RoutineServiceType { get; set; } = null!;

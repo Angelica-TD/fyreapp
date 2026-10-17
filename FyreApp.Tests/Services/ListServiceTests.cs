@@ -13,14 +13,14 @@ public class ListServiceTests
 {
     private static DateTime Utc(string s) => DateTime.SpecifyKind(DateTime.Parse(s), DateTimeKind.Utc);
 
-    private static async Task<(Site Active, Site Inactive)> SeedAsync(AppDbContext db)
+    private static async Task<(Property Active, Property Inactive)> SeedAsync(AppDbContext db)
     {
         var client = new Client { Name = "Apex Mezzanines", PrimaryContactName = "Naomi" };
-        var active = new Site { Name = "3/10 Expo Ct", ExternalId = "P-3338", Status = "ACTIVE", State = "QLD", Created = Utc("2026-10-01T02:31:24"), Client = client };
-        var onHold = new Site { Name = "Paused", ExternalId = "P-3000", Status = "ONHOLD", Created = Utc("2025-01-01"), Client = client };
-        var setup = new Site { Name = "1/8 Expansion St", ExternalId = "P-3337", Status = "SETUP", Created = Utc("2026-10-01T02:18:20"), Client = client };
-        var inactive = new Site { Name = "Old", ExternalId = "P-0010", Status = "INACTIVE", Created = Utc("2021-01-01"), Client = client };
-        db.Sites.AddRange(active, onHold, setup, inactive);
+        var active = new Property { Name = "3/10 Expo Ct", ExternalId = "P-3338", Status = "ACTIVE", State = "QLD", Created = Utc("2026-10-01T02:31:24"), Client = client };
+        var onHold = new Property { Name = "Paused", ExternalId = "P-3000", Status = "ONHOLD", Created = Utc("2025-01-01"), Client = client };
+        var setup = new Property { Name = "1/8 Expansion St", ExternalId = "P-3337", Status = "SETUP", Created = Utc("2026-10-01T02:18:20"), Client = client };
+        var inactive = new Property { Name = "Old", ExternalId = "P-0010", Status = "INACTIVE", Created = Utc("2021-01-01"), Client = client };
+        db.Properties.AddRange(active, onHold, setup, inactive);
         await db.SaveChangesAsync();
         return (active, inactive);
     }
@@ -43,11 +43,11 @@ public class ListServiceTests
     {
         using var db = DbContextFactory.Create();
         var (active, inactive) = await SeedAsync(db);
-        var asset = new Asset { Name = "4 - DCP AB(E) 4.5KG", Site = active };
-        var retired = new Asset { Name = "Retired", Site = active, IsActive = false };
+        var asset = new Asset { Name = "4 - DCP AB(E) 4.5KG", Property = active };
+        var retired = new Asset { Name = "Retired", Property = active, IsActive = false };
 
-        Defect D(string id, Site site, Asset? a, string severity, bool open = true) =>
-            new() { ExternalId = id, Site = site, Asset = a, SeverityLabel = severity, Active = open, RemarkType = "00 - Asset Failed" };
+        Defect D(string id, Property site, Asset? a, string severity, bool open = true) =>
+            new() { ExternalId = id, Property = site, Asset = a, SeverityLabel = severity, Active = open, RemarkType = "00 - Asset Failed" };
 
         db.Defects.AddRange(
             D("54214", active, asset, "Non-conformance"),                 // shown
@@ -73,9 +73,9 @@ public class ListServiceTests
         using var db = DbContextFactory.Create();
         var (active, _) = await SeedAsync(db);
         db.ServiceReports.AddRange(
-            new ServiceReport { ExternalId = "52331", Ref = "R-52331", Site = active, ReportType = "Service Report", Compliant = false },
-            new ServiceReport { ExternalId = "9000", Ref = "R-09000", Site = active, ReportType = "Service Report", Compliant = true },
-            new ServiceReport { ExternalId = "52362", Ref = "R-52362", Site = active, ReportType = "Service Report", Compliant = true });
+            new ServiceReport { ExternalId = "52331", Ref = "R-52331", Property = active, ReportType = "Service Report", Compliant = false },
+            new ServiceReport { ExternalId = "9000", Ref = "R-09000", Property = active, ReportType = "Service Report", Compliant = true },
+            new ServiceReport { ExternalId = "52362", Ref = "R-52362", Property = active, ReportType = "Service Report", Compliant = true });
         await db.SaveChangesAsync();
 
         var result = await new ReportListService(db).SearchAsync(new ReportFilter());

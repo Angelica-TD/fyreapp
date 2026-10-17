@@ -1,10 +1,10 @@
-@model FyreApp.ViewModels.Sites.PropertyPageVm
+@model FyreApp.ViewModels.Properties.PropertyPageVm
 @using FyreApp.Infrastructure
 
 @* Uptick's Billing tab: billing requirements, billing cards, billing contracts and invoices
    (from Uptick's billing exports, matched on the property's ref and its Uptick billing card IDs) *@
 @{
-    var site = Model.Site;
+    var site = Model.Property;
     var client = site.Client;
 }
 

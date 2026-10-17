@@ -22,8 +22,8 @@ public class Defect
     // Uptick shows remarks as "D-<ID>"
     public string? DisplayRef => string.IsNullOrWhiteSpace(ExternalId) ? FyreRef : $"D-{ExternalId}";
 
-    public int SiteId { get; set; }
-    public Site Site { get; set; } = null!;
+    public int PropertyId { get; set; }
+    public Property Property { get; set; } = null!;
 
     public int? AssetId { get; set; }
     public Asset? Asset { get; set; }

@@ -56,9 +56,8 @@ public class ClientTask
     public int ClientId { get; set; }
     public Client Client { get; set; } = null!;
 
-    // "Property" = Site
-    public int SiteId { get; set; }
-    public Site Site { get; set; } = null!;
+    public int PropertyId { get; set; }
+    public Property Property { get; set; } = null!;
 
     [Required, StringLength(120)]
     public string Title { get; set; } = string.Empty;

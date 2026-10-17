@@ -57,12 +57,12 @@
                             <!-- Shown once a client is selected -->
                             <div id="sectionSiteSelect" class="d-none mt-2">
                                 <label class="form-label fw-semibold">Property</label>
-                                <select name="Create.SiteId" id="siteSelect" class="form-select">
+                                <select name="Create.PropertyId" id="siteSelect" class="form-select">
                                     <option value="">-- Select property --</option>
                                     <option value="__new__">+ Add new property…</option>
                                 </select>
                                 <span class="text-danger small">
-                                    @(ViewData.ModelState["Create.SiteId"]?.Errors.FirstOrDefault()?.ErrorMessage)
+                                    @(ViewData.ModelState["Create.PropertyId"]?.Errors.FirstOrDefault()?.ErrorMessage)
                                 </span>
                             </div>
                         </div>
@@ -271,7 +271,7 @@
 </div>
 
 @await Html.PartialAsync("_CreatePropertyModal",
-    new FyreApp.ViewModels.Sites.CreatePropertyModalVm
+    new FyreApp.ViewModels.Properties.CreatePropertyModalVm
     {
         ClientId    = null,
         ClientName  = "",
@@ -301,7 +301,7 @@
     const googleKey   = @Json.Serialize(googleKey);
 
     const preselectedClientId = @(Model.Create.ClientId.HasValue ? Model.Create.ClientId.Value.ToString() : "null");
-    const preselectedSiteId   = @(Model.Create.SiteId.HasValue   ? Model.Create.SiteId.Value.ToString()   : "null");
+    const preselectedSiteId   = @(Model.Create.PropertyId.HasValue   ? Model.Create.PropertyId.Value.ToString()   : "null");
 
     const NEW_VALUE = '__new__';
 
@@ -316,7 +316,7 @@
     createQuoteTypeSel.addEventListener('change', toggleCreateInterval);
     toggleCreateInterval();
 
-    // ── Site-group enable/disable (new-client panel only) ────────────────────
+    // ── Property-group enable/disable (new-client panel only) ────────────────────
     function setSiteGroup(activeGroup /* "nc" | null */) {
         document.querySelectorAll('[data-site-group]').forEach(el => {
             el.disabled = (el.dataset.siteGroup !== activeGroup);
@@ -370,7 +370,7 @@
 
     document.getElementById('btnCancelNewClient').addEventListener('click', showExistingClient);
 
-    // ── Site AJAX loader ─────────────────────────────────────────────────────
+    // ── Property AJAX loader ─────────────────────────────────────────────────────
     function ensureAddNewOption() {
         if (!Array.from(siteSel.options).some(o => o.value === NEW_VALUE)) {
             const opt = document.createElement('option');

@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 
-namespace FyreApp.Services.Sites;
+namespace FyreApp.Services.Properties;
 
 public sealed class GoogleMapsOptions
 {

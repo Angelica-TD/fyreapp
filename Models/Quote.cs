@@ -20,8 +20,8 @@ public class Quote
     public int ClientId { get; set; }
     public Client Client { get; set; } = null!;
 
-    public int SiteId { get; set; }
-    public Site Site { get; set; } = null!;
+    public int PropertyId { get; set; }
+    public Property Property { get; set; } = null!;
 
     public QuoteStatus Status { get; set; } = QuoteStatus.Draft;
 

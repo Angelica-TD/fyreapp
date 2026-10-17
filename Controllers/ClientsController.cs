@@ -171,11 +171,11 @@ namespace FyreApp.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            var site = await _db.Sites.FirstOrDefaultAsync(s => s.Id == siteId && s.ClientId == id, ct);
+            var site = await _db.Properties.FirstOrDefaultAsync(s => s.Id == siteId && s.ClientId == id, ct);
             if (site is null)
                 return NotFound();
 
-            _db.Assets.Add(new Asset { SiteId = siteId, Name = name.Trim() });
+            _db.Assets.Add(new Asset { PropertyId = siteId, Name = name.Trim() });
             await _db.SaveChangesAsync(ct);
 
             TempData["Success"] = $"Asset \"{name.Trim()}\" created.";
@@ -195,7 +195,7 @@ namespace FyreApp.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            var siteExists = await _db.Sites.AnyAsync(s => s.Id == task.SiteId && s.ClientId == id, ct);
+            var siteExists = await _db.Properties.AnyAsync(s => s.Id == task.PropertyId && s.ClientId == id, ct);
             if (!siteExists)
             {
                 TempData["Error"] = "Selected property does not belong to this client.";
@@ -210,7 +210,7 @@ namespace FyreApp.Controllers
             _db.ClientTasks.Add(new ClientTask
             {
                 ClientId = id,
-                SiteId = task.SiteId,
+                PropertyId = task.PropertyId,
                 Title = task.Title.Trim(),
                 Description = string.IsNullOrWhiteSpace(task.Description) ? null : task.Description.Trim(),
                 Priority = task.Priority,
@@ -238,9 +238,9 @@ namespace FyreApp.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            bool targetValid = targetType == ScheduleTargetType.Site
-                ? await _db.Sites.AnyAsync(s => s.Id == targetId && s.ClientId == id, ct)
-                : await _db.Assets.AnyAsync(a => a.Id == targetId && a.Site.ClientId == id, ct);
+            bool targetValid = targetType == ScheduleTargetType.Property
+                ? await _db.Properties.AnyAsync(s => s.Id == targetId && s.ClientId == id, ct)
+                : await _db.Assets.AnyAsync(a => a.Id == targetId && a.Property.ClientId == id, ct);
 
             if (!targetValid)
                 return NotFound();
@@ -250,7 +250,7 @@ namespace FyreApp.Controllers
             _db.MaintenanceSchedules.Add(new MaintenanceSchedule
             {
                 TargetType = targetType,
-                SiteId = targetType == ScheduleTargetType.Site ? targetId : null,
+                PropertyId = targetType == ScheduleTargetType.Property ? targetId : null,
                 AssetId = targetType == ScheduleTargetType.Asset ? targetId : null,
                 MaintenanceIntervalId = interval.Id,
                 StartDate = startUtc,

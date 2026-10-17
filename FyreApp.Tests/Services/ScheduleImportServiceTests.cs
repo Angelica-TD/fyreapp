@@ -19,10 +19,10 @@ public class ScheduleImportServiceTests
     private static Stream Csv(params string[] rows) =>
         new MemoryStream(Encoding.UTF8.GetBytes(Header + "\r\n" + string.Join("\r\n", rows)));
 
-    private static async Task<Site> SeedSiteAsync(FyreApp.Data.AppDbContext db, string client = "Acme", string site = "Acme HQ", string? externalId = null)
+    private static async Task<Property> SeedSiteAsync(FyreApp.Data.AppDbContext db, string client = "Acme", string site = "Acme HQ", string? externalId = null)
     {
-        var s = new Site { Name = site, ExternalId = externalId, Client = new Client { Name = client } };
-        db.Sites.Add(s);
+        var s = new Property { Name = site, ExternalId = externalId, Client = new Client { Name = client } };
+        db.Properties.Add(s);
         await db.SaveChangesAsync();
         return s;
     }
@@ -153,8 +153,8 @@ public class ScheduleImportServiceTests
         Assert.Equal(1, result.Created);
 
         var schedule = await db.MaintenanceSchedules.Include(s => s.MaintenanceInterval).SingleAsync();
-        Assert.Equal(site.Id, schedule.SiteId);
-        Assert.Equal(ScheduleTargetType.Site, schedule.TargetType);
+        Assert.Equal(site.Id, schedule.PropertyId);
+        Assert.Equal(ScheduleTargetType.Property, schedule.TargetType);
         Assert.Equal(60, schedule.MaintenanceInterval.Months);
         Assert.Equal("Five-yearly", schedule.MaintenanceInterval.Name);
         Assert.Equal(new DateTime(2036, 8, 1), schedule.NextRunDate);
@@ -175,7 +175,7 @@ public class ScheduleImportServiceTests
 
         Assert.Equal(1, result.Created);
         Assert.Equal(1, result.SitesLinked);
-        Assert.Equal("P-0042", (await db.Sites.SingleAsync()).ExternalId);
+        Assert.Equal("P-0042", (await db.Properties.SingleAsync()).ExternalId);
     }
 
     [Fact]
@@ -207,8 +207,8 @@ public class ScheduleImportServiceTests
         var interval = new MaintenanceInterval { Name = "Annual", Months = 12 };
         db.MaintenanceSchedules.Add(new MaintenanceSchedule
         {
-            TargetType = ScheduleTargetType.Site,
-            SiteId = site.Id,
+            TargetType = ScheduleTargetType.Property,
+            PropertyId = site.Id,
             MaintenanceInterval = interval,
             StartDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             NextRunDate = new DateTime(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc)
@@ -274,6 +274,6 @@ public class ScheduleImportServiceTests
         Assert.Equal(1, result.SitesLinked);
         Assert.Empty(await db.MaintenanceSchedules.ToListAsync());
         Assert.Empty(await db.MaintenanceIntervals.ToListAsync());
-        Assert.Null((await db.Sites.SingleAsync()).ExternalId);
+        Assert.Null((await db.Properties.SingleAsync()).ExternalId);
     }
 }

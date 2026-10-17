@@ -21,12 +21,12 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label" asp-for="Task.SiteId">Property / Site</label>
-                <select class="form-select" id="SiteId" asp-for="Task.SiteId" required disabled>
+                <label class="form-label" asp-for="Task.PropertyId">Property / Property</label>
+                <select class="form-select" id="PropertyId" asp-for="Task.PropertyId" required disabled>
                     <option value="">Select a property…</option>
                     <option value="__new__">+ Add new property…</option>
                 </select>
-                <span class="text-danger" asp-validation-for="Task.SiteId"></span>
+                <span class="text-danger" asp-validation-for="Task.PropertyId"></span>
             </div>
 
             <div class="mb-3">
@@ -63,7 +63,7 @@
         </form>
 
         @await Html.PartialAsync("_CreatePropertyModal",
-            new FyreApp.ViewModels.Sites.CreatePropertyModalVm
+            new FyreApp.ViewModels.Properties.CreatePropertyModalVm
             {
                 ClientId = null,
                 ClientName = "",
@@ -81,7 +81,7 @@
   const NEW_VALUE = "__new__";
 
   const clientSel  = document.getElementById("ClientId");
-  const siteSel    = document.getElementById("SiteId");
+  const siteSel    = document.getElementById("PropertyId");
 
   const modalId    = "taskCreateSiteModal";
   const modalEl    = document.getElementById(modalId);

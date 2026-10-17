@@ -78,7 +78,7 @@ public class DataResetService : IDataResetService
             ("Maintenance schedules", await _db.MaintenanceSchedules.CountAsync(ct)),
             ("Defects", await _db.Defects.CountAsync(ct)),
             ("Service reports", await _db.ServiceReports.CountAsync(ct)),
-            ("Property contacts", await _db.SiteContacts.CountAsync(ct)),
+            ("Property contacts", await _db.PropertyContacts.CountAsync(ct)),
             ("Client contacts", await _db.ClientContacts.CountAsync(ct)),
             ("Timeline events", await _db.TimelineEvents.CountAsync(ct)),
             ("Invoices", await _db.Invoices.CountAsync(ct)),
@@ -91,7 +91,7 @@ public class DataResetService : IDataResetService
             ("Property schedules", await _db.PropertySchedules.CountAsync(ct)),
             ("Form responses", await _db.FormResponses.CountAsync(ct)),
             ("Assets", await _db.Assets.CountAsync(ct)),
-            ("Properties", await _db.Sites.CountAsync(ct)),
+            ("Properties", await _db.Properties.CountAsync(ct)),
             ("Clients", await _db.Clients.CountAsync(ct))
         };
 
@@ -142,7 +142,7 @@ public class DataResetService : IDataResetService
             ("Maintenance schedules", await _db.MaintenanceSchedules.ExecuteDeleteAsync(ct)),
             ("Defects", await _db.Defects.ExecuteDeleteAsync(ct)),
             ("Service reports", await _db.ServiceReports.ExecuteDeleteAsync(ct)),
-            ("Property contacts", await _db.SiteContacts.ExecuteDeleteAsync(ct)),
+            ("Property contacts", await _db.PropertyContacts.ExecuteDeleteAsync(ct)),
             ("Client contacts", await _db.ClientContacts.ExecuteDeleteAsync(ct)),
             ("Timeline events", await _db.TimelineEvents.ExecuteDeleteAsync(ct)),
             ("Invoices", await _db.Invoices.ExecuteDeleteAsync(ct)),
@@ -155,7 +155,7 @@ public class DataResetService : IDataResetService
             ("Property schedules", await _db.PropertySchedules.ExecuteDeleteAsync(ct)),
             ("Form responses", await _db.FormResponses.ExecuteDeleteAsync(ct)),
             ("Assets", await _db.Assets.ExecuteDeleteAsync(ct)),
-            ("Properties", await _db.Sites.ExecuteDeleteAsync(ct)),
+            ("Properties", await _db.Properties.ExecuteDeleteAsync(ct)),
             ("Clients", await _db.Clients.ExecuteDeleteAsync(ct))
         };
 

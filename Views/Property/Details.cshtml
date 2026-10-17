@@ -1,10 +1,10 @@
-@model FyreApp.ViewModels.Sites.PropertyPageVm
+@model FyreApp.ViewModels.Properties.PropertyPageVm
 @using FyreApp.Infrastructure
-@using FyreApp.ViewModels.Sites
+@using FyreApp.ViewModels.Properties
 
 @* The property page, laid out like Uptick's: "P-0391 Ezfurn", a tab bar, one tab at a time *@
 @{
-    var site = Model.Site;
+    var site = Model.Property;
     ViewData["Title"] = $"{site.DisplayRef} {site.Name}".Trim();
     // Open remarks sit under Assets, as in Uptick
     var activeTab = Model.Tab == "remarks" ? "assets" : Model.Tab;

@@ -59,7 +59,7 @@
                                 <a asp-action="Details" asp-route-id="@q.Id">@q.QuoteNumber</a>
                             </td>
                             <td>@q.Client?.Name</td>
-                            <td>@(q.Site?.Name ?? "—")</td>
+                            <td>@(q.Property?.Name ?? "—")</td>
                             <td>@q.Title</td>
                             <td class="text-nowrap">
                                 @(q.QuoteType == ServiceQuoteType.OneTime ? "One-Time" : "Routine")

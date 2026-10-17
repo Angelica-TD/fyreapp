@@ -51,9 +51,9 @@ FyreApp is an **ASP.NET Core MVC (.NET 10) application** with a **hybrid fronten
 | Entity | Notes |
 |--------|-------|
 | `Client` | Core record; has unique Name and ExternalId |
-| `Site` | Property/location belonging to a Client |
-| `Asset` | Equipment at a Site; N:N with `AssetType` |
-| `MaintenanceSchedule` | Recurring maintenance plan linking Asset + Site + interval |
+| `Property` | Property/location belonging to a Client (was `Site`; services and view models still sit under `Sites/`) |
+| `Asset` | Equipment at a Property; N:N with `AssetType` |
+| `MaintenanceSchedule` | Recurring maintenance plan linking Asset + Property + interval |
 | `MaintenanceHistory` | Audit log of completed maintenance events |
 | `ClientTask` | Work items with status, priority, and due date; assigned to an `UptickUser` (technician) |
 | `ServiceQuote` | Proposals with a `ClientToken` (Guid) for public/unauthenticated viewing |

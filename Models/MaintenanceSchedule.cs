@@ -4,7 +4,7 @@ namespace FyreApp.Models;
 
 public enum ScheduleTargetType
 {
-    Site = 1,
+    Property = 1,
     Asset = 2
 }
 
@@ -22,9 +22,9 @@ public class MaintenanceSchedule
     [Required]
     public ScheduleTargetType TargetType { get; set; }
 
-    // Either SiteId or AssetId will be set (not both)
-    public int? SiteId { get; set; }
-    public Site? Site { get; set; }
+    // Either PropertyId or AssetId will be set (not both)
+    public int? PropertyId { get; set; }
+    public Property? Property { get; set; }
 
     public int? AssetId { get; set; }
     public Asset? Asset { get; set; }

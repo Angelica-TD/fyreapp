@@ -29,7 +29,7 @@
         <label class="form-label mb-0">Target</label>
         <select name="targetType" class="form-select form-select-sm" onchange="this.form.submit()">
             <option value="" selected="@(Model.TargetType == null ? "selected" : null)">All</option>
-            <option value="Site" selected="@(Model.TargetType == ScheduleTargetType.Site ? "selected" : null)">Property</option>
+            <option value="Property" selected="@(Model.TargetType == ScheduleTargetType.Property ? "selected" : null)">Property</option>
             <option value="Asset" selected="@(Model.TargetType == ScheduleTargetType.Asset ? "selected" : null)">Asset</option>
         </select>
     </div>

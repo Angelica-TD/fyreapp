@@ -27,16 +27,16 @@ public class RoutineTaskAssetTests
         }.Where(kv => kv.Value != null).ToDictionary())
     };
 
-    private static RoutineOccurrence Due(Site site, string routine, string group = "Servicing") => new()
+    private static RoutineOccurrence Due(Property site, string routine, string group = "Servicing") => new()
     {
-        Site = site, Routine = routine, ServiceGroup = group, Status = RoutineOccurrenceStatus.Pending,
+        Property = site, Routine = routine, ServiceGroup = group, Status = RoutineOccurrenceStatus.Pending,
         DueDate = DateTime.SpecifyKind(new DateTime(2026, 11, 30), DateTimeKind.Utc)
     };
 
-    private static async Task<(Site Glory, Site Calce)> SeedAsync(AppDbContext db)
+    private static async Task<(Property Glory, Property Calce)> SeedAsync(AppDbContext db)
     {
-        var glory = new Site { Name = "The Glory Well Church", ExternalId = "P-2241", Client = new Client { Name = "Sails Ministry" } };
-        var calce = new Site { Name = "Calce Company", ExternalId = "P-0358", Client = new Client { Name = "Calce Company Pty Ltd" } };
+        var glory = new Property { Name = "The Glory Well Church", ExternalId = "P-2241", Client = new Client { Name = "Sails Ministry" } };
+        var calce = new Property { Name = "Calce Company", ExternalId = "P-0358", Client = new Client { Name = "Calce Company Pty Ltd" } };
 
         var extinguisher = Type("Fire Extinguisher", Extinguishers);
         var blanket = Type("Fire Blanket", "11 - Fire Blankets");
@@ -44,12 +44,12 @@ public class RoutineTaskAssetTests
             excluded: Doorsets + ": Six-monthly");
 
         db.Assets.AddRange(
-            new Asset { Site = glory, Name = "FE Hall", Ref = "2", InspectionOrder = 2, Location = "Hall", AssetTypes = { extinguisher } },
-            new Asset { Site = glory, Name = "FE Kitchen", Ref = "1", InspectionOrder = 1, Location = "Kitchen", AssetTypes = { extinguisher } },
-            new Asset { Site = glory, Name = "FE Removed", Ref = "3", IsActive = false, AssetTypes = { extinguisher } },
-            new Asset { Site = glory, Name = "Blanket", Ref = "4", AssetTypes = { blanket } },
-            new Asset { Site = glory, Name = "Front door", Ref = "5", AssetTypes = { doorset } },
-            new Asset { Site = calce, Name = "FE Office", Ref = "1", AssetTypes = { extinguisher } });
+            new Asset { Property = glory, Name = "FE Hall", Ref = "2", InspectionOrder = 2, Location = "Hall", AssetTypes = { extinguisher } },
+            new Asset { Property = glory, Name = "FE Kitchen", Ref = "1", InspectionOrder = 1, Location = "Kitchen", AssetTypes = { extinguisher } },
+            new Asset { Property = glory, Name = "FE Removed", Ref = "3", IsActive = false, AssetTypes = { extinguisher } },
+            new Asset { Property = glory, Name = "Blanket", Ref = "4", AssetTypes = { blanket } },
+            new Asset { Property = glory, Name = "Front door", Ref = "5", AssetTypes = { doorset } },
+            new Asset { Property = calce, Name = "FE Office", Ref = "1", AssetTypes = { extinguisher } });
 
         db.RoutineOccurrences.AddRange(
             Due(glory, Extinguishers + ": Six-monthly"),
@@ -69,16 +69,16 @@ public class RoutineTaskAssetTests
 
         await new RoutineService(db).GenerateTasksAsync(ids, allMatching: false, AnyFilter, null);
 
-        var lines = await db.TaskAssets.Select(a => new { a.ClientTask.SiteId, a.ClientTask.Title, a.Asset.Name, a.Routine }).ToListAsync();
+        var lines = await db.TaskAssets.Select(a => new { a.ClientTask.PropertyId, a.ClientTask.Title, a.Asset.Name, a.Routine }).ToListAsync();
 
         // Glory's servicing task: its two active extinguishers, not the inactive one or the blanket (no blanket routine due)
         Assert.Equal(new[] { "FE Hall", "FE Kitchen" },
-            lines.Where(l => l.SiteId == glory.Id && l.Title.EndsWith("Servicing")).Select(l => l.Name).OrderBy(n => n));
+            lines.Where(l => l.PropertyId == glory.Id && l.Title.EndsWith("Servicing")).Select(l => l.Name).OrderBy(n => n));
         // The doorset's annual routine, but not its excluded six-monthly level
         Assert.Equal((Doorsets + ": Annual", "Front door"),
             lines.Where(l => l.Title.EndsWith("Passive")).Select(l => (l.Routine, l.Name)).Single());
         // Each property's own assets only
-        Assert.Equal("FE Office", lines.Single(l => l.SiteId == calce.Id).Name);
+        Assert.Equal("FE Office", lines.Single(l => l.PropertyId == calce.Id).Name);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public class RoutineTaskAssetTests
     {
         using var db = DbContextFactory.Create();
         var (glory, _) = await SeedAsync(db);
-        var ids = await db.RoutineOccurrences.Where(o => o.SiteId == glory.Id).Select(o => o.Id).ToListAsync();
+        var ids = await db.RoutineOccurrences.Where(o => o.PropertyId == glory.Id).Select(o => o.Id).ToListAsync();
         await new RoutineService(db).GenerateTasksAsync(ids, allMatching: false, AnyFilter, null);
         var task = await db.ClientTasks.SingleAsync(t => t.Title.EndsWith("Servicing"));
 
@@ -101,7 +101,7 @@ public class RoutineTaskAssetTests
     {
         using var db = DbContextFactory.Create();
         var (glory, _) = await SeedAsync(db);
-        var ids = await db.RoutineOccurrences.Where(o => o.SiteId == glory.Id).Select(o => o.Id).ToListAsync();
+        var ids = await db.RoutineOccurrences.Where(o => o.PropertyId == glory.Id).Select(o => o.Id).ToListAsync();
         await new RoutineService(db).GenerateTasksAsync(ids, allMatching: false, AnyFilter, null);
         var task = await db.ClientTasks.SingleAsync(t => t.Title.EndsWith("Servicing"));
         db.TaskAssets.RemoveRange(db.TaskAssets);
@@ -138,7 +138,7 @@ public class RoutineTaskAssetTests
         db.RoutineServiceTypes.Add(new RoutineServiceType { Name = Extinguishers });
         var task = new ClientTask
         {
-            ClientId = glory.ClientId, SiteId = glory.Id, Title = "PM2026/10 Servicing", ExternalId = "46682",
+            ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2026/10 Servicing", ExternalId = "46682",
             UptickData = """{"Scope of works":"- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"}"""
         };
         db.ClientTasks.Add(task);
@@ -160,13 +160,13 @@ public class RoutineTaskAssetTests
         var (glory, calce) = await SeedAsync(db);
         db.RoutineServiceTypes.Add(new RoutineServiceType { Name = Extinguishers });
         DateTime Utc(int month, int day) => DateTime.SpecifyKind(new DateTime(2026, month, day), DateTimeKind.Utc);
-        var annual = new RoutineOccurrence { Site = glory, ExternalId = "49441", Routine = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineOccurrenceStatus.Generated };
+        var annual = new RoutineOccurrence { Property = glory, ExternalId = "49441", Routine = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineOccurrenceStatus.Generated };
         db.RoutineOccurrences.AddRange(annual,
-            new RoutineOccurrence { Site = glory, Routine = Extinguishers + ": Annual", DueDate = Utc(11, 1), Status = RoutineOccurrenceStatus.Generated },
-            new RoutineOccurrence { Site = calce, Routine = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineOccurrenceStatus.Generated });
+            new RoutineOccurrence { Property = glory, Routine = Extinguishers + ": Annual", DueDate = Utc(11, 1), Status = RoutineOccurrenceStatus.Generated },
+            new RoutineOccurrence { Property = calce, Routine = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineOccurrenceStatus.Generated });
         var task = new ClientTask
         {
-            ClientId = glory.ClientId, SiteId = glory.Id, Title = "PM2026/10 Servicing", Ref = "T-46682", ExternalId = "46682", DueDateUtc = Utc(10, 31),
+            ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2026/10 Servicing", Ref = "T-46682", ExternalId = "46682", DueDateUtc = Utc(10, 31),
             UptickData = """{"Scope of works":"- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"}"""
         };
         db.ClientTasks.Add(task);
@@ -176,10 +176,10 @@ public class RoutineTaskAssetTests
         kitchen.Compliance = "Pass";
         hall.LastServiceDate = new DateTime(2025, 10, 9);
         db.Defects.AddRange(
-            new Defect { Site = glory, Asset = kitchen, Description = "Flow test 10 @ 1.26 L/sec", RaisedOnTaskRef = "T-46682" },
-            new Defect { Site = glory, Asset = kitchen, Description = "Flow test/ 96.6 L/m", Active = false, InactiveUtc = Utc(10, 14).AddHours(4) },
-            new Defect { Site = glory, Asset = hall, Description = "Closed last month", Active = false, InactiveUtc = Utc(9, 20) },
-            new Defect { Site = glory, Asset = hall, Description = "Still open", RaisedOnTaskRef = "T-40000" });
+            new Defect { Property = glory, Asset = kitchen, Description = "Flow test 10 @ 1.26 L/sec", RaisedOnTaskRef = "T-46682" },
+            new Defect { Property = glory, Asset = kitchen, Description = "Flow test/ 96.6 L/m", Active = false, InactiveUtc = Utc(10, 14).AddHours(4) },
+            new Defect { Property = glory, Asset = hall, Description = "Closed last month", Active = false, InactiveUtc = Utc(9, 20) },
+            new Defect { Property = glory, Asset = hall, Description = "Still open", RaisedOnTaskRef = "T-40000" });
         await db.SaveChangesAsync();
 
         var vm = (await new TaskPageService(db).LoadAsync(task.Id, "work"))!;
@@ -212,7 +212,7 @@ public class RoutineTaskAssetTests
         db.RoutineServiceTypes.Add(new RoutineServiceType { Name = Extinguishers });
         ClientTask Task(string title, int month, string? performed) => new()
         {
-            ClientId = glory.ClientId, SiteId = glory.Id, Title = title, ExternalId = title, Ref = "T-" + title,
+            ClientId = glory.ClientId, PropertyId = glory.Id, Title = title, ExternalId = title, Ref = "T-" + title,
             DueDateUtc = DateTime.SpecifyKind(new DateTime(2026, month, 28), DateTimeKind.Utc),
             UptickData = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string?>
             {

@@ -15,7 +15,7 @@ public class ScheduleImportResultVm
     public int SkippedUnsupportedFrequency { get; set; }
     public int SkippedInvalid { get; set; }
 
-    // Sites matched by client + property name that get their ExternalId set from "Property ref"
+    // Properties matched by client + property name that get their ExternalId set from "Property ref"
     public int SitesLinked { get; set; }
 
     // Existing schedules newly linked to Uptick routines they cover

@@ -28,11 +28,11 @@ public class DevController : Controller
                 .OrderBy(c => c.Name)
                 .Select(c => new DevClientRow(
                     c.Id, c.Name,
-                    c.Sites.Count,
+                    c.Properties.Count,
                     _db.ClientTasks.Count(t => t.ClientId == c.Id)))
                 .ToListAsync(),
 
-            Sites = await _db.Sites
+            Properties = await _db.Properties
                 .OrderBy(s => s.Client.Name).ThenBy(s => s.Name)
                 .Select(s => new DevSiteRow(
                     s.Id, s.Name, s.Client.Name,
@@ -41,15 +41,15 @@ public class DevController : Controller
                 .ToListAsync(),
 
             Assets = await _db.Assets
-                .OrderBy(a => a.Site.Client.Name).ThenBy(a => a.Site.Name).ThenBy(a => a.Name)
-                .Select(a => new DevAssetRow(a.Id, a.Name, a.Site.Name, a.Site.Client.Name))
+                .OrderBy(a => a.Property.Client.Name).ThenBy(a => a.Property.Name).ThenBy(a => a.Name)
+                .Select(a => new DevAssetRow(a.Id, a.Name, a.Property.Name, a.Property.Client.Name))
                 .ToListAsync(),
 
             Tasks = await _db.ClientTasks
                 .OrderBy(t => t.Client.Name).ThenBy(t => t.Title)
                 .Select(t => new DevTaskRow(
                     t.Id, t.Title, t.Client.Name,
-                    t.Site != null ? t.Site.Name : null,
+                    t.Property != null ? t.Property.Name : null,
                     t.Status.ToString()))
                 .ToListAsync(),
 
@@ -100,8 +100,8 @@ public class DevController : Controller
                     .ExecuteDeleteAsync(ct);
                 break;
 
-            case "Site":
-                deleted = await _db.Sites
+            case "Property":
+                deleted = await _db.Properties
                     .Where(s => ids.Contains(s.Id))
                     .ExecuteDeleteAsync(ct);
                 break;
@@ -162,7 +162,7 @@ public class DevController : Controller
     [HttpGet]
     public async Task<IActionResult> SiteDetail(int id)
     {
-        var s = await _db.Sites.Include(x => x.Client).FirstOrDefaultAsync(x => x.Id == id);
+        var s = await _db.Properties.Include(x => x.Client).FirstOrDefaultAsync(x => x.Id == id);
         return s is null ? NotFound() : PartialView("_SiteDetail", s);
     }
 
@@ -170,7 +170,7 @@ public class DevController : Controller
     public async Task<IActionResult> AssetDetail(int id)
     {
         var a = await _db.Assets
-            .Include(x => x.Site).ThenInclude(x => x.Client)
+            .Include(x => x.Property).ThenInclude(x => x.Client)
             .FirstOrDefaultAsync(x => x.Id == id);
         return a is null ? NotFound() : PartialView("_AssetDetail", a);
     }
@@ -180,7 +180,7 @@ public class DevController : Controller
     {
         var t = await _db.ClientTasks
             .Include(x => x.Client)
-            .Include(x => x.Site)
+            .Include(x => x.Property)
             .FirstOrDefaultAsync(x => x.Id == id);
         return t is null ? NotFound() : PartialView("_TaskDetail", t);
     }
@@ -223,7 +223,7 @@ public class DevController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SiteUpdate(DevSiteUpdateVm vm, CancellationToken ct)
     {
-        var s = await _db.Sites.FindAsync(vm.Id);
+        var s = await _db.Properties.FindAsync(vm.Id);
         if (s is null) return NotFound();
         s.Name = vm.Name.Trim();
         s.AddressDisplay = vm.AddressDisplay?.Trim();
@@ -233,7 +233,7 @@ public class DevController : Controller
         s.Postcode = vm.Postcode?.Trim();
         s.State = vm.State?.Trim();
         await _db.SaveChangesAsync(ct);
-        TempData["Success"] = $"Site '{s.Name}' updated.";
+        TempData["Success"] = $"Property '{s.Name}' updated.";
         return RedirectToAction(nameof(Index));
     }
 

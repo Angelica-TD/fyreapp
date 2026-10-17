@@ -50,7 +50,7 @@ public class RoutineListItemVm
 {
     public int Id { get; set; }
     public string Routine { get; set; } = string.Empty;
-    public int SiteId { get; set; }
+    public int PropertyId { get; set; }
     public string? PropertyRef { get; set; }
     public string PropertyName { get; set; } = string.Empty;
     public int ClientId { get; set; }

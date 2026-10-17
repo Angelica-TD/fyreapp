@@ -27,8 +27,8 @@ public class ServiceQuote
     public int ClientId { get; set; }
     public Client Client { get; set; } = null!;
 
-    public int? SiteId { get; set; }
-    public Site? Site { get; set; }
+    public int? PropertyId { get; set; }
+    public Property? Property { get; set; }
 
     public int? ServiceOfferingId { get; set; }
     public ServiceOffering? ServiceOffering { get; set; }

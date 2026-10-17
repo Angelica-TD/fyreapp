@@ -10,7 +10,7 @@ namespace FyreApp.Services.MaintenanceSchedules;
 
 // Uptick exports one row per routine *occurrence* (e.g. "10 - Portable ...: Six-monthly" due 2026-11-01).
 // Rows are grouped into one site-level schedule per (property, interval), using the earliest
-// outstanding due date as NextRunDate. Sites that already have a schedule for that interval are skipped.
+// outstanding due date as NextRunDate. Properties that already have a schedule for that interval are skipped.
 public class ScheduleImportService : IScheduleImportService
 {
     private const int MaxIssues = 500;
@@ -23,13 +23,13 @@ public class ScheduleImportService : IScheduleImportService
 
     // One routines export row, kept as a RoutineOccurrence
     private sealed record OccurrenceRow(
-        string? ExternalId, int SiteId, int Months, string Routine, RoutineServiceLevel? Level, DateTime Due,
+        string? ExternalId, int PropertyId, int Months, string Routine, RoutineServiceLevel? Level, DateTime Due,
         DateTime? ToleranceStart, DateTime? ToleranceEnd, RoutineOccurrenceStatus Status, DateTime? Completed,
         string? ServiceGroup, string? DefaultTechnician, string? Subcontractor, int? EstimatedMinutes, string? UptickData);
 
     private sealed class Group
     {
-        public required SiteRef Site { get; init; }
+        public required SiteRef Property { get; init; }
         public required int Months { get; init; }
         public required string FrequencyLabel { get; init; }
         public string? PropertyRef { get; set; }
@@ -77,8 +77,8 @@ public class ScheduleImportService : IScheduleImportService
             .GroupBy(l => $"{l.RoutineServiceType.Name.Trim()}: {l.Name.Trim()}", StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-        // Site lookups
-        var sites = await _db.Sites.AsNoTracking()
+        // Property lookups
+        var sites = await _db.Properties.AsNoTracking()
             .Select(s => new SiteRef(s.Id, s.Name, s.ExternalId, s.Client.Name))
             .ToListAsync(ct);
 
@@ -90,9 +90,9 @@ public class ScheduleImportService : IScheduleImportService
             .GroupBy(s => NameKey(s.ClientName, s.Name), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.ToList(), StringComparer.OrdinalIgnoreCase);
 
-        // SiteId -> Property ref to be written to Site.ExternalId
+        // PropertyId -> Property ref to be written to Property.ExternalId
         var linkRefs = new Dictionary<int, string>();
-        var groups = new Dictionary<(int SiteId, int Months), Group>();
+        var groups = new Dictionary<(int PropertyId, int Months), Group>();
         var occurrences = new List<OccurrenceRow>();
 
         for (int i = 0; i < rows.Count; i++)
@@ -201,7 +201,7 @@ public class ScheduleImportService : IScheduleImportService
             {
                 groups[key] = group = new Group
                 {
-                    Site = site,
+                    Property = site,
                     Months = months.Value,
                     FrequencyLabel = frequencyLabel,
                     PropertyRef = site.ExternalId ?? propertyRef
@@ -222,14 +222,14 @@ public class ScheduleImportService : IScheduleImportService
         }
 
         // Existing schedules and intervals
-        var groupSiteIds = groups.Keys.Select(k => k.SiteId).Distinct().ToList();
+        var groupSiteIds = groups.Keys.Select(k => k.PropertyId).Distinct().ToList();
         // Tracked, so re-running the import can link existing schedules to their routines
         var existing = (await _db.MaintenanceSchedules
                 .Include(s => s.MaintenanceInterval)
                 .Include(s => s.RoutineLevels)
-                .Where(s => s.TargetType == ScheduleTargetType.Site && s.SiteId != null && groupSiteIds.Contains(s.SiteId.Value))
+                .Where(s => s.TargetType == ScheduleTargetType.Property && s.PropertyId != null && groupSiteIds.Contains(s.PropertyId.Value))
                 .ToListAsync(ct))
-            .GroupBy(s => (s.SiteId!.Value, s.MaintenanceInterval.Months))
+            .GroupBy(s => (s.PropertyId!.Value, s.MaintenanceInterval.Months))
             .ToDictionary(g => g.Key, g => g.First());
         var routineLinksAdded = 0;
 
@@ -252,18 +252,18 @@ public class ScheduleImportService : IScheduleImportService
         }
 
         var toCreate = new List<MaintenanceSchedule>();
-        var scheduleByKey = new Dictionary<(int SiteId, int Months), MaintenanceSchedule>();
+        var scheduleByKey = new Dictionary<(int PropertyId, int Months), MaintenanceSchedule>();
 
         foreach (var group in groups.Values
-                     .OrderBy(g => g.Site.ClientName)
-                     .ThenBy(g => g.Site.Name)
+                     .OrderBy(g => g.Property.ClientName)
+                     .ThenBy(g => g.Property.Name)
                      .ThenBy(g => g.Months))
         {
             // Next outstanding occurrence; if everything is done, roll forward from the latest one
             var next = NextOutstanding(group.Occurrences, DateTime.UtcNow)
                        ?? group.Occurrences.Max(o => o.Due).AddMonths(group.Months);
 
-            var existingSchedule = existing.GetValueOrDefault((group.Site.Id, group.Months));
+            var existingSchedule = existing.GetValueOrDefault((group.Property.Id, group.Months));
             var isExisting = existingSchedule != null;
             var interval = isExisting
                 ? existingSchedule!.MaintenanceInterval
@@ -271,8 +271,8 @@ public class ScheduleImportService : IScheduleImportService
 
             result.Items.Add(new ScheduleImportItemVm
             {
-                ClientName = group.Site.ClientName,
-                SiteName = group.Site.Name,
+                ClientName = group.Property.ClientName,
+                SiteName = group.Property.Name,
                 PropertyRef = group.PropertyRef,
                 IntervalName = interval.Name,
                 NextRunDate = next,
@@ -287,7 +287,7 @@ public class ScheduleImportService : IScheduleImportService
                 routineLinksAdded += missing.Count;
                 if (!dryRun)
                     foreach (var l in missing) existingSchedule!.RoutineLevels.Add(l);
-                scheduleByKey[(group.Site.Id, group.Months)] = existingSchedule!;
+                scheduleByKey[(group.Property.Id, group.Months)] = existingSchedule!;
 
                 result.SkippedExisting++;
                 continue;
@@ -295,8 +295,8 @@ public class ScheduleImportService : IScheduleImportService
 
             var schedule = new MaintenanceSchedule
             {
-                TargetType = ScheduleTargetType.Site,
-                SiteId = group.Site.Id,
+                TargetType = ScheduleTargetType.Property,
+                PropertyId = group.Property.Id,
                 MaintenanceInterval = interval,
                 StartDate = next.AddMonths(-group.Months),
                 NextRunDate = next,
@@ -304,7 +304,7 @@ public class ScheduleImportService : IScheduleImportService
                 RoutineLevels = group.Levels.ToList()
             };
             toCreate.Add(schedule);
-            scheduleByKey[(group.Site.Id, group.Months)] = schedule;
+            scheduleByKey[(group.Property.Id, group.Months)] = schedule;
         }
 
         // Occurrences: one per routines row (as Uptick lists them), linked to their schedule. New ones are added;
@@ -341,14 +341,14 @@ public class ScheduleImportService : IScheduleImportService
                 continue;
             }
 
-            var occurrence = new RoutineOccurrence { ExternalId = row.ExternalId, SiteId = row.SiteId };
+            var occurrence = new RoutineOccurrence { ExternalId = row.ExternalId, PropertyId = row.PropertyId };
             newOccurrences.Add(occurrence);
 
             if (dryRun) continue;
 
             occurrence.Routine = row.Routine.Length <= 300 ? row.Routine : row.Routine[..300];
             occurrence.RoutineServiceLevel = row.Level;
-            occurrence.MaintenanceSchedule = scheduleByKey.GetValueOrDefault((row.SiteId, row.Months));
+            occurrence.MaintenanceSchedule = scheduleByKey.GetValueOrDefault((row.PropertyId, row.Months));
             occurrence.DueDate = row.Due;
             occurrence.ToleranceStart = row.ToleranceStart;
             occurrence.ToleranceEnd = row.ToleranceEnd;
@@ -376,7 +376,7 @@ public class ScheduleImportService : IScheduleImportService
             if (linkRefs.Count > 0)
             {
                 var linkIds = linkRefs.Keys.ToList();
-                var sitesToLink = await _db.Sites.Where(s => linkIds.Contains(s.Id)).ToListAsync(ct);
+                var sitesToLink = await _db.Properties.Where(s => linkIds.Contains(s.Id)).ToListAsync(ct);
                 foreach (var s in sitesToLink)
                     s.ExternalId = linkRefs[s.Id];
             }

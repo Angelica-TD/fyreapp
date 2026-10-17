@@ -1,6 +1,6 @@
 using FyreApp.Models;
 
-namespace FyreApp.Services.Sites;
+namespace FyreApp.Services.Properties;
 
 public enum CreateSiteStatus
 {
@@ -14,7 +14,7 @@ public enum CreateSiteStatus
 
 public sealed record CreateSiteResult(
     CreateSiteStatus Status,
-    Site? site,
+    Property? site,
     string SiteName = "",
     string? Error = null
 );

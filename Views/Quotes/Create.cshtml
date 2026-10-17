@@ -30,11 +30,11 @@
         </div>
 
         <div class="col-md-6">
-            <label asp-for="SiteId" class="form-label">Site <span class="text-danger">*</span></label>
-            <select asp-for="SiteId" id="siteSelect" class="form-select" disabled>
+            <label asp-for="PropertyId" class="form-label">Property <span class="text-danger">*</span></label>
+            <select asp-for="PropertyId" id="siteSelect" class="form-select" disabled>
                 <option value="">— Select client first —</option>
             </select>
-            <span asp-validation-for="SiteId" class="text-danger small"></span>
+            <span asp-validation-for="PropertyId" class="text-danger small"></span>
         </div>
 
         <div class="col-md-4">
@@ -135,7 +135,7 @@
             let rowIndex = 0;
             let siteAssets = [];
 
-            // ── Client → Sites cascade ──────────────────────────────────────
+            // ── Client → Properties cascade ──────────────────────────────────────
             clientSelect.addEventListener('change', async function () {
                 const clientId = this.value;
                 siteSelect.innerHTML = '<option value="">— Loading… —</option>';
@@ -161,7 +161,7 @@
                 siteSelect.disabled = false;
             });
 
-            // ── Site → Assets load ──────────────────────────────────────────
+            // ── Property → Assets load ──────────────────────────────────────────
             siteSelect.addEventListener('change', async function () {
                 const siteId = this.value;
                 siteAssets = [];

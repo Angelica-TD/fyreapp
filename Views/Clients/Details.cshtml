@@ -12,10 +12,10 @@
     var c = Model.Client;
     var showEdit = Model.OpenEdit;
 
-    var allAssets = c.Sites.SelectMany(s => s.Assets).ToList();
-    var allSchedules = c.Sites
+    var allAssets = c.Properties.SelectMany(s => s.Assets).ToList();
+    var allSchedules = c.Properties
         .SelectMany(s => s.MaintenanceSchedules.Select(ms => (ms, SiteName: s.Name, AssetName: (string?)null)))
-        .Concat(c.Sites.SelectMany(s => s.Assets
+        .Concat(c.Properties.SelectMany(s => s.Assets
             .SelectMany(a => a.MaintenanceSchedules.Select(ms => (ms, SiteName: s.Name, AssetName: (string?)a.Name)))))
         .OrderBy(x => x.ms.NextRunDate)
         .ToList();
@@ -123,7 +123,7 @@
         <ul class="nav nav-tabs mb-3" id="clientTabs">
             <li class="nav-item">
                 <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-properties">
-                    Properties <span class="badge bg-secondary">@c.Sites.Count</span>
+                    Properties <span class="badge bg-secondary">@c.Properties.Count</span>
                 </button>
             </li>
             <li class="nav-item">
@@ -164,7 +164,7 @@
                     </button>
                 }
 
-                @if (!c.Sites.Any())
+                @if (!c.Properties.Any())
                 {
                     <p class="text-muted">No properties found for this client.</p>
                 }
@@ -180,7 +180,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var site in c.Sites)
+                            @foreach (var site in c.Properties)
                             {
                                 <tr>
                                     <td class="text-nowrap text-muted">@site.DisplayRef</td>
@@ -225,7 +225,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var site in c.Sites)
+                            @foreach (var site in c.Properties)
                             {
                                 @foreach (var asset in site.Assets)
                                 {
@@ -276,7 +276,7 @@
                                 <tr>
                                     <td class="text-nowrap text-muted">@task.DisplayRef</td>
                                     <td>@task.Title</td>
-                                    <td class="text-muted">@(task.Site?.Name ?? "—")</td>
+                                    <td class="text-muted">@(task.Property?.Name ?? "—")</td>
                                     <td>@task.Status</td>
                                     <td>@task.Priority</td>
                                 </tr>
@@ -387,7 +387,7 @@
 @* ── Modals ── *@
 
 @await Html.PartialAsync("_CreatePropertyModal",
-    new FyreApp.ViewModels.Sites.CreatePropertyModalVm
+    new FyreApp.ViewModels.Properties.CreatePropertyModalVm
     {
         ClientId = c.Id,
         ClientName = c.Name,
@@ -412,7 +412,7 @@
                         <label class="form-label">Property</label>
                         <select name="siteId" class="form-select" required>
                             <option value="">— Select property —</option>
-                            @foreach (var site in c.Sites)
+                            @foreach (var site in c.Properties)
                             {
                                 <option value="@site.Id">@site.Name</option>
                             }
@@ -451,9 +451,9 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Property <span class="text-danger">*</span></label>
-                        <select name="SiteId" class="form-select" required>
+                        <select name="PropertyId" class="form-select" required>
                             <option value="">— Select property —</option>
-                            @foreach (var site in c.Sites)
+                            @foreach (var site in c.Properties)
                             {
                                 <option value="@site.Id">@site.Name</option>
                             }
@@ -515,7 +515,7 @@
                     <div class="mb-3" id="schedSiteGroup">
                         <label class="form-label">Property</label>
                         <select name="targetId" id="schedSiteSelect" class="form-select" required>
-                            @foreach (var site in c.Sites)
+                            @foreach (var site in c.Properties)
                             {
                                 <option value="@site.Id">@site.Name</option>
                             }
@@ -524,7 +524,7 @@
                     <div class="mb-3 d-none" id="schedAssetGroup">
                         <label class="form-label">Asset</label>
                         <select name="targetId" id="schedAssetSelect" class="form-select" disabled>
-                            @foreach (var site in c.Sites)
+                            @foreach (var site in c.Properties)
                             {
                                 @foreach (var asset in site.Assets)
                                 {

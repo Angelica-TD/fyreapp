@@ -61,9 +61,9 @@ public class Asset
     // The order techs inspect the property's assets in (Uptick "Inspection Order")
     public int? InspectionOrder { get; set; }
 
-    // FK → Site (one site only)
-    public int SiteId { get; set; }
-    public Site Site { get; set; } = null!;
+    // FK → Property (one site only)
+    public int PropertyId { get; set; }
+    public Property Property { get; set; } = null!;
 
     // Many-to-many
     public ICollection<AssetType> AssetTypes { get; set; } = new List<AssetType>();

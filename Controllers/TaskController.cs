@@ -60,7 +60,7 @@ public class TaskController : Controller
         var vm = new CreateClientTaskFormVm
         {
             Clients = clients,
-            Sites = new List<SelectListItem>()
+            Properties = new List<SelectListItem>()
         };
 
         return View(vm);
@@ -70,12 +70,12 @@ public class TaskController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateClientTaskVm task)
     {
-        var siteExists = await _db.Sites
+        var siteExists = await _db.Properties
             .AsNoTracking()
-            .AnyAsync(s => s.Id == task.SiteId && s.ClientId == task.ClientId);
+            .AnyAsync(s => s.Id == task.PropertyId && s.ClientId == task.ClientId);
 
         if (!siteExists)
-            ModelState.AddModelError(nameof(CreateClientTaskVm.SiteId), "Selected site does not belong to selected client.");
+            ModelState.AddModelError(nameof(CreateClientTaskVm.PropertyId), "Selected site does not belong to selected client.");
 
         if (!ModelState.IsValid)
         {
@@ -91,7 +91,7 @@ public class TaskController : Controller
                         Text = c.Name
                     })
                     .ToListAsync(),
-                Sites = await _db.Sites
+                Properties = await _db.Properties
                     .AsNoTracking()
                     .Where(s => s.ClientId == task.ClientId)
                     .OrderBy(s => s.Name)
@@ -114,7 +114,7 @@ public class TaskController : Controller
         var entity = new ClientTask
         {
             ClientId = task.ClientId,
-            SiteId = task.SiteId,
+            PropertyId = task.PropertyId,
             Title = task.Title.Trim(),
             Description = string.IsNullOrWhiteSpace(task.Description) ? null : task.Description.Trim(),
             Priority = task.Priority,
@@ -132,7 +132,7 @@ public class TaskController : Controller
     [HttpGet]
     public async Task<IActionResult> PropertiesForClient(int clientId)
     {
-        var sites = await _db.Sites
+        var sites = await _db.Properties
             .AsNoTracking()
             .Where(s => s.ClientId == clientId)
             .OrderBy(s => s.Name)
@@ -151,7 +151,7 @@ public class TaskController : Controller
 
         await _taskService.CompleteAsync(id);
 
-        return RedirectToAction("Details", "Property", new { id = task.SiteId });
+        return RedirectToAction("Details", "Property", new { id = task.PropertyId });
     }
 
     // The task page, laid out like Uptick's (Task and Work tabs)
@@ -190,7 +190,7 @@ public class TaskController : Controller
             {
                 Id = task.Id,
                 ClientId = task.ClientId,
-                SiteId = task.SiteId,
+                PropertyId = task.PropertyId,
                 Title = task.Title,
                 Description = task.Description,
                 Priority = task.Priority,
@@ -206,7 +206,7 @@ public class TaskController : Controller
                 .OrderBy(c => c.Name)
                 .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name })
                 .ToListAsync(),
-            Sites = await _db.Sites
+            Properties = await _db.Properties
                 .AsNoTracking()
                 .Where(s => s.ClientId == task.ClientId)
                 .OrderBy(s => s.Name)
@@ -223,12 +223,12 @@ public class TaskController : Controller
 
         if (id != input.Id) return BadRequest();
 
-        var siteExists = await _db.Sites
+        var siteExists = await _db.Properties
             .AsNoTracking()
-            .AnyAsync(s => s.Id == input.SiteId && s.ClientId == input.ClientId);
+            .AnyAsync(s => s.Id == input.PropertyId && s.ClientId == input.ClientId);
 
         if (!siteExists)
-            ModelState.AddModelError("Task.SiteId", "Selected site does not belong to selected client.");
+            ModelState.AddModelError("Task.PropertyId", "Selected site does not belong to selected client.");
 
         if (!ModelState.IsValid)
         {
@@ -241,7 +241,7 @@ public class TaskController : Controller
                     .OrderBy(c => c.Name)
                     .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name })
                     .ToListAsync(),
-                Sites = await _db.Sites
+                Properties = await _db.Properties
                     .AsNoTracking()
                     .Where(s => s.ClientId == input.ClientId)
                     .OrderBy(s => s.Name)
@@ -263,7 +263,7 @@ public class TaskController : Controller
     {
         var task = await _db.ClientTasks
             .Include(t => t.Client)
-            .Include(t => t.Site)
+            .Include(t => t.Property)
             .FirstOrDefaultAsync(t => t.Id == id);
 
         if (task is null) return NotFound();

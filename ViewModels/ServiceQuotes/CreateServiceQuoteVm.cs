@@ -9,7 +9,7 @@ public class CreateServiceQuoteVm
     public int? ClientId { get; set; }
 
     // Required — the property this quote is for
-    public int? SiteId { get; set; }
+    public int? PropertyId { get; set; }
 
     [Required(ErrorMessage = "Title is required.")]
     [StringLength(200, ErrorMessage = "Title cannot exceed 200 characters.")]

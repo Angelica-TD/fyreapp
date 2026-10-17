@@ -393,7 +393,12 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
    "was created" entries and import-derived "Uptick" changes dropped (the file importers no longer log changes).
 3. **Core records:** clients, properties, contacts, users, asset types/variants, assets. `UptickId` + `Ref`
    columns and FKs; `LocalEdit` (§7), since the asset form already edits migrated fields; file importers for
-   these turned off.
+   these turned off. In four PRs, each safe to deploy alone:
+   - 3a (done): `Site` / `SiteContact` renamed `Property` / `PropertyContact` (tables, `SiteId` columns, FKs,
+     indexes, sequences, FyreRef triggers). URLs and form/query parameter names (`siteId`, `site`) unchanged.
+   - 3b: `UptickId` / `Ref` columns; mappers for clients, properties, contacts and users.
+   - 3c: mappers for asset types, variants and assets.
+   - 3d: `LocalEdit`; the file importers for these turned off.
 4. **Work:** tasks, service tasks, remarks, reports, routines, routine services/levels/types.
 5. **Commercial:** defect quotes, sales quotes, invoices, credit notes, billing, products, stock.
 6. **Remaining reference data;** remove the file importers and `UptickData` columns.

@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Models;
 
-public class SiteContact
+public class PropertyContact
 {
     public int Id { get; set; }
 
@@ -20,8 +20,8 @@ public class SiteContact
     // Shown to users: the Uptick ID if imported, otherwise the FyreApp ref
     public string? DisplayRef => string.IsNullOrWhiteSpace(ExternalId) ? FyreRef : ExternalId;
 
-    public int SiteId { get; set; }
-    public Site Site { get; set; } = null!;
+    public int PropertyId { get; set; }
+    public Property Property { get; set; } = null!;
 
     public string Name { get; set; } = string.Empty;
     public string? Organisation { get; set; }

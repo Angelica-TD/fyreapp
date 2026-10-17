@@ -6,7 +6,7 @@ namespace FyreApp.ViewModels.Dev;
 public sealed class DevIndexVm
 {
     public List<DevClientRow> Clients { get; set; } = [];
-    public List<DevSiteRow> Sites { get; set; } = [];
+    public List<DevSiteRow> Properties { get; set; } = [];
     public List<DevAssetRow> Assets { get; set; } = [];
     public List<DevTaskRow> Tasks { get; set; } = [];
     public List<DevCatalogueRow> Catalogue { get; set; } = [];

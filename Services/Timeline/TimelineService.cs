@@ -6,7 +6,7 @@ namespace FyreApp.Services.Timeline;
 
 public interface ITimelineService
 {
-    Task<IReadOnlyList<TimelineEvent>> ForPropertyAsync(Site site, bool notesOnly, CancellationToken ct = default);
+    Task<IReadOnlyList<TimelineEvent>> ForPropertyAsync(Property site, bool notesOnly, CancellationToken ct = default);
     Task<IReadOnlyList<TimelineEvent>> ForAssetAsync(Asset asset, bool notesOnly, CancellationToken ct = default);
 
     // Saves the entries (changes, events or a note)
@@ -20,10 +20,10 @@ public class TimelineService : ITimelineService
     private readonly AppDbContext _db;
     public TimelineService(AppDbContext db) => _db = db;
 
-    public async Task<IReadOnlyList<TimelineEvent>> ForPropertyAsync(Site site, bool notesOnly, CancellationToken ct = default)
+    public async Task<IReadOnlyList<TimelineEvent>> ForPropertyAsync(Property site, bool notesOnly, CancellationToken ct = default)
     {
         return await _db.TimelineEvents.AsNoTracking()
-            .Where(e => e.SiteId == site.Id && (!notesOnly || e.IsNote))
+            .Where(e => e.PropertyId == site.Id && (!notesOnly || e.IsNote))
             .OrderByDescending(e => e.WhenUtc).ThenByDescending(e => e.Id).Take(Size)
             .ToListAsync(ct);
     }

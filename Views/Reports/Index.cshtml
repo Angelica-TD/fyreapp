@@ -59,7 +59,7 @@
                                 </td>
                                 <td class="text-nowrap">@(r.Issued.ToDisplayDate() ?? "—")</td>
                                 <td>
-                                    <a asp-controller="Property" asp-action="Details" asp-route-id="@r.SiteId">@r.PropertyRef</a>
+                                    <a asp-controller="Property" asp-action="Details" asp-route-id="@r.PropertyId">@r.PropertyRef</a>
                                     <span class="text-muted">· @r.PropertyName</span>
                                 </td>
                                 <td>

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace FyreApp.ViewModels.Sites;
+namespace FyreApp.ViewModels.Properties;
 
 public sealed class CreateSiteRequest
 {

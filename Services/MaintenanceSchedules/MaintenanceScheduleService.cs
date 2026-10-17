@@ -24,8 +24,8 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
             .AsNoTracking()
             .Where(s => s.IsActive)
             .Where(s =>
-                (s.TargetType == ScheduleTargetType.Site && s.Site!.Active && s.Site.Client.Active) ||
-                (s.TargetType == ScheduleTargetType.Asset && s.Asset!.Site.Active && s.Asset.Site.Client.Active));
+                (s.TargetType == ScheduleTargetType.Property && s.Property!.Active && s.Property.Client.Active) ||
+                (s.TargetType == ScheduleTargetType.Asset && s.Asset!.Property.Active && s.Asset.Property.Client.Active));
 
         if (filter.TargetType.HasValue)
             q = q.Where(s => s.TargetType == filter.TargetType.Value);
@@ -61,10 +61,10 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
                 s.TargetType,
                 s.NextRunDate,
                 IntervalName = s.MaintenanceInterval.Name,
-                ClientName = s.TargetType == ScheduleTargetType.Site ? s.Site!.Client.Name : s.Asset!.Site.Client.Name,
+                ClientName = s.TargetType == ScheduleTargetType.Property ? s.Property!.Client.Name : s.Asset!.Property.Client.Name,
                 TargetLabel = s.TargetType == ScheduleTargetType.Asset
-                    ? s.Asset!.Site.Name + " • " + s.Asset.Name
-                    : s.Site!.Name,
+                    ? s.Asset!.Property.Name + " • " + s.Asset.Name
+                    : s.Property!.Name,
                 GeneratedTask = _db.ClientTasks
                     .Where(t => (t.MaintenanceScheduleId == s.Id || t.CoveredSchedules.Any(c => c.Id == s.Id)) &&
                                 t.Status != ClientTaskStatus.Cancelled &&
@@ -94,8 +94,8 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
     {
         return await _db.MaintenanceSchedules
             .Include(s => s.MaintenanceInterval)
-            .Include(s => s.Site).ThenInclude(s => s!.Client)
-            .Include(s => s.Asset).ThenInclude(a => a!.Site).ThenInclude(s => s.Client)
+            .Include(s => s.Property).ThenInclude(s => s!.Client)
+            .Include(s => s.Asset).ThenInclude(a => a!.Property).ThenInclude(s => s.Client)
             .Include(s => s.MaintenanceHistory)
             .Include(s => s.GeneratedTasks)
             .Include(s => s.CoveringTasks)
@@ -107,8 +107,8 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
     {
         var schedule = await _db.MaintenanceSchedules
             .Include(s => s.MaintenanceInterval)
-            .Include(s => s.Site).ThenInclude(s => s!.Client)
-            .Include(s => s.Asset).ThenInclude(a => a!.Site).ThenInclude(s => s.Client)
+            .Include(s => s.Property).ThenInclude(s => s!.Client)
+            .Include(s => s.Asset).ThenInclude(a => a!.Property).ThenInclude(s => s.Client)
             .FirstOrDefaultAsync(s => s.Id == scheduleId);
 
         if (schedule == null)
@@ -130,15 +130,15 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
 
         if (schedule.TargetType == ScheduleTargetType.Asset && schedule.Asset != null)
         {
-            clientId = schedule.Asset.Site.ClientId;
-            siteId = schedule.Asset.SiteId;
-            title = $"{schedule.MaintenanceInterval.Name} maintenance — {schedule.Asset.Site.Name} • {schedule.Asset.Name}";
+            clientId = schedule.Asset.Property.ClientId;
+            siteId = schedule.Asset.PropertyId;
+            title = $"{schedule.MaintenanceInterval.Name} maintenance — {schedule.Asset.Property.Name} • {schedule.Asset.Name}";
         }
-        else if (schedule.Site != null)
+        else if (schedule.Property != null)
         {
-            clientId = schedule.Site.ClientId;
-            siteId = schedule.Site.Id;
-            title = $"{schedule.MaintenanceInterval.Name} maintenance — {schedule.Site.Name}";
+            clientId = schedule.Property.ClientId;
+            siteId = schedule.Property.Id;
+            title = $"{schedule.MaintenanceInterval.Name} maintenance — {schedule.Property.Name}";
         }
         else
         {
@@ -148,7 +148,7 @@ public class MaintenanceScheduleService : IMaintenanceScheduleService
         var task = new ClientTask
         {
             ClientId = clientId,
-            SiteId = siteId,
+            PropertyId = siteId,
             Title = title,
             Status = ClientTaskStatus.Open,
             Priority = ClientTaskPriority.Normal,

@@ -53,11 +53,11 @@
                     <th class="text-muted fw-normal" style="width:40%;">Title</th>
                     <td>@Model.Title</td>
                 </tr>
-                @if (Model.Site is not null)
+                @if (Model.Property is not null)
                 {
                     <tr>
                         <th class="text-muted fw-normal">Property</th>
-                        <td>@Model.Site.Name</td>
+                        <td>@Model.Property.Name</td>
                     </tr>
                 }
                 <tr>

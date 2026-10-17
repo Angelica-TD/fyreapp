@@ -20,7 +20,7 @@ public sealed class QuoteService : IQuoteService
                 Id = q.Id,
                 QuoteNumber = q.QuoteNumber,
                 ClientName = q.Client.Name,
-                SiteName = q.Site.Name,
+                SiteName = q.Property.Name,
                 Status = q.Status,
                 LineItemCount = q.LineItems.Count,
                 Total = q.LineItems.Sum(li => li.Quantity * li.UnitPrice),
@@ -34,7 +34,7 @@ public sealed class QuoteService : IQuoteService
     {
         return await _db.Quotes
             .Include(q => q.Client)
-            .Include(q => q.Site)
+            .Include(q => q.Property)
             .Include(q => q.LineItems)
                 .ThenInclude(li => li.Asset)
             .Include(q => q.LineItems)
@@ -48,8 +48,8 @@ public sealed class QuoteService : IQuoteService
     {
         if (vm.ClientId is null or 0)
             return new(QuoteCreateStatus.ValidationError, Error: "Client is required.");
-        if (vm.SiteId is null or 0)
-            return new(QuoteCreateStatus.ValidationError, Error: "Site is required.");
+        if (vm.PropertyId is null or 0)
+            return new(QuoteCreateStatus.ValidationError, Error: "Property is required.");
         if (vm.LineItems.Count == 0)
             return new(QuoteCreateStatus.ValidationError, Error: "At least one line item is required.");
 
@@ -65,7 +65,7 @@ public sealed class QuoteService : IQuoteService
         {
             QuoteNumber = quoteNumber,
             ClientId = vm.ClientId.Value,
-            SiteId = vm.SiteId.Value,
+            PropertyId = vm.PropertyId.Value,
             Status = QuoteStatus.Draft,
             ExpiryDate = expiryUtc,
             Notes = string.IsNullOrWhiteSpace(vm.Notes) ? null : vm.Notes.Trim(),
@@ -143,7 +143,7 @@ public sealed class QuoteService : IQuoteService
                 {
                     TargetType = ScheduleTargetType.Asset,
                     AssetId = item.AssetId,
-                    SiteId = quote.SiteId,
+                    PropertyId = quote.PropertyId,
                     MaintenanceIntervalId = item.RecurringIntervalId.Value,
                     StartDate = DateTime.UtcNow,
                     NextRunDate = DateTime.UtcNow.AddMonths(months),
@@ -155,7 +155,7 @@ public sealed class QuoteService : IQuoteService
                 _db.ClientTasks.Add(new ClientTask
                 {
                     ClientId = quote.ClientId,
-                    SiteId = quote.SiteId,
+                    PropertyId = quote.PropertyId,
                     Title = $"{item.ServiceType.Name} — {item.Asset.Name}",
                     Status = ClientTaskStatus.Open,
                     Priority = ClientTaskPriority.Normal,

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Imports.Uptick;
 
-// Uptick "Assets" export -> Asset, matched to Site on "Property Ref". "Type" becomes an AssetType.
+// Uptick "Assets" export -> Asset, matched to Property on "Property Ref". "Type" becomes an AssetType.
 public class AssetImporter : UptickImporter
 {
     public AssetImporter(AppDbContext db) : base(db) { }
@@ -99,7 +99,7 @@ public class AssetImporter : UptickImporter
             name = $"Asset {row.Get("Ref") ?? row.Get("ID")}";
 
         a.UptickData = row.ToJson();
-        a.SiteId = siteId;
+        a.PropertyId = siteId;
         a.Name = name;
         a.Ref = row.Get("Ref");
         a.Location = row.Get("Location");

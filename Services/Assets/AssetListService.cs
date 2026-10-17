@@ -31,8 +31,8 @@ public class AssetListService : IAssetListService
     {
         var q = _db.Assets.AsQueryable();
 
-        if (filter.SiteId is int siteId)
-            q = q.Where(a => a.SiteId == siteId);
+        if (filter.PropertyId is int siteId)
+            q = q.Where(a => a.PropertyId == siteId);
 
         if (filter.Active is bool active)
             q = q.Where(a => a.IsActive == active);
@@ -48,7 +48,7 @@ public class AssetListService : IAssetListService
         if (filter.PropertyStatus.Count > 0)
         {
             var statuses = filter.PropertyStatus.Select(s => s.ToUpperInvariant()).ToList();
-            q = q.Where(a => a.Site.Status != null && statuses.Contains(a.Site.Status));
+            q = q.Where(a => a.Property.Status != null && statuses.Contains(a.Property.Status));
         }
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -58,9 +58,9 @@ public class AssetListService : IAssetListService
                 a.Name.ToLower().Contains(term) ||
                 (a.Ref != null && a.Ref.ToLower().Contains(term)) ||
                 (a.Location != null && a.Location.ToLower().Contains(term)) ||
-                a.Site.Name.ToLower().Contains(term) ||
-                (a.Site.ExternalId != null && a.Site.ExternalId.ToLower().Contains(term)) ||
-                a.Site.Client.Name.ToLower().Contains(term));
+                a.Property.Name.ToLower().Contains(term) ||
+                (a.Property.ExternalId != null && a.Property.ExternalId.ToLower().Contains(term)) ||
+                a.Property.Client.Name.ToLower().Contains(term));
         }
 
         // Newest first, as Uptick lists them: assets made in FyreApp (no Uptick ID) by Id, then Uptick IDs
@@ -94,12 +94,12 @@ public class AssetListService : IAssetListService
                 Id = a.Id,
                 Ref = a.Ref,
                 Name = a.Name,
-                SiteId = a.SiteId,
-                PropertyRef = a.Site.ExternalId ?? a.Site.FyreRef,
-                PropertyName = a.Site.Name,
-                ClientId = a.Site.ClientId,
-                ClientName = a.Site.Client.Name,
-                ClientContact = a.Site.Client.PrimaryContactName
+                PropertyId = a.PropertyId,
+                PropertyRef = a.Property.ExternalId ?? a.Property.FyreRef,
+                PropertyName = a.Property.Name,
+                ClientId = a.Property.ClientId,
+                ClientName = a.Property.Client.Name,
+                ClientContact = a.Property.Client.PrimaryContactName
             })
             .ToListAsync(ct);
 
@@ -125,7 +125,7 @@ public class AssetListService : IAssetListService
                 Uptick = a.ExternalId ?? a.FyreRef, a.Ref, a.Name, Types = a.AssetTypes.Select(t => t.Name).ToList(),
                 a.Variant, a.Location, a.Make, a.Model, a.Size, a.Barcode, a.Compliance, a.IsActive,
                 a.InstallationDate, a.LastServiceDate,
-                PropertyRef = a.Site.ExternalId ?? a.Site.FyreRef, Property = a.Site.Name, Client = a.Site.Client.Name
+                PropertyRef = a.Property.ExternalId ?? a.Property.FyreRef, Property = a.Property.Name, Client = a.Property.Client.Name
             })
             .ToListAsync(ct);
 
@@ -150,9 +150,9 @@ public class AssetListService : IAssetListService
 
     public async Task<int> GenerateTasksAsync(BulkSelection selection, AssetFilter filter, BulkTaskInput input, string? userId, CancellationToken ct = default)
     {
-        var assets = await Selected(selection, filter).Include(a => a.Site).ToListAsync(ct);
+        var assets = await Selected(selection, filter).Include(a => a.Property).ToListAsync(ct);
         var tasks = BulkTaskBuilder.PerProperty(
-            assets, a => a.Site,
+            assets, a => a.Property,
             a => $"{(a.Ref != null ? a.Ref + " - " : "")}{a.Name}{(string.IsNullOrWhiteSpace(a.Location) ? "" : $" ({a.Location})")}",
             input, "Asset works", userId);
         _db.ClientTasks.AddRange(tasks);

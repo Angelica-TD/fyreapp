@@ -47,7 +47,7 @@ public class RemarkListItemVm
     public string? RemarkType { get; set; }
     public int? AssetId { get; set; }
     public string? AssetName { get; set; }
-    public int SiteId { get; set; }
+    public int PropertyId { get; set; }
     public string? PropertyRef { get; set; }
     public string PropertyName { get; set; } = string.Empty;
     public string? QuoteStatus { get; set; }

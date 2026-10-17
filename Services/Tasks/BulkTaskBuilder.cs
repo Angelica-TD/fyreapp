@@ -8,7 +8,7 @@ namespace FyreApp.Services.Tasks;
 public static class BulkTaskBuilder
 {
     public static List<ClientTask> PerProperty<T>(
-        IEnumerable<T> items, Func<T, Site> siteOf, Func<T, string?> lineOf,
+        IEnumerable<T> items, Func<T, Property> siteOf, Func<T, string?> lineOf,
         BulkTaskInput input, string defaultTitle, string? createdByUserId)
     {
         var title = string.IsNullOrWhiteSpace(input.Title) ? defaultTitle : input.Title.Trim();
@@ -28,7 +28,7 @@ public static class BulkTaskBuilder
                 return new ClientTask
                 {
                     ClientId = g.Key.ClientId,
-                    SiteId = g.Key.Id,
+                    PropertyId = g.Key.Id,
                     Title = Truncate(title, 120),
                     Description = description.Length == 0 ? null : Truncate(description, 4000),
                     Category = string.IsNullOrWhiteSpace(input.Category) ? null : input.Category,

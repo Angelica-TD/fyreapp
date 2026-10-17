@@ -1,7 +1,7 @@
 using FyreApp.Data;
 using FyreApp.Models;
 using FyreApp.Services.Routines;
-using FyreApp.Services.Sites;
+using FyreApp.Services.Properties;
 using FyreApp.Services.Timeline;
 using FyreApp.Tests.Helpers;
 using Xunit;
@@ -13,22 +13,22 @@ public class PropertyPageServiceTests
 {
     private static DateTime Utc(string s) => DateTime.SpecifyKind(DateTime.Parse(s), DateTimeKind.Utc);
 
-    private static async Task<Site> SeedAsync(AppDbContext db)
+    private static async Task<Property> SeedAsync(AppDbContext db)
     {
-        var site = new Site { Name = "Ezfurn", ExternalId = "P-0391", Created = Utc("2022-02-01 09:18"), Client = new Client { Name = "Ezfurn" } };
+        var site = new Property { Name = "Ezfurn", ExternalId = "P-0391", Created = Utc("2022-02-01 09:18"), Client = new Client { Name = "Ezfurn" } };
         var hoseReel = new AssetType { Name = "Fire Hose Reel" };
         var extinguisher = new AssetType { Name = "Fire Extinguisher" };
         db.Assets.AddRange(
-            new Asset { Site = site, Name = "020 - Fire Hose Reel", InspectionOrder = 20, AssetTypes = { hoseReel } },
-            new Asset { Site = site, Name = "018 - DCP 4.5KG", InspectionOrder = 0, AssetTypes = { extinguisher } },
-            new Asset { Site = site, Name = "Old extinguisher", IsActive = false, AssetTypes = { extinguisher } });
+            new Asset { Property = site, Name = "020 - Fire Hose Reel", InspectionOrder = 20, AssetTypes = { hoseReel } },
+            new Asset { Property = site, Name = "018 - DCP 4.5KG", InspectionOrder = 0, AssetTypes = { extinguisher } },
+            new Asset { Property = site, Name = "Old extinguisher", IsActive = false, AssetTypes = { extinguisher } });
         db.Defects.AddRange(
-            new Defect { Site = site, Severity = 2, SeverityLabel = "Non-conformance", Active = true, RaisedUtc = Utc("2026-10-07 04:00"), Description = "Signage missing" },
-            new Defect { Site = site, Severity = 0, SeverityLabel = "Informational", Active = true, RaisedUtc = Utc("2026-10-01 04:00") },
-            new Defect { Site = site, Severity = 10, SeverityLabel = "Critical defect", Active = false, RaisedUtc = Utc("2026-01-01 04:00"), InactiveUtc = Utc("2026-02-01 04:00") });
+            new Defect { Property = site, Severity = 2, SeverityLabel = "Non-conformance", Active = true, RaisedUtc = Utc("2026-10-07 04:00"), Description = "Signage missing" },
+            new Defect { Property = site, Severity = 0, SeverityLabel = "Informational", Active = true, RaisedUtc = Utc("2026-10-01 04:00") },
+            new Defect { Property = site, Severity = 10, SeverityLabel = "Critical defect", Active = false, RaisedUtc = Utc("2026-01-01 04:00"), InactiveUtc = Utc("2026-02-01 04:00") });
         db.ClientTasks.Add(new ClientTask
         {
-            Client = site.Client, Site = site, Title = "PM2026/04 Servicing", Ref = "T-31713",
+            Client = site.Client, Property = site, Title = "PM2026/04 Servicing", Ref = "T-31713",
             CreatedUtc = Utc("2026-04-01 00:00"), CompletedUtc = Utc("2026-04-08 07:30"), Status = ClientTaskStatus.Completed
         });
         await db.SaveChangesAsync();
@@ -84,9 +84,9 @@ public class PropertyPageServiceTests
         using var db = DbContextFactory.Create();
         var site = await SeedAsync(db);
         db.TimelineEvents.AddRange(
-            new TimelineEvent { SiteId = site.Id, UptickId = 1, WhenUtc = Utc("2022-02-01 09:18"), Author = "Quentin McCarthy", Html = "Property was created." },
-            new TimelineEvent { SiteId = site.Id, WhenUtc = Utc("2026-10-13 04:24"), Author = "Wes Speedon", Field = "Name", Value = "Ezfurn" },
-            new TimelineEvent { SiteId = site.Id, WhenUtc = Utc("2026-10-13 04:26"), Author = "Wes Speedon", IsNote = true, Text = "Gate code changed" });
+            new TimelineEvent { PropertyId = site.Id, UptickId = 1, WhenUtc = Utc("2022-02-01 09:18"), Author = "Quentin McCarthy", Html = "Property was created." },
+            new TimelineEvent { PropertyId = site.Id, WhenUtc = Utc("2026-10-13 04:24"), Author = "Wes Speedon", Field = "Name", Value = "Ezfurn" },
+            new TimelineEvent { PropertyId = site.Id, WhenUtc = Utc("2026-10-13 04:26"), Author = "Wes Speedon", IsNote = true, Text = "Gate code changed" });
         await db.SaveChangesAsync();
 
         var page = await Sut(db).LoadAsync(site.Id, new PropertyPageQuery("property"));

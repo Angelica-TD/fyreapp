@@ -14,11 +14,11 @@ public static class DbInitialiser
         //         new Client
         //         {
         //             Name = "Acme Corp",
-        //             Sites =
+        //             Properties =
         //             {
-        //                 new Site
+        //                 new Property
         //                 {
-        //                     Name = "New York Site",
+        //                     Name = "New York Property",
         //                     Assets =
         //                     {
         //                         new Asset
@@ -40,9 +40,9 @@ public static class DbInitialiser
         //                         }
         //                     }
         //                 },
-        //                 new Site
+        //                 new Property
         //                 {
-        //                     Name = "Los Angeles Site",
+        //                     Name = "Los Angeles Property",
         //                     Assets =
         //                     {
         //                         new Asset
@@ -60,11 +60,11 @@ public static class DbInitialiser
         //         new Client
         //         {
         //             Name = "Globex Ltd",
-        //             Sites =
+        //             Properties =
         //             {
-        //                 new Site
+        //                 new Property
         //                 {
-        //                     Name = "London Site",
+        //                     Name = "London Property",
         //                     Assets =
         //                     {
         //                         new Asset

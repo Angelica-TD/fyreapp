@@ -4,7 +4,7 @@ namespace FyreApp.ViewModels.Routines;
 // grouped by service group, with a marker in each month a routine is due.
 public class PropertyRoutinesVm
 {
-    public int SiteId { get; set; }
+    public int PropertyId { get; set; }
     public int Year { get; set; }
 
     // Sydney today, to highlight the current month and work out what's overdue
