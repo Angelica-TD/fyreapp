@@ -22,7 +22,7 @@ public class AssetPageVm
     // Asset tab
     public string? LastServiceBy { get; init; }
     public IReadOnlyList<Defect> OpenDefects { get; init; } = [];
-    public IReadOnlyList<TimelineEntry> Timeline { get; init; } = [];
+    public IReadOnlyList<TimelineEvent> Timeline { get; init; } = [];
     public bool NotesOnly { get; init; }
 
     // Uptick's custom fields with a value for this asset (extra fields export + the asset's Uptick row)

@@ -1,7 +1,8 @@
 @model FyreApp.ViewModels.Timeline.TimelineVm
 @using FyreApp.Infrastructure
 
-@* Uptick's Timeline card: who and when, then the note, change ("Access note was changed to ...") or event.
+@* Uptick's Timeline card: who and when (and where, from the Uptick app), then the note, change
+   ("Access note was changed to ...") or event.
    "Notes only" hides changes and events; "Add note" posts a note. *@
 <div class="card property-card">
     <div class="card-header gap-3">
@@ -49,9 +50,18 @@
                         <div>
                             <div class="small text-muted">
                                 <span class="fw-semibold">@(e.Author ?? "Unknown")</span> · @e.WhenUtc.ToSydney().ToOrdinalDateTime()
+                                @if (e.Latitude is { } lat && e.Longitude is { } lng)
+                                {
+                                    <text> · </text><a href="https://www.google.com/maps/search/?api=1&amp;query=@(lat.ToString(System.Globalization.CultureInfo.InvariantCulture)),@(lng.ToString(System.Globalization.CultureInfo.InvariantCulture))" target="_blank" rel="noopener">Map</a>
+                                }
                             </div>
                             <div class="timeline-text">
-                                @if (e.Field != null)
+                                @* Uptick's text is encoded with only em, p and small kept (TimelineText); a note keeps its line breaks *@
+                                @if (e.Html != null)
+                                {
+                                    <span class="timeline-body">@Html.Raw(e.Html)</span>
+                                }
+                                else if (e.Field != null)
                                 {
                                     @if (e.Value == null)
                                     {
@@ -64,7 +74,7 @@
                                 }
                                 else
                                 {
-                                    @e.Text
+                                    <span class="timeline-body">@e.Text</span>
                                 }
                             </div>
                         </div>

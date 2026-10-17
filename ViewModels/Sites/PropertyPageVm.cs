@@ -24,7 +24,7 @@ public class PropertyPageVm
     public Defect? MostSevereRemark { get; init; }
 
     // Property tab
-    public IReadOnlyList<TimelineEntry> Timeline { get; init; } = [];
+    public IReadOnlyList<TimelineEvent> Timeline { get; init; } = [];
     public bool NotesOnly { get; init; }
 
     // Uptick's custom fields with a value for this property (extra fields export + its Uptick row)

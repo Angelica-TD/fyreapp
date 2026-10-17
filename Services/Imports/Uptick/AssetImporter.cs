@@ -1,4 +1,3 @@
-using FyreApp.Services.Timeline;
 using FyreApp.Data;
 using FyreApp.Models;
 using Microsoft.EntityFrameworkCore;
@@ -72,17 +71,8 @@ public class AssetImporter : UptickImporter
             }
             else
             {
-                // Fields changed in Uptick show on the asset's Timeline, as Uptick shows them
-                toUpdate[existingId] = a =>
-                {
-                    var before = TimelineLog.AssetFields(a);
-                    Map(a, row, siteId, type, variantId);
-                    foreach (var change in TimelineLog.Changes(before, TimelineLog.AssetFields(a), TimelineLog.UptickAuthor, TimelineLog.UpdatedInUptick(a.UptickData)))
-                    {
-                        change.AssetId = a.Id;
-                        Db.TimelineEntries.Add(change);
-                    }
-                };
+                // What changed shows on the asset's Timeline from Uptick's own (the timelineevents migration)
+                toUpdate[existingId] = a => Map(a, row, siteId, type, variantId);
             }
         }
 

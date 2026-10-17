@@ -2813,7 +2813,7 @@ namespace FyreApp.Migrations
                     b.ToTable("TaskAssets");
                 });
 
-            modelBuilder.Entity("FyreApp.Models.TimelineEntry", b =>
+            modelBuilder.Entity("FyreApp.Models.TimelineEvent", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -2832,14 +2832,37 @@ namespace FyreApp.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<string>("Html")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsNote")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("Key")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
 
                     b.Property<int?>("SiteId")
                         .HasColumnType("integer");
 
                     b.Property<string>("Text")
                         .HasColumnType("text");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("UptickObjectId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UptickObjectType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<string>("Value")
                         .HasColumnType("text");
@@ -2849,11 +2872,16 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
                     b.HasIndex("AssetId", "WhenUtc");
 
                     b.HasIndex("SiteId", "WhenUtc");
 
-                    b.ToTable("TimelineEntries");
+                    b.HasIndex("UptickObjectType", "UptickObjectId");
+
+                    b.ToTable("TimelineEvents");
                 });
 
             modelBuilder.Entity("FyreApp.Models.UptickEndpointState", b =>
@@ -2885,6 +2913,9 @@ namespace FyreApp.Migrations
 
                     b.Property<DateTime?>("LastRefreshUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("MappedCount")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Schema")
                         .HasColumnType("jsonb");
@@ -3729,7 +3760,7 @@ namespace FyreApp.Migrations
                     b.Navigation("ClientTask");
                 });
 
-            modelBuilder.Entity("FyreApp.Models.TimelineEntry", b =>
+            modelBuilder.Entity("FyreApp.Models.TimelineEvent", b =>
                 {
                     b.HasOne("FyreApp.Models.Asset", "Asset")
                         .WithMany()

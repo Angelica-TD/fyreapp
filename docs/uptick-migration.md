@@ -128,15 +128,20 @@ A run lease prevents two runs at once.
 
 ### 3.4 Mappers
 
-One class per typed FyreApp entity, `IUptickMapper<TEntity>`:
+One class per typed FyreApp entity, `IUptickMapper` (`Services/Uptick/Mapping`), run by `UptickMapping`:
 
-- `Resource` it reads, and `DependsOn` (e.g. assets depend on properties, asset types, variants, users). Run
-  order is a topological sort of these. A relationship that can't be resolved yet stays pending and is retried
-  at the end of the run, then reported, rather than failing the batch.
-- `Map(UptickRecord record, MappingContext ctx)` sets the entity's fields and resolves relationships to FyreApp
-  IDs through `ctx` (a cache of `UptickId → Id` per entity).
+- `Resource` it reads. Mappers run in the order they're registered (`Program.cs`): a mapper after the ones
+  whose entities it links to (assets after properties, asset types, variants, users).
+- `BeginAsync` once per pass loads what records link through (`UptickId → Id` per entity); `MapAsync(batch)`
+  upserts 5,000 waiting records at a time keyed on their Uptick ID, then they're marked `MappedUtc`. A record
+  that can't be read is reported (count and the first few reasons in the run report) and stays waiting.
+- A relationship to a record FyreApp doesn't hold yet is left unset, and the Uptick ID of what it points to is
+  kept, so a later pass links it (as the Timeline does, §5 item 4) rather than the record failing.
 - Records deleted in Uptick deactivate or soft-delete the entity rather than removing it, so history pointing at
-  it survives.
+  it survives. (Timeline events are removed: nothing points at them, and the raw copy keeps them.)
+- Every Full and Refresh run ends by mapping what came in new or changed; **Re-map** maps every record held
+  again without a request to Uptick (after a mapper changes, or to take in a copy fetched before its mapper
+  existed). A data reset (`DataResetService`) clears `MappedUtc`, so the next run maps everything again.
 
 The existing importers' field logic (e.g. `AssetImporter.Map`) moves into mappers, rewritten against API field
 names: `inspected_date` instead of "Last Service Date", `relationships.type` instead of the "Type" name.
@@ -233,8 +238,16 @@ Completeness is lines held against Uptick's count.
    `Remark.RepairTaskExternalId` likewise.
 3. **Fields the exports never had**, e.g. `Asset.LastServicedById` (API `serviced_by`) replacing today's guess
    from reports in `AssetPageService.LastServiceByAsync`.
-4. **`TimelineEvent`**: `UptickId` (unique) plus `Latitude` / `Longitude` for the "· Map" link; `Key`
-   (`trackedchange`, `general` = note, `correspondence`, …).
+4. **`TimelineEvent`** (done, phase 2): `UptickId` (unique) plus `Latitude` / `Longitude` for the "· Map" link;
+   `Key` (`trackedchange`, `general`, `correspondence`, …); `IsNote` for Uptick's type `C` events. Every event
+   is mapped (~1.08 M, on 30-odd record types), each keeping `UptickObjectType` (the content type's model:
+   `property`, `asset`, `task`, …) and `UptickObjectId`, so a task's or invoice's Timeline is there once a screen
+   shows it. `SiteId` / `AssetId` are set when FyreApp holds the record: a property through its raw copy's
+   `ref` (today's `Site.ExternalId` is the ref), an asset by its Uptick ID; each mapping pass links events whose
+   record has arrived since. `Html` is Uptick's `text` template filled from `data` (`TimelineText`):
+   `{placeholders}` written as Uptick writes them (`None`, `True`), `#Dispatch:{dispatch_pk}` shown "#24440"
+   with `data_links`' label as a tooltip, everything HTML-encoded except the `em`, `p` and `small` tags
+   Uptick's templates use. Events FyreApp makes (notes, edits on the asset form) keep `Text` / `Field` / `Value`.
 5. **New entities** for the rest (§6), added as the screens that use them are built; the raw copy already holds
    their data. They take Uptick's name for the resource (`ReportItem`, `RemarkEvent`, `Dispatch`, …).
 6. **Uptick's names for existing entities.** The screens and controllers already use Uptick's words (Properties,
@@ -376,8 +389,8 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
 `ServiceQuote` becomes `Proposal` first, in the same migration, so the name is free);
 `DynamicFormResponse` in 6.
 
-2. **Timeline.** `TimelineEvent` mapper; drop the made-up "was created" entries and import-derived "Uptick"
-   changes. (Designed earlier: notes, Map link, template wording.)
+2. **Timeline** (done). `TimelineEvent` mapper (§5 item 4) and the mapping stage of runs, with Re-map; the made-up
+   "was created" entries and import-derived "Uptick" changes dropped (the file importers no longer log changes).
 3. **Core records:** clients, properties, contacts, users, asset types/variants, assets. `UptickId` + `Ref`
    columns and FKs; `LocalEdit` (§7), since the asset form already edits migrated fields; file importers for
    these turned off.

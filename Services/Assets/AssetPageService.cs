@@ -170,7 +170,7 @@ public class AssetPageService : IAssetPageService
 
         var changes = TimelineLog.Changes(before, TimelineLog.AssetFields(asset), author, DateTime.UtcNow);
         foreach (var change in changes) change.AssetId = asset.Id;
-        _db.TimelineEntries.AddRange(changes);
+        _db.TimelineEvents.AddRange(changes);
 
         await _db.SaveChangesAsync(ct);
         return true;

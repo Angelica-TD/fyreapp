@@ -6,11 +6,11 @@ namespace FyreApp.Services.Timeline;
 
 public interface ITimelineService
 {
-    Task<IReadOnlyList<TimelineEntry>> ForPropertyAsync(Site site, bool notesOnly, CancellationToken ct = default);
-    Task<IReadOnlyList<TimelineEntry>> ForAssetAsync(Asset asset, bool notesOnly, CancellationToken ct = default);
+    Task<IReadOnlyList<TimelineEvent>> ForPropertyAsync(Site site, bool notesOnly, CancellationToken ct = default);
+    Task<IReadOnlyList<TimelineEvent>> ForAssetAsync(Asset asset, bool notesOnly, CancellationToken ct = default);
 
     // Saves the entries (changes, events or a note)
-    Task AddAsync(IEnumerable<TimelineEntry> entries, CancellationToken ct = default);
+    Task AddAsync(IEnumerable<TimelineEvent> entries, CancellationToken ct = default);
 }
 
 public class TimelineService : ITimelineService
@@ -20,36 +20,25 @@ public class TimelineService : ITimelineService
     private readonly AppDbContext _db;
     public TimelineService(AppDbContext db) => _db = db;
 
-    public async Task<IReadOnlyList<TimelineEntry>> ForPropertyAsync(Site site, bool notesOnly, CancellationToken ct = default)
+    public async Task<IReadOnlyList<TimelineEvent>> ForPropertyAsync(Site site, bool notesOnly, CancellationToken ct = default)
     {
-        var entries = await _db.TimelineEntries.AsNoTracking()
+        return await _db.TimelineEvents.AsNoTracking()
             .Where(e => e.SiteId == site.Id && (!notesOnly || e.IsNote))
             .OrderByDescending(e => e.WhenUtc).ThenByDescending(e => e.Id).Take(Size)
             .ToListAsync(ct);
-
-        // Imported properties were created in Uptick, which doesn't say by whom
-        if (!notesOnly && site.ExternalId != null && site.Created is { } created)
-            entries.Add(new TimelineEntry { SiteId = site.Id, WhenUtc = created, Author = TimelineLog.UptickAuthor, Text = "Property was created." });
-
-        return entries;
     }
 
-    public async Task<IReadOnlyList<TimelineEntry>> ForAssetAsync(Asset asset, bool notesOnly, CancellationToken ct = default)
+    public async Task<IReadOnlyList<TimelineEvent>> ForAssetAsync(Asset asset, bool notesOnly, CancellationToken ct = default)
     {
-        var entries = await _db.TimelineEntries.AsNoTracking()
+        return await _db.TimelineEvents.AsNoTracking()
             .Where(e => e.AssetId == asset.Id && (!notesOnly || e.IsNote))
             .OrderByDescending(e => e.WhenUtc).ThenByDescending(e => e.Id).Take(Size)
             .ToListAsync(ct);
-
-        if (!notesOnly && asset.ExternalId != null && TimelineLog.CreatedInUptick(asset.UptickData) is { } created)
-            entries.Add(new TimelineEntry { AssetId = asset.Id, WhenUtc = created, Author = TimelineLog.UptickAuthor, Text = "Asset was created." });
-
-        return entries;
     }
 
-    public async Task AddAsync(IEnumerable<TimelineEntry> entries, CancellationToken ct = default)
+    public async Task AddAsync(IEnumerable<TimelineEvent> entries, CancellationToken ct = default)
     {
-        _db.TimelineEntries.AddRange(entries);
+        _db.TimelineEvents.AddRange(entries);
         await _db.SaveChangesAsync(ct);
     }
 }

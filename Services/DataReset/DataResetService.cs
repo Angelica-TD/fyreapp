@@ -80,7 +80,7 @@ public class DataResetService : IDataResetService
             ("Service reports", await _db.ServiceReports.CountAsync(ct)),
             ("Property contacts", await _db.SiteContacts.CountAsync(ct)),
             ("Client contacts", await _db.ClientContacts.CountAsync(ct)),
-            ("Timeline entries", await _db.TimelineEntries.CountAsync(ct)),
+            ("Timeline events", await _db.TimelineEvents.CountAsync(ct)),
             ("Invoices", await _db.Invoices.CountAsync(ct)),
             ("Credit notes", await _db.CreditNotes.CountAsync(ct)),
             ("Billing contract line items", await _db.BillingContractLineItems.CountAsync(ct)),
@@ -144,7 +144,7 @@ public class DataResetService : IDataResetService
             ("Service reports", await _db.ServiceReports.ExecuteDeleteAsync(ct)),
             ("Property contacts", await _db.SiteContacts.ExecuteDeleteAsync(ct)),
             ("Client contacts", await _db.ClientContacts.ExecuteDeleteAsync(ct)),
-            ("Timeline entries", await _db.TimelineEntries.ExecuteDeleteAsync(ct)),
+            ("Timeline events", await _db.TimelineEvents.ExecuteDeleteAsync(ct)),
             ("Invoices", await _db.Invoices.ExecuteDeleteAsync(ct)),
             ("Credit notes", await _db.CreditNotes.ExecuteDeleteAsync(ct)),
             ("Billing contract line items", await _db.BillingContractLineItems.ExecuteDeleteAsync(ct)),
@@ -158,6 +158,11 @@ public class DataResetService : IDataResetService
             ("Properties", await _db.Sites.ExecuteDeleteAsync(ct)),
             ("Clients", await _db.Clients.ExecuteDeleteAsync(ct))
         };
+
+        // Uptick's copies of what was removed are mapped again by the next migration run
+        await _db.UptickRecords
+            .Where(r => r.MappedUtc != null)
+            .ExecuteUpdateAsync(s => s.SetProperty(r => r.MappedUtc, (DateTime?)null), ct);
 
         // One-shot: switch the reset off again in the same transaction
         await _db.AppSettings

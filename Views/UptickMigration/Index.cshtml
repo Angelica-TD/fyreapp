@@ -66,7 +66,11 @@
                             <span class="spinner-border spinner-border-sm me-1" role="status"></span>
                             <strong id="run-kind">@Model.Current?.Kind run</strong>
                             <span id="run-text" class="text-muted small ms-1">
-                                @if (Model.Current?.Progress is { } p)
+                                @if (Model.Current?.Progress is { Message: not null } m)
+                                {
+                                    @($"{m.Message}: {m.Received:N0}{(m.Total is { } t ? $" of {t:N0}" : "")}")
+                                }
+                                else if (Model.Current?.Progress is { } p)
                                 {
                                     @($"{p.Resource} ({p.EndpointNumber}/{p.EndpointCount}): {p.Received:N0}{(p.Total is { } t ? $" of {t:N0}" : "")} · {p.Requests:N0} requests")
                                 }
@@ -91,6 +95,8 @@
                     <p class="small text-muted mb-2">
                         <strong>Full</strong>: every record of every endpoint, and finds records deleted in Uptick (about 40 minutes; the first one up to 3 hours more, fetching invoice line items an invoice at a time).
                         <strong>Refresh</strong>: only what changed since the last run, for endpoints where Uptick can tell; the rest in full.
+                        Both then map what came in new or changed into FyreApp (@string.Join(", ", Model.Mapped)).
+                        <strong>Re-map</strong>: maps every record held again, without asking Uptick for anything (after a mapping change).
                     </p>
                     <div class="d-flex gap-2">
                         <form method="post" asp-action="Start">
@@ -102,6 +108,11 @@
                             @Html.AntiForgeryToken()
                             <input type="hidden" name="kind" value="@UptickRunKind.Refresh" />
                             <button class="btn btn-outline-primary" disabled="@(!Model.Configured || Model.Endpoints.Count == 0)">Refresh</button>
+                        </form>
+                        <form method="post" asp-action="Start">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="kind" value="@UptickRunKind.Remap" />
+                            <button class="btn btn-outline-secondary" disabled="@(Model.Copied == 0)">Re-map</button>
                         </form>
                     </div>
                 }
@@ -124,6 +135,7 @@ else
                     <th>Endpoint</th>
                     <th class="text-end">Uptick</th>
                     <th class="text-end">Held</th>
+                    <th class="text-end" title="Taken into FyreApp's own tables">Mapped</th>
                     <th>Refresh</th>
                     <th>Last full</th>
                     <th>Last refresh</th>
@@ -139,6 +151,7 @@ else
                         <td><code>@e.Resource</code></td>
                         <td class="text-end">@(e.UptickCount?.ToString("N0") ?? "–")</td>
                         <td class="text-end @(mismatch ? "text-danger fw-semibold" : "")" title="@(mismatch ? "Differs from Uptick's count" : null)">@e.CopiedCount.ToString("N0")</td>
+                        <td class="text-end @(e.MappedCount is { } mc && mc != e.CopiedCount ? "text-warning-emphasis" : "")">@(e.MappedCount?.ToString("N0") ?? "")</td>
                         <td class="small">@(!e.Enabled ? "" : e.IncrementalVerified ? "Changes only" : "Full")</td>
                         <td class="small text-nowrap">@When(e.LastFullRunUtc)</td>
                         <td class="small text-nowrap">@When(e.LastRefreshUtc)</td>
@@ -158,6 +171,15 @@ else
                                     <input type="hidden" name="resource" value="@e.Resource" />
                                     <button class="btn btn-sm btn-link p-0" title="Copy every record of this endpoint">Run</button>
                                 </form>
+                                @if (Model.Mapped.Contains(e.Resource))
+                                {
+                                    <form method="post" asp-action="Start" class="d-inline ms-2">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="kind" value="@UptickRunKind.Remap" />
+                                        <input type="hidden" name="resource" value="@e.Resource" />
+                                        <button class="btn btn-sm btn-link p-0" title="Map every record held for this endpoint again">Re-map</button>
+                                    </form>
+                                }
                             }
                         </td>
                     </tr>
@@ -215,6 +237,12 @@ else
             const fmt = n => n.toLocaleString();
             const show = p => {
                 if (!p) return;
+                if (p.message) {
+                    // Mapping into FyreApp's tables: no requests to Uptick
+                    text.textContent = `${p.message}: ${fmt(p.received)}` + (p.total != null ? ` of ${fmt(p.total)}` : "");
+                    bar.style.width = p.total ? `${Math.round(100 * p.received / p.total)}%` : "0%";
+                    return;
+                }
                 text.textContent = `${p.resource} (${p.endpointNumber}/${p.endpointCount}): ${fmt(p.received)}`
                     + (p.total != null ? ` of ${fmt(p.total)}` : "") + ` · ${fmt(p.requests)} requests`
                     + (p.throttled ? ` · throttled ${p.throttled}×` : "");

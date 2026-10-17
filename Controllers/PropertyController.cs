@@ -108,7 +108,7 @@ namespace FyreApp.Controllers
         private async Task LogCreatedAsync(CreateSiteResult result, CancellationToken ct)
         {
             if (result.Status != CreateSiteStatus.Success || result.site == null) return;
-            _context.TimelineEntries.Add(new TimelineEntry { SiteId = result.site.Id, Author = await _context.AuthorNameAsync(User, ct), Text = "Property was created." });
+            _context.TimelineEvents.Add(new TimelineEvent { SiteId = result.site.Id, Author = await _context.AuthorNameAsync(User, ct), Text = "Property was created." });
             await _context.SaveChangesAsync(ct);
         }
 
@@ -121,7 +121,7 @@ namespace FyreApp.Controllers
             if (!await _context.Sites.AnyAsync(s => s.Id == id, ct)) return NotFound();
             if (!string.IsNullOrWhiteSpace(text))
             {
-                _context.TimelineEntries.Add(new TimelineEntry { SiteId = id, Author = await _context.AuthorNameAsync(User, ct), IsNote = true, Text = text.Trim() });
+                _context.TimelineEvents.Add(new TimelineEvent { SiteId = id, Author = await _context.AuthorNameAsync(User, ct), IsNote = true, Text = text.Trim() });
                 await _context.SaveChangesAsync(ct);
             }
             return RedirectToAction(nameof(Details), new { id });
@@ -186,7 +186,7 @@ namespace FyreApp.Controllers
 
             _context.Assets.Add(asset);
             await _context.SaveChangesAsync(ct);
-            _context.TimelineEntries.Add(new TimelineEntry { AssetId = asset.Id, Author = await _context.AuthorNameAsync(User, ct), Text = "Asset was created." });
+            _context.TimelineEvents.Add(new TimelineEvent { AssetId = asset.Id, Author = await _context.AuthorNameAsync(User, ct), Text = "Asset was created." });
             await _context.SaveChangesAsync(ct);
 
             return RedirectToAction("Details", new { id = siteId, tab = "assets" });
@@ -299,7 +299,7 @@ namespace FyreApp.Controllers
             if (site == null) return NotFound();
 
             site.Active = false;
-            _context.TimelineEntries.Add(new TimelineEntry { SiteId = id, Author = await _context.AuthorNameAsync(User), Field = "Status", Value = "Inactive" });
+            _context.TimelineEvents.Add(new TimelineEvent { SiteId = id, Author = await _context.AuthorNameAsync(User), Field = "Status", Value = "Inactive" });
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Property deactivated.";
@@ -315,7 +315,7 @@ namespace FyreApp.Controllers
             if (site == null) return NotFound();
 
             site.Active = true;
-            _context.TimelineEntries.Add(new TimelineEntry { SiteId = id, Author = await _context.AuthorNameAsync(User), Field = "Status", Value = "Active" });
+            _context.TimelineEvents.Add(new TimelineEvent { SiteId = id, Author = await _context.AuthorNameAsync(User), Field = "Status", Value = "Active" });
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Property activated.";

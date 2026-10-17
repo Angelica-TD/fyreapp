@@ -79,17 +79,19 @@ public class PropertyPageServiceTests
     }
 
     [Fact]
-    public async Task Timeline_IsTheChangeLog_NewestFirst_WithUptickCreationLast()
+    public async Task Timeline_IsTheChangeLog_NewestFirst()
     {
         using var db = DbContextFactory.Create();
         var site = await SeedAsync(db);
-        db.TimelineEntries.AddRange(
-            new TimelineEntry { SiteId = site.Id, WhenUtc = Utc("2026-10-13 04:24"), Author = "Uptick", Field = "Name", Value = "Ezfurn" },
-            new TimelineEntry { SiteId = site.Id, WhenUtc = Utc("2026-10-13 04:26"), Author = "Wes Speedon", IsNote = true, Text = "Gate code changed" });
+        db.TimelineEvents.AddRange(
+            new TimelineEvent { SiteId = site.Id, UptickId = 1, WhenUtc = Utc("2022-02-01 09:18"), Author = "Quentin McCarthy", Html = "Property was created." },
+            new TimelineEvent { SiteId = site.Id, WhenUtc = Utc("2026-10-13 04:24"), Author = "Wes Speedon", Field = "Name", Value = "Ezfurn" },
+            new TimelineEvent { SiteId = site.Id, WhenUtc = Utc("2026-10-13 04:26"), Author = "Wes Speedon", IsNote = true, Text = "Gate code changed" });
         await db.SaveChangesAsync();
 
         var page = await Sut(db).LoadAsync(site.Id, new PropertyPageQuery("property"));
-        Assert.Equal(new[] { "Gate code changed", null, "Property was created." }, page!.Timeline.Select(e => e.Text));
+        Assert.Equal(new[] { "Gate code changed", null, null }, page!.Timeline.Select(e => e.Text));
+        Assert.Equal("Property was created.", page.Timeline.Last().Html);
         // Tasks, reports and remarks aren't on it, as in Uptick
         Assert.Equal(3, page.Timeline.Count);
 

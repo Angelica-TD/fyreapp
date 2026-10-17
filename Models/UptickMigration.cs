@@ -66,6 +66,9 @@ public class UptickEndpointState
     public int? UptickCount { get; set; }
     public int CopiedCount { get; set; }
 
+    // Of those, the ones taken into FyreApp's own tables (endpoints with a mapper)
+    public int? MappedCount { get; set; }
+
     // Ok, Empty, Forbidden, Failed
     [StringLength(20)] public string? Status { get; set; }
     public string? LastError { get; set; }

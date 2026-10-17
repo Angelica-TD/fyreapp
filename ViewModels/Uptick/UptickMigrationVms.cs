@@ -15,6 +15,9 @@ public sealed class UptickMigrationPageVm
     public IReadOnlyList<UptickEndpointState> Endpoints { get; init; } = [];
     public IReadOnlyList<UptickMigrationRun> Runs { get; init; } = [];
 
+    // Endpoints mapped into FyreApp's own tables
+    public IReadOnlyList<string> Mapped { get; init; } = [];
+
     public int Copied => Endpoints.Sum(e => e.CopiedCount);
 }
 

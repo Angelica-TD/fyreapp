@@ -42,32 +42,26 @@ public class TimelineTests
     };
 
     [Fact]
-    public async Task PropertyReimport_LogsChangedFields_AsUptickAtItsUpdatedTime()
+    public async Task PropertyReimport_UpdatesTheProperty_AndLeavesTheTimelineToUptick()
     {
         using var db = DbContextFactory.Create();
         db.Clients.Add(new Client { Name = "Jane Clandy", ExternalId = "500" });
         await db.SaveChangesAsync();
 
         await Import(db, UptickExportType.Properties, Csv(PropertyHeaders, GoldCoastConcrete));
-        Assert.Empty(db.TimelineEntries); // a new property's creation comes from its Uptick "Created"
-
         var changed = GoldCoastConcrete;
         changed["Updated"] = "2026-10-13 14:26:00";
         changed["Access Note"] = "Please send reminder email";
         await Import(db, UptickExportType.Properties, Csv(PropertyHeaders, changed));
 
-        var entry = await db.TimelineEntries.SingleAsync();
-        Assert.Equal(("Access note", "Please send reminder email", "Uptick"), (entry.Field, entry.Value, entry.Author));
-        Assert.Equal(new DateTime(2026, 10, 13, 4, 26, 0, DateTimeKind.Utc), entry.WhenUtc); // Brisbane is UTC+10
-
-        var site = await db.Sites.SingleAsync();
-        var timeline = await new TimelineService(db).ForPropertyAsync(site, notesOnly: false);
-        Assert.Equal(new[] { "Access note", null }, timeline.Select(e => e.Field));
-        Assert.Equal("Property was created.", timeline.Last().Text);
+        // The change is on Uptick's own timeline, which the migration brings in; the import doesn't make one up
+        Assert.Equal("Please send reminder email", (await db.Sites.SingleAsync()).AccessNote);
+        Assert.Empty(db.TimelineEvents);
+        Assert.Empty(await new TimelineService(db).ForPropertyAsync(await db.Sites.SingleAsync(), notesOnly: false));
     }
 
     [Fact]
-    public async Task AssetReimport_LogsCompliantAndLastServiceDate_InUptickWords()
+    public async Task AssetReimport_UpdatesTheAsset_AndLeavesTheTimelineToUptick()
     {
         using var db = DbContextFactory.Create();
         db.Sites.Add(new Site { Name = "Kamber", ExternalId = "P-3330", Client = new Client { Name = "Kamber" } });
@@ -88,10 +82,8 @@ public class TimelineTests
         row["Last Service Date"] = "2026-09-07";
         await Import(db, UptickExportType.Assets, Csv(AssetHeaders, row));
 
-        var timeline = await new TimelineService(db).ForAssetAsync(await db.Assets.SingleAsync(), notesOnly: false);
-        Assert.Equal(new[] { ("Compliant", "yes"), ("Last service date", "07/09/2026") },
-            timeline.Where(e => e.Field != null).Select(e => (e.Field!, e.Value!)).OrderBy(f => f.Item1));
-        Assert.Equal("Asset was created.", timeline.Last().Text);
+        Assert.Equal("Pass", (await db.Assets.SingleAsync()).Compliance);
+        Assert.Empty(await new TimelineService(db).ForAssetAsync(await db.Assets.SingleAsync(), notesOnly: false));
     }
 
     [Fact]
@@ -120,7 +112,7 @@ public class TimelineTests
         Assert.Equal(("Upstairs middle office", "DCP AB(E) 2.5KG", variant.Id), (saved.Location, saved.Variant, saved.AssetTypeVariantId));
         Assert.Equal(new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc), saved.BaseDate);
 
-        var entries = await db.TimelineEntries.Where(e => e.AssetId == asset.Id).OrderBy(e => e.Field).ToListAsync();
+        var entries = await db.TimelineEvents.Where(e => e.AssetId == asset.Id).OrderBy(e => e.Field).ToListAsync();
         Assert.Equal(new[] { "Base date", "Location", "Variant" }, entries.Select(e => e.Field));
         Assert.All(entries, e => Assert.Equal("Wes Speedon", e.Author));
     }
@@ -143,7 +135,7 @@ public class TimelineTests
         await sut.SaveAsync(form, "Wes Speedon");
 
         Assert.Equal("DCP AB(E) 4.5KG", (await db.Assets.AsNoTracking().SingleAsync()).Variant);
-        Assert.Equal("Location", (await db.TimelineEntries.SingleAsync()).Field);
+        Assert.Equal("Location", (await db.TimelineEvents.SingleAsync()).Field);
     }
 
     [Fact]
