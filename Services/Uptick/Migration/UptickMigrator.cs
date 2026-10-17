@@ -304,9 +304,24 @@ public class UptickMigrator
         // Pages overlap a little (UptickApiClient.PageOverlap): the last copy of a record wins
         var records = pageRecords.GroupBy(r => r.Id).Select(g => g.Last()).ToList();
         var ids = records.Select(r => r.Id).ToList();
-        var existing = await _db.UptickRecords
+        // Only what's needed to tell new, changed and unchanged apart: not the JSON, which on a repeat run would
+        // be read back for every record
+        var existing = await _db.UptickRecords.AsNoTracking()
             .Where(r => r.Resource == resource && ids.Contains(r.UptickId))
+            .Select(r => new { r.UptickId, r.Hash, r.SeenUtc, r.DeletedUtc })
             .ToDictionaryAsync(r => r.UptickId, ct);
+
+        // Records that changed or came back are loaded whole and updated; the rest only need marking seen
+        var changedIds = records
+            .Where(r => existing.TryGetValue(r.Id, out var e) && (e.Hash != r.Hash || e.DeletedUtc != null))
+            .Select(r => r.Id)
+            .ToList();
+        var changed = changedIds.Count == 0
+            ? new Dictionary<string, UptickRecord>()
+            : await _db.UptickRecords
+                .Where(r => r.Resource == resource && changedIds.Contains(r.UptickId))
+                .ToDictionaryAsync(r => r.UptickId, ct);
+        var unchangedUnseen = new List<string>();
 
         var now = Now;
         foreach (var record in records)
@@ -317,7 +332,7 @@ public class UptickMigrator
                 if (updated >= verifyFrom) pull.RecentlyUpdated[record.Id] = updated;
             }
 
-            if (!existing.TryGetValue(record.Id, out var row))
+            if (!existing.TryGetValue(record.Id, out var held))
             {
                 _db.UptickRecords.Add(new UptickRecord
                 {
@@ -332,8 +347,14 @@ public class UptickMigrator
             }
 
             // Seen already this run (an overlapping page): nothing new to count
-            var seenThisRun = row.SeenUtc >= runStart;
+            var seenThisRun = held.SeenUtc >= runStart;
             if (!seenThisRun) pull.Received++;
+            if (!changed.TryGetValue(record.Id, out var row))
+            {
+                if (!seenThisRun) unchangedUnseen.Add(record.Id);
+                continue;
+            }
+
             row.SeenUtc = runStart;
             if (row.Hash != record.Hash)
             {
@@ -355,6 +376,20 @@ public class UptickMigrator
             }
         }
 
+        await _db.SaveChangesAsync(ct);
+        _db.ChangeTracker.Clear();
+
+        // One statement for the page, not an update per record: on a repeat run almost every record is unchanged
+        if (unchangedUnseen.Count == 0) return;
+        var unseen = _db.UptickRecords.Where(r => r.Resource == resource && unchangedUnseen.Contains(r.UptickId));
+        if (_db.Database.IsRelational())
+        {
+            await unseen.ExecuteUpdateAsync(s => s.SetProperty(r => r.SeenUtc, runStart), ct);
+            return;
+        }
+
+        // The in-memory provider the tests use has no bulk update
+        foreach (var row in await unseen.ToListAsync(ct)) row.SeenUtc = runStart;
         await _db.SaveChangesAsync(ct);
         _db.ChangeTracker.Clear();
     }
