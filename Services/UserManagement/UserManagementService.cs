@@ -43,7 +43,7 @@ public class UserManagementService : IUserManagementService
 
     public async Task<IReadOnlyList<UptickUser>> GetLinkableUptickUsersAsync() =>
         await _db.UptickUsers.AsNoTracking()
-            .Where(u => u.LicenseType != "CUSTOMER" && !_db.Users.Any(a => a.UptickUserId == u.Id))
+            .Where(u => u.LicenseType != "CUSTOMER" && u.LicenseType != "API" && !_db.Users.Any(a => a.UptickUserId == u.Id))
             .OrderBy(u => u.Name)
             .ToListAsync();
 

@@ -242,9 +242,8 @@ Completeness is lines held against Uptick's count.
    `Key` (`trackedchange`, `general`, `correspondence`, …); `IsNote` for Uptick's type `C` events. Every event
    is mapped (~1.08 M, on 30-odd record types), each keeping `UptickObjectType` (the content type's model:
    `property`, `asset`, `task`, …) and `UptickObjectId`, so a task's or invoice's Timeline is there once a screen
-   shows it. `SiteId` / `AssetId` are set when FyreApp holds the record: a property through its raw copy's
-   `ref` (today's `Site.ExternalId` is the ref), an asset by its Uptick ID; each mapping pass links events whose
-   record has arrived since. `Html` is Uptick's `text` template filled from `data` (`TimelineText`):
+   shows it. `PropertyId` / `AssetId` are set when FyreApp holds the record, by its Uptick ID (an asset's is
+   its `ExternalId` until phase 3c); each mapping pass links events whose record has arrived since. `Html` is Uptick's `text` template filled from `data` (`TimelineText`):
    `{placeholders}` written as Uptick writes them (`None`, `True`), `#Dispatch:{dispatch_pk}` shown "#24440"
    with `data_links`' label as a tooltip, everything HTML-encoded except the `em`, `p` and `small` tags
    Uptick's templates use. Events FyreApp makes (notes, edits on the asset form) keep `Text` / `Field` / `Value`.
@@ -396,7 +395,15 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
    these turned off. In four PRs, each safe to deploy alone:
    - 3a (done): `Site` / `SiteContact` renamed `Property` / `PropertyContact` (tables, `SiteId` columns, FKs,
      indexes, sequences, FyreRef triggers). URLs and form/query parameter names (`siteId`, `site`) unchanged.
-   - 3b: `UptickId` / `Ref` columns; mappers for clients, properties, contacts and users.
+   - 3b (done): `UptickId` on Client, Property, ClientContact, PropertyContact and UptickUser, `Ref` on
+     Property; mappers for `clients`, `properties`, `clientcontacts`, `propertycontacts` and `users`
+     (Uptick's `contacts` is those lists together, so it isn't mapped). Rows the file imports made are matched
+     by the `ExternalId` they gave them (Uptick's id; a property's ref) and updated in place; the migration fills
+     `UptickId` from it. Mappers keep `ExternalId` filled while the file importers and FyreRef triggers still
+     use it; it goes with the importers in 3d. A property or contact whose client / property FyreApp doesn't hold
+     waits (reported as failed) and is mapped once it is. The API has no users' security groups or branches,
+     nor clients' report address and organisation, so the export's are kept. Uptick logins with licence `API`
+     (FyreApp's own) are never linked to a FyreApp login.
    - 3c: mappers for asset types, variants and assets.
    - 3d: `LocalEdit`; the file importers for these turned off.
 4. **Work:** tasks, service tasks, remarks, reports, routines, routine services/levels/types.

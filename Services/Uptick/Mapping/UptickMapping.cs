@@ -95,7 +95,17 @@ public class UptickMapping
         var rows = _db.UptickRecords.Where(r => r.Resource == resource && r.MappedUtc != null);
         if (_db.Database.IsRelational())
         {
-            await rows.ExecuteUpdateAsync(s => s.SetProperty(r => r.MappedUtc, (DateTime?)null), ct);
+            // One statement over every record of the endpoint: ~1 M timeline events take longer than the default 30 s
+            var timeout = _db.Database.GetCommandTimeout();
+            _db.Database.SetCommandTimeout(TimeSpan.FromMinutes(15));
+            try
+            {
+                await rows.ExecuteUpdateAsync(s => s.SetProperty(r => r.MappedUtc, (DateTime?)null), ct);
+            }
+            finally
+            {
+                _db.Database.SetCommandTimeout(timeout);
+            }
             return;
         }
 
