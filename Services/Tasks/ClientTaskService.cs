@@ -32,7 +32,7 @@ public class ClientTaskService : IClientTaskService
     {
         var q = _db.ClientTasks
             .Include(t => t.Client)
-            .Include(t => t.Site)
+            .Include(t => t.Property)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(statusFilter) &&
@@ -54,7 +54,7 @@ public class ClientTaskService : IClientTaskService
                 Id = t.Id,
                 Title = t.Title,
                 ClientName = t.Client.Name,
-                AddressDisplay = t.Site.AddressDisplay ?? t.Site.Name,
+                AddressDisplay = t.Property.AddressDisplay ?? t.Property.Name,
                 Priority = t.Priority,
                 Status = t.Status,
                 DueDate = t.DueDateUtc,
@@ -67,7 +67,7 @@ public class ClientTaskService : IClientTaskService
     {
         return await _db.ClientTasks
             .Include(t => t.Client)
-            .Include(t => t.Site)
+            .Include(t => t.Property)
             .FirstOrDefaultAsync(t => t.Id == id);
     }
 
@@ -76,7 +76,7 @@ public class ClientTaskService : IClientTaskService
         var task = new ClientTask
         {
             ClientId = vm.ClientId,
-            SiteId = vm.SiteId,
+            PropertyId = vm.PropertyId,
             Title = vm.Title,
             Description = vm.Description,
             Priority = vm.Priority,
@@ -99,7 +99,7 @@ public class ClientTaskService : IClientTaskService
         if (task is null) return (false, string.Empty);
 
         task.ClientId = input.ClientId;
-        task.SiteId = input.SiteId;
+        task.PropertyId = input.PropertyId;
         task.Title = input.Title.Trim();
         task.Description = string.IsNullOrWhiteSpace(input.Description) ? null : input.Description.Trim();
         task.Priority = input.Priority;

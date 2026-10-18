@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Models;
 
-public class Site
+public class Property
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -65,7 +65,7 @@ public class Site
     public double? Latitude { get; set; }
     public double? Longitude { get; set; }
 
-    // Site access, for techs. Schedule and procedure are Uptick's codes, e.g. "NR" (needs review), "CA".
+    // Property access, for techs. Schedule and procedure are Uptick's codes, e.g. "NR" (needs review), "CA".
     [StringLength(20)]
     public string? AccessSchedule { get; set; }
 
@@ -90,7 +90,7 @@ public class Site
     // Navigation
     public ICollection<Asset> Assets { get; set; } = new List<Asset>();
     public ICollection<MaintenanceSchedule> MaintenanceSchedules { get; set; } = new List<MaintenanceSchedule>();
-    public ICollection<SiteContact> Contacts { get; set; } = new List<SiteContact>();
+    public ICollection<PropertyContact> Contacts { get; set; } = new List<PropertyContact>();
     public ICollection<Defect> Defects { get; set; } = new List<Defect>();
     public ICollection<ServiceReport> ServiceReports { get; set; } = new List<ServiceReport>();
 }

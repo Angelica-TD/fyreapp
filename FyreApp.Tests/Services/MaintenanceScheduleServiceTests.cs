@@ -8,16 +8,16 @@ namespace FyreApp.Tests.Services;
 
 public class MaintenanceScheduleServiceTests
 {
-    private static async Task<(Client client, Site site, MaintenanceInterval interval, MaintenanceSchedule schedule)> SeedDueScheduleAsync(
+    private static async Task<(Client client, Property site, MaintenanceInterval interval, MaintenanceSchedule schedule)> SeedDueScheduleAsync(
         FyreApp.Data.AppDbContext db, bool clientActive = true, bool siteActive = true, int monthsOffset = 0)
     {
         var client = new Client { Name = "Acme Corp", Active = clientActive };
-        var site = new Site { Name = "Main Site", Client = client, Active = siteActive };
+        var site = new Property { Name = "Main Property", Client = client, Active = siteActive };
         var interval = new MaintenanceInterval { Name = "Quarterly", Months = 3 };
         var schedule = new MaintenanceSchedule
         {
-            TargetType = ScheduleTargetType.Site,
-            Site = site,
+            TargetType = ScheduleTargetType.Property,
+            Property = site,
             StartDate = DateTime.UtcNow.AddMonths(-3),
             MaintenanceInterval = interval,
             NextRunDate = DateTime.UtcNow.Date.AddDays(monthsOffset == 0 ? 1 : 0).AddMonths(monthsOffset),
@@ -25,7 +25,7 @@ public class MaintenanceScheduleServiceTests
         };
 
         db.Clients.Add(client);
-        db.Sites.Add(site);
+        db.Properties.Add(site);
         db.MaintenanceIntervals.Add(interval);
         db.MaintenanceSchedules.Add(schedule);
         await db.SaveChangesAsync();
@@ -83,7 +83,7 @@ public class MaintenanceScheduleServiceTests
         db.ClientTasks.Add(new ClientTask
         {
             Client = client,
-            Site = site,
+            Property = site,
             Title = "Existing",
             Status = ClientTaskStatus.Open,
             DueDateUtc = schedule.NextRunDate,
@@ -182,7 +182,7 @@ public class MaintenanceScheduleServiceTests
         var (client, site, _, schedule) = await SeedDueScheduleAsync(db);
         var task = new ClientTask
         {
-            Client = client, Site = site, Title = "PM2026/10", Ref = "T-1", ExternalId = "1",
+            Client = client, Property = site, Title = "PM2026/10", Ref = "T-1", ExternalId = "1",
             DueDateUtc = schedule.NextRunDate.AddDays(dueOffsetDays)
         };
         task.CoveredSchedules.Add(schedule);

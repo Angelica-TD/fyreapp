@@ -65,7 +65,7 @@ public class UptickDetailsImportTests
     public async Task Routines_KeepTechnicianAndDuration_AndFollowUptickWhenTheyChange()
     {
         using var db = DbContextFactory.Create();
-        db.Sites.Add(new Site { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
+        db.Properties.Add(new Property { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
         await db.SaveChangesAsync();
 
         await ImportRoutines(db, "1,10 - Extinguishers: Annual,2026-10-31,,,P,,Magidale,P-0152,Magidale Pty Ltd,Servicing,,0:30:00,Dwayne Page");
@@ -91,10 +91,10 @@ public class UptickDetailsImportTests
     public async Task PropertyRoutines_GroupShowsTechnicianAndEstimatedHours()
     {
         using var db = DbContextFactory.Create();
-        var site = new Site { Name = "Camajay", Client = new Client { Name = "Camajay" } };
+        var site = new Property { Name = "Camajay", Client = new Client { Name = "Camajay" } };
         RoutineOccurrence O(string due, string? tech, int? minutes) => new()
         {
-            Site = site, Routine = "10 - Extinguishers: Six-monthly", ServiceGroup = "Servicing",
+            Property = site, Routine = "10 - Extinguishers: Six-monthly", ServiceGroup = "Servicing",
             DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), DefaultTechnician = tech, EstimatedMinutes = minutes
         };
         db.RoutineOccurrences.AddRange(O("2026-04-30", "Neil", 30), O("2026-10-31", "Neil", 60), O("2026-06-30", null, null));
@@ -109,7 +109,7 @@ public class UptickDetailsImportTests
     public async Task AssetsAndRemarks_KeepNotesOrderAndDates()
     {
         using var db = DbContextFactory.Create();
-        db.Sites.Add(new Site { Name = "Acme HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } });
+        db.Properties.Add(new Property { Name = "Acme HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } });
         await db.SaveChangesAsync();
         var sut = new UptickImportService(new UptickImporter[] { new AssetImporter(db), new RemarkImporter(db) });
 

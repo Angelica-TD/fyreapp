@@ -163,7 +163,7 @@ public class QuotesController : Controller
     public async Task<IActionResult> GetAssetsBySite(int siteId)
     {
         var assets = await _db.Assets
-            .Where(a => a.SiteId == siteId)
+            .Where(a => a.PropertyId == siteId)
             .OrderBy(a => a.Name)
             .Select(a => new { a.Id, a.Name })
             .ToListAsync();
@@ -174,7 +174,7 @@ public class QuotesController : Controller
     [HttpGet("/api/quotes/sites/{clientId:int}")]
     public async Task<IActionResult> GetSitesByClient(int clientId)
     {
-        var sites = await _db.Sites
+        var sites = await _db.Properties
             .Where(s => s.ClientId == clientId)
             .OrderBy(s => s.Name)
             .Select(s => new { s.Id, s.Name })
@@ -205,7 +205,7 @@ public class QuotesController : Controller
 
         if (selectedClientId.HasValue)
         {
-            ViewBag.Sites = await _db.Sites
+            ViewBag.Properties = await _db.Properties
                 .Where(s => s.ClientId == selectedClientId.Value)
                 .OrderBy(s => s.Name)
                 .Select(s => new { s.Id, s.Name })
@@ -213,7 +213,7 @@ public class QuotesController : Controller
         }
         else
         {
-            ViewBag.Sites = new List<object>();
+            ViewBag.Properties = new List<object>();
         }
     }
 }

@@ -4,7 +4,7 @@ namespace FyreApp.ViewModels.Routines;
 // routine types to add (search, standard filter) with the levels to do for each
 public class AddRoutineServicesVm
 {
-    public int SiteId { get; set; }
+    public int PropertyId { get; set; }
     public IReadOnlyList<RoutineTypeOptionVm> Types { get; set; } = [];
     public IReadOnlyList<string> Standards { get; set; } = [];
     public IReadOnlyList<string> Contractors { get; set; } = [];
@@ -57,7 +57,7 @@ public class RoutineServiceSummaryVm
 public class EditRoutineServiceVm
 {
     public int Id { get; set; }
-    public int SiteId { get; set; }
+    public int PropertyId { get; set; }
     public string SiteName { get; set; } = string.Empty;
     public string RoutineType { get; set; } = string.Empty;
     public IReadOnlyList<RoutineLevelOptionVm> Levels { get; set; } = [];

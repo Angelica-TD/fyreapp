@@ -82,6 +82,6 @@ public class Client
     public string? BillingAddress { get; set; }
 
     // Navigation
-    public ICollection<Site> Sites { get; set; } = new List<Site>();
+    public ICollection<Property> Properties { get; set; } = new List<Property>();
     public ICollection<ClientContact> Contacts { get; set; } = new List<ClientContact>();
 }

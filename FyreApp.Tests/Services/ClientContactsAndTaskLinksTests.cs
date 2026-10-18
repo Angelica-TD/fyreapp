@@ -79,7 +79,7 @@ public class ClientContactsAndTaskLinksTests
     public async Task ReportsAndRemarks_LinkToTheirTask_WhenTheTaskIsImportedFirst()
     {
         using var db = DbContextFactory.Create();
-        db.Sites.Add(new Site { Name = "Acme HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } });
+        db.Properties.Add(new Property { Name = "Acme HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } });
         await db.SaveChangesAsync();
 
         await Import(db, TaskHeaders, UptickExportType.Tasks,
@@ -98,7 +98,7 @@ public class ClientContactsAndTaskLinksTests
     public async Task ReportsAndRemarks_LinkToTheirTask_WhenTheTaskIsImportedAfter()
     {
         using var db = DbContextFactory.Create();
-        db.Sites.Add(new Site { Name = "Acme HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } });
+        db.Properties.Add(new Property { Name = "Acme HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } });
         await db.SaveChangesAsync();
 
         await Import(db, ReportHeaders, UptickExportType.Reports,
@@ -131,7 +131,7 @@ public class ClientContactsAndTaskLinksTests
             ["Address Lat"] = "-28.1497592", ["Address Lng"] = "153.4754302"
         });
 
-        var site = await db.Sites.SingleAsync();
+        var site = await db.Properties.SingleAsync();
         Assert.Equal(("4357#", "CA", "Call Pam first", "pls update assets", "Wear your PPE"),
             (site.AccessCode, site.AccessProcedure, site.AccessNote, site.InternalNote, site.SafetyRequirements));
         Assert.Equal((-28.1497592, 153.4754302), (site.Latitude!.Value, site.Longitude!.Value));

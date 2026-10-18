@@ -23,7 +23,7 @@ public class TaskPageService : ITaskPageService
     {
         var task = await _db.ClientTasks.AsNoTracking()
             .Include(t => t.Client)
-            .Include(t => t.Site)
+            .Include(t => t.Property)
             .Include(t => t.AssignedTo)
             .Include(t => t.CoveredSchedules).ThenInclude(s => s.MaintenanceInterval)
             .FirstOrDefaultAsync(t => t.Id == id, ct);
@@ -35,10 +35,10 @@ public class TaskPageService : ITaskPageService
             .Where(o => o.ClientTaskId == id)
             .ToListAsync(ct);
 
-        var siteRoutines = routines.Select(o => new RoutineAssets.SiteRoutine(o.SiteId, o.Routine, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Routine))).ToList();
+        var siteRoutines = routines.Select(o => new RoutineAssets.SiteRoutine(o.PropertyId, o.Routine, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Routine))).ToList();
         // Imported tasks list assets for every routine their scope names, even ones whose routine isn't imported
         if (siteRoutines.Count == 0 && UptickJson.Value(task.UptickData, "Scope of works") is { } scope)
-            siteRoutines = RoutineAssets.FromScope(task.SiteId, scope, await _db.RoutineServiceTypes.AsNoTracking().Select(t => t.Name).ToListAsync(ct)).ToList();
+            siteRoutines = RoutineAssets.FromScope(task.PropertyId, scope, await _db.RoutineServiceTypes.AsNoTracking().Select(t => t.Name).ToListAsync(ct)).ToList();
         var visits = routines.Count > 0
             ? routines.OrderBy(o => o.Routine).ThenBy(o => o.DueDate).Select(o => (o.Routine, (RoutineOccurrence?)o)).ToList()
             : await NearestRoutinesAsync(task, siteRoutines.Select(r => r.Routine).ToList(), ct);
@@ -108,7 +108,7 @@ public class TaskPageService : ITaskPageService
         var from = due.AddMonths(-2);
         var to = due.AddMonths(2);
         var found = (await _db.RoutineOccurrences.AsNoTracking()
-                .Where(o => o.SiteId == task.SiteId && (o.ClientTaskId == null || o.ClientTaskId == task.Id)
+                .Where(o => o.PropertyId == task.PropertyId && (o.ClientTaskId == null || o.ClientTaskId == task.Id)
                             && (o.Status == RoutineOccurrenceStatus.Generated || o.Status == RoutineOccurrenceStatus.Complete)
                             && o.DueDate >= from && o.DueDate <= to)
                 .ToListAsync(ct))
@@ -144,11 +144,11 @@ public class TaskPageService : ITaskPageService
         var dueTo = DateTime.SpecifyKind(serviced.Max(s => s.Date).AddMonths(3), DateTimeKind.Utc);
         var types = await _db.RoutineServiceTypes.AsNoTracking().Select(t => t.Name).ToListAsync(ct);
         var others = (await _db.ClientTasks.AsNoTracking()
-                .Where(t => t.SiteId == task.SiteId && t.Id != task.Id && t.Status != ClientTaskStatus.Cancelled
+                .Where(t => t.PropertyId == task.PropertyId && t.Id != task.Id && t.Status != ClientTaskStatus.Cancelled
                             && (t.DueDateUtc == null || (t.DueDateUtc >= dueFrom && t.DueDateUtc <= dueTo)))
                 .ToListAsync(ct))
             .Select(t => (Window: TaskPageVm.WorkWindow(t),
-                          Types: RoutineAssets.FromScope(t.SiteId, TaskPageVm.Scope(t) ?? "", types).Select(r => r.RoutineType).ToHashSet(StringComparer.OrdinalIgnoreCase)))
+                          Types: RoutineAssets.FromScope(t.PropertyId, TaskPageVm.Scope(t) ?? "", types).Select(r => r.RoutineType).ToHashSet(StringComparer.OrdinalIgnoreCase)))
             .Where(t => t.Types.Count > 0)
             .ToList();
 
@@ -171,7 +171,7 @@ public class TaskPageService : ITaskPageService
         var since = DateTime.SpecifyKind(vm.WorkFrom.AddDays(-1), DateTimeKind.Utc);
         var remarks = await _db.Defects.AsNoTracking()
             .Include(d => d.Asset)
-            .Where(d => d.SiteId == task.SiteId
+            .Where(d => d.PropertyId == task.PropertyId
                         && ((task.Ref != null && d.RaisedOnTaskRef == task.Ref)
                             || d.RepairTaskId == task.Id
                             || (!d.Active && d.AssetId != null && assetIds.Contains(d.AssetId.Value) && d.InactiveUtc >= since)))

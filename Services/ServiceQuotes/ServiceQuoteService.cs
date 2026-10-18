@@ -15,7 +15,7 @@ public sealed class ServiceQuoteService : IServiceQuoteService
     {
         return await _db.ServiceQuotes
             .Include(q => q.Client)
-            .Include(q => q.Site)
+            .Include(q => q.Property)
             .OrderByDescending(q => q.CreatedUtc)
             .ToListAsync(ct);
     }
@@ -32,7 +32,7 @@ public sealed class ServiceQuoteService : IServiceQuoteService
     {
         return await _db.ServiceQuotes
             .Include(q => q.Client)
-            .Include(q => q.Site)
+            .Include(q => q.Property)
             .Include(q => q.MaintenanceInterval)
             .FirstOrDefaultAsync(q => q.Id == id, ct);
     }
@@ -41,7 +41,7 @@ public sealed class ServiceQuoteService : IServiceQuoteService
     {
         return await _db.ServiceQuotes
             .Include(q => q.Client)
-            .Include(q => q.Site)
+            .Include(q => q.Property)
             .Include(q => q.MaintenanceInterval)
             .FirstOrDefaultAsync(q => q.ClientToken == token, ct);
     }
@@ -65,7 +65,7 @@ public sealed class ServiceQuoteService : IServiceQuoteService
         var quote = new ServiceQuote
         {
             ClientId = clientId,
-            SiteId = siteId,
+            PropertyId = siteId,
             ServiceOfferingId = vm.ServiceOfferingId,
             QuoteNumber = quoteNumber,
             Title = title,

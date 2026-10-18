@@ -6,7 +6,7 @@
    Asset / Defect history / Service History tabs on the right *@
 @{
     var a = Model.Asset;
-    var site = a.Site;
+    var site = a.Property;
     ViewData["Title"] = a.Name;
     var type = a.AssetTypes.FirstOrDefault();
     string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;

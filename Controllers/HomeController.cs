@@ -39,10 +39,10 @@ public class HomeController : Controller
             .Where(ms => ms.IsActive)
             .Where(ms => ms.NextRunDate >= rangeStart && ms.NextRunDate < rangeEnd)
             .Include(ms => ms.MaintenanceInterval) // interval name/months
-            .Include(ms => ms.Site)                // for Site-targeted schedules
+            .Include(ms => ms.Property)                // for Property-targeted schedules
                 .ThenInclude(s => s!.Client)
             .Include(ms => ms.Asset)               // for Asset-targeted schedules
-                .ThenInclude(a => a!.Site)
+                .ThenInclude(a => a!.Property)
                     .ThenInclude(s => s!.Client)
             .ToListAsync();
 
@@ -52,17 +52,17 @@ public class HomeController : Controller
         {
             var (clientName, siteName, assetName) = ms.TargetType switch
             {
-                ScheduleTargetType.Site => (
-                    ms.Site?.Client?.Name ?? "Client",
-                    ms.Site?.Name ?? "Site",
+                ScheduleTargetType.Property => (
+                    ms.Property?.Client?.Name ?? "Client",
+                    ms.Property?.Name ?? "Property",
                     (string?)null
                 ),
                 ScheduleTargetType.Asset => (
-                    ms.Asset?.Site?.Client?.Name ?? "Client",
-                    ms.Asset?.Site?.Name ?? "Site",
+                    ms.Asset?.Property?.Client?.Name ?? "Client",
+                    ms.Asset?.Property?.Name ?? "Property",
                     ms.Asset?.Name
                 ),
-                _ => ("Client", "Site", (string?)null)
+                _ => ("Client", "Property", (string?)null)
             };
 
             var isOverdue = ms.NextRunDate.Date < today;
@@ -79,7 +79,7 @@ public class HomeController : Controller
                 // link to wherever you manage schedules; while they're hidden, the property's routines
                 Url = UiFeatures.MaintenanceSchedules
                     ? Url.Action("Details", "MaintenanceSchedules", new { id = ms.Id })
-                    : Url.Action("Details", "Property", new { id = ms.SiteId ?? ms.Asset?.SiteId, tab = "routines" })
+                    : Url.Action("Details", "Property", new { id = ms.PropertyId ?? ms.Asset?.PropertyId, tab = "routines" })
             };
         });
 

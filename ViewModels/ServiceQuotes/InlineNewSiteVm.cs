@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using FyreApp.ViewModels.Sites;
+using FyreApp.ViewModels.Properties;
 
 namespace FyreApp.ViewModels.ServiceQuotes;
 

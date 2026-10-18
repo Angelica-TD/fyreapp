@@ -9,7 +9,7 @@ public class CreateClientTaskVm
     public int ClientId { get; set; }
 
     [Required]
-    public int SiteId { get; set; }
+    public int PropertyId { get; set; }
 
     [Required, StringLength(120)]
     public string Title { get; set; } = string.Empty;

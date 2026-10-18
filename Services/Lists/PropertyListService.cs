@@ -26,9 +26,9 @@ public class PropertyListService : IPropertyListService
     public PropertyListService(AppDbContext db) => _db = db;
 
     // The one place the filters are applied, so the list, its download and "select all" always agree
-    private IQueryable<Site> Filtered(PropertyFilter filter)
+    private IQueryable<Property> Filtered(PropertyFilter filter)
     {
-        var q = _db.Sites.AsQueryable();
+        var q = _db.Properties.AsQueryable();
 
         if (filter.Status.Count > 0)
         {
@@ -50,11 +50,11 @@ public class PropertyListService : IPropertyListService
         return q.OrderBy(s => s.Created == null).ThenByDescending(s => s.Created).ThenByDescending(s => s.Id);
     }
 
-    private IQueryable<Site> Selected(BulkSelection selection, PropertyFilter filter)
+    private IQueryable<Property> Selected(BulkSelection selection, PropertyFilter filter)
     {
         if (selection.AllMatching) return Filtered(filter);
         var ids = selection.Ids.ToList();
-        return _db.Sites.Where(s => ids.Contains(s.Id));
+        return _db.Properties.Where(s => ids.Contains(s.Id));
     }
 
     public async Task<PropertyListVm> SearchAsync(PropertyFilter filter, CancellationToken ct = default)

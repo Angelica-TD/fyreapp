@@ -8,7 +8,7 @@
    The Task tab has the details on the left, process and notes in the middle, and schedule and access on the right. *@
 @{
     var t = Model.Task;
-    var site = t.Site;
+    var site = t.Property;
     ViewData["Title"] = $"{t.DisplayRef} {t.Title}".Trim();
     ViewData["Breadcrumbs"] = new (string, string?)[] { ("Home", Url.Action("Index", "Home")), ("Tasks", Url.Action("Index")), (t.DisplayRef ?? t.Title, null) };
     var isAdmin = User.IsInRole("Admin");
@@ -36,7 +36,7 @@
         <a asp-controller="Clients" asp-action="Details" asp-route-id="@t.ClientId">@t.Client.Name</a>
         <span class="text-muted mx-2">/</span>
         <i class="bi bi-building"></i>
-        <a asp-controller="Property" asp-action="Details" asp-route-id="@t.SiteId"><strong>@site.DisplayRef @site.Name</strong></a>
+        <a asp-controller="Property" asp-action="Details" asp-route-id="@t.PropertyId"><strong>@site.DisplayRef @site.Name</strong></a>
         @if (suburb != "") { <span class="text-muted">@suburb</span> }
     </div>
 
@@ -290,7 +290,7 @@
                         <i class="bi bi-building"></i>
                         <div>
                             <div class="fw-semibold">Property</div>
-                            <a asp-controller="Property" asp-action="Details" asp-route-id="@t.SiteId">@site.DisplayRef @site.Name</a>
+                            <a asp-controller="Property" asp-action="Details" asp-route-id="@t.PropertyId">@site.DisplayRef @site.Name</a>
                             @foreach (var line in addressLines) { <div>@line</div> }
                         </div>
                     </div>
@@ -335,7 +335,7 @@
                                 <div class="fw-semibold">Routines</div>
                                 @foreach (var r in Model.Routines) { <div>@r</div> }
                                 @foreach (var s in t.CoveredSchedules.OrderBy(s => s.MaintenanceInterval.Months)) { <div>@s.MaintenanceInterval.Name</div> }
-                                <a asp-controller="Property" asp-action="Details" asp-route-id="@t.SiteId" asp-route-tab="routines">Property's routines</a>
+                                <a asp-controller="Property" asp-action="Details" asp-route-id="@t.PropertyId" asp-route-tab="routines">Property's routines</a>
                             </div>
                         </div>
                     }

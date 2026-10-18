@@ -13,17 +13,17 @@ public class TaskPageTests
     public async Task ImportedTask_ShowsUpticksNotesTagsAndRepairs()
     {
         using var db = DbContextFactory.Create();
-        var site = new Site { Name = "Gemvale Glades CTS 38276", ExternalId = "P-1512", Client = new Client { Name = "Gemvale glades CTS 38276" } };
+        var site = new Property { Name = "Gemvale Glades CTS 38276", ExternalId = "P-1512", Client = new Client { Name = "Gemvale glades CTS 38276" } };
         var dwayne = new UptickUser { Name = "Dwayne Page", LicenseType = "FIELD" };
         var customer = new UptickUser { Name = "Mermaid Central", LicenseType = "CUSTOMER" };
         var task = new ClientTask
         {
-            Site = site, Client = site.Client, Title = "Q-2790 Works", Ref = "T-46748", ExternalId = "46748", Category = "Repair",
+            Property = site, Client = site.Client, Title = "Q-2790 Works", Ref = "T-46748", ExternalId = "46748", Category = "Repair",
             Description = "Prepare\n\nQuote to replace failed items as per service report.", AssignedTo = dwayne,
             UptickData = """{"Description":"Prepare","Scope of works":"Quote to replace failed items as per service report.","Status":"READY","Tags":"Parts Required, Urgent","Invoice Note":"As per accepted defect quote Q-2790."}"""
         };
         db.AddRange(task, customer);
-        db.Defects.Add(new Defect { Site = site, Asset = new Asset { Name = "1 - HYD Pillar Landing Valve", Site = site }, RepairTask = task, Description = "Hydrant valve" });
+        db.Defects.Add(new Defect { Property = site, Asset = new Asset { Name = "1 - HYD Pillar Landing Valve", Property = site }, RepairTask = task, Description = "Hydrant valve" });
         await db.SaveChangesAsync();
 
         var vm = (await new TaskPageService(db).LoadAsync(task.Id, "work"))!;
@@ -43,8 +43,8 @@ public class TaskPageTests
     public async Task FyreAppTask_UsesItsOwnStatusAndDescription_AndAnUnknownTabIsTheTaskTab()
     {
         using var db = DbContextFactory.Create();
-        var site = new Site { Name = "Ezfurn", Client = new Client { Name = "Ezfurn" } };
-        var task = new ClientTask { Site = site, Client = site.Client, Title = "Replace exit light", Description = "Exit light over stair 2 out.", Status = ClientTaskStatus.InProgress };
+        var site = new Property { Name = "Ezfurn", Client = new Client { Name = "Ezfurn" } };
+        var task = new ClientTask { Property = site, Client = site.Client, Title = "Replace exit light", Description = "Exit light over stair 2 out.", Status = ClientTaskStatus.InProgress };
         db.ClientTasks.Add(task);
         await db.SaveChangesAsync();
 

@@ -17,15 +17,15 @@ public class PropertyRoutinesTests
 {
     private static DateTime D(string date) => DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
 
-    private static RoutineOccurrence O(Site site, string routine, string due, RoutineOccurrenceStatus status, string? group = null) =>
-        new() { Site = site, Routine = routine, DueDate = D(due), Status = status, ServiceGroup = group };
+    private static RoutineOccurrence O(Property site, string routine, string due, RoutineOccurrenceStatus status, string? group = null) =>
+        new() { Property = site, Routine = routine, DueDate = D(due), Status = status, ServiceGroup = group };
 
     [Fact]
     public async Task ForProperty_GroupsRoutinesByServiceGroup_WithAMarkerInEachDueMonth()
     {
         using var db = DbContextFactory.Create();
-        var site = new Site { Name = "Camajay Apartments", Client = new Client { Name = "Camajay" } };
-        var other = new Site { Name = "Elsewhere", Client = new Client { Name = "Other" } };
+        var site = new Property { Name = "Camajay Apartments", Client = new Client { Name = "Camajay" } };
+        var other = new Property { Name = "Elsewhere", Client = new Client { Name = "Other" } };
         var level = new RoutineServiceLevel
         {
             Name = "Annual", DisplayCode = "A",
@@ -60,9 +60,9 @@ public class PropertyRoutinesTests
     public async Task ForProperty_ShowsRoutineTasksInTheirDueMonth()
     {
         using var db = DbContextFactory.Create();
-        var site = new Site { Name = "Camajay Apartments", Client = new Client { Name = "Camajay" } };
-        var routineTask = new ClientTask { Title = "PM2026/08 Servicing", Client = site.Client, Site = site, DueDateUtc = D("2026-08-31"), Status = ClientTaskStatus.Completed };
-        var adHoc = new ClientTask { Title = "Fix door", Client = site.Client, Site = site, DueDateUtc = D("2026-08-15") };
+        var site = new Property { Name = "Camajay Apartments", Client = new Client { Name = "Camajay" } };
+        var routineTask = new ClientTask { Title = "PM2026/08 Servicing", Client = site.Client, Property = site, DueDateUtc = D("2026-08-31"), Status = ClientTaskStatus.Completed };
+        var adHoc = new ClientTask { Title = "Fix door", Client = site.Client, Property = site, DueDateUtc = D("2026-08-15") };
         var occurrence = O(site, "10 - Extinguishers: Annual", "2026-08-31", RoutineOccurrenceStatus.Complete);
         occurrence.ClientTask = routineTask;
         db.RoutineOccurrences.Add(occurrence);
@@ -93,8 +93,8 @@ public class PropertyRoutinesTests
     public async Task CompletingARoutineTask_CompletesItsRoutines()
     {
         using var db = DbContextFactory.Create();
-        var site = new Site { Name = "Camajay Apartments", Client = new Client { Name = "Camajay" } };
-        var task = new ClientTask { Title = "PM2026/10 Servicing", Client = site.Client, Site = site };
+        var site = new Property { Name = "Camajay Apartments", Client = new Client { Name = "Camajay" } };
+        var task = new ClientTask { Title = "PM2026/10 Servicing", Client = site.Client, Property = site };
         var raised = O(site, "10 - Extinguishers: Annual", "2026-10-31", RoutineOccurrenceStatus.Generated);
         raised.ClientTask = task;
         var other = O(site, "09 - Fire Hose Reels: Annual", "2026-10-31", RoutineOccurrenceStatus.Pending);

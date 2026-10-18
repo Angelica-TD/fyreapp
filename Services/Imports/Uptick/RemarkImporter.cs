@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Imports.Uptick;
 
-// Uptick "Remarks" export -> Defect, matched to Site on "Property Ref" and to Asset on "Asset ID".
+// Uptick "Remarks" export -> Defect, matched to Property on "Property Ref" and to Asset on "Asset ID".
 public class RemarkImporter : UptickImporter
 {
     public RemarkImporter(AppDbContext db) : base(db) { }
@@ -19,9 +19,9 @@ public class RemarkImporter : UptickImporter
         var taskIds = await LoadTaskIdsByExternalIdAsync(ct);
         var assetsByExt = (await Db.Assets.AsNoTracking()
                 .Where(a => a.ExternalId != null)
-                .Select(a => new { a.Id, a.SiteId, a.ExternalId })
+                .Select(a => new { a.Id, a.PropertyId, a.ExternalId })
                 .ToListAsync(ct))
-            .ToDictionary(a => a.ExternalId!, a => (a.Id, a.SiteId), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(a => a.ExternalId!, a => (a.Id, a.PropertyId), StringComparer.OrdinalIgnoreCase);
         // Uptick remark types (reference data), by Uptick ID
         var remarkTypeIds = await Db.RemarkTypes.AsNoTracking()
             .Where(r => r.ExternalId != null)
@@ -55,7 +55,7 @@ public class RemarkImporter : UptickImporter
             var assetExt = row.Get("Asset ID");
             if (assetExt != null)
             {
-                if (assetsByExt.TryGetValue(assetExt, out var asset) && asset.SiteId == siteId)
+                if (assetsByExt.TryGetValue(assetExt, out var asset) && asset.PropertyId == siteId)
                     assetId = asset.Id;
                 else
                     unlinkedAssets++;
@@ -92,7 +92,7 @@ public class RemarkImporter : UptickImporter
     private static void Map(Defect d, ImportRow row, int siteId, int? assetId, int? remarkTypeId, IReadOnlyDictionary<string, int> taskIds)
     {
         d.UptickData = row.ToJson();
-        d.SiteId = siteId;
+        d.PropertyId = siteId;
         d.AssetId = assetId;
         d.RemarkType = row.Get("Remark Type");
         d.RemarkTypeId = remarkTypeId;

@@ -28,7 +28,7 @@ public interface IRoutineSetupService
 }
 
 // Found = the routine service exists. Removed / Added: pending routines replaced; Kept: history left as it was.
-public record RoutineServiceChangeResult(bool Found, int SiteId = 0, string? Error = null, int Removed = 0, int Added = 0,
+public record RoutineServiceChangeResult(bool Found, int PropertyId = 0, string? Error = null, int Removed = 0, int Added = 0,
     int Kept = 0, DateTime? FirstDue = null)
 {
     public static readonly RoutineServiceChangeResult NotFound = new(false);
@@ -55,7 +55,7 @@ public class RoutineSetupService : IRoutineSetupService
 
         // Routines the property already has, per type: its levels with occurrences, imported or set up here
         var existing = (await _db.RoutineOccurrences.AsNoTracking()
-                .Where(o => o.SiteId == siteId && o.Status != RoutineOccurrenceStatus.Cancelled && o.RoutineServiceLevelId != null)
+                .Where(o => o.PropertyId == siteId && o.Status != RoutineOccurrenceStatus.Cancelled && o.RoutineServiceLevelId != null)
                 .Select(o => new { o.RoutineServiceLevel!.RoutineServiceTypeId, o.RoutineServiceLevelId })
                 .Distinct()
                 .ToListAsync(ct))
@@ -65,7 +65,7 @@ public class RoutineSetupService : IRoutineSetupService
         // Applicable assets: active assets at the property whose asset type lists the routine
         // (Uptick asset types export "Applicable Routines", one routine name per line)
         var assets = await _db.Assets.AsNoTracking()
-            .Where(a => a.SiteId == siteId && a.IsActive)
+            .Where(a => a.PropertyId == siteId && a.IsActive)
             .Select(a => new { a.Id, Types = a.AssetTypes.Select(t => t.UptickData).ToList() })
             .ToListAsync(ct);
         var applicable = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -77,7 +77,7 @@ public class RoutineSetupService : IRoutineSetupService
 
         return new AddRoutineServicesVm
         {
-            SiteId = siteId,
+            PropertyId = siteId,
             Types = types
                 .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(t => new RoutineTypeOptionVm
@@ -112,7 +112,7 @@ public class RoutineSetupService : IRoutineSetupService
             return new AddRoutineServicesResult(0, 0, "The end date is before the start date.");
         if (input.Levels.Count == 0)
             return new AddRoutineServicesResult(0, 0, "Tick at least one routine type and level.");
-        if (!await _db.Sites.AnyAsync(s => s.Id == siteId, ct))
+        if (!await _db.Properties.AnyAsync(s => s.Id == siteId, ct))
             return new AddRoutineServicesResult(0, 0, "Property not found.");
 
         var levelIds = input.Levels.Distinct().ToList();
@@ -131,7 +131,7 @@ public class RoutineSetupService : IRoutineSetupService
             var type = group.Key;
             var service = new PropertyRoutineService
             {
-                SiteId = siteId,
+                PropertyId = siteId,
                 RoutineServiceTypeId = type.Id,
                 StartDate = Utc(start),
                 LastAnnualDate = Utc(lastAnnual),
@@ -166,7 +166,7 @@ public class RoutineSetupService : IRoutineSetupService
             var level = byId[due.Level.Id];
             service.Occurrences.Add(new RoutineOccurrence
             {
-                SiteId = service.SiteId,
+                PropertyId = service.PropertyId,
                 Routine = Cap($"{type.Name}: {level.Name}", 300),
                 RoutineServiceLevelId = level.Id,
                 DueDate = due.DueDate,
@@ -188,7 +188,7 @@ public class RoutineSetupService : IRoutineSetupService
 
     public async Task<IReadOnlyList<RoutineServiceSummaryVm>> ListAsync(int siteId, CancellationToken ct = default) =>
         (await _db.PropertyRoutineServices.AsNoTracking()
-            .Where(s => s.SiteId == siteId)
+            .Where(s => s.PropertyId == siteId)
             .Select(s => new
             {
                 s.Id, Type = s.RoutineServiceType.Name, Levels = s.Levels.OrderBy(l => l.IntervalMonths).Select(l => l.Name).ToList(),
@@ -208,7 +208,7 @@ public class RoutineSetupService : IRoutineSetupService
     public async Task<EditRoutineServiceVm?> EditFormAsync(int id, CancellationToken ct = default)
     {
         var service = await _db.PropertyRoutineServices.AsNoTracking()
-            .Include(s => s.Site)
+            .Include(s => s.Property)
             .Include(s => s.Levels)
             .Include(s => s.RoutineServiceType).ThenInclude(t => t.Levels)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
@@ -218,8 +218,8 @@ public class RoutineSetupService : IRoutineSetupService
         return new EditRoutineServiceVm
         {
             Id = service.Id,
-            SiteId = service.SiteId,
-            SiteName = $"{service.Site.DisplayRef} {service.Site.Name}".Trim(),
+            PropertyId = service.PropertyId,
+            SiteName = $"{service.Property.DisplayRef} {service.Property.Name}".Trim(),
             RoutineType = service.RoutineServiceType.Name,
             // Its active levels, plus any it has that have since been made inactive
             Levels = service.RoutineServiceType.Levels
@@ -247,16 +247,16 @@ public class RoutineSetupService : IRoutineSetupService
         if (service == null) return RoutineServiceChangeResult.NotFound;
 
         if (input.StartDate is not DateTime start || input.LastAnnualDate is not DateTime lastAnnual)
-            return new RoutineServiceChangeResult(true, service.SiteId, Error: "Start date and last annual date are required.");
+            return new RoutineServiceChangeResult(true, service.PropertyId, Error: "Start date and last annual date are required.");
         if (input.EndDate is DateTime endDate && endDate.Date < start.Date)
-            return new RoutineServiceChangeResult(true, service.SiteId, Error: "The end date is before the start date.");
+            return new RoutineServiceChangeResult(true, service.PropertyId, Error: "The end date is before the start date.");
 
         var levelIds = input.Levels.Distinct().ToList();
         var levels = await _db.RoutineServiceLevels
             .Where(l => levelIds.Contains(l.Id) && l.RoutineServiceTypeId == service.RoutineServiceTypeId)
             .ToListAsync(ct);
         if (levels.Count == 0)
-            return new RoutineServiceChangeResult(true, service.SiteId, Error: "Tick at least one level (or remove the routine service).");
+            return new RoutineServiceChangeResult(true, service.PropertyId, Error: "Tick at least one level (or remove the routine service).");
 
         service.StartDate = Utc(start);
         service.LastAnnualDate = Utc(lastAnnual);
@@ -276,7 +276,7 @@ public class RoutineSetupService : IRoutineSetupService
         var added = ForecastInto(service, service.RoutineServiceType, levels, DateTime.UtcNow.ToSydney().Date, keep);
 
         await _db.SaveChangesAsync(ct);
-        return new RoutineServiceChangeResult(true, service.SiteId, Removed: pending.Count, Added: added,
+        return new RoutineServiceChangeResult(true, service.PropertyId, Removed: pending.Count, Added: added,
             Kept: service.Occurrences.Count(IsHistory),
             FirstDue: service.Occurrences.Where(o => !IsHistory(o)).Select(o => (DateTime?)o.DueDate).Min());
     }
@@ -300,7 +300,7 @@ public class RoutineSetupService : IRoutineSetupService
         _db.PropertyRoutineServices.Remove(service);
 
         await _db.SaveChangesAsync(ct);
-        return new RoutineServiceChangeResult(true, service.SiteId, Removed: pending.Count, Kept: history.Count);
+        return new RoutineServiceChangeResult(true, service.PropertyId, Removed: pending.Count, Kept: history.Count);
     }
 
     // ---- Forecasting

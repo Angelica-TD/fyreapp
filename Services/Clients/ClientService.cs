@@ -77,7 +77,7 @@ public sealed class ClientService : IClientService
 
     public async Task<List<Client>> GetAllAsync(bool activeOnly = true)
     {
-        var query = _db.Clients.Include(c => c.Sites).OrderBy(c => c.Name);
+        var query = _db.Clients.Include(c => c.Properties).OrderBy(c => c.Name);
 
         return activeOnly
             ? await query.Where(c => c.Active).ToListAsync()
@@ -114,7 +114,7 @@ public sealed class ClientService : IClientService
             .Skip((Math.Max(page, 1) - 1) * pageSize)
             .Take(pageSize)
             .Select(c => new ClientListItem(
-                c.Id, c.ExternalId ?? c.FyreRef, c.Name, c.PrimaryContactName, c.PrimaryContactMobile, c.Sites.Count, c.Active))
+                c.Id, c.ExternalId ?? c.FyreRef, c.Name, c.PrimaryContactName, c.PrimaryContactMobile, c.Properties.Count, c.Active))
             .ToListAsync(ct);
 
         return (total, items);
@@ -126,7 +126,7 @@ public sealed class ClientService : IClientService
             .Select(c => new
             {
                 Ref = c.ExternalId ?? c.FyreRef, c.Name, c.Active, c.PrimaryContactName, c.PrimaryContactEmail, c.PrimaryContactMobile,
-                c.PrimaryContactAddress, c.BillingName, c.BillingEmail, c.BillingAddress, Properties = c.Sites.Count, c.IsPlaceholder
+                c.PrimaryContactAddress, c.BillingName, c.BillingEmail, c.BillingAddress, Properties = c.Properties.Count, c.IsPlaceholder
             })
             .ToListAsync(ct);
 
@@ -179,12 +179,12 @@ public sealed class ClientService : IClientService
     public async Task<Client?> GetByIdAsync(int id, CancellationToken ct = default)
     {
         return await _db.Clients
-            .Include(c => c.Sites)
+            .Include(c => c.Properties)
                 .ThenInclude(s => s.Assets)
                     .ThenInclude(a => a.MaintenanceSchedules)
                         .ThenInclude(ms => ms.MaintenanceInterval)
             .Include(c => c.Contacts)
-            .Include(c => c.Sites)
+            .Include(c => c.Properties)
                 .ThenInclude(s => s.MaintenanceSchedules)
                     .ThenInclude(ms => ms.MaintenanceInterval)
             .AsSplitQuery()
@@ -195,7 +195,7 @@ public sealed class ClientService : IClientService
     {
         return await _db.ClientTasks
             .Where(t => t.ClientId == clientId)
-            .Include(t => t.Site)
+            .Include(t => t.Property)
             .OrderBy(t => t.Status)
                 .ThenByDescending(t => t.Priority)
                     .ThenBy(t => t.Title)

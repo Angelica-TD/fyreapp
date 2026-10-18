@@ -4,7 +4,7 @@
 @{
     var intervals = ViewBag.Intervals as List<MaintenanceInterval>;
     var schedule = Model;
-    var targetId = schedule.TargetType == ScheduleTargetType.Asset ? schedule.AssetId : schedule.SiteId;
+    var targetId = schedule.TargetType == ScheduleTargetType.Asset ? schedule.AssetId : schedule.PropertyId;
 }
 
 <h2>Maintenance Schedule</h2>

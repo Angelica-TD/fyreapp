@@ -63,13 +63,13 @@
                 <div class="text-muted small">Title</div>
                 <div>@q.Title</div>
             </div>
-            @if (q.Site is not null)
+            @if (q.Property is not null)
             {
                 <div class="col-md-4">
                     <div class="text-muted small">Property</div>
                     <div>
-                        <a asp-controller="Property" asp-action="Details" asp-route-id="@q.Site.Id">
-                            @q.Site.Name
+                        <a asp-controller="Property" asp-action="Details" asp-route-id="@q.Property.Id">
+                            @q.Property.Name
                         </a>
                     </div>
                 </div>

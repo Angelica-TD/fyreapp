@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Imports.Uptick;
 
-// Uptick "Property contacts" export -> SiteContact, matched to Site on "Property Ref".
+// Uptick "Property contacts" export -> PropertyContact, matched to Property on "Property Ref".
 public class PropertyContactImporter : UptickImporter
 {
     public PropertyContactImporter(AppDbContext db) : base(db) { }
@@ -16,7 +16,7 @@ public class PropertyContactImporter : UptickImporter
     public override async Task ImportAsync(IReadOnlyList<ImportRow> rows, bool dryRun, ImportContext ctx, CancellationToken ct)
     {
         var sitesByRef = await LoadSiteIdsByRefAsync(ct);
-        var existing = ByExternalId(await Db.SiteContacts.AsNoTracking()
+        var existing = ByExternalId(await Db.PropertyContacts.AsNoTracking()
             .Where(c => c.ExternalId != null)
             .Select(c => new ImportedRecord(c.Id, c.ExternalId!, c.UptickData))
             .ToListAsync(ct));
@@ -24,8 +24,8 @@ public class PropertyContactImporter : UptickImporter
         await AddPlaceholderSitesAsync(rows.Where(r => NewOrChanged(r, "ID", existing)), sitesByRef, "Property Name", dryRun, ctx, ct);
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var toCreate = new List<SiteContact>();
-        var toUpdate = new Dictionary<int, Action<SiteContact>>();
+        var toCreate = new List<PropertyContact>();
+        var toUpdate = new Dictionary<int, Action<PropertyContact>>();
 
         foreach (var row in rows)
         {
@@ -42,7 +42,7 @@ public class PropertyContactImporter : UptickImporter
 
             if (action == RowAction.Create)
             {
-                var contact = new SiteContact { ExternalId = id };
+                var contact = new PropertyContact { ExternalId = id };
                 Map(contact, row, siteId);
                 toCreate.Add(contact);
             }
@@ -57,20 +57,20 @@ public class PropertyContactImporter : UptickImporter
         NoteNotInExport(ctx, existing, rows, "ID", "contacts");
         if (dryRun) return;
 
-        await ApplyUpdatesAsync(Db.SiteContacts, toUpdate, c => c.Id, ct);
-        Db.SiteContacts.AddRange(toCreate);
+        await ApplyUpdatesAsync(Db.PropertyContacts, toUpdate, c => c.Id, ct);
+        Db.PropertyContacts.AddRange(toCreate);
         await Db.SaveChangesAsync(ct);
     }
 
     // Everything a contact takes from its Uptick row, for new and updated contacts alike.
     // Imported as is, even with no name/email/mobile (Uptick keeps those too).
-    private static void Map(SiteContact c, ImportRow row, int siteId)
+    private static void Map(PropertyContact c, ImportRow row, int siteId)
     {
         var email = row.Get("Email");
         var mobile = row.Get("Mobile");
 
         c.UptickData = row.ToJson();
-        c.SiteId = siteId;
+        c.PropertyId = siteId;
         c.Name = row.Get("Contact Name") ?? row.Get("Organisation") ?? email ?? mobile ?? "";
         c.Organisation = row.Get("Organisation");
         c.Email = email;

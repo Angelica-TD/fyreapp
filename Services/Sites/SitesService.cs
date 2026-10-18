@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using FyreApp.Data;
 using FyreApp.Models;
-using FyreApp.ViewModels.Sites;
+using FyreApp.ViewModels.Properties;
 
-namespace FyreApp.Services.Sites;
+namespace FyreApp.Services.Properties;
 
 public sealed class SitesService
 {
@@ -34,7 +34,7 @@ public sealed class SitesService
         if (!clientExists)
             return new(CreateSiteStatus.NotFound, null, Error: "Client not found");
 
-        var siteNameExists = await _db.Sites.AnyAsync(s =>
+        var siteNameExists = await _db.Properties.AnyAsync(s =>
             s.ClientId == req.ClientId &&
             s.Name.ToLower() == name.ToLower(),
             ct);
@@ -46,7 +46,7 @@ public sealed class SitesService
         var placeId = NT(req.Google?.PlaceId);
         if (placeId is not null)
         {
-            var existing = await _db.Sites
+            var existing = await _db.Properties
                 .FirstOrDefaultAsync(s =>
                     s.ClientId == req.ClientId &&
                     s.GooglePlaceId == placeId,
@@ -77,7 +77,7 @@ public sealed class SitesService
                 var stateNorm = state.ToLower();
                 var postcodeNorm = postcode.ToLower();
 
-                var existing = await _db.Sites.FirstOrDefaultAsync(s =>
+                var existing = await _db.Properties.FirstOrDefaultAsync(s =>
                     s.ClientId == req.ClientId &&
                     s.AddressLine1 != null &&
                     s.Suburb != null &&
@@ -95,7 +95,7 @@ public sealed class SitesService
             }
         }
 
-        var site = new Site
+        var site = new Property
         {
             ClientId = req.ClientId,
             Name = name
@@ -140,13 +140,13 @@ public sealed class SitesService
             site.AddressDisplay = BuildDisplay(site);
         }
 
-        _db.Sites.Add(site);
+        _db.Properties.Add(site);
         await _db.SaveChangesAsync(ct);
 
         return new(CreateSiteStatus.Success, site, SiteName: site.Name);
     }
 
-    private static string? BuildDisplay(Site s)
+    private static string? BuildDisplay(Property s)
     {
         var parts = new List<string>();
 

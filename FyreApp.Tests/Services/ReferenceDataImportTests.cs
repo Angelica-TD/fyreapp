@@ -66,10 +66,10 @@ public class ReferenceDataImportTests
     {
         using var db = DbContextFactory.Create();
         var type = new AssetType { Name = "Fire Extinguisher", ExternalId = "10" };
-        var site = new Site { Name = "HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } };
+        var site = new Property { Name = "HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } };
         db.Assets.AddRange(
-            new Asset { Name = "Ext 1", Site = site, Variant = "DCP AB(E) 4.5KG", AssetTypes = { type } },
-            new Asset { Name = "Ext 2", Site = site, Variant = "Something else", AssetTypes = { type } });
+            new Asset { Name = "Ext 1", Property = site, Variant = "DCP AB(E) 4.5KG", AssetTypes = { type } },
+            new Asset { Name = "Ext 2", Property = site, Variant = "Something else", AssetTypes = { type } });
         await db.SaveChangesAsync();
 
         var result = await Import(db, UptickExportType.AssetTypeVariants, Csv(VariantHeaders, new Dictionary<string, string>
@@ -89,8 +89,8 @@ public class ReferenceDataImportTests
     public async Task RemarkTypes_LinkExistingDefectsByUptickId_AndNewRemarksLinkOnImport()
     {
         using var db = DbContextFactory.Create();
-        var site = new Site { Name = "HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } };
-        db.Defects.Add(new Defect { Site = site, ExternalId = "500", RemarkType = "1.02 - Battery missing", UptickData = "{\"ID\":\"500\",\"Remark Type ID\":\"723\"}" });
+        var site = new Property { Name = "HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } };
+        db.Defects.Add(new Defect { Property = site, ExternalId = "500", RemarkType = "1.02 - Battery missing", UptickData = "{\"ID\":\"500\",\"Remark Type ID\":\"723\"}" });
         await db.SaveChangesAsync();
 
         var result = await Import(db, UptickExportType.RemarkTypes, Csv(RemarkTypeHeaders, new Dictionary<string, string>
@@ -165,7 +165,7 @@ public class ReferenceDataImportTests
             new RoutineServiceLevel { Name = "Annual Evacuation Drill", IntervalMonths = 1, RoutineServiceType = drill, ExternalId = "76" },
             new RoutineServiceLevel { Name = "Warden Training", IntervalMonths = 24, RoutineServiceType = custom, ExternalId = "77" },
             new RoutineServiceLevel { Name = "Six-monthly", IntervalMonths = 6, RoutineServiceType = ext, ExternalId = "48" });
-        db.Sites.Add(new Site { Name = "HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } });
+        db.Properties.Add(new Property { Name = "HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } });
         await db.SaveChangesAsync();
     }
 
@@ -191,10 +191,10 @@ public class ReferenceDataImportTests
     public async Task Routines_Rerun_LinksExistingScheduleToRoutinesItCovers()
     {
         using var db = DbContextFactory.Create();
-        var site = new Site { Name = "HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } };
+        var site = new Property { Name = "HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } };
         db.MaintenanceSchedules.Add(new MaintenanceSchedule
         {
-            TargetType = ScheduleTargetType.Site, Site = site, IsActive = true,
+            TargetType = ScheduleTargetType.Property, Property = site, IsActive = true,
             MaintenanceInterval = new MaintenanceInterval { Name = "Six-monthly", Months = 6 },
             StartDate = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc), NextRunDate = new DateTime(2027, 3, 1, 0, 0, 0, DateTimeKind.Utc)
         });

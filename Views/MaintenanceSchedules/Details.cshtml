@@ -4,8 +4,8 @@
 @{
     ViewData["Title"] = "Schedule Details";
     var isAsset = Model.TargetType == ScheduleTargetType.Asset;
-    var client = isAsset ? Model.Asset?.Site?.Client : Model.Site?.Client;
-    var targetName = isAsset ? $"{Model.Asset?.Site?.Name} • {Model.Asset?.Name}" : Model.Site?.Name;
+    var client = isAsset ? Model.Asset?.Property?.Client : Model.Property?.Client;
+    var targetName = isAsset ? $"{Model.Asset?.Property?.Name} • {Model.Asset?.Name}" : Model.Property?.Name;
 }
 
 <nav aria-label="breadcrumb">
@@ -35,7 +35,7 @@
     else
     {
         <text> — </text>
-        <a asp-controller="Property" asp-action="Details" asp-route-id="@Model.SiteId">View property</a>
+        <a asp-controller="Property" asp-action="Details" asp-route-id="@Model.PropertyId">View property</a>
     }
 </p>
 

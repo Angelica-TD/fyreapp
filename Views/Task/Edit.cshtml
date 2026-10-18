@@ -21,11 +21,11 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label" asp-for="Task.SiteId">Property / Site</label>
-                <select class="form-select" asp-for="Task.SiteId" asp-items="Model.Sites" id="SiteId">
+                <label class="form-label" asp-for="Task.PropertyId">Property / Property</label>
+                <select class="form-select" asp-for="Task.PropertyId" asp-items="Model.Properties" id="PropertyId">
                     <option value="">Select a property…</option>
                 </select>
-                <span class="text-danger" asp-validation-for="Task.SiteId"></span>
+                <span class="text-danger" asp-validation-for="Task.PropertyId"></span>
             </div>
 
             <div class="mb-3">
@@ -82,7 +82,7 @@
 <script>
 (function () {
   const clientSel = document.getElementById("ClientId");
-  const siteSel   = document.getElementById("SiteId");
+  const siteSel   = document.getElementById("PropertyId");
 
   // On client change, reload sites but keep current selection if still valid
   clientSel.addEventListener("change", async () => {

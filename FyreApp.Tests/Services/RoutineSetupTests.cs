@@ -52,10 +52,10 @@ public class RoutineSetupTests
         Assert.Null(due[0].ToleranceStart);
     }
 
-    private static async Task<(FyreApp.Data.AppDbContext Db, Site Site, RoutineServiceType Type)> SeedAsync()
+    private static async Task<(FyreApp.Data.AppDbContext Db, Property Property, RoutineServiceType Type)> SeedAsync()
     {
         var db = DbContextFactory.Create();
-        var site = new Site { Name = "Gemvale Glades", Client = new Client { Name = "Gemvale" } };
+        var site = new Property { Name = "Gemvale Glades", Client = new Client { Name = "Gemvale" } };
         var type = new RoutineServiceType { Name = "14 - Emergency planning in facilities", Standard = "AS1851-2012", StandardReference = "AS1851-2012 Section 14", ServiceGroup = "Emergency Planning" };
         type.Levels.Add(new RoutineServiceLevel { Name = "Six-monthly", IntervalMonths = 6, ServiceRank = 1, DefaultEnabled = true, ToleranceInterval = 1, ToleranceUnit = "M" });
         type.Levels.Add(new RoutineServiceLevel { Name = "Annual", IntervalMonths = 12, ServiceRank = 2, SupersedesLowerRank = true, DefaultEnabled = true, ToleranceInterval = 2, ToleranceUnit = "M" });
@@ -63,8 +63,8 @@ public class RoutineSetupTests
         var plans = new AssetType { Name = "Evacuation Diagram", UptickData = """{"Applicable Routines":"14 - Emergency planning in facilities\n15 - Emergency Escape Lighting and Exit Signs"}""" };
         db.AddRange(site, type, new Contractor { Name = "Rays Advantage Electrical" });
         db.Assets.AddRange(
-            new Asset { Name = "Diagram level 1", Site = site, AssetTypes = { plans } },
-            new Asset { Name = "Diagram level 2", Site = site, AssetTypes = { plans }, IsActive = false });
+            new Asset { Name = "Diagram level 1", Property = site, AssetTypes = { plans } },
+            new Asset { Name = "Diagram level 2", Property = site, AssetTypes = { plans }, IsActive = false });
         await db.SaveChangesAsync();
         return (db, site, type);
     }
@@ -121,7 +121,7 @@ public class RoutineSetupTests
     }
 
     // A six-monthly + annual service from Oct 2026, whose first routine (Mar 2027) already has a task
-    private static async Task<(FyreApp.Data.AppDbContext Db, Site Site, RoutineServiceType Type, PropertyRoutineService Service)> WithServiceAsync()
+    private static async Task<(FyreApp.Data.AppDbContext Db, Property Property, RoutineServiceType Type, PropertyRoutineService Service)> WithServiceAsync()
     {
         var (db, site, type) = await SeedAsync();
         var svc = new RoutineSetupService(db);
@@ -132,7 +132,7 @@ public class RoutineSetupTests
         }, "admin");
         var first = await db.RoutineOccurrences.OrderBy(o => o.DueDate).FirstAsync();
         first.Status = RoutineOccurrenceStatus.Generated;
-        first.ClientTask = new ClientTask { Site = site, ClientId = site.ClientId, Title = "PM2027/03 Emergency Planning" };
+        first.ClientTask = new ClientTask { Property = site, ClientId = site.ClientId, Title = "PM2027/03 Emergency Planning" };
         await db.SaveChangesAsync();
         return (db, site, type, await db.PropertyRoutineServices.SingleAsync());
     }
@@ -152,7 +152,7 @@ public class RoutineSetupTests
             Subcontractor = "Rays Advantage Electrical", Levels = new() { annual.Id }
         });
 
-        Assert.Equal((true, site.Id, (string?)null, 3, 2, 1), (result.Found, result.SiteId, result.Error, result.Removed, result.Added, result.Kept));
+        Assert.Equal((true, site.Id, (string?)null, 3, 2, 1), (result.Found, result.PropertyId, result.Error, result.Removed, result.Added, result.Kept));
         var routines = await db.RoutineOccurrences.OrderBy(o => o.DueDate).ToListAsync();
         // The Mar 2027 one with its task is kept (not forecast twice); the rest are annuals to the new end date
         Assert.Equal(new[] { Day(2027, 3, 1), Day(2028, 3, 1), Day(2029, 3, 1) }, routines.Select(o => o.DueDate));

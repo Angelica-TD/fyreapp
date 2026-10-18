@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Imports.Uptick;
 
-// Uptick "Reports" export -> ServiceReport, matched to Site on "Property Ref".
+// Uptick "Reports" export -> ServiceReport, matched to Property on "Property Ref".
 public class ReportImporter : UptickImporter
 {
     public ReportImporter(AppDbContext db) : base(db) { }
@@ -67,7 +67,7 @@ public class ReportImporter : UptickImporter
     private static void Map(ServiceReport r, ImportRow row, int siteId, IReadOnlyDictionary<string, int> taskIds)
     {
         r.UptickData = row.ToJson();
-        r.SiteId = siteId;
+        r.PropertyId = siteId;
         r.Ref = row.Get("Ref");
         r.ReportType = row.Get("Report Type");
         r.IssuedDate = row.GetDate("Issued");

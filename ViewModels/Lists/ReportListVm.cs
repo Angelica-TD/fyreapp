@@ -18,7 +18,7 @@ public class ReportListItemVm
     public string? Title { get; set; }
     public bool? Compliant { get; set; }
     public DateTime? Issued { get; set; }
-    public int SiteId { get; set; }
+    public int PropertyId { get; set; }
     public string? PropertyRef { get; set; }
     public string PropertyName { get; set; } = string.Empty;
     public int ClientId { get; set; }

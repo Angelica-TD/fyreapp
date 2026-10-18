@@ -47,7 +47,7 @@ public static class RoutineCompletion
             var type = TypeOf(o);
             var later = (await db.RoutineOccurrences
                     .Include(x => x.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
-                    .Where(x => x.SiteId == o.SiteId && x.Status == RoutineOccurrenceStatus.Pending && x.ClientTaskId == null
+                    .Where(x => x.PropertyId == o.PropertyId && x.Status == RoutineOccurrenceStatus.Pending && x.ClientTaskId == null
                                 && x.DueDate > o.DueDate)
                     .ToListAsync(ct))
                 .Where(x => string.Equals(TypeOf(x), type, StringComparison.OrdinalIgnoreCase))
@@ -79,14 +79,14 @@ public static class RoutineCompletion
         if (task.DueDateUtc is not DateTime taskDue || UptickJson.Value(task.UptickData, "Scope of works") is not { } scope)
             return [];
 
-        var names = RoutineAssets.FromScope(task.SiteId, scope, await db.RoutineServiceTypes.Select(t => t.Name).ToListAsync(ct))
+        var names = RoutineAssets.FromScope(task.PropertyId, scope, await db.RoutineServiceTypes.Select(t => t.Name).ToListAsync(ct))
             .Select(r => r.Routine).ToList();
         if (names.Count == 0) return [];
 
         var monthStart = new DateTime(taskDue.Year, taskDue.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var monthEnd = monthStart.AddMonths(1);
         return (await occurrences
-                .Where(o => o.SiteId == task.SiteId && o.DueDate >= monthStart && o.DueDate < monthEnd)
+                .Where(o => o.PropertyId == task.PropertyId && o.DueDate >= monthStart && o.DueDate < monthEnd)
                 .ToListAsync(ct))
             .Where(o => names.Contains(o.Routine, StringComparer.OrdinalIgnoreCase))
             .ToList();

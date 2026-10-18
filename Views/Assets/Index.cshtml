@@ -124,7 +124,7 @@
                                 }
                                 <td title="@a.Name"><a asp-controller="Assets" asp-action="Details" asp-route-id="@a.Id">@(a.Ref ?? "—")</a></td>
                                 <td>
-                                    <a asp-controller="Property" asp-action="Details" asp-route-id="@a.SiteId">@a.PropertyRef</a>
+                                    <a asp-controller="Property" asp-action="Details" asp-route-id="@a.PropertyId">@a.PropertyRef</a>
                                     <span class="text-muted">· @a.PropertyName</span>
                                 </td>
                                 <td>

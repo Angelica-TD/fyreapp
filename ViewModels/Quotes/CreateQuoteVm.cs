@@ -8,8 +8,8 @@ public class CreateQuoteVm
     [Required(ErrorMessage = "Client is required.")]
     public int? ClientId { get; set; }
 
-    [Required(ErrorMessage = "Site is required.")]
-    public int? SiteId { get; set; }
+    [Required(ErrorMessage = "Property is required.")]
+    public int? PropertyId { get; set; }
 
     public DateTime? ExpiryDate { get; set; }
 

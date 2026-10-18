@@ -24,7 +24,7 @@ public class RoutineTests
     public async Task Import_KeepsEachRowAsAnOccurrenceLinkedToItsSchedule()
     {
         using var db = DbContextFactory.Create();
-        db.Sites.Add(new Site { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
+        db.Properties.Add(new Property { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
         await db.SaveChangesAsync();
 
         var result = await Import(db, Routines(
@@ -43,7 +43,7 @@ public class RoutineTests
     public async Task Reimport_UpdatesStatusInsteadOfDuplicating()
     {
         using var db = DbContextFactory.Create();
-        db.Sites.Add(new Site { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
+        db.Properties.Add(new Property { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
         await db.SaveChangesAsync();
 
         await Import(db, Routines("1,09 - Fire Hose Reels: Annual,2026-10-31,,,P,,Magidale,P-0152,Magidale Pty Ltd,"));
@@ -57,7 +57,7 @@ public class RoutineTests
     public async Task Reimport_OnlyMovesStatusForward_SoFyreAppTasksArentUndone()
     {
         using var db = DbContextFactory.Create();
-        db.Sites.Add(new Site { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
+        db.Properties.Add(new Property { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
         await db.SaveChangesAsync();
         const string pending = "1,09 - Fire Hose Reels: Annual,2026-10-31,,,P,,Magidale,P-0152,Magidale Pty Ltd,";
         const string complete = "1,09 - Fire Hose Reels: Annual,2026-10-31,,,C,2026-10-20,Magidale,P-0152,Magidale Pty Ltd,";
@@ -66,7 +66,7 @@ public class RoutineTests
 
         // Task raised in FyreApp
         var occurrence = await db.RoutineOccurrences.SingleAsync();
-        var task = new ClientTask { Title = "PM2026/10", ClientId = occurrence.Site.ClientId, SiteId = occurrence.SiteId };
+        var task = new ClientTask { Title = "PM2026/10", ClientId = occurrence.Property.ClientId, PropertyId = occurrence.PropertyId };
         occurrence.ClientTask = task;
         occurrence.Status = RoutineOccurrenceStatus.Generated;
         await db.SaveChangesAsync();
@@ -95,12 +95,12 @@ public class RoutineTests
     {
         var active = new Client { Name = "Magidale Pty Ltd", Active = true, PrimaryContactName = "Karen Gould" };
         var inactive = new Client { Name = "Gone Pty Ltd", Active = false };
-        var site = new Site { Name = "Magidale", ExternalId = "P-0152", Status = "ACTIVE", Client = active };
-        var onHold = new Site { Name = "Paused", ExternalId = "P-0200", Status = "ONHOLD", Client = active };
-        var goneSite = new Site { Name = "Gone", ExternalId = "P-0300", Status = "ACTIVE", Client = inactive };
+        var site = new Property { Name = "Magidale", ExternalId = "P-0152", Status = "ACTIVE", Client = active };
+        var onHold = new Property { Name = "Paused", ExternalId = "P-0200", Status = "ONHOLD", Client = active };
+        var goneSite = new Property { Name = "Gone", ExternalId = "P-0300", Status = "ACTIVE", Client = inactive };
 
-        RoutineOccurrence O(Site s, string routine, string due, RoutineOccurrenceStatus status) =>
-            new() { Site = s, Routine = routine, DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), Status = status };
+        RoutineOccurrence O(Property s, string routine, string due, RoutineOccurrenceStatus status) =>
+            new() { Property = s, Routine = routine, DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), Status = status };
 
         db.RoutineOccurrences.AddRange(
             O(site, "04 - Fire Hydrant Systems (Flow Test): Annual", "2026-10-31", RoutineOccurrenceStatus.Pending),     // shown
@@ -150,20 +150,20 @@ public class RoutineTests
     // Generate tasks / download
     // -------------------------------------------------------
 
-    private static async Task<(Site Calce, Site Glory, MaintenanceSchedule Schedule)> SeedForGenerateAsync(AppDbContext db)
+    private static async Task<(Property Calce, Property Glory, MaintenanceSchedule Schedule)> SeedForGenerateAsync(AppDbContext db)
     {
-        var calce = new Site { Name = "Calce Company", ExternalId = "P-0358", Status = "ACTIVE", Client = new Client { Name = "Calce Company Pty Ltd" } };
-        var glory = new Site { Name = "The Glory Well Church", ExternalId = "P-2241", Status = "ACTIVE", Client = new Client { Name = "Sails Ministry" } };
+        var calce = new Property { Name = "Calce Company", ExternalId = "P-0358", Status = "ACTIVE", Client = new Client { Name = "Calce Company Pty Ltd" } };
+        var glory = new Property { Name = "The Glory Well Church", ExternalId = "P-2241", Status = "ACTIVE", Client = new Client { Name = "Sails Ministry" } };
         var schedule = new MaintenanceSchedule
         {
-            TargetType = ScheduleTargetType.Site, Site = glory, IsActive = true,
+            TargetType = ScheduleTargetType.Property, Property = glory, IsActive = true,
             MaintenanceInterval = new MaintenanceInterval { Name = "Six-monthly", Months = 6 },
             StartDate = DateTime.SpecifyKind(new DateTime(2026, 5, 1), DateTimeKind.Utc),
             NextRunDate = DateTime.SpecifyKind(new DateTime(2026, 11, 30), DateTimeKind.Utc)
         };
 
-        RoutineOccurrence O(Site s, string routine, string group, string due, RoutineOccurrenceStatus status = RoutineOccurrenceStatus.Pending, MaintenanceSchedule? ms = null) =>
-            new() { Site = s, Routine = routine, ServiceGroup = group, DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), Status = status, MaintenanceSchedule = ms };
+        RoutineOccurrence O(Property s, string routine, string group, string due, RoutineOccurrenceStatus status = RoutineOccurrenceStatus.Pending, MaintenanceSchedule? ms = null) =>
+            new() { Property = s, Routine = routine, ServiceGroup = group, DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), Status = status, MaintenanceSchedule = ms };
 
         db.RoutineOccurrences.AddRange(
             O(calce, "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", "Servicing - Portables & Fire Equipment", "2026-11-30"),
@@ -190,7 +190,7 @@ public class RoutineTests
         Assert.Equal((3, 4, 1), (result.TasksCreated, result.RoutinesUsed, result.RoutinesSkipped));
 
         var tasks = await db.ClientTasks.Include(t => t.CoveredSchedules).ToListAsync();
-        var gloryPortables = tasks.Single(t => t.SiteId == glory.Id && t.Title == "PM2026/11 Servicing - Portables & Fire Equipment");
+        var gloryPortables = tasks.Single(t => t.PropertyId == glory.Id && t.Title == "PM2026/11 Servicing - Portables & Fire Equipment");
         Assert.Equal(("I&T", ClientTaskStatus.Open, new DateTime(2026, 11, 30), "user-1"),
             (gloryPortables.Category, gloryPortables.Status, gloryPortables.DueDateUtc, gloryPortables.CreatedByUserId));
         Assert.Contains("- 11 - Fire Blankets: Six-monthly", gloryPortables.Description);
@@ -213,7 +213,7 @@ public class RoutineTests
         var result = await new RoutineService(db).GenerateTasksAsync(Array.Empty<int>(), allMatching: true, filter, null);
 
         Assert.Equal((1, 1, 0), (result.TasksCreated, result.RoutinesUsed, result.RoutinesSkipped));
-        Assert.Equal(calce.Id, (await db.ClientTasks.SingleAsync()).SiteId);
+        Assert.Equal(calce.Id, (await db.ClientTasks.SingleAsync()).PropertyId);
     }
 
     [Fact]

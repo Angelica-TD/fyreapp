@@ -3,10 +3,10 @@ using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.Services.Routines;
 using FyreApp.Services.Timeline;
-using FyreApp.ViewModels.Sites;
+using FyreApp.ViewModels.Properties;
 using Microsoft.EntityFrameworkCore;
 
-namespace FyreApp.Services.Sites;
+namespace FyreApp.Services.Properties;
 
 public interface IPropertyPageService
 {
@@ -37,7 +37,7 @@ public class PropertyPageService : IPropertyPageService
     {
         var tab = PropertyPageVm.NormaliseTab(query.Tab);
 
-        var site = await _db.Sites.AsNoTracking()
+        var site = await _db.Properties.AsNoTracking()
             .Include(s => s.Client).ThenInclude(c => c.Contacts)
             .Include(s => s.Contacts)
             .AsSplitQuery()
@@ -45,7 +45,7 @@ public class PropertyPageService : IPropertyPageService
         if (site == null) return null;
 
         // Uptick's severity: higher is worse (10 critical defect … 0 informational)
-        var openRemarks = _db.Defects.AsNoTracking().Where(d => d.SiteId == id && d.Active);
+        var openRemarks = _db.Defects.AsNoTracking().Where(d => d.PropertyId == id && d.Active);
         var openCount = await openRemarks.CountAsync(ct);
         var mostSevere = await openRemarks.OrderByDescending(d => d.Severity ?? -1).FirstOrDefaultAsync(ct);
 
@@ -54,24 +54,24 @@ public class PropertyPageService : IPropertyPageService
             "assets" => await AssetsAsync(site, query, openCount, mostSevere, ct),
             "remarks" => new PropertyPageVm
             {
-                Site = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
+                Property = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
                 ShowClosedRemarks = query.ShowClosedRemarks,
                 Remarks = await _db.Defects.AsNoTracking()
                     .Include(d => d.Asset)
-                    .Where(d => d.SiteId == id && (query.ShowClosedRemarks || d.Active))
+                    .Where(d => d.PropertyId == id && (query.ShowClosedRemarks || d.Active))
                     .OrderByDescending(d => d.Severity ?? -1).ThenByDescending(d => d.RaisedUtc)
                     .ToListAsync(ct)
             },
             "routines" => new PropertyPageVm
             {
-                Site = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
+                Property = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
                 Routines = await _routines.ForPropertyAsync(id, Math.Clamp(query.Year ?? DateTime.UtcNow.ToSydney().Year, 2000, 2100), ct)
             },
             "records" => new PropertyPageVm
             {
-                Site = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
+                Property = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
                 Reports = await _db.ServiceReports.AsNoTracking()
-                    .Where(r => r.SiteId == id)
+                    .Where(r => r.PropertyId == id)
                     .OrderByDescending(r => r.IssuedDate ?? r.InspectedDate)
                     .ToListAsync(ct),
                 // Uptick's quotes and schedules, matched on the property's ref (sales quotes on its name)
@@ -90,10 +90,10 @@ public class PropertyPageService : IPropertyPageService
             },
             "tasks" => new PropertyPageVm
             {
-                Site = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
+                Property = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
                 Tasks = await _db.ClientTasks.AsNoTracking()
                     .Include(t => t.AssignedTo)
-                    .Where(t => t.SiteId == id)
+                    .Where(t => t.PropertyId == id)
                     // Open work first, then the latest due
                     .OrderBy(t => t.Status == ClientTaskStatus.Completed || t.Status == ClientTaskStatus.Cancelled)
                     .ThenByDescending(t => t.DueDateUtc)
@@ -102,7 +102,7 @@ public class PropertyPageService : IPropertyPageService
             "billing" => await BillingAsync(site, openCount, mostSevere, ct),
             _ => new PropertyPageVm
             {
-                Site = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
+                Property = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
                 Timeline = await _timeline.ForPropertyAsync(site, query.NotesOnly, ct),
                 NotesOnly = query.NotesOnly,
                 ExtraFields = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(_db, ExtraField.PropertyContentType, site.UptickData, ct)
@@ -112,7 +112,7 @@ public class PropertyPageService : IPropertyPageService
 
     // Billing tab: the property's and client's billing cards (named by ID in their Uptick rows), the property's
     // billing contracts with their lines, and its invoices (newest first) with any credit notes
-    private async Task<PropertyPageVm> BillingAsync(Site site, int openCount, Defect? mostSevere, CancellationToken ct)
+    private async Task<PropertyPageVm> BillingAsync(Property site, int openCount, Defect? mostSevere, CancellationToken ct)
     {
         async Task<BillingCard?> Card(string? externalId) => externalId == null ? null
             : await _db.BillingCards.AsNoTracking().FirstOrDefaultAsync(c => c.ExternalId == externalId, ct);
@@ -131,7 +131,7 @@ public class PropertyPageService : IPropertyPageService
 
         return new PropertyPageVm
         {
-            Site = site, Tab = "billing", OpenRemarks = openCount, MostSevereRemark = mostSevere,
+            Property = site, Tab = "billing", OpenRemarks = openCount, MostSevereRemark = mostSevere,
             PropertyBillingCard = await Card(FyreApp.Services.Imports.UptickJson.Value(site.UptickData, "Billing Card ID")),
             ClientBillingCard = await Card(FyreApp.Services.Imports.UptickJson.Value(site.Client.UptickData, "Billingcard ID")),
             BillingContracts = contracts,
@@ -147,11 +147,11 @@ public class PropertyPageService : IPropertyPageService
         };
     }
 
-    private async Task<PropertyPageVm> AssetsAsync(Site site, PropertyPageQuery query, int openCount, Defect? mostSevere, CancellationToken ct)
+    private async Task<PropertyPageVm> AssetsAsync(Property site, PropertyPageQuery query, int openCount, Defect? mostSevere, CancellationToken ct)
     {
         var all = await _db.Assets.AsNoTracking()
             .Include(a => a.AssetTypes)
-            .Where(a => a.SiteId == site.Id)
+            .Where(a => a.PropertyId == site.Id)
             .ToListAsync(ct);
 
         // Uptick's default: active assets, any type
@@ -169,7 +169,7 @@ public class PropertyPageService : IPropertyPageService
 
         return new PropertyPageVm
         {
-            Site = site, Tab = "assets", OpenRemarks = openCount, MostSevereRemark = mostSevere,
+            Property = site, Tab = "assets", OpenRemarks = openCount, MostSevereRemark = mostSevere,
             Assets = shown,
             AssetTypes = all.SelectMany(a => a.AssetTypes).DistinctBy(t => t.Id).OrderBy(t => t.Name).Select(t => (t.Id, t.Name)).ToList(),
             AssetActive = active,

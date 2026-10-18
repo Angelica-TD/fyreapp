@@ -17,7 +17,7 @@ public class AssetFilter
     public List<string> PropertyStatus { get; set; } = FyreApp.ViewModels.Lists.ListFilters.NotInactive();
 
     // One property's assets only (its Assets tab); null = every property
-    public int? SiteId { get; set; }
+    public int? PropertyId { get; set; }
 
     public int Page { get; set; } = 1;
 
@@ -43,7 +43,7 @@ public class AssetListItemVm
     public int Id { get; set; }
     public string? Ref { get; set; }
     public string Name { get; set; } = string.Empty;
-    public int SiteId { get; set; }
+    public int PropertyId { get; set; }
     public string? PropertyRef { get; set; }
     public string PropertyName { get; set; } = string.Empty;
     public int ClientId { get; set; }

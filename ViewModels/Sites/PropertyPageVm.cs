@@ -1,7 +1,7 @@
 using FyreApp.Models;
 using FyreApp.ViewModels.Routines;
 
-namespace FyreApp.ViewModels.Sites;
+namespace FyreApp.ViewModels.Properties;
 
 // The property page, laid out like Uptick's: a tab bar, one tab's content at a time
 public class PropertyPageVm
@@ -16,7 +16,7 @@ public class PropertyPageVm
     public static string NormaliseTab(string? tab) =>
         tab == "remarks" || Tabs.Any(t => t.Key == tab) ? tab! : "property";
 
-    public required Site Site { get; init; }
+    public required Property Property { get; init; }
     public required string Tab { get; init; }
 
     // Summary: the most severe open remark and how many are open

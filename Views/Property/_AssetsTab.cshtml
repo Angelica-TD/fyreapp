@@ -1,9 +1,9 @@
-@model FyreApp.ViewModels.Sites.PropertyPageVm
+@model FyreApp.ViewModels.Properties.PropertyPageVm
 @using FyreApp.Infrastructure
 
 @* Uptick's property Assets tab: filters (active, asset type), Download, and the assets in inspection order *@
 @{
-    var site = Model.Site;
+    var site = Model.Property;
     var filterCount = (Model.AssetActive != "any" ? 1 : 0) + (Model.AssetTypeId != null ? 1 : 0);
 }
 

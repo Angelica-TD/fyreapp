@@ -12,19 +12,19 @@ public static class RoutineAssets
     public record AssetLine(int AssetId, string Routine);
 
     // A routine at a site: its full name ("<type>: <level>") and its routine service type's name
-    public record SiteRoutine(int SiteId, string Routine, string RoutineType);
+    public record SiteRoutine(int PropertyId, string Routine, string RoutineType);
 
     // The asset lines for each routine, in inspection order: one per asset per routine
-    public static async Task<ILookup<(int SiteId, string Routine), AssetLine>> ForAsync(
+    public static async Task<ILookup<(int PropertyId, string Routine), AssetLine>> ForAsync(
         AppDbContext db, IReadOnlyCollection<SiteRoutine> routines, CancellationToken ct = default)
     {
-        var siteIds = routines.Select(r => r.SiteId).Distinct().ToList();
+        var siteIds = routines.Select(r => r.PropertyId).Distinct().ToList();
         if (siteIds.Count == 0) return Array.Empty<(int, string, AssetLine)>().ToLookup(x => (x.Item1, x.Item2), x => x.Item3);
 
         var assets = await db.Assets.AsNoTracking()
-            .Where(a => siteIds.Contains(a.SiteId) && a.IsActive)
+            .Where(a => siteIds.Contains(a.PropertyId) && a.IsActive)
             .OrderBy(a => a.InspectionOrder == null).ThenBy(a => a.InspectionOrder).ThenBy(a => a.Ref).ThenBy(a => a.Name).ThenBy(a => a.Id)
-            .Select(a => new { a.Id, a.SiteId, Types = a.AssetTypes.Select(t => new { t.Id, t.UptickData }) })
+            .Select(a => new { a.Id, a.PropertyId, Types = a.AssetTypes.Select(t => new { t.Id, t.UptickData }) })
             .ToListAsync(ct);
 
         // Each asset type's routines, parsed once
@@ -32,16 +32,16 @@ public static class RoutineAssets
             .ToDictionary(t => t.Id, t => (Applicable: Lines(UptickJson.Value(t.UptickData, "Applicable Routines")),
                                            Excluded: Lines(UptickJson.Value(t.UptickData, "Excluded Routine Levels"))));
 
-        var lines = new List<(int SiteId, string Routine, AssetLine Line)>();
-        foreach (var r in routines.DistinctBy(r => (r.SiteId, r.Routine)))
+        var lines = new List<(int PropertyId, string Routine, AssetLine Line)>();
+        foreach (var r in routines.DistinctBy(r => (r.PropertyId, r.Routine)))
         {
-            foreach (var a in assets.Where(a => a.SiteId == r.SiteId))
+            foreach (var a in assets.Where(a => a.PropertyId == r.PropertyId))
             {
                 if (a.Types.Any(t => Applies(typeRoutines[t.Id].Applicable, typeRoutines[t.Id].Excluded, r)))
-                    lines.Add((r.SiteId, r.Routine, new AssetLine(a.Id, r.Routine)));
+                    lines.Add((r.PropertyId, r.Routine, new AssetLine(a.Id, r.Routine)));
             }
         }
-        return lines.ToLookup(l => (l.SiteId, l.Routine), l => l.Line);
+        return lines.ToLookup(l => (l.PropertyId, l.Routine), l => l.Line);
     }
 
     // The type's routines include this one, and its level isn't excluded (named as the routines export

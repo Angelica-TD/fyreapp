@@ -54,10 +54,10 @@ public class UptickImportServiceTests
         return c;
     }
 
-    private static async Task<Site> SeedSiteAsync(AppDbContext db, string propertyRef = "P-1")
+    private static async Task<Property> SeedSiteAsync(AppDbContext db, string propertyRef = "P-1")
     {
-        var s = new Site { Name = "Acme HQ", ExternalId = propertyRef, Client = new Client { Name = "Acme " + propertyRef } };
-        db.Sites.Add(s);
+        var s = new Property { Name = "Acme HQ", ExternalId = propertyRef, Client = new Client { Name = "Acme " + propertyRef } };
+        db.Properties.Add(s);
         await db.SaveChangesAsync();
         return s;
     }
@@ -126,7 +126,7 @@ public class UptickImportServiceTests
             "properties.csv", UptickExportType.Properties, dryRun: false);
 
         Assert.Equal(1, result.Created);
-        var site = await db.Sites.SingleAsync();
+        var site = await db.Properties.SingleAsync();
         Assert.Equal(client.Id, site.ClientId);
         Assert.Equal("P-3335", site.ExternalId);
         Assert.Equal("6 Nuban St, Currumbin Waters QLD 4223", site.AddressDisplay);
@@ -144,7 +144,7 @@ public class UptickImportServiceTests
                 new Dictionary<string, string> { ["Ref"] = "P-1", ["Name"] = "Old site", ["Status"] = "INACTIVE", ["Client ID"] = "100" }),
             "p.csv", UptickExportType.Properties, dryRun: false);
 
-        Assert.False((await db.Sites.SingleAsync()).Active);
+        Assert.False((await db.Properties.SingleAsync()).Active);
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public class UptickImportServiceTests
     {
         using var db = DbContextFactory.Create();
         var client = await SeedClientAsync(db);
-        db.Sites.Add(new Site { Name = "Acme HQ", ClientId = client.Id });
+        db.Properties.Add(new Property { Name = "Acme HQ", ClientId = client.Id });
         await db.SaveChangesAsync();
 
         var result = await CreateSut(db).ImportAsync(Csv(PropertyHeaders,
@@ -161,7 +161,7 @@ public class UptickImportServiceTests
 
         Assert.Equal(0, result.Created);
         Assert.Single(result.Notes);
-        Assert.Equal("P-9", (await db.Sites.SingleAsync()).ExternalId);
+        Assert.Equal("P-9", (await db.Properties.SingleAsync()).ExternalId);
     }
 
     [Fact]
@@ -177,7 +177,7 @@ public class UptickImportServiceTests
         Assert.Empty(result.Skipped);
         var client = await db.Clients.SingleAsync();
         Assert.Equal(("404", "Nobody", true, false), (client.ExternalId, client.Name, client.IsPlaceholder, client.Active));
-        Assert.Equal(client.Id, (await db.Sites.SingleAsync()).ClientId);
+        Assert.Equal(client.Id, (await db.Properties.SingleAsync()).ClientId);
     }
 
     [Fact]
@@ -192,7 +192,7 @@ public class UptickImportServiceTests
         Assert.Equal(1, result.Created);
         Assert.Contains(result.Issues, i => i.Type == "Placeholder client");
         Assert.Empty(await db.Clients.ToListAsync());
-        Assert.Empty(await db.Sites.ToListAsync());
+        Assert.Empty(await db.Properties.ToListAsync());
     }
 
     [Fact]
@@ -201,7 +201,7 @@ public class UptickImportServiceTests
         using var db = DbContextFactory.Create();
         var client = await SeedClientAsync(db);
         var unassigned = new Client { Name = UptickImporter.UnassignedClientName, IsPlaceholder = true, Active = false };
-        db.Sites.Add(new Site { Name = "P-7", ExternalId = "P-7", Client = unassigned, IsPlaceholder = true, Active = false });
+        db.Properties.Add(new Property { Name = "P-7", ExternalId = "P-7", Client = unassigned, IsPlaceholder = true, Active = false });
         await db.SaveChangesAsync();
 
         var result = await CreateSut(db).ImportAsync(Csv(PropertyHeaders,
@@ -214,7 +214,7 @@ public class UptickImportServiceTests
 
         Assert.Equal(0, result.Created);
         Assert.Equal(0, result.SkippedExisting);
-        var site = await db.Sites.SingleAsync();
+        var site = await db.Properties.SingleAsync();
         Assert.Equal(("Acme HQ", client.Id, true, false), (site.Name, site.ClientId, site.Active, site.IsPlaceholder));
         Assert.Equal("Australian Capital Territory", site.State);
         Assert.Contains("\"Address State\":\"Australian Capital Territory\"", site.UptickData);
@@ -232,7 +232,7 @@ public class UptickImportServiceTests
 
         Assert.Equal(0, second.Created);
         Assert.Equal(1, second.SkippedExisting);
-        Assert.Equal(1, await db.Sites.CountAsync());
+        Assert.Equal(1, await db.Properties.CountAsync());
     }
 
     [Fact]
@@ -248,7 +248,7 @@ public class UptickImportServiceTests
         var second = await CreateSut(db).ImportAsync(Csv(PropertyHeaders, row), "p.csv", UptickExportType.Properties, dryRun: false);
 
         Assert.Equal((0, 1, 0), (second.Created, second.Updated, second.SkippedExisting));
-        var site = await db.Sites.AsNoTracking().SingleAsync();
+        var site = await db.Properties.AsNoTracking().SingleAsync();
         Assert.Equal(("X Tower", false, "INACTIVE"), (site.Name, site.Active, site.Status));
     }
 
@@ -291,8 +291,8 @@ public class UptickImportServiceTests
             "contacts.csv", UptickExportType.PropertyContacts, dryRun: false);
 
         Assert.Equal(1, result.Created);
-        var contact = await db.SiteContacts.SingleAsync();
-        Assert.Equal(site.Id, contact.SiteId);
+        var contact = await db.PropertyContacts.SingleAsync();
+        Assert.Equal(site.Id, contact.PropertyId);
         Assert.Equal("Jose", contact.Name);
         Assert.True(contact.ReportRequired);
         Assert.False(contact.InvoiceRequired);
@@ -305,16 +305,16 @@ public class UptickImportServiceTests
         using var db = DbContextFactory.Create();
 
         var result = await CreateSut(db).ImportAsync(Csv(ContactHeaders,
-                new Dictionary<string, string> { ["ID"] = "1", ["Property Ref"] = "P-404", ["Property Name"] = "Old Site", ["Contact Name"] = "Sue" },
-                new Dictionary<string, string> { ["ID"] = "2", ["Property Ref"] = "P-404", ["Property Name"] = "Old Site", ["Contact Name"] = "Bob" }),
+                new Dictionary<string, string> { ["ID"] = "1", ["Property Ref"] = "P-404", ["Property Name"] = "Old Property", ["Contact Name"] = "Sue" },
+                new Dictionary<string, string> { ["ID"] = "2", ["Property Ref"] = "P-404", ["Property Name"] = "Old Property", ["Contact Name"] = "Bob" }),
             "contacts.csv", UptickExportType.PropertyContacts, dryRun: false);
 
         Assert.Equal(2, result.Created);
         Assert.Empty(result.Skipped);
-        var site = await db.Sites.Include(s => s.Client).SingleAsync();
-        Assert.Equal(("P-404", "Old Site", true, false), (site.ExternalId, site.Name, site.IsPlaceholder, site.Active));
+        var site = await db.Properties.Include(s => s.Client).SingleAsync();
+        Assert.Equal(("P-404", "Old Property", true, false), (site.ExternalId, site.Name, site.IsPlaceholder, site.Active));
         Assert.Equal(UptickImporter.UnassignedClientName, site.Client.Name);
-        Assert.All(await db.SiteContacts.ToListAsync(), c => Assert.Equal(site.Id, c.SiteId));
+        Assert.All(await db.PropertyContacts.ToListAsync(), c => Assert.Equal(site.Id, c.PropertyId));
     }
 
     [Fact]
@@ -328,7 +328,7 @@ public class UptickImportServiceTests
             "contacts.csv", UptickExportType.PropertyContacts, dryRun: false);
 
         Assert.Equal(1, result.Created);
-        var contact = await db.SiteContacts.SingleAsync();
+        var contact = await db.PropertyContacts.SingleAsync();
         Assert.Equal(("", "accesscontact"), (contact.Name, contact.Role));
     }
 
@@ -340,11 +340,11 @@ public class UptickImportServiceTests
 
         // Remarks name the client; the placeholder property goes under it rather than "Unassigned"
         var result = await CreateSut(db).ImportAsync(Csv(RemarkHeaders.Append("Client").ToArray(),
-                new Dictionary<string, string> { ["ID"] = "1", ["Property Ref"] = "P-404", ["Property Name"] = "Old Site", ["Client"] = "Acme" }),
+                new Dictionary<string, string> { ["ID"] = "1", ["Property Ref"] = "P-404", ["Property Name"] = "Old Property", ["Client"] = "Acme" }),
             "remarks.csv", UptickExportType.Remarks, dryRun: false);
 
         Assert.Equal(1, result.Created);
-        Assert.Equal(client.Id, (await db.Sites.SingleAsync()).ClientId);
+        Assert.Equal(client.Id, (await db.Properties.SingleAsync()).ClientId);
         Assert.Single(await db.Clients.ToListAsync());
     }
 
@@ -371,7 +371,7 @@ public class UptickImportServiceTests
         Assert.Contains(result.Notes, n => n.Contains("Fire Extinguisher"));
 
         var asset = await db.Assets.Include(a => a.AssetTypes).SingleAsync();
-        Assert.Equal(site.Id, asset.SiteId);
+        Assert.Equal(site.Id, asset.PropertyId);
         Assert.Equal("42237", asset.ExternalId);
         Assert.Equal("top of stair", asset.Location);
         Assert.Equal(new DateTime(2026, 9, 21), asset.LastServiceDate);
@@ -420,7 +420,7 @@ public class UptickImportServiceTests
     {
         using var db = DbContextFactory.Create();
         var site = await SeedSiteAsync(db, "P-0905");
-        var asset = new Asset { Name = "Extinguisher", SiteId = site.Id, ExternalId = "16980" };
+        var asset = new Asset { Name = "Extinguisher", PropertyId = site.Id, ExternalId = "16980" };
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
 
@@ -477,7 +477,7 @@ public class UptickImportServiceTests
 
         Assert.Equal(1, result.Created);
         var report = await db.ServiceReports.SingleAsync();
-        Assert.Equal(site.Id, report.SiteId);
+        Assert.Equal(site.Id, report.PropertyId);
         Assert.Equal("R-51081", report.Ref);
         Assert.True(report.Compliant);
         Assert.True(report.Published);

@@ -39,7 +39,7 @@ public class RoutineService : IRoutineService
         var q = _db.RoutineOccurrences.AsQueryable();
 
         if (filter.ClientActive is bool clientActive)
-            q = q.Where(o => o.Site.Client.Active == clientActive);
+            q = q.Where(o => o.Property.Client.Active == clientActive);
 
         // Due dates are calendar dates stored as UTC midnight
         if (filter.DueFrom is DateTime from)
@@ -56,7 +56,7 @@ public class RoutineService : IRoutineService
         if (filter.PropertyStatus.Count > 0)
         {
             var statuses = filter.PropertyStatus.Select(s => s.ToUpperInvariant()).ToList();
-            q = q.Where(o => o.Site.Status != null && statuses.Contains(o.Site.Status));
+            q = q.Where(o => o.Property.Status != null && statuses.Contains(o.Property.Status));
         }
 
         if (filter.Status.Count > 0)
@@ -70,13 +70,13 @@ public class RoutineService : IRoutineService
             var term = filter.Search.Trim().ToLower();
             q = q.Where(o =>
                 o.Routine.ToLower().Contains(term) ||
-                o.Site.Name.ToLower().Contains(term) ||
-                (o.Site.ExternalId != null && o.Site.ExternalId.ToLower().Contains(term)) ||
-                o.Site.Client.Name.ToLower().Contains(term));
+                o.Property.Name.ToLower().Contains(term) ||
+                (o.Property.ExternalId != null && o.Property.ExternalId.ToLower().Contains(term)) ||
+                o.Property.Client.Name.ToLower().Contains(term));
         }
 
         // As Uptick lists them
-        return q.OrderBy(o => o.Routine).ThenBy(o => o.DueDate).ThenBy(o => o.Site.ExternalId).ThenBy(o => o.Id);
+        return q.OrderBy(o => o.Routine).ThenBy(o => o.DueDate).ThenBy(o => o.Property.ExternalId).ThenBy(o => o.Id);
     }
 
     public async Task<RoutineListVm> SearchAsync(RoutineFilter filter, CancellationToken ct = default)
@@ -94,12 +94,12 @@ public class RoutineService : IRoutineService
             {
                 Id = o.Id,
                 Routine = o.Routine,
-                SiteId = o.SiteId,
-                PropertyRef = o.Site.ExternalId ?? o.Site.FyreRef,
-                PropertyName = o.Site.Name,
-                ClientId = o.Site.ClientId,
-                ClientName = o.Site.Client.Name,
-                ClientContact = o.Site.Client.PrimaryContactName,
+                PropertyId = o.PropertyId,
+                PropertyRef = o.Property.ExternalId ?? o.Property.FyreRef,
+                PropertyName = o.Property.Name,
+                ClientId = o.Property.ClientId,
+                ClientName = o.Property.Client.Name,
+                ClientContact = o.Property.Client.PrimaryContactName,
                 DueDate = o.DueDate,
                 Status = o.Status,
                 MaintenanceScheduleId = o.MaintenanceScheduleId,
@@ -116,12 +116,12 @@ public class RoutineService : IRoutineService
             .Select(o => new
             {
                 o.Routine,
-                PropertyRef = o.Site.ExternalId ?? o.Site.FyreRef,
-                Property = o.Site.Name,
-                Address = o.Site.AddressDisplay,
-                PropertyStatus = o.Site.Status,
-                Client = o.Site.Client.Name,
-                ClientContact = o.Site.Client.PrimaryContactName,
+                PropertyRef = o.Property.ExternalId ?? o.Property.FyreRef,
+                Property = o.Property.Name,
+                Address = o.Property.AddressDisplay,
+                PropertyStatus = o.Property.Status,
+                Client = o.Property.Client.Name,
+                ClientContact = o.Property.Client.PrimaryContactName,
                 o.DueDate,
                 o.ToleranceStart,
                 o.ToleranceEnd,
@@ -176,7 +176,7 @@ public class RoutineService : IRoutineService
             : _db.RoutineOccurrences.Where(o => ids.Contains(o.Id));
 
         var occurrences = await selected
-            .Include(o => o.Site)
+            .Include(o => o.Property)
             .Include(o => o.MaintenanceSchedule)
             .Include(o => o.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
             .ToListAsync(ct);
@@ -187,23 +187,23 @@ public class RoutineService : IRoutineService
 
         // The assets each routine services, listed on the task's Work tab
         var assets = await RoutineAssets.ForAsync(_db, pending
-            .Select(o => new RoutineAssets.SiteRoutine(o.SiteId, o.Routine, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Routine)))
+            .Select(o => new RoutineAssets.SiteRoutine(o.PropertyId, o.Routine, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Routine)))
             .ToList(), ct);
 
         // One task per property, service group and month, named like Uptick's ("PM2026/11 Servicing - …")
         var tasks = new List<ClientTask>();
         foreach (var group in pending
-                     .GroupBy(o => (o.SiteId, ServiceGroup: o.ServiceGroup ?? "", o.DueDate.Year, o.DueDate.Month))
-                     .OrderBy(g => g.Key.SiteId).ThenBy(g => g.Key.Year).ThenBy(g => g.Key.Month))
+                     .GroupBy(o => (o.PropertyId, ServiceGroup: o.ServiceGroup ?? "", o.DueDate.Year, o.DueDate.Month))
+                     .OrderBy(g => g.Key.PropertyId).ThenBy(g => g.Key.Year).ThenBy(g => g.Key.Month))
         {
             var (siteId, serviceGroup, year, month) = group.Key;
-            var site = group.First().Site;
+            var site = group.First().Property;
             var routines = group.OrderBy(o => o.Routine).ToList();
 
             var task = new ClientTask
             {
                 ClientId = site.ClientId,
-                SiteId = siteId,
+                PropertyId = siteId,
                 Title = Truncate($"PM{year}/{month:00} {(serviceGroup == "" ? "Routine servicing" : serviceGroup)}", 120),
                 Description = Truncate("Scope of works:\n" + string.Join("\n", routines.Select(o => $"- {o.Routine}")), 4000),
                 Category = "I&T",
@@ -244,7 +244,7 @@ public class RoutineService : IRoutineService
         var today = DateTime.UtcNow.ToSydney().Date;
 
         var occurrences = await _db.RoutineOccurrences.AsNoTracking()
-            .Where(o => o.SiteId == siteId && o.DueDate >= yearStart && o.DueDate < yearEnd
+            .Where(o => o.PropertyId == siteId && o.DueDate >= yearStart && o.DueDate < yearEnd
                         && o.Status != RoutineOccurrenceStatus.Cancelled)
             .Select(o => new
             {
@@ -266,7 +266,7 @@ public class RoutineService : IRoutineService
             })
             .ToListAsync(ct);
 
-        var vm = new PropertyRoutinesVm { SiteId = siteId, Year = year, Today = today };
+        var vm = new PropertyRoutinesVm { PropertyId = siteId, Year = year, Today = today };
 
         var markers = occurrences.Select(o =>
         {
@@ -313,7 +313,7 @@ public class RoutineService : IRoutineService
         // Routine tasks at the property due this year: generated from its routines or schedules, or imported
         // Uptick routine tasks covering its schedules
         var tasks = await _db.ClientTasks.AsNoTracking()
-            .Where(t => t.SiteId == siteId && t.DueDateUtc != null
+            .Where(t => t.PropertyId == siteId && t.DueDateUtc != null
                         && t.Status != ClientTaskStatus.Cancelled
                         && (t.MaintenanceScheduleId != null || t.CoveredSchedules.Any()
                             || _db.RoutineOccurrences.Any(o => o.ClientTaskId == t.Id)))

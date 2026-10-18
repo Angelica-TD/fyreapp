@@ -5,8 +5,8 @@ using FyreApp.Infrastructure;
 using FyreApp.Models;
 using Microsoft.AspNetCore.Authorization;
 
-using FyreApp.Services.Sites;
-using FyreApp.ViewModels.Sites;
+using FyreApp.Services.Properties;
+using FyreApp.ViewModels.Properties;
 
 namespace FyreApp.Controllers
 {
@@ -15,10 +15,10 @@ namespace FyreApp.Controllers
         private readonly AppDbContext _context;
         private readonly SitesService _sites;
         private readonly FyreApp.Services.Lists.IPropertyListService _list;
-        private readonly FyreApp.Services.Sites.IPropertyPageService _page;
+        private readonly FyreApp.Services.Properties.IPropertyPageService _page;
 
         public PropertyController(AppDbContext context, SitesService sites, FyreApp.Services.Lists.IPropertyListService list,
-            FyreApp.Services.Sites.IPropertyPageService page)
+            FyreApp.Services.Properties.IPropertyPageService page)
         {
             _context = context;
             _sites = sites;
@@ -108,7 +108,7 @@ namespace FyreApp.Controllers
         private async Task LogCreatedAsync(CreateSiteResult result, CancellationToken ct)
         {
             if (result.Status != CreateSiteStatus.Success || result.site == null) return;
-            _context.TimelineEvents.Add(new TimelineEvent { SiteId = result.site.Id, Author = await _context.AuthorNameAsync(User, ct), Text = "Property was created." });
+            _context.TimelineEvents.Add(new TimelineEvent { PropertyId = result.site.Id, Author = await _context.AuthorNameAsync(User, ct), Text = "Property was created." });
             await _context.SaveChangesAsync(ct);
         }
 
@@ -118,10 +118,10 @@ namespace FyreApp.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddNote(int id, string? text, CancellationToken ct)
         {
-            if (!await _context.Sites.AnyAsync(s => s.Id == id, ct)) return NotFound();
+            if (!await _context.Properties.AnyAsync(s => s.Id == id, ct)) return NotFound();
             if (!string.IsNullOrWhiteSpace(text))
             {
-                _context.TimelineEvents.Add(new TimelineEvent { SiteId = id, Author = await _context.AuthorNameAsync(User, ct), IsNote = true, Text = text.Trim() });
+                _context.TimelineEvents.Add(new TimelineEvent { PropertyId = id, Author = await _context.AuthorNameAsync(User, ct), IsNote = true, Text = text.Trim() });
                 await _context.SaveChangesAsync(ct);
             }
             return RedirectToAction(nameof(Details), new { id });
@@ -174,13 +174,13 @@ namespace FyreApp.Controllers
                 return RedirectToAction("Details", new { id = siteId, tab = "assets" });
             }
 
-            var site = await _context.Sites.FindAsync(new object[] { siteId }, ct);
+            var site = await _context.Properties.FindAsync(new object[] { siteId }, ct);
             if (site == null)
                 return NotFound();
 
             var asset = new Asset
             {
-                SiteId = siteId,
+                PropertyId = siteId,
                 Name = name
             };
 
@@ -238,7 +238,7 @@ namespace FyreApp.Controllers
 
             TempData["Success"] = $"Routine service updated: {result.Added} routine{(result.Added == 1 ? "" : "s")} forecast" +
                                   (result.Kept > 0 ? $"; {result.Kept} with a task or done kept as they were." : ".");
-            return RedirectToAction(nameof(Details), new { id = result.SiteId, tab = "routines", year = result.FirstDue?.Year });
+            return RedirectToAction(nameof(Details), new { id = result.PropertyId, tab = "routines", year = result.FirstDue?.Year });
         }
 
         // Routines tab → a routine service → Remove (its routines with a task, or done, stay)
@@ -251,7 +251,7 @@ namespace FyreApp.Controllers
             if (!result.Found) return NotFound();
             TempData["Success"] = $"Routine service removed with its {result.Removed} pending routine{(result.Removed == 1 ? "" : "s")}" +
                                   (result.Kept > 0 ? $"; {result.Kept} with a task or done kept." : ".");
-            return RedirectToAction(nameof(Details), new { id = result.SiteId, tab = "routines" });
+            return RedirectToAction(nameof(Details), new { id = result.PropertyId, tab = "routines" });
         }
 
         private void RoutineServiceBreadcrumbs(FyreApp.ViewModels.Routines.EditRoutineServiceVm vm) =>
@@ -259,7 +259,7 @@ namespace FyreApp.Controllers
             {
                 ("Home", Url.Action("Index", "Home")),
                 ("Properties", Url.Action(nameof(Index))),
-                (vm.SiteName, Url.Action(nameof(Details), new { id = vm.SiteId, tab = "routines" })),
+                (vm.SiteName, Url.Action(nameof(Details), new { id = vm.PropertyId, tab = "routines" })),
                 ("Edit routine service", null)
             };
 
@@ -268,7 +268,7 @@ namespace FyreApp.Controllers
             int id, string? tab, int? year, string? active, int? assetType, string? search, bool closed = false, bool notes = false,
             [FromServices] FyreApp.Services.Routines.IRoutineSetupService? routineSetup = null, CancellationToken ct = default)
         {
-            var page = await _page.LoadAsync(id, new FyreApp.Services.Sites.PropertyPageQuery(tab, year, active, assetType, search, closed, notes), ct);
+            var page = await _page.LoadAsync(id, new FyreApp.Services.Properties.PropertyPageQuery(tab, year, active, assetType, search, closed, notes), ct);
             if (page == null)
                 return NotFound();
 
@@ -284,7 +284,7 @@ namespace FyreApp.Controllers
             {
                 ("Home", Url.Action("Index", "Home")),
                 ("Properties", Url.Action(nameof(Index))),
-                (page.Site.DisplayRef ?? page.Site.Name, null)
+                (page.Property.DisplayRef ?? page.Property.Name, null)
             };
 
             return View(page);
@@ -295,11 +295,11 @@ namespace FyreApp.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Deactivate(int id)
         {
-            var site = await _context.Sites.FindAsync(id);
+            var site = await _context.Properties.FindAsync(id);
             if (site == null) return NotFound();
 
             site.Active = false;
-            _context.TimelineEvents.Add(new TimelineEvent { SiteId = id, Author = await _context.AuthorNameAsync(User), Field = "Status", Value = "Inactive" });
+            _context.TimelineEvents.Add(new TimelineEvent { PropertyId = id, Author = await _context.AuthorNameAsync(User), Field = "Status", Value = "Inactive" });
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Property deactivated.";
@@ -311,11 +311,11 @@ namespace FyreApp.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Activate(int id)
         {
-            var site = await _context.Sites.FindAsync(id);
+            var site = await _context.Properties.FindAsync(id);
             if (site == null) return NotFound();
 
             site.Active = true;
-            _context.TimelineEvents.Add(new TimelineEvent { SiteId = id, Author = await _context.AuthorNameAsync(User), Field = "Status", Value = "Active" });
+            _context.TimelineEvents.Add(new TimelineEvent { PropertyId = id, Author = await _context.AuthorNameAsync(User), Field = "Status", Value = "Active" });
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Property activated.";

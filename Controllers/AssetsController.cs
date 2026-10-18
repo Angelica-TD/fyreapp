@@ -57,7 +57,7 @@ namespace FyreApp.Controllers
             List<string>? propertyStatus, int? site, bool f = false, CancellationToken ct = default)
         {
             var filter = Filter(search, active, assetType, assetTypeIsNot, propertyStatus, f);
-            filter.SiteId = site;
+            filter.PropertyId = site;
             return File(await _assetList.CsvAsync(filter, ct), "text/csv", FyreApp.Infrastructure.CsvExport.FileName("assets"));
         }
 
@@ -187,8 +187,8 @@ namespace FyreApp.Controllers
             {
                 ("Home", Url.Action("Index", "Home")),
                 ("Properties", Url.Action("Index", "Property")),
-                (asset.Site.DisplayRef ?? asset.Site.Name, Url.Action("Details", "Property", new { id = asset.SiteId })),
-                ("Assets", Url.Action("Details", "Property", new { id = asset.SiteId, tab = "assets" })),
+                (asset.Property.DisplayRef ?? asset.Property.Name, Url.Action("Details", "Property", new { id = asset.PropertyId })),
+                ("Assets", Url.Action("Details", "Property", new { id = asset.PropertyId, tab = "assets" })),
                 (label, update ? Url.Action(nameof(Details), new { id = asset.Id }) : null)
             };
             if (update) crumbs.Add(("Update", null));

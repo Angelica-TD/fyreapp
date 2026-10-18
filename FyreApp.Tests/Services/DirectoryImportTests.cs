@@ -163,10 +163,10 @@ public class DirectoryImportTests
     public async Task UsersImport_AssignsTasksImportedEarlier_ToTheTechnicianUptickNames()
     {
         using var db = DbContextFactory.Create();
-        var site = new Site { Name = "Ezfurn", Client = new Client { Name = "Ezfurn" } };
+        var site = new Property { Name = "Ezfurn", Client = new Client { Name = "Ezfurn" } };
         db.ClientTasks.AddRange(
-            new ClientTask { Site = site, Client = site.Client, Title = "Imported", UptickTechnician = "Dwayne Page" },
-            new ClientTask { Site = site, Client = site.Client, Title = "Someone else", UptickTechnician = "Not In Uptick" });
+            new ClientTask { Property = site, Client = site.Client, Title = "Imported", UptickTechnician = "Dwayne Page" },
+            new ClientTask { Property = site, Client = site.Client, Title = "Someone else", UptickTechnician = "Not In Uptick" });
         await db.SaveChangesAsync();
 
         var result = await Import(db, Csv(UserHeader,

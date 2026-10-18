@@ -3,9 +3,9 @@ using FyreApp.Models;
 using FyreApp.Services.Clients;
 using FyreApp.Services.Email;
 using FyreApp.Services.ServiceQuotes;
-using FyreApp.Services.Sites;
+using FyreApp.Services.Properties;
 using FyreApp.ViewModels.ServiceQuotes;
-using FyreApp.ViewModels.Sites;
+using FyreApp.ViewModels.Properties;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -187,7 +187,7 @@ public class ServiceQuotesController : Controller
             }
 
             // Use the newly created site's ID for the quote
-            vm.Create.SiteId = siteResult.site?.Id;
+            vm.Create.PropertyId = siteResult.site?.Id;
         }
         else
         {
@@ -199,9 +199,9 @@ public class ServiceQuotesController : Controller
 
             clientId = vm.Create.ClientId.Value;
 
-            if (vm.Create.SiteId is null or 0)
+            if (vm.Create.PropertyId is null or 0)
             {
-                ModelState.AddModelError("Create.SiteId", "Property is required.");
+                ModelState.AddModelError("Create.PropertyId", "Property is required.");
                 return await RebuildIndexView(vm, ct);
             }
         }
@@ -221,7 +221,7 @@ public class ServiceQuotesController : Controller
         if (vm.Create.ExpiryDate is null)
             vm.Create.ExpiryDate = DateTime.UtcNow.AddDays(30);
 
-        var result = await _quotes.CreateAsync(vm.Create, clientId, vm.Create.SiteId, ct);
+        var result = await _quotes.CreateAsync(vm.Create, clientId, vm.Create.PropertyId, ct);
 
         return result.Status switch
         {
@@ -284,7 +284,7 @@ public class ServiceQuotesController : Controller
     [HttpGet("/api/client-sites/{clientId:int}")]
     public async Task<IActionResult> GetClientSites(int clientId, CancellationToken ct)
     {
-        var sites = await _db.Sites
+        var sites = await _db.Properties
             .Where(s => s.ClientId == clientId)
             .OrderBy(s => s.Name)
             .Select(s => new { s.Id, s.Name })

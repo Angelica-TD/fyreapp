@@ -1,4 +1,4 @@
-namespace FyreApp.ViewModels.Sites;
+namespace FyreApp.ViewModels.Properties;
 
 public sealed class CreatePropertyModalVm
 {

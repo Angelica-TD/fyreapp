@@ -19,8 +19,8 @@ public class TimelineEvent
     public long? UptickObjectId { get; set; }
 
     // The property or the asset the event is on, when FyreApp holds it
-    public int? SiteId { get; set; }
-    public Site? Site { get; set; }
+    public int? PropertyId { get; set; }
+    public Property? Property { get; set; }
     public int? AssetId { get; set; }
     public Asset? Asset { get; set; }
 

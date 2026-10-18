@@ -4,7 +4,7 @@
 @* One remark (Uptick "D-54980"): what it is and where, then its quote and repair *@
 @{
     var d = Model;
-    var site = d.Site;
+    var site = d.Property;
     ViewData["Title"] = d.DisplayRef ?? "Remark";
     string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
 }

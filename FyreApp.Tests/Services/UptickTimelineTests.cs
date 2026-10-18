@@ -72,7 +72,7 @@ public class UptickTimelineTests
             Event(2, "51", 41642, "general", "C", "Gate code is 1234\nAsk at reception", "{}", "2026-10-15T15:15:20+11:00",
                 lat: -27.95, lng: 153.4),
             Event(3, "28", 31713, "tasks", "E", "Task created.", "{}", "2026-01-01T09:00:00+10:00"));
-        db.Sites.Add(new Site { Name = "Gold Coast Concrete", ExternalId = "P-3340", Client = new Client { Name = "Jane Clandy" } });
+        db.Properties.Add(new Property { Name = "Gold Coast Concrete", ExternalId = "P-3340", Client = new Client { Name = "Jane Clandy" } });
         await db.SaveChangesAsync();
         return db;
     }
@@ -116,7 +116,7 @@ public class UptickTimelineTests
 
         Assert.Equal(3, (await MapAsync(db)).Mapped);
 
-        var site = await db.Sites.SingleAsync();
+        var site = await db.Properties.SingleAsync();
         var change = Assert.Single(await new TimelineService(db).ForPropertyAsync(site, notesOnly: false));
         Assert.Equal("<em>Access note</em> was changed to <em>Please send reminder email</em>.", change.Html);
         Assert.Equal(("trackedchange", "Wes Speedon (Field Tech)", false), (change.Key, change.Author, change.IsNote));
@@ -124,7 +124,7 @@ public class UptickTimelineTests
 
         // The task's event is kept for when FyreApp shows a task's Timeline
         var task = await db.TimelineEvents.SingleAsync(e => e.UptickId == 3);
-        Assert.Equal(("task", 31713L, (int?)null, (int?)null), (task.UptickObjectType, task.UptickObjectId!.Value, task.SiteId, task.AssetId));
+        Assert.Equal(("task", 31713L, (int?)null, (int?)null), (task.UptickObjectType, task.UptickObjectId!.Value, task.PropertyId, task.AssetId));
         Assert.All(await db.UptickRecords.Where(r => r.Resource == "timelineevents").ToListAsync(), r => Assert.NotNull(r.MappedUtc));
     }
 
@@ -136,7 +136,7 @@ public class UptickTimelineTests
         Assert.Null((await db.TimelineEvents.SingleAsync(e => e.UptickId == 2)).AssetId);
 
         // The asset comes in afterwards (a file import); the next mapping pass links its events, with nothing waiting
-        var asset = new Asset { Name = "001 - DCP", ExternalId = "41642", SiteId = (await db.Sites.SingleAsync()).Id };
+        var asset = new Asset { Name = "001 - DCP", ExternalId = "41642", PropertyId = (await db.Properties.SingleAsync()).Id };
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
         Assert.Equal(0, (await MapAsync(db)).Mapped);

@@ -20,21 +20,21 @@ public class RoutineCompletionTests
 
     private static DateTime D(string date) => DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
 
-    private static RoutineOccurrence O(Site site, string routine, string due, RoutineOccurrenceStatus status = RoutineOccurrenceStatus.Pending) =>
-        new() { Site = site, Routine = routine, DueDate = D(due), ToleranceStart = D(due).AddMonths(-1), ToleranceEnd = D(due).AddMonths(1), Status = status };
+    private static RoutineOccurrence O(Property site, string routine, string due, RoutineOccurrenceStatus status = RoutineOccurrenceStatus.Pending) =>
+        new() { Property = site, Routine = routine, DueDate = D(due), ToleranceStart = D(due).AddMonths(-1), ToleranceEnd = D(due).AddMonths(1), Status = status };
 
     private static ClientTaskService Tasks(AppDbContext db) =>
         new(db, new Mock<UserManager<ApplicationUser>>(Mock.Of<IUserStore<ApplicationUser>>(), null!, null!, null!, null!, null!, null!, null!, null!).Object,
             Mock.Of<IMaintenanceScheduleService>());
 
-    private static Site NewSite(string name) => new() { Name = name, Client = new Client { Name = name + " Pty Ltd" } };
+    private static Property NewSite(string name) => new() { Name = name, Client = new Client { Name = name + " Pty Ltd" } };
 
     [Fact]
     public async Task SixMonthlyDueAugustDoneNovember_NextMovesFromFebruaryToMay()
     {
         using var db = DbContextFactory.Create();
         var site = NewSite("Magidale");
-        var task = new ClientTask { Title = "PM2026/08 Servicing", Client = site.Client, Site = site, DueDateUtc = D("2026-08-31") };
+        var task = new ClientTask { Title = "PM2026/08 Servicing", Client = site.Client, Property = site, DueDateUtc = D("2026-08-31") };
         var august = O(site, Extinguishers + ": Six-monthly", "2026-08-01", RoutineOccurrenceStatus.Generated);
         august.ClientTask = task;
         var february = O(site, Extinguishers + ": Annual", "2027-02-01");
@@ -65,14 +65,14 @@ public class RoutineCompletionTests
         var type = new RoutineServiceType { Name = Extinguishers };
         var sixMonthly = new RoutineServiceLevel { RoutineServiceType = type, Name = "Six-monthly", IntervalMonths = 6, ToleranceInterval = 1, ToleranceUnit = "M" };
         db.RoutineServiceLevels.Add(sixMonthly);
-        db.Sites.Add(site);
+        db.Properties.Add(site);
         await db.SaveChangesAsync();
         var setup = new RoutineSetupService(db);
         await setup.AddAsync(site.Id, new() { StartDate = D("2026-01-01"), LastAnnualDate = D("2026-02-01"), Levels = { sixMonthly.Id } }, null);
 
         // The August routine's task, done in November
         var august = await db.RoutineOccurrences.SingleAsync(o => o.DueDate == D("2026-08-01"));
-        var task = new ClientTask { Title = "PM2026/08", ClientId = site.ClientId, SiteId = site.Id };
+        var task = new ClientTask { Title = "PM2026/08", ClientId = site.ClientId, PropertyId = site.Id };
         august.ClientTask = task;
         august.Status = RoutineOccurrenceStatus.Generated;
         await db.SaveChangesAsync();
@@ -94,7 +94,7 @@ public class RoutineCompletionTests
     {
         using var db = DbContextFactory.Create();
         var site = NewSite("Magidale");
-        var task = new ClientTask { Title = "PM2026/08 Servicing", Client = site.Client, Site = site };
+        var task = new ClientTask { Title = "PM2026/08 Servicing", Client = site.Client, Property = site };
         var august = O(site, Extinguishers + ": Six-monthly", "2026-08-01", RoutineOccurrenceStatus.Generated);
         august.ClientTask = task;
         var february = O(site, Extinguishers + ": Six-monthly", "2027-02-01");
@@ -115,7 +115,7 @@ public class RoutineCompletionTests
         db.RoutineServiceTypes.AddRange(new RoutineServiceType { Name = Extinguishers }, new RoutineServiceType { Name = "09 - Fire Hose Reels" });
         var task = new ClientTask
         {
-            Title = "PM2026/08 Servicing", Client = site.Client, Site = site, ExternalId = "46682", DueDateUtc = D("2026-08-31"),
+            Title = "PM2026/08 Servicing", Client = site.Client, Property = site, ExternalId = "46682", DueDateUtc = D("2026-08-31"),
             UptickData = """{"Scope of works":"- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Six-monthly"}"""
         };
         var august = O(site, Extinguishers + ": Six-monthly", "2026-08-01", RoutineOccurrenceStatus.Generated);

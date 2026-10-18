@@ -33,7 +33,7 @@ public class TimelineEventMapper : IUptickMapper
             if (Str(t.Attributes, "model") is { } model) _models[t.UptickId] = model;
 
         // A property is held by its Uptick ref ("P-1004"), which the raw copy ties to its id
-        var siteByRef = await _db.Sites.AsNoTracking()
+        var siteByRef = await _db.Properties.AsNoTracking()
             .Where(s => s.ExternalId != null)
             .Select(s => new { s.ExternalId, s.Id })
             .ToListAsync(ct);
@@ -110,7 +110,7 @@ public class TimelineEventMapper : IUptickMapper
 
         e.UptickObjectType = contentType == null ? null : _models.GetValueOrDefault(contentType, contentType);
         e.UptickObjectId = objectId;
-        e.SiteId = e.UptickObjectType == Property && objectId is { } p && _sites.TryGetValue(p, out var siteId) ? siteId : null;
+        e.PropertyId = e.UptickObjectType == Property && objectId is { } p && _sites.TryGetValue(p, out var siteId) ? siteId : null;
         e.AssetId = e.UptickObjectType == Asset && objectId is { } x && _assets.TryGetValue(x, out var assetId) ? assetId : null;
 
         e.WhenUtc = record.CreatedUtc ?? record.UpdatedUtc ?? record.FetchedUtc;
@@ -131,13 +131,13 @@ public class TimelineEventMapper : IUptickMapper
     private async Task LinkHeldSinceAsync(CancellationToken ct)
     {
         var properties = await _db.TimelineEvents
-            .Where(e => e.UptickObjectType == Property && e.UptickObjectId != null && e.SiteId == null)
+            .Where(e => e.UptickObjectType == Property && e.UptickObjectId != null && e.PropertyId == null)
             .Select(e => e.UptickObjectId!.Value).Distinct().ToListAsync(ct);
         foreach (var id in properties.Where(_sites.ContainsKey))
         {
             var siteId = _sites[id];
-            await SetAsync(_db.TimelineEvents.Where(e => e.UptickObjectType == Property && e.UptickObjectId == id && e.SiteId == null),
-                e => e.SiteId = siteId, s => s.SetProperty(e => e.SiteId, siteId), ct);
+            await SetAsync(_db.TimelineEvents.Where(e => e.UptickObjectType == Property && e.UptickObjectId == id && e.PropertyId == null),
+                e => e.PropertyId = siteId, s => s.SetProperty(e => e.PropertyId, siteId), ct);
         }
 
         var assets = await _db.TimelineEvents

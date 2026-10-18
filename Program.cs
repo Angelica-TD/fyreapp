@@ -127,13 +127,13 @@ builder.Services
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-builder.Services.Configure<FyreApp.Services.Sites.GoogleMapsOptions>(
+builder.Services.Configure<FyreApp.Services.Properties.GoogleMapsOptions>(
     builder.Configuration.GetSection("GoogleMaps"));
 
-builder.Services.AddHttpClient<FyreApp.Services.Sites.GoogleGeocodingClient>();
+builder.Services.AddHttpClient<FyreApp.Services.Properties.GoogleGeocodingClient>();
 
-builder.Services.AddScoped<FyreApp.Services.Sites.SitesService>();
-builder.Services.AddScoped<FyreApp.Services.Sites.IPropertyPageService, FyreApp.Services.Sites.PropertyPageService>();
+builder.Services.AddScoped<FyreApp.Services.Properties.SitesService>();
+builder.Services.AddScoped<FyreApp.Services.Properties.IPropertyPageService, FyreApp.Services.Properties.PropertyPageService>();
 
 
 

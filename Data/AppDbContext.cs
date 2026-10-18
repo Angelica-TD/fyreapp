@@ -13,7 +13,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     }
 
     public DbSet<Client> Clients => Set<Client>();
-    public DbSet<Site> Sites => Set<Site>();
+    public DbSet<Property> Properties => Set<Property>();
     public DbSet<Asset> Assets => Set<Asset>();
     public DbSet<AssetType> AssetTypes => Set<AssetType>();
     public DbSet<MaintenanceSchedule> MaintenanceSchedules { get; set; }
@@ -26,7 +26,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<ServiceType> ServiceTypes => Set<ServiceType>();
     public DbSet<Quote> Quotes => Set<Quote>();
     public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
-    public DbSet<SiteContact> SiteContacts => Set<SiteContact>();
+    public DbSet<PropertyContact> PropertyContacts => Set<PropertyContact>();
     public DbSet<ClientContact> ClientContacts => Set<ClientContact>();
     public DbSet<Defect> Defects => Set<Defect>();
     public DbSet<ServiceReport> ServiceReports => Set<ServiceReport>();
@@ -85,7 +85,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(r => r.StartedUtc);
         });
 
-        // Client → Sites (1:N)
+        // Client → Properties (1:N)
         modelBuilder.Entity<Client>(entity =>
         {
             entity.Property(c => c.Name)
@@ -139,27 +139,27 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(x => x.BillingEmail);
         });
 
-        // Site → Assets (1:N)
-        modelBuilder.Entity<Site>()
+        // Property → Assets (1:N)
+        modelBuilder.Entity<Property>()
             .HasMany(s => s.Assets)
-            .WithOne(a => a.Site)
-            .HasForeignKey(a => a.SiteId)
+            .WithOne(a => a.Property)
+            .HasForeignKey(a => a.PropertyId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<Site>()
+        modelBuilder.Entity<Property>()
             .Property(s => s.Created)
             .HasColumnType("timestamptz");
 
-        modelBuilder.Entity<Site>()
+        modelBuilder.Entity<Property>()
             .Property(s => s.InactiveDate)
             .HasColumnType("timestamptz");
 
-        modelBuilder.Entity<Site>()
+        modelBuilder.Entity<Property>()
             .Property(s => s.Active)
             .HasDefaultValue(true)
             .HasSentinel(true); // so an explicit false is sent on insert instead of the DB default
 
-        modelBuilder.Entity<Site>()
+        modelBuilder.Entity<Property>()
             .HasIndex(s => s.ExternalId)
             .IsUnique();
 
@@ -175,24 +175,24 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
         modelBuilder.Entity<TimelineEvent>(entity =>
         {
-            entity.HasOne(e => e.Site).WithMany().HasForeignKey(e => e.SiteId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Property).WithMany().HasForeignKey(e => e.PropertyId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.Asset).WithMany().HasForeignKey(e => e.AssetId).OnDelete(DeleteBehavior.Cascade);
             entity.Property(e => e.WhenUtc).HasColumnType("timestamptz");
-            entity.HasIndex(e => new { e.SiteId, e.WhenUtc });
+            entity.HasIndex(e => new { e.PropertyId, e.WhenUtc });
             entity.HasIndex(e => new { e.AssetId, e.WhenUtc });
             entity.HasIndex(e => e.UptickId).IsUnique();
             entity.HasIndex(e => new { e.UptickObjectType, e.UptickObjectId });
         });
 
-        modelBuilder.Entity<SiteContact>(entity =>
+        modelBuilder.Entity<PropertyContact>(entity =>
         {
-            entity.HasOne(c => c.Site)
+            entity.HasOne(c => c.Property)
                 .WithMany(s => s.Contacts)
-                .HasForeignKey(c => c.SiteId)
+                .HasForeignKey(c => c.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(c => c.ExternalId).IsUnique();
-            entity.HasIndex(c => c.SiteId);
+            entity.HasIndex(c => c.PropertyId);
         });
 
         modelBuilder.Entity<ClientContact>(entity =>
@@ -210,9 +210,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
         modelBuilder.Entity<Defect>(entity =>
         {
-            entity.HasOne(d => d.Site)
+            entity.HasOne(d => d.Property)
                 .WithMany(s => s.Defects)
-                .HasForeignKey(d => d.SiteId)
+                .HasForeignKey(d => d.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(d => d.Asset)
@@ -232,16 +232,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(d => d.QuotedDate).HasColumnType("timestamptz");
 
             entity.HasIndex(d => d.ExternalId).IsUnique();
-            entity.HasIndex(d => d.SiteId);
+            entity.HasIndex(d => d.PropertyId);
             entity.HasIndex(d => d.AssetId);
             entity.HasIndex(d => d.RepairTaskExternalId);
         });
 
         modelBuilder.Entity<ServiceReport>(entity =>
         {
-            entity.HasOne(r => r.Site)
+            entity.HasOne(r => r.Property)
                 .WithMany(s => s.ServiceReports)
-                .HasForeignKey(r => r.SiteId)
+                .HasForeignKey(r => r.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(r => r.ClientTask)
@@ -254,7 +254,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(r => r.InspectedDate).HasColumnType("timestamptz");
 
             entity.HasIndex(r => r.ExternalId).IsUnique();
-            entity.HasIndex(r => r.SiteId);
+            entity.HasIndex(r => r.PropertyId);
             entity.HasIndex(r => r.TaskExternalId);
         });
 
@@ -275,9 +275,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<MaintenanceSchedule>()
-            .HasOne(ms => ms.Site)
+            .HasOne(ms => ms.Property)
             .WithMany(s => s.MaintenanceSchedules)
-            .HasForeignKey(ms => ms.SiteId)
+            .HasForeignKey(ms => ms.PropertyId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<MaintenanceSchedule>()
@@ -304,13 +304,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .HasForeignKey(t => t.ClientId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(t => t.Site)
+            entity.HasOne(t => t.Property)
                 .WithMany()
-                .HasForeignKey(t => t.SiteId)
+                .HasForeignKey(t => t.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(t => t.ClientId);
-            entity.HasIndex(t => t.SiteId);
+            entity.HasIndex(t => t.PropertyId);
             entity.HasIndex(t => t.Status);
             entity.HasIndex(t => t.DueDateUtc);
             entity.Property(t => t.IsActive).HasDefaultValue(true).HasSentinel(true);
@@ -362,13 +362,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .HasForeignKey(q => q.ClientId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(q => q.Site)
+            entity.HasOne(q => q.Property)
                 .WithMany()
-                .HasForeignKey(q => q.SiteId)
+                .HasForeignKey(q => q.PropertyId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
 
-            entity.HasIndex(q => q.SiteId);
+            entity.HasIndex(q => q.PropertyId);
 
             entity.HasOne(q => q.ServiceOffering)
                 .WithMany()
@@ -438,9 +438,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .HasForeignKey(q => q.ClientId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(q => q.Site)
+            entity.HasOne(q => q.Property)
                 .WithMany()
-                .HasForeignKey(q => q.SiteId)
+                .HasForeignKey(q => q.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(q => q.CreatedBy)
@@ -449,7 +449,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(q => q.ClientId);
-            entity.HasIndex(q => q.SiteId);
+            entity.HasIndex(q => q.PropertyId);
             entity.HasIndex(q => q.Status);
         });
 
@@ -582,9 +582,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
         modelBuilder.Entity<RoutineOccurrence>(entity =>
         {
-            entity.HasOne(o => o.Site)
+            entity.HasOne(o => o.Property)
                 .WithMany()
-                .HasForeignKey(o => o.SiteId)
+                .HasForeignKey(o => o.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(o => o.RoutineServiceLevel)
                 .WithMany()
@@ -610,7 +610,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
             entity.HasIndex(o => o.ExternalId).IsUnique();
             entity.HasIndex(o => new { o.DueDate, o.Status }); // the Routines page filters on these
-            entity.HasIndex(o => o.SiteId);
+            entity.HasIndex(o => o.PropertyId);
 
             // Removing a routine service removes the occurrences it forecast
             entity.HasOne(o => o.PropertyRoutineService)
@@ -652,9 +652,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
         modelBuilder.Entity<PropertyRoutineService>(entity =>
         {
-            entity.HasOne(s => s.Site)
+            entity.HasOne(s => s.Property)
                 .WithMany()
-                .HasForeignKey(s => s.SiteId)
+                .HasForeignKey(s => s.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(s => s.RoutineServiceType)
                 .WithMany()
@@ -668,7 +668,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(s => s.LastAnnualDate).HasColumnType("timestamptz");
             entity.Property(s => s.EndDate).HasColumnType("timestamptz");
             entity.Property(s => s.CreatedUtc).HasColumnType("timestamptz");
-            entity.HasIndex(s => s.SiteId);
+            entity.HasIndex(s => s.PropertyId);
         });
 
 
@@ -684,7 +684,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         // (see migration AddFyreRefs), so EF reads them back instead of sending them
         foreach (var type in new[]
                  {
-                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(ClientContact), typeof(Defect),
+                     typeof(Client), typeof(Property), typeof(Asset), typeof(PropertyContact), typeof(ClientContact), typeof(Defect),
                      typeof(ServiceReport), typeof(MaintenanceSchedule), typeof(ClientTask)
                  })
         {
@@ -695,7 +695,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         // Raw Uptick rows: "json" rather than "jsonb" so the export's column order is kept for display
         foreach (var type in new[]
                  {
-                     typeof(Client), typeof(Site), typeof(Asset), typeof(SiteContact), typeof(ClientContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask),
+                     typeof(Client), typeof(Property), typeof(Asset), typeof(PropertyContact), typeof(ClientContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask),
                      typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(RoutineOccurrence),
                      typeof(Contractor), typeof(Supplier), typeof(UptickUser), typeof(ExtraField), typeof(PromptQuestion),
                      typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem), typeof(Invoice), typeof(CreditNote),
