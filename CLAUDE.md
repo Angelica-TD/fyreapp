@@ -85,7 +85,7 @@ FyreApp is an **ASP.NET Core MVC (.NET 10) application** with a **hybrid fronten
 
 ### Uptick API migration
 
-`Services/Uptick/` copies Uptick's data into FyreApp through its REST API, read-only (token `scope=read`, only `GET` requests), at most 60 requests/minute. Admin page: `/UptickMigration` (Full / Refresh runs, per-endpoint counts, run reports). Every endpoint lands verbatim in `UptickRecord` (jsonb); mapping into FyreApp's own tables is added phase by phase (see the design doc): one `IUptickMapper` per endpoint in `Services/Uptick/Mapping/`, registered in run order in `Program.cs`, run after every Full / Refresh run and by Re-map (no API calls). Mapped so far: `timelineevents` → `TimelineEvent`. The CSV/Excel importers on the Imports page remain until each entity is mapped from the API.
+`Services/Uptick/` copies Uptick's data into FyreApp through its REST API, read-only (token `scope=read`, only `GET` requests), at most 60 requests/minute. Admin page: `/UptickMigration` (Full / Refresh runs, per-endpoint counts, run reports). Every endpoint lands verbatim in `UptickRecord` (jsonb); mapping into FyreApp's own tables is added phase by phase (see the design doc): one `IUptickMapper` per endpoint in `Services/Uptick/Mapping/`, registered in run order in `Program.cs`, run after every Full / Refresh run and by Re-map (no API calls). Mapped so far: `clients`, `properties`, `clientcontacts`, `propertycontacts`, `users` (each row's `UptickId`; `UptickEntityMapper` is the base) and `timelineevents` → `TimelineEvent`. The CSV/Excel importers on the Imports page remain until each entity is mapped from the API.
 
 ### Testing
 

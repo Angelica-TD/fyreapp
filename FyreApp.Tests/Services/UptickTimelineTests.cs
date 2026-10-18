@@ -58,7 +58,7 @@ public class UptickTimelineTests
     public void A_placeholder_with_no_value_is_left_as_written() =>
         Assert.Equal("Loss reason: {loss_reason}", Render("Loss reason: {loss_reason}"));
 
-    // The raw copy as a Full run leaves it: content types, a property, and events on a property, an asset and a task
+    // The raw copy as a Full run leaves it: content types and events on a property, an asset and a task
     private static async Task<AppDbContext> SeedAsync()
     {
         var db = DbContextFactory.Create();
@@ -66,13 +66,12 @@ public class UptickTimelineTests
             Raw("contenttypes", "19", """{"model":"property","app_label":"properties"}"""),
             Raw("contenttypes", "51", """{"model":"asset","app_label":"assets"}"""),
             Raw("contenttypes", "28", """{"model":"task","app_label":"tasks"}"""),
-            Raw("properties", "9999", """{"ref":"P-3340","name":"Gold Coast Concrete"}"""),
             Event(1, "19", 9999, "trackedchange", "E", "<em>{verbose_name}</em> was changed to <em>{new_val}</em>.",
                 """{"verbose_name":"Access note","new_val":"Please send reminder email"}""", "2025-12-02T16:08:25.309845+11:00"),
             Event(2, "51", 41642, "general", "C", "Gate code is 1234\nAsk at reception", "{}", "2026-10-15T15:15:20+11:00",
                 lat: -27.95, lng: 153.4),
             Event(3, "28", 31713, "tasks", "E", "Task created.", "{}", "2026-01-01T09:00:00+10:00"));
-        db.Properties.Add(new Property { Name = "Gold Coast Concrete", ExternalId = "P-3340", Client = new Client { Name = "Jane Clandy" } });
+        db.Properties.Add(new Property { Name = "Gold Coast Concrete", UptickId = 9999, ExternalId = "P-3340", Client = new Client { Name = "Jane Clandy" } });
         await db.SaveChangesAsync();
         return db;
     }

@@ -127,6 +127,9 @@ public class DataResetService : IDataResetService
 
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
+        // Each statement covers a whole table: the ~1 M timeline events take longer than the default 30 s
+        if (_db.Database.IsRelational()) _db.Database.SetCommandTimeout(TimeSpan.FromMinutes(15));
+
         // Explicit child-first order: QuoteLineItem -> Asset is ON DELETE RESTRICT, so relying on
         // the Clients cascade alone would fail whenever a quote references an asset.
         var deleted = new List<(string, int)>
