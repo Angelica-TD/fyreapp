@@ -153,7 +153,7 @@
     </div>
     @if (!Model.Invoices.Any())
     {
-        <div class="card-body text-muted">No invoices. They come from Uptick's invoices export (Import page).</div>
+        <div class="card-body text-muted">No invoices.</div>
     }
     else
     {
@@ -165,19 +165,20 @@
                 <tbody>
                     @foreach (var i in Model.Invoices)
                     {
-                        var credits = Model.CreditNotes.Where(c => c.InvoiceExternalId == i.ExternalId).ToList();
+                        var credits = Model.CreditNotes.Where(c => c.InvoiceId == i.Id).ToList();
                         <tr>
                             <td class="text-nowrap">@i.Number</td>
                             <td class="text-nowrap">@(i.Date?.ToOrdinalDate() ?? "-")</td>
                             <td class="text-nowrap">@(i.DueDate?.ToOrdinalDate() ?? "-")</td>
                             <td>@i.Description</td>
                             <td class="text-nowrap">
-                                @if (i.TaskRef != null) { <a asp-controller="Task" asp-action="Index" asp-route-search="@i.TaskRef" asp-route-active="any">@i.TaskRef</a> }
+                                @if (i.ClientTaskId != null) { <a asp-controller="Task" asp-action="Details" asp-route-id="@i.ClientTaskId">@(i.TaskRef ?? "Task")</a> }
+                                else if (i.TaskRef != null) { @i.TaskRef }
                                 else { <text>-</text> }
                             </td>
                             <td class="text-end text-nowrap">
                                 @(i.Total?.ToString("C", Money) ?? "-")
-                                @foreach (var c in credits) { <div class="small text-muted">@c.Number credit</div> }
+                                @foreach (var c in credits) { <div class="small text-muted">@c.Number credit@(c.Total is { } credit ? $" {credit.ToString("C", Money)}" : "")</div> }
                             </td>
                             <td><span class="badge @InvoiceBadge(i.Status)">@(i.Status ?? "-")</span></td>
                         </tr>

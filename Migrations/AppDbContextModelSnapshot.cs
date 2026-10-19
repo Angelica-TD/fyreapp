@@ -1061,6 +1061,9 @@ namespace FyreApp.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<int?>("InvoiceId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("InvoiceNumber")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -1078,8 +1081,14 @@ namespace FyreApp.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
+                    b.Property<decimal?>("Total")
+                        .HasColumnType("numeric");
+
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
 
                     b.HasKey("Id");
 
@@ -1087,6 +1096,11 @@ namespace FyreApp.Migrations
                         .IsUnique();
 
                     b.HasIndex("InvoiceExternalId");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
 
                     b.ToTable("CreditNotes");
                 });
@@ -1317,6 +1331,9 @@ namespace FyreApp.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<int?>("ClientTaskId")
+                        .HasColumnType("integer");
+
                     b.Property<decimal?>("CreditTotal")
                         .HasColumnType("numeric");
 
@@ -1341,6 +1358,9 @@ namespace FyreApp.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("PropertyId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("PropertyName")
                         .HasMaxLength(300)
@@ -1374,14 +1394,24 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ClientTaskId");
 
                     b.HasIndex("ExternalId")
                         .IsUnique();
 
+                    b.HasIndex("PropertyId");
+
                     b.HasIndex("PropertyRef");
 
                     b.HasIndex("TaskExternalId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
 
                     b.ToTable("Invoices");
                 });
@@ -3715,7 +3745,34 @@ namespace FyreApp.Migrations
                     b.Navigation("Property");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.CreditNote", b =>
+                {
+                    b.HasOne("FyreApp.Models.Invoice", "Invoice")
+                        .WithMany()
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Invoice");
+                });
+
             modelBuilder.Entity("FyreApp.Models.DefectQuote", b =>
+                {
+                    b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
+                        .WithMany()
+                        .HasForeignKey("ClientTaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ClientTask");
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.Invoice", b =>
                 {
                     b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
                         .WithMany()

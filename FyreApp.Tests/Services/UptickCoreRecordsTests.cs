@@ -57,7 +57,7 @@ public class UptickCoreRecordsTests
             new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db),
             new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db),
             new ProductMapper(db), new WarehouseMapper(db), new StockMapper(db), new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db),
-            new DefectQuoteMapper(db), new ServiceQuoteMapper(db), new RemarkMapper(db),
+            new DefectQuoteMapper(db), new ServiceQuoteMapper(db), new InvoiceMapper(db), new CreditNoteMapper(db), new RemarkMapper(db),
             new ReportMapper(db), new RoutineMapper(db), new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
@@ -656,6 +656,39 @@ public class UptickCoreRecordsTests
         Assert.Equal((99L, property.Id, "SQ-0099", "EXPIRED", "Big River Trade Centre", "Service Quote (Routines)", 415m, null),
             (sales.UptickId!.Value, sales.PropertyId!.Value, sales.Ref, sales.Status, sales.PropertyName, sales.Template, sales.Subtotal!.Value, sales.Address));
         Assert.Equal(new DateTime(2023, 11, 13, 0, 0, 0, DateTimeKind.Utc), sales.Created);
+    }
+
+    [Fact]
+    public async Task Invoices_and_credit_notes_are_mapped_with_their_property_task_and_credits()
+    {
+        await using var db = DbContextFactory.Create();
+        db.Invoices.Add(new Invoice { Number = "IV000032831", ExternalId = "30761", PropertyRef = "P-0016", Status = "DRAFT" });
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"), RawTask("46781", "1491"),
+            Raw("billingcards", "23384", """{"name":"Allied OT Pty Limited"}"""),
+            Raw("invoices", "30761", """{"gst":"14.5000","ref":"P-0016","date":"2026-10-15","total":"159.5000","number":"IV000032831","status":"PAID","due_date":"2026-10-22","subtotal":"145.0000","description":"P-0016 Allied"}""",
+                "{\"task\":" + To("Task", "46781") + ",\"client\":" + To("Client", "2806") + ",\"property\":" + To("Property", "1491") + ",\"billingcard\":" + To("BillingCard", "23384") + "}"),
+            Raw("invoices", "30762", """{"number":"IV000032832","status":"AUTHORISED","total":"55.0000"}""",
+                "{\"task\":{\"data\":null},\"client\":" + To("Client", "2806") + ",\"property\":{\"data\":null}}"),
+            Raw("invoices", "30763", """{"number":"IV000032833"}""", "{\"property\":" + To("Property", "8888") + "}"),
+            Raw("creditnotes", "1", """{"number":"CN-31040","status":"CREDIT","date":"2026-10-16","total":"126.5000","deleted":null}""", "{\"invoice\":" + To("Invoice", "30761") + "}"),
+            Raw("creditnotes", "2", """{"number":"CN-31041","status":"VOIDED","total":"10.0000","deleted":null}""", "{\"invoice\":" + To("Invoice", "30761") + "}"));
+        await db.SaveChangesAsync();
+
+        var results = await MapAllAsync(db);
+        Assert.Equal((2, 1), (results["invoices"].Mapped!.Value, results["invoices"].MapFailed));
+
+        var property = await db.Properties.SingleAsync();
+        var task = await db.ClientTasks.SingleAsync();
+        var invoice = await db.Invoices.SingleAsync(i => i.UptickId == 30761);
+        Assert.Equal((property.Id, task.Id, "T-46781", "PAID", "Allied", "Allied OT Pty Limited", 145m, 14.5m, 159.5m, 126.5m),
+            (invoice.PropertyId!.Value, invoice.ClientTaskId!.Value, invoice.TaskRef, invoice.Status, invoice.ClientName, invoice.BillingCardName,
+                invoice.Subtotal!.Value, invoice.Tax!.Value, invoice.Total!.Value, invoice.CreditTotal!.Value));
+        var clientOnly = await db.Invoices.SingleAsync(i => i.UptickId == 30762);
+        Assert.Equal((null, null, "Allied"), (clientOnly.PropertyId, clientOnly.ClientTaskId, clientOnly.ClientName));
+
+        var notes = await db.CreditNotes.OrderBy(c => c.UptickId).ToListAsync();
+        Assert.All(notes, n => Assert.Equal((invoice.Id, "IV000032831", "P-0016"), (n.InvoiceId!.Value, n.InvoiceNumber, n.PropertyRef)));
+        Assert.Equal(("CN-31040", "CREDIT", 126.5m), (notes[0].Number, notes[0].Status, notes[0].Total!.Value));
     }
 
     [Theory]

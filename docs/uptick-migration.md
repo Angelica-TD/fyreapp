@@ -477,7 +477,11 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      subtotal = `product_subtotal`). Remarks link to their most progressed defect quote (`DefectQuoteId`, quoted
      date = the quote's date); the remark page links to the quote's row on the property's Records tab. A quote gone
      from Uptick is marked DELETED. Their file imports are off.
-   - 5d: `invoices`, `creditnotes`, linked to their tasks.
+   - 5d (done): `invoices` → Invoice (`UptickId`, linked to its property and the task it bills; client and
+     billing card by name; credit total = its credit notes', not voided or deleted), `creditnotes` → CreditNote
+     (`UptickId`, linked to its invoice, with its total). Some 4,500 old invoices (2020–21, synced from Xero) have
+     only a billing card, so they're on no property's page. An invoice gone from Uptick is marked DELETED. Their
+     file imports are off.
    - 5e: `billingcards`, `billingcontracts`, `billingcontractlineitems`; the file imports for all of these off.
 6. **Remaining reference data;** remove the file importers and `UptickData` columns.
 7. **Files.**

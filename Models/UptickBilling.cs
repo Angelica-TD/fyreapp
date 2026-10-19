@@ -88,11 +88,17 @@ public class BillingContractLineItem : IUptickRecord
     public string? UptickData { get; set; }
 }
 
-// An Uptick invoice (Uptick "invoices" export), for a property and usually a task
-public class Invoice : IUptickRecord
+// An Uptick invoice (Uptick "invoices"), for a client, usually at a property and for a task
+public class Invoice : IUptickRecord, IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
+
+    public int? PropertyId { get; set; }
+    public Property? Property { get; set; }
+    public int? ClientTaskId { get; set; }
+    public ClientTask? ClientTask { get; set; }
 
     // e.g. "IV000032823"
     [Required, StringLength(50)] public string Number { get; set; } = string.Empty;
@@ -121,11 +127,16 @@ public class Invoice : IUptickRecord
     public string? UptickData { get; set; }
 }
 
-// A credit against an invoice (Uptick "credit notes" export)
-public class CreditNote : IUptickRecord
+// A credit against an invoice (Uptick "creditnotes")
+public class CreditNote : IUptickRecord, IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
+
+    public int? InvoiceId { get; set; }
+    public Invoice? Invoice { get; set; }
+    public decimal? Total { get; set; }
 
     [Required, StringLength(50)] public string Number { get; set; } = string.Empty;
     [StringLength(30)] public string? Status { get; set; }

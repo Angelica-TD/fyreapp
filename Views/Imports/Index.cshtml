@@ -40,8 +40,8 @@
                 <h2 class="h6">Import order</h2>
                 <p class="small text-muted mb-2">
                     Clients, properties, their contacts, users, asset types, variants, assets, routine service types and
-                    levels, remark types, tasks, remarks, reports, routines, products, warehouses, stock, quotes and sales quotes come
-                    from Uptick's API
+                    levels, remark types, tasks, remarks, reports, routines, products, warehouses, stock, quotes, sales quotes, invoices and
+                    credit notes come from Uptick's API
                     (<a asp-controller="UptickMigration" asp-action="Index">Uptick migration</a>): run it first. The exports
                     below match records it brought in.
                 </p>
@@ -49,7 +49,7 @@
                     <li>Reference data: security groups, extra fields and prompt questions (any time)</li>
                 </ol>
                 <p class="small text-muted mt-2 mb-0">
-                    Billing (billing cards, contracts and their line items, invoices, credit notes),
+                    Billing cards, contracts and their line items,
                     schedules, form responses and accreditations can be imported at any time:
                     they're matched to properties and tasks by their Uptick refs when shown.
                 </p>

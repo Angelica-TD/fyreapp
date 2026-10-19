@@ -123,12 +123,12 @@ public class PropertyPageService : IPropertyPageService
             .OrderByDescending(c => c.Active).ThenByDescending(c => c.StartDate)
             .ToListAsync(ct);
         var contractIds = contracts.Select(c => c.ExternalId).ToList();
-        var invoices = site.ExternalId == null ? [] : await _db.Invoices.AsNoTracking()
-            .Where(i => i.PropertyRef == site.ExternalId)
+        var invoices = await _db.Invoices.AsNoTracking()
+            .Where(i => i.PropertyId == site.Id)
             .OrderByDescending(i => i.Date).ThenByDescending(i => i.Number)
             .Take(PropertyPageVm.InvoicesShown)
             .ToListAsync(ct);
-        var invoiceIds = invoices.Select(i => i.ExternalId).ToList();
+        var invoiceIds = invoices.Select(i => (int?)i.Id).ToList();
 
         return new PropertyPageVm
         {
@@ -141,9 +141,9 @@ public class PropertyPageService : IPropertyPageService
                 .OrderBy(l => l.Id)
                 .ToListAsync(ct),
             Invoices = invoices,
-            InvoiceCount = site.ExternalId == null ? 0 : await _db.Invoices.CountAsync(i => i.PropertyRef == site.ExternalId, ct),
+            InvoiceCount = await _db.Invoices.CountAsync(i => i.PropertyId == site.Id, ct),
             CreditNotes = await _db.CreditNotes.AsNoTracking()
-                .Where(c => invoiceIds.Contains(c.InvoiceExternalId))
+                .Where(c => invoiceIds.Contains(c.InvoiceId))
                 .ToListAsync(ct)
         };
     }
