@@ -488,6 +488,14 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      BillingContractLineItem (on its contract, product by name). The Billing tab finds them by these links. Their
      file imports are off: every phase 5 entity now comes from the API.
 6. **Remaining reference data;** remove the file importers and `UptickData` columns.
+   - 6a (done): `groups` → SecurityGroup, `contractors` → Contractor (category by name; tags, skills and service
+     areas aren't in the API, so the export's are kept), `suppliers` → Supplier (accounting organisation by name),
+     `accreditations` → Accreditation (linked to its Uptick user by `UptickUserId`, type by name, status). Each
+     `UptickId`; their file imports are off. (`contractorcontacts`, one row, stays in the raw copy.)
+   - 6b: `extrafields`, `promptquestions`, `dynamicformresponses` (FormResponse → DynamicFormResponse),
+     `propertyschedules`; the last file imports off.
+   - 6c: remove the file importers and the Imports page's Uptick exports, `UptickData` (each page's Uptick fields
+     from the raw copy) and the `ExternalId` / ref-matching columns the exports needed.
 7. **Files.**
 8. **The rest:** typed entities and screens for the endpoints still only in the raw copy, in order of need.
 9. **Cutover:** freeze Uptick, final Full run + files refresh, reconciliation sign-off, FyreApp becomes the

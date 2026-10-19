@@ -75,6 +75,10 @@ namespace FyreApp.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("Status")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
                     b.Property<string>("Technician")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -86,10 +90,21 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("UptickUserId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
                         .IsUnique();
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickUserId");
 
                     b.ToTable("Accreditations");
                 });
@@ -1067,9 +1082,15 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickId")
                         .IsUnique();
 
                     b.ToTable("Contractors");
@@ -2754,9 +2775,15 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickId")
                         .IsUnique();
 
                     b.ToTable("SecurityGroups");
@@ -3121,9 +3148,15 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickId")
                         .IsUnique();
 
                     b.ToTable("Suppliers");
@@ -3694,6 +3727,16 @@ namespace FyreApp.Migrations
                         .HasForeignKey("CoveringTasksId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("FyreApp.Models.Accreditation", b =>
+                {
+                    b.HasOne("FyreApp.Models.UptickUser", "UptickUser")
+                        .WithMany()
+                        .HasForeignKey("UptickUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("UptickUser");
                 });
 
             modelBuilder.Entity("FyreApp.Models.ApplicationUser", b =>

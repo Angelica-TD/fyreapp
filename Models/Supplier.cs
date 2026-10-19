@@ -2,10 +2,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Models;
 
-// A business Fyrepower buys from (Uptick "Suppliers" export)
-public class Supplier
+// A business Fyrepower buys from (Uptick "suppliers")
+public class Supplier : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from Uptick suppliers export "ID"
     [StringLength(64)]

@@ -117,12 +117,17 @@ public class FormResponse : IUptickRecord
     public const string TaskContentType = "28";
 }
 
-// A technician's licence or accreditation held in Uptick (Uptick "accreditations" export), e.g.
-// "Licence No.: QBCC 15366855 | FPA 25023". Matched to the Uptick user by name.
-public class Accreditation : IUptickRecord
+// A technician's licence or accreditation held in Uptick (Uptick "accreditations"), e.g.
+// "Licence No.: QBCC 15366855 | FPA 25023", linked to the Uptick user who holds it (the export named them).
+public class Accreditation : IUptickRecord, IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
+
+    public int? UptickUserId { get; set; }
+    public UptickUser? UptickUser { get; set; }
+    [StringLength(30)] public string? Status { get; set; }
 
     [StringLength(200)] public string? Type { get; set; }
     [StringLength(500)] public string? Number { get; set; }

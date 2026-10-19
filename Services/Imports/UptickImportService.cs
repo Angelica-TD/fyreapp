@@ -47,6 +47,11 @@ public class UptickImportService : IUptickImportService
         (UptickExportType.BillingCards, "Billing cards", new[] { "Postal Attention", "Attached Clients", "Default Tax Code" }),
         (UptickExportType.BillingContracts, "Billing contracts", new[] { "Invoice mode", "Annual value", "Price increase policy" }),
         (UptickExportType.BillingContractLineItems, "Billing contract line items", new[] { "Billing Contract ID", "Unit Price", "Price Period" }),
+        (UptickExportType.Contractors, "Contractors", new[] { "Primary Contact", "Phone BH", "Service Areas" }),
+        (UptickExportType.Suppliers, "Suppliers", new[] { "Business Number", "Accounts Contact Name", "Purchasing Email" }),
+        (UptickExportType.Accreditations, "Accreditations", new[] { "Expiry", "Technician", "Number" }),
+        // Last: two columns most exports have
+        (UptickExportType.SecurityGroups, "Security groups", new[] { "id", "name" }),
     };
 
     public static string FromApiMessage(string name) =>

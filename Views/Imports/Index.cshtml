@@ -41,19 +41,17 @@
                 <p class="small text-muted mb-2">
                     Clients, properties, their contacts, users, asset types, variants, assets, routine service types and
                     levels, remark types, tasks, remarks, reports, routines, products, warehouses, stock, quotes, sales quotes, invoices,
-                    credit notes, billing cards, billing contracts and their line items come from Uptick's API
+                    credit notes, billing cards, billing contracts and their line items, security groups, contractors, suppliers and
+                    accreditations come from Uptick's API
                     (<a asp-controller="UptickMigration" asp-action="Index">Uptick migration</a>): run it first. The exports
                     below match records it brought in.
                 </p>
                 <ol class="small mb-0 ps-3">
-                    <li>Reference data: security groups, extra fields and prompt questions (any time)</li>
+                    <li>Reference data: extra fields and prompt questions (any time)</li>
                 </ol>
                 <p class="small text-muted mt-2 mb-0">
-                    Schedules, form responses and accreditations can be imported at any time:
+                    Schedules and form responses can be imported at any time:
                     they're matched to properties and tasks by their Uptick refs when shown.
-                </p>
-                <p class="small text-muted mt-2 mb-0">
-                    Contractors and suppliers can be imported at any time. Like reference data, they're refreshed from each export.
                 </p>
                 <p class="small text-muted mt-2 mb-0">
                     You can export everything from Uptick and import it again to keep FyreApp in step: new records are added,
