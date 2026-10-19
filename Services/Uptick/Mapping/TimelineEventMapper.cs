@@ -32,18 +32,9 @@ public class TimelineEventMapper : IUptickMapper
         foreach (var t in await RawAsync("contenttypes", ct))
             if (Str(t.Attributes, "model") is { } model) _models[t.UptickId] = model;
 
-        // A property is held by its Uptick ref ("P-1004"), which the raw copy ties to its id
-        var siteByRef = await _db.Properties.AsNoTracking()
-            .Where(s => s.ExternalId != null)
-            .Select(s => new { s.ExternalId, s.Id })
-            .ToListAsync(ct);
-        var siteIds = siteByRef.GroupBy(s => s.ExternalId!.Trim(), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
-        _sites = new Dictionary<long, int>();
-        foreach (var p in await RawAsync("properties", ct))
-            if (long.TryParse(p.UptickId, out var id) && Str(p.Attributes, "ref") is { } reference
-                && siteIds.TryGetValue(reference.Trim(), out var siteId))
-                _sites[id] = siteId;
+        _sites = (await _db.Properties.AsNoTracking().Where(p => p.UptickId != null)
+                .Select(p => new { UptickId = p.UptickId!.Value, p.Id }).ToListAsync(ct))
+            .ToDictionary(p => p.UptickId, p => p.Id);
 
         // An asset is held by its Uptick id
         _assets = new Dictionary<long, int>();
@@ -175,22 +166,8 @@ public class TimelineEventMapper : IUptickMapper
         return rows.Select(r => (r.UptickId, JsonDocument.Parse(r.Attributes).RootElement.Clone())).ToList();
     }
 
-    private static JsonElement Get(JsonElement o, string name) =>
-        o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out var v) ? v : default;
-
-    private static string? Str(JsonElement o, string name) => Get(o, name) is { ValueKind: JsonValueKind.String } v ? v.GetString() : null;
-
-    private static long? Long(JsonElement o, string name) => Get(o, name) switch
-    {
-        { ValueKind: JsonValueKind.Number } v when v.TryGetInt64(out var n) => n,
-        { ValueKind: JsonValueKind.String } v when long.TryParse(v.GetString(), out var n) => n,
-        _ => null
-    };
-
-    private static double? Double(JsonElement o, string name) => Get(o, name) switch
-    {
-        { ValueKind: JsonValueKind.Number } v => v.GetDouble(),
-        { ValueKind: JsonValueKind.String } v when double.TryParse(v.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var n) => n,
-        _ => null
-    };
+    private static JsonElement Get(JsonElement o, string name) => UptickRaw.Get(o, name);
+    private static string? Str(JsonElement o, string name) => UptickRaw.Str(o, name);
+    private static long? Long(JsonElement o, string name) => UptickRaw.Long(o, name);
+    private static double? Double(JsonElement o, string name) => UptickRaw.Double(o, name);
 }

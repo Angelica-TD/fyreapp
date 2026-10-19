@@ -8,6 +8,9 @@ public class Client
 {
     public int Id { get; set; }
 
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
+
     // Used for import duplicate detection (maps from export "ID")
     public string? ExternalId { get; set; }
 

@@ -67,7 +67,8 @@ public static partial class UptickLoginSync
 
         var taken = logins.Where(l => l.UptickUserId != null).Select(l => l.UptickUserId!.Value).ToHashSet();
         var byEmail = uptick.Values
-            .Where(u => !string.IsNullOrWhiteSpace(u.Email) && !taken.Contains(u.Id))
+            // An API login (e.g. FyreApp's own, for the migration) isn't a person
+            .Where(u => !string.IsNullOrWhiteSpace(u.Email) && !taken.Contains(u.Id) && u.LicenseType != "API")
             .GroupBy(u => u.Email!.Trim(), StringComparer.OrdinalIgnoreCase)
             .Select(g => g.Count() == 1 ? g.Single() : g.Where(u => u.LicenseType != "CUSTOMER").ToList() is [var staff] ? staff : null)
             .OfType<UptickUser>()

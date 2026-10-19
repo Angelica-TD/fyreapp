@@ -99,6 +99,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                     .HasMaxLength(64);
 
             entity.HasIndex(c => c.ExternalId).IsUnique();
+            entity.HasIndex(c => c.UptickId).IsUnique();
 
             // Postgres-friendly UTC timestamps
             entity.Property(x => x.Created)
@@ -163,6 +164,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             .HasIndex(s => s.ExternalId)
             .IsUnique();
 
+        modelBuilder.Entity<Property>()
+            .HasIndex(s => s.UptickId)
+            .IsUnique();
+
         modelBuilder.Entity<Asset>(entity =>
         {
             entity.HasIndex(a => a.ExternalId).IsUnique();
@@ -192,6 +197,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(c => c.ExternalId).IsUnique();
+            entity.HasIndex(c => c.UptickId).IsUnique();
             entity.HasIndex(c => c.PropertyId);
         });
 
@@ -205,6 +211,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(c => c.Active).HasDefaultValue(true).HasSentinel(true);
 
             entity.HasIndex(c => c.ExternalId).IsUnique();
+            entity.HasIndex(c => c.UptickId).IsUnique();
             entity.HasIndex(c => c.ClientId);
         });
 
@@ -536,6 +543,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<UptickUser>(entity =>
         {
             entity.HasIndex(u => u.ExternalId).IsUnique();
+            entity.HasIndex(u => u.UptickId).IsUnique();
             entity.Property(u => u.CostRate).HasPrecision(12, 2);
             entity.Property(u => u.SellRate).HasPrecision(12, 2);
             entity.Property(u => u.JoinedUtc).HasColumnType("timestamptz");

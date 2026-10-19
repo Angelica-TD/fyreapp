@@ -8,6 +8,13 @@ public class Property
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
 
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
+
+    // Uptick's ref, e.g. "P-0712"
+    [StringLength(64)]
+    public string? Ref { get; set; }
+
     // Used for import matching (maps from Uptick export "Property ref")
     [StringLength(64)]
     public string? ExternalId { get; set; }

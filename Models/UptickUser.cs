@@ -9,6 +9,9 @@ public class UptickUser
 {
     public int Id { get; set; }
 
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
+
     // Maps from Uptick users export "ID"
     [StringLength(64)]
     public string? ExternalId { get; set; }
@@ -57,6 +60,7 @@ public class UptickUser
         "FIELD" => "Field",
         "CONTRACTOR" => "Contractor",
         "CUSTOMER" => "Customer",
+        "API" => "API",
         null or "" => "-",
         _ => licenseType
     };
