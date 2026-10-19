@@ -89,17 +89,17 @@
 </div>
 
 @* Uptick's sales quotes (sales quotes export: it names the property, so matched on name) *@
-@if (Model.SalesQuotes.Any())
+@if (Model.ServiceQuotes.Any())
 {
     <div class="card property-card">
-        <div class="card-header"><span>Sales quotes (@Model.SalesQuotes.Count)</span></div>
+        <div class="card-header"><span>Sales quotes (@Model.ServiceQuotes.Count)</span></div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead>
                     <tr><th>Ref</th><th>Created</th><th>Expiry</th><th>Template</th><th class="text-end">Subtotal</th><th>Status</th></tr>
                 </thead>
                 <tbody>
-                    @foreach (var q in Model.SalesQuotes)
+                    @foreach (var q in Model.ServiceQuotes)
                     {
                         <tr>
                             <td class="text-nowrap">@q.Ref</td>

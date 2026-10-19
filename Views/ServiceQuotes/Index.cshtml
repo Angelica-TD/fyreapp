@@ -1,4 +1,4 @@
-@model FyreApp.ViewModels.ServiceQuotes.ServiceQuoteIndexVm
+@model FyreApp.ViewModels.Proposals.ProposalIndexVm
 @using FyreApp.Models
 
 @{
@@ -62,7 +62,7 @@
                             <td>@(q.Property?.Name ?? "—")</td>
                             <td>@q.Title</td>
                             <td class="text-nowrap">
-                                @(q.QuoteType == ServiceQuoteType.OneTime ? "One-Time" : "Routine")
+                                @(q.QuoteType == ProposalType.OneTime ? "One-Time" : "Routine")
                             </td>
                             <td>
                                 <span class="badge @StatusBadgeClass(q.Status)">@q.Status</span>
@@ -89,13 +89,13 @@
 }
 
 @functions {
-    string StatusBadgeClass(ServiceQuoteStatus status) => status switch
+    string StatusBadgeClass(ProposalStatus status) => status switch
     {
-        ServiceQuoteStatus.Draft    => "bg-secondary",
-        ServiceQuoteStatus.Sent     => "bg-info text-dark",
-        ServiceQuoteStatus.Accepted => "bg-success",
-        ServiceQuoteStatus.Declined => "bg-danger",
-        ServiceQuoteStatus.Expired  => "bg-warning text-dark",
+        ProposalStatus.Draft    => "bg-secondary",
+        ProposalStatus.Sent     => "bg-info text-dark",
+        ProposalStatus.Accepted => "bg-success",
+        ProposalStatus.Declined => "bg-danger",
+        ProposalStatus.Expired  => "bg-warning text-dark",
         _                           => "bg-secondary"
     };
 }

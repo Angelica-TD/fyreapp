@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using FyreApp.ViewModels.Properties;
 
-namespace FyreApp.ViewModels.ServiceQuotes;
+namespace FyreApp.ViewModels.Proposals;
 
 public class InlineNewSiteVm
 {

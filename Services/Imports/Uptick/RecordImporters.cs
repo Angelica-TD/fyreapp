@@ -37,15 +37,15 @@ public class DefectQuoteImporter : RecordImporter<DefectQuote>
 }
 
 // Uptick "sales quotes" export, shown on the Records tab of the property with that name
-public class SalesQuoteImporter : RecordImporter<SalesQuote>
+public class ServiceQuoteImporter : RecordImporter<ServiceQuote>
 {
-    public SalesQuoteImporter(AppDbContext db) : base(db) { }
-    public override UptickExportType Type => UptickExportType.SalesQuotes;
+    public ServiceQuoteImporter(AppDbContext db) : base(db) { }
+    public override UptickExportType Type => UptickExportType.ServiceQuotes;
     public override string DisplayName => "Sales quotes";
     public override string[] SignatureHeaders => new[] { "Template", "Work and services subtotal", "Programme maintenance subtotal sell" };
     protected override string Noun => "sales quotes";
 
-    protected override void Map(SalesQuote q, ImportRow row)
+    protected override void Map(ServiceQuote q, ImportRow row)
     {
         q.Ref = Cap(Req(row.Get("Ref"), $"Sales quote {q.ExternalId}"), 30)!;
         q.Status = Cap(row.Get("Status")?.ToUpperInvariant(), 30);
@@ -151,15 +151,15 @@ public class WarehouseImporter : RecordImporter<Warehouse>
 }
 
 // Uptick "annotated stocks" export: stock on hand per warehouse. No IDs, so each import replaces it.
-public class StockLevelImporter : SnapshotImporter<StockLevel>
+public class StockImporter : SnapshotImporter<Stock>
 {
-    public StockLevelImporter(AppDbContext db) : base(db) { }
-    public override UptickExportType Type => UptickExportType.StockLevels;
+    public StockImporter(AppDbContext db) : base(db) { }
+    public override UptickExportType Type => UptickExportType.Stocks;
     public override string DisplayName => "Stock (annotated stocks)";
     public override string[] SignatureHeaders => new[] { "Warehouse", "On Hand", "Restock Level" };
     protected override string Noun => "stock lines";
 
-    protected override StockLevel? Build(ImportRow row, ImportContext ctx)
+    protected override Stock? Build(ImportRow row, ImportContext ctx)
     {
         var warehouse = row.Get("Warehouse");
         var product = row.Get("Product");
@@ -168,7 +168,7 @@ public class StockLevelImporter : SnapshotImporter<StockLevel>
             ctx.Skip("Missing warehouse or product", "(blank)", row.RowNumber, "Stock line has no warehouse or product. Skipped.");
             return null;
         }
-        return new StockLevel
+        return new Stock
         {
             Warehouse = Cap(warehouse, 200)!,
             Product = Cap(product, 300)!,

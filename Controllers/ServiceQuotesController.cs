@@ -2,9 +2,9 @@ using FyreApp.Data;
 using FyreApp.Models;
 using FyreApp.Services.Clients;
 using FyreApp.Services.Email;
-using FyreApp.Services.ServiceQuotes;
+using FyreApp.Services.Proposals;
 using FyreApp.Services.Properties;
-using FyreApp.ViewModels.ServiceQuotes;
+using FyreApp.ViewModels.Proposals;
 using FyreApp.ViewModels.Properties;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,14 +15,14 @@ namespace FyreApp.Controllers;
 [Authorize]
 public class ServiceQuotesController : Controller
 {
-    private readonly IServiceQuoteService _quotes;
+    private readonly IProposalService _quotes;
     private readonly IClientService _clients;
     private readonly IEmailService _email;
     private readonly SitesService _sites;
     private readonly AppDbContext _db;
 
     public ServiceQuotesController(
-        IServiceQuoteService quotes,
+        IProposalService quotes,
         IClientService clients,
         IEmailService email,
         SitesService sites,
@@ -40,7 +40,7 @@ public class ServiceQuotesController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
-        var vm = new ServiceQuoteIndexVm
+        var vm = new ProposalIndexVm
         {
             Quotes = await _quotes.GetAllAsync(ct),
             Clients = await _db.Clients.Where(c => c.Active).OrderBy(c => c.Name).ToListAsync(ct),
@@ -59,10 +59,10 @@ public class ServiceQuotesController : Controller
         if (quote is null)
             return NotFound();
 
-        var vm = new ServiceQuoteDetailsVm
+        var vm = new ProposalDetailsVm
         {
             Quote = quote,
-            Edit = new UpdateServiceQuoteRequest
+            Edit = new UpdateProposalRequest
             {
                 Title = quote.Title,
                 Description = quote.Description,
@@ -85,7 +85,7 @@ public class ServiceQuotesController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Create(ServiceQuoteIndexVm vm, CancellationToken ct)
+    public async Task<IActionResult> Create(ProposalIndexVm vm, CancellationToken ct)
     {
         int clientId;
 
@@ -225,11 +225,11 @@ public class ServiceQuotesController : Controller
 
         return result.Status switch
         {
-            ServiceQuoteCreateStatus.Success =>
+            ProposalCreateStatus.Success =>
                 TempDataSuccess("Quote created.", RedirectToAction(nameof(Details), new { id = result.QuoteId })),
-            ServiceQuoteCreateStatus.ClientNotFound =>
+            ProposalCreateStatus.ClientNotFound =>
                 NotFound(),
-            ServiceQuoteCreateStatus.ValidationError =>
+            ProposalCreateStatus.ValidationError =>
                 TempDataError(result.ErrorMessage ?? "Please check the form.", RedirectToAction(nameof(Index))),
             _ => BadRequest()
         };
@@ -240,7 +240,7 @@ public class ServiceQuotesController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Update(int id, ServiceQuoteDetailsVm vm, CancellationToken ct)
+    public async Task<IActionResult> Update(int id, ProposalDetailsVm vm, CancellationToken ct)
     {
         if (!ModelState.IsValid)
         {
@@ -253,11 +253,11 @@ public class ServiceQuotesController : Controller
 
         return result.Status switch
         {
-            ServiceQuoteUpdateStatus.Success =>
+            ProposalUpdateStatus.Success =>
                 TempDataSuccess("Quote updated.", RedirectToAction(nameof(Details), new { id })),
-            ServiceQuoteUpdateStatus.NotFound =>
+            ProposalUpdateStatus.NotFound =>
                 NotFound(),
-            ServiceQuoteUpdateStatus.ValidationError =>
+            ProposalUpdateStatus.ValidationError =>
                 RedirectWithEditError(id, result.ErrorMessage ?? "Please check the form."),
             _ => BadRequest()
         };
@@ -272,7 +272,7 @@ public class ServiceQuotesController : Controller
     {
         var result = await _quotes.DeleteAsync(id, ct);
 
-        if (result.Status == ServiceQuoteDeleteStatus.NotFound)
+        if (result.Status == ProposalDeleteStatus.NotFound)
             return NotFound();
 
         TempData["Success"] = "Quote deleted.";
@@ -345,7 +345,7 @@ public class ServiceQuotesController : Controller
     {
         var result = await _quotes.ApproveAsync(token, ct);
 
-        if (result.Status == ServiceQuoteUpdateStatus.NotFound)
+        if (result.Status == ProposalUpdateStatus.NotFound)
             return NotFound();
 
         TempData["QuoteAction"] = "approved";
@@ -359,7 +359,7 @@ public class ServiceQuotesController : Controller
     {
         var result = await _quotes.DeclineAsync(token, ct);
 
-        if (result.Status == ServiceQuoteUpdateStatus.NotFound)
+        if (result.Status == ProposalUpdateStatus.NotFound)
             return NotFound();
 
         TempData["QuoteAction"] = "declined";
@@ -393,7 +393,7 @@ public class ServiceQuotesController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    private async Task<IActionResult> RebuildIndexView(ServiceQuoteIndexVm vm, CancellationToken ct)
+    private async Task<IActionResult> RebuildIndexView(ProposalIndexVm vm, CancellationToken ct)
     {
         vm.Quotes = await _quotes.GetAllAsync(ct);
         vm.Clients = await _db.Clients.Where(c => c.Active).OrderBy(c => c.Name).ToListAsync(ct);
@@ -403,9 +403,9 @@ public class ServiceQuotesController : Controller
         return View("Index", vm);
     }
 
-    private static string BuildQuoteEmail(ServiceQuote quote, string clientViewUrl, string clientName)
+    private static string BuildQuoteEmail(Proposal quote, string clientViewUrl, string clientName)
     {
-        var quoteTypeName = quote.QuoteType == ServiceQuoteType.OneTime ? "One-Time" : "Routine / Contract";
+        var quoteTypeName = quote.QuoteType == ProposalType.OneTime ? "One-Time" : "Routine / Contract";
         var expiry = quote.ExpiryDate.HasValue
             ? $"<tr><td style='padding:6px 12px;color:#6b7280;'>Expires</td><td style='padding:6px 12px;'>{quote.ExpiryDate.Value:dd MMM yyyy}</td></tr>"
             : string.Empty;

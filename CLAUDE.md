@@ -30,7 +30,7 @@ FyreApp is an **ASP.NET Core MVC (.NET 10) application** with a **hybrid fronten
 ### Backend Structure
 
 - **Controllers/** — MVC controllers handling both HTML views and JSON API endpoints (prefixed `/api/`). JSON endpoints return data for React components.
-- **Services/** — Business logic layer, organized by domain (Clients, Tasks, Sites, ServiceQuotes, Email). Controllers depend only on service interfaces, not on DbContext directly.
+- **Services/** — Business logic layer, organized by domain (Clients, Tasks, Sites, Proposals, Email). Controllers depend only on service interfaces, not on DbContext directly.
 - **Models/** — EF Core entity models (mapped to PostgreSQL). All timestamps use `timestamptz` with UTC defaults.
 - **Data/** — `AppDbContext`, migrations, and seed data (`DbInitialiser`, `IdentitySeed`).
 - **Dtos/** — Data transfer objects for API responses and form models.
@@ -56,7 +56,7 @@ FyreApp is an **ASP.NET Core MVC (.NET 10) application** with a **hybrid fronten
 | `MaintenanceSchedule` | Recurring maintenance plan linking Asset + Property + interval |
 | `MaintenanceHistory` | Audit log of completed maintenance events |
 | `ClientTask` | Work items with status, priority, and due date; assigned to an `UptickUser` (technician) |
-| `ServiceQuote` | Proposals with a `ClientToken` (Guid) for public/unauthenticated viewing |
+| `Proposal` | FyreApp's own proposals, with a `ClientToken` (Guid) for public/unauthenticated viewing at `/q/{token}` (pages still under `/ServiceQuotes`); `ServiceQuote` is Uptick's sales quote |
 | `ApplicationUser` | A FyreApp login (`IdentityUser` + FirstName, LastName, IsActive), linked to the `UptickUser` it takes its name and email from |
 
 ### Authentication

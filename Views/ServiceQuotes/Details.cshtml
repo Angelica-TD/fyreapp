@@ -1,10 +1,10 @@
-@model FyreApp.ViewModels.ServiceQuotes.ServiceQuoteDetailsVm
+@model FyreApp.ViewModels.Proposals.ProposalDetailsVm
 @using FyreApp.Models
 
 @{
     ViewData["Title"] = $"Quote {Model.Quote.QuoteNumber}";
     var q = Model.Quote;
-    var canSend = q.Status is ServiceQuoteStatus.Draft or ServiceQuoteStatus.Sent;
+    var canSend = q.Status is ProposalStatus.Draft or ProposalStatus.Sent;
 }
 
 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
@@ -25,7 +25,7 @@
                     <button type="submit" class="btn btn-success"
                             onclick="return confirm('Send this quote to @Html.Raw(q.Client?.PrimaryContactEmail ?? q.Client?.Name ?? "the client")?')">
                         <i class="bi bi-send"></i>
-                        @(q.Status == ServiceQuoteStatus.Sent ? "Re-send to client" : "Send to client")
+                        @(q.Status == ProposalStatus.Sent ? "Re-send to client" : "Send to client")
                     </button>
                 </form>
             }
@@ -76,9 +76,9 @@
             }
             <div class="col-md-3">
                 <div class="text-muted small">Type</div>
-                <div>@(q.QuoteType == ServiceQuoteType.OneTime ? "One-Time" : "Routine / Contract")</div>
+                <div>@(q.QuoteType == ProposalType.OneTime ? "One-Time" : "Routine / Contract")</div>
             </div>
-            @if (q.QuoteType == ServiceQuoteType.Routine)
+            @if (q.QuoteType == ProposalType.Routine)
             {
                 <div class="col-md-3">
                     <div class="text-muted small">Interval</div>
@@ -166,7 +166,7 @@
                                 <label asp-for="Edit.QuoteType" class="form-label">Type</label>
                                 <select asp-for="Edit.QuoteType"
                                         class="form-select"
-                                        asp-items="Html.GetEnumSelectList<FyreApp.Models.ServiceQuoteType>()">
+                                        asp-items="Html.GetEnumSelectList<FyreApp.Models.ProposalType>()">
                                 </select>
                             </div>
                         </div>
@@ -181,7 +181,7 @@
                                 <label asp-for="Edit.Status" class="form-label">Status</label>
                                 <select asp-for="Edit.Status"
                                         class="form-select"
-                                        asp-items="Html.GetEnumSelectList<FyreApp.Models.ServiceQuoteStatus>()">
+                                        asp-items="Html.GetEnumSelectList<FyreApp.Models.ProposalStatus>()">
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -194,7 +194,7 @@
                                 <input asp-for="Edit.ExpiryDate" class="form-control" type="date" />
                             </div>
                         </div>
-                        <div class="row g-2 mb-2 @(Model.Edit.QuoteType == ServiceQuoteType.Routine ? "" : "d-none")" id="editIntervalRow">
+                        <div class="row g-2 mb-2 @(Model.Edit.QuoteType == ProposalType.Routine ? "" : "d-none")" id="editIntervalRow">
                             <div class="col-md-4">
                                 <label asp-for="Edit.MaintenanceIntervalId" class="form-label">Interval</label>
                                 <select asp-for="Edit.MaintenanceIntervalId" class="form-select"
@@ -221,13 +221,13 @@
 }
 
 @functions {
-    string StatusBadgeClass(ServiceQuoteStatus status) => status switch
+    string StatusBadgeClass(ProposalStatus status) => status switch
     {
-        ServiceQuoteStatus.Draft    => "bg-secondary",
-        ServiceQuoteStatus.Sent     => "bg-info text-dark",
-        ServiceQuoteStatus.Accepted => "bg-success",
-        ServiceQuoteStatus.Declined => "bg-danger",
-        ServiceQuoteStatus.Expired  => "bg-warning text-dark",
+        ProposalStatus.Draft    => "bg-secondary",
+        ProposalStatus.Sent     => "bg-info text-dark",
+        ProposalStatus.Accepted => "bg-success",
+        ProposalStatus.Declined => "bg-danger",
+        ProposalStatus.Expired  => "bg-warning text-dark",
         _                           => "bg-secondary"
     };
 }
@@ -240,7 +240,7 @@
     (function () {
         const quoteTypeSel = document.getElementById('Edit_QuoteType');
         const intervalRow  = document.getElementById('editIntervalRow');
-        const routineValue = '@((int)ServiceQuoteType.Routine)';
+        const routineValue = '@((int)ProposalType.Routine)';
 
         function toggleEditInterval() {
             intervalRow.classList.toggle('d-none', quoteTypeSel.value !== routineValue);

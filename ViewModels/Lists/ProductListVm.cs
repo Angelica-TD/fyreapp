@@ -11,6 +11,6 @@ public class ProductListVm
     public int Total { get; set; }
     public int Pages => ListFilters.Pages(Total);
 
-    public IReadOnlyList<(Product Product, IReadOnlyList<StockLevel> Stock)> Items { get; set; } = [];
+    public IReadOnlyList<(Product Product, IReadOnlyList<Stock> Stock)> Items { get; set; } = [];
     public IReadOnlyList<Warehouse> Warehouses { get; set; } = [];
 }

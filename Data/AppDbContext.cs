@@ -42,7 +42,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<MaintenanceHistory> MaintenanceHistory => Set<MaintenanceHistory>();
     public DbSet<ClientTask> ClientTasks => Set<ClientTask>();
     public DbSet<AssetCatalogue> AssetCatalogue => Set<AssetCatalogue>();
-    public DbSet<ServiceQuote> ServiceQuotes => Set<ServiceQuote>();
+    public DbSet<Proposal> Proposals => Set<Proposal>();
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
     public DbSet<ServiceType> ServiceTypes => Set<ServiceType>();
     public DbSet<Quote> Quotes => Set<Quote>();
@@ -71,13 +71,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
     public DbSet<DefectQuote> DefectQuotes => Set<DefectQuote>();
-    public DbSet<SalesQuote> SalesQuotes => Set<SalesQuote>();
+    public DbSet<ServiceQuote> ServiceQuotes => Set<ServiceQuote>();
     public DbSet<PropertySchedule> PropertySchedules => Set<PropertySchedule>();
     public DbSet<FormResponse> FormResponses => Set<FormResponse>();
     public DbSet<Accreditation> Accreditations => Set<Accreditation>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
-    public DbSet<StockLevel> StockLevels => Set<StockLevel>();
+    public DbSet<Stock> Stocks => Set<Stock>();
     public DbSet<ServiceTask> ServiceTasks => Set<ServiceTask>();
     public DbSet<UptickRecord> UptickRecords => Set<UptickRecord>();
     public DbSet<UptickEndpointState> UptickEndpointStates => Set<UptickEndpointState>();
@@ -388,7 +388,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .UsingEntity(j => j.ToTable("ServiceOfferingIntervals"));
         });
 
-        modelBuilder.Entity<ServiceQuote>(entity =>
+        modelBuilder.Entity<Proposal>(entity =>
         {
             entity.HasOne(q => q.Client)
                 .WithMany()
@@ -676,7 +676,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         foreach (var type in new[]
                  {
                      typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem), typeof(Invoice), typeof(CreditNote),
-                     typeof(DefectQuote), typeof(SalesQuote), typeof(FormResponse), typeof(Accreditation), typeof(Product), typeof(Warehouse)
+                     typeof(DefectQuote), typeof(ServiceQuote), typeof(FormResponse), typeof(Accreditation), typeof(Product), typeof(Warehouse)
                  })
             modelBuilder.Entity(type).HasIndex(nameof(IUptickRecord.ExternalId)).IsUnique();
         modelBuilder.Entity<BillingContract>().HasIndex(c => c.PropertyRef);
@@ -692,10 +692,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(q => q.PropertyRef);
             entity.HasIndex(q => q.Reference);
         });
-        modelBuilder.Entity<SalesQuote>().HasIndex(q => q.PropertyName);
+        modelBuilder.Entity<ServiceQuote>().HasIndex(q => q.PropertyName);
         modelBuilder.Entity<PropertySchedule>().HasIndex(s => s.PropertyRef);
         modelBuilder.Entity<FormResponse>().HasIndex(f => new { f.TargetContentType, f.TargetObjectId });
-        modelBuilder.Entity<StockLevel>().HasIndex(s => s.Product);
+        modelBuilder.Entity<Stock>().HasIndex(s => s.Product);
 
         modelBuilder.Entity<RoutineService>(entity =>
         {
@@ -752,8 +752,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                      typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(Routine),
                      typeof(Contractor), typeof(Supplier), typeof(UptickUser), typeof(ExtraField), typeof(PromptQuestion),
                      typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem), typeof(Invoice), typeof(CreditNote),
-                     typeof(DefectQuote), typeof(SalesQuote), typeof(PropertySchedule), typeof(FormResponse), typeof(Accreditation),
-                     typeof(Product), typeof(Warehouse), typeof(StockLevel)
+                     typeof(DefectQuote), typeof(ServiceQuote), typeof(PropertySchedule), typeof(FormResponse), typeof(Accreditation),
+                     typeof(Product), typeof(Warehouse), typeof(Stock)
                  })
         {
             modelBuilder.Entity(type).Property<string?>("UptickData").HasColumnType("json");

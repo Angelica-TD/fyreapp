@@ -56,7 +56,7 @@ public class PropertyPageVm
 
     // Records tab: service reports, Uptick's quotes and the property's schedules
     public IReadOnlyList<DefectQuote> DefectQuotes { get; init; } = [];
-    public IReadOnlyList<SalesQuote> SalesQuotes { get; init; } = [];
+    public IReadOnlyList<ServiceQuote> ServiceQuotes { get; init; } = [];
     public IReadOnlyList<PropertySchedule> Schedules { get; init; } = [];
 
     // Records tab (service reports) and Tasks tab

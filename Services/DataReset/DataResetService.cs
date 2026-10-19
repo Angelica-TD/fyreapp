@@ -69,7 +69,7 @@ public class DataResetService : IDataResetService
         {
             ("Quote line items", await _db.QuoteLineItems.CountAsync(ct)),
             ("Quotes", await _db.Quotes.CountAsync(ct)),
-            ("Service quotes", await _db.ServiceQuotes.CountAsync(ct)),
+            ("Service quotes", await _db.Proposals.CountAsync(ct)),
             ("Task assets", await _db.ServiceTasks.CountAsync(ct)),
             ("Tasks", await _db.ClientTasks.CountAsync(ct)),
             ("Maintenance history", await _db.MaintenanceHistory.CountAsync(ct)),
@@ -87,7 +87,7 @@ public class DataResetService : IDataResetService
             ("Billing contracts", await _db.BillingContracts.CountAsync(ct)),
             ("Billing cards", await _db.BillingCards.CountAsync(ct)),
             ("Defect quotes (Uptick)", await _db.DefectQuotes.CountAsync(ct)),
-            ("Sales quotes (Uptick)", await _db.SalesQuotes.CountAsync(ct)),
+            ("Sales quotes (Uptick)", await _db.ServiceQuotes.CountAsync(ct)),
             ("Property schedules", await _db.PropertySchedules.CountAsync(ct)),
             ("Form responses", await _db.FormResponses.CountAsync(ct)),
             ("Assets", await _db.Assets.CountAsync(ct)),
@@ -117,7 +117,7 @@ public class DataResetService : IDataResetService
             ("Accreditations", await _db.Accreditations.CountAsync(ct)),
             ("Products", await _db.Products.CountAsync(ct)),
             ("Warehouses", await _db.Warehouses.CountAsync(ct)),
-            ("Stock levels", await _db.StockLevels.CountAsync(ct))
+            ("Stock levels", await _db.Stocks.CountAsync(ct))
         };
 
     public async Task<IReadOnlyList<(string Table, int Count)>> ResetAsync(string? userName, CancellationToken ct = default)
@@ -136,7 +136,7 @@ public class DataResetService : IDataResetService
         {
             ("Quote line items", await _db.QuoteLineItems.ExecuteDeleteAsync(ct)),
             ("Quotes", await _db.Quotes.ExecuteDeleteAsync(ct)),
-            ("Service quotes", await _db.ServiceQuotes.ExecuteDeleteAsync(ct)),
+            ("Service quotes", await _db.Proposals.ExecuteDeleteAsync(ct)),
             ("Task assets", await _db.ServiceTasks.ExecuteDeleteAsync(ct)),
             ("Tasks", await _db.ClientTasks.ExecuteDeleteAsync(ct)),
             ("Maintenance history", await _db.MaintenanceHistory.ExecuteDeleteAsync(ct)),
@@ -154,7 +154,7 @@ public class DataResetService : IDataResetService
             ("Billing contracts", await _db.BillingContracts.ExecuteDeleteAsync(ct)),
             ("Billing cards", await _db.BillingCards.ExecuteDeleteAsync(ct)),
             ("Defect quotes (Uptick)", await _db.DefectQuotes.ExecuteDeleteAsync(ct)),
-            ("Sales quotes (Uptick)", await _db.SalesQuotes.ExecuteDeleteAsync(ct)),
+            ("Sales quotes (Uptick)", await _db.ServiceQuotes.ExecuteDeleteAsync(ct)),
             ("Property schedules", await _db.PropertySchedules.ExecuteDeleteAsync(ct)),
             ("Form responses", await _db.FormResponses.ExecuteDeleteAsync(ct)),
             ("Assets", await _db.Assets.ExecuteDeleteAsync(ct)),

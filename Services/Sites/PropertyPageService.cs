@@ -79,7 +79,7 @@ public class PropertyPageService : IPropertyPageService
                     .Where(q => q.PropertyRef == site.ExternalId)
                     .OrderByDescending(q => q.Date)
                     .ToListAsync(ct),
-                SalesQuotes = await _db.SalesQuotes.AsNoTracking()
+                ServiceQuotes = await _db.ServiceQuotes.AsNoTracking()
                     .Where(q => q.PropertyName == site.Name)
                     .OrderByDescending(q => q.Created)
                     .ToListAsync(ct),

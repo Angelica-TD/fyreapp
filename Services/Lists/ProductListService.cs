@@ -37,13 +37,13 @@ public class ProductListService : IProductListService
         var products = await q.Skip((page - 1) * ListFilters.PageSize).Take(ListFilters.PageSize).ToListAsync(ct);
 
         var names = products.Select(p => p.Name).ToList();
-        var stock = (await _db.StockLevels.AsNoTracking().Where(s => names.Contains(s.Product)).ToListAsync(ct))
+        var stock = (await _db.Stocks.AsNoTracking().Where(s => names.Contains(s.Product)).ToListAsync(ct))
             .ToLookup(s => s.Product);
 
         return new ProductListVm
         {
             Search = search, Active = active, Page = page, Total = total,
-            Items = products.Select(p => (p, (IReadOnlyList<StockLevel>)stock[p.Name].OrderBy(s => s.Warehouse).ToList())).ToList(),
+            Items = products.Select(p => (p, (IReadOnlyList<Stock>)stock[p.Name].OrderBy(s => s.Warehouse).ToList())).ToList(),
             Warehouses = await _db.Warehouses.AsNoTracking().OrderBy(w => w.Type).ThenBy(w => w.Name).ToListAsync(ct)
         };
     }
