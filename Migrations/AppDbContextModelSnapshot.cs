@@ -907,6 +907,10 @@ namespace FyreApp.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<string>("ScopeOfWorks")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -917,6 +921,9 @@ namespace FyreApp.Migrations
 
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("UptickTechnician")
                         .HasMaxLength(200)
@@ -943,6 +950,9 @@ namespace FyreApp.Migrations
                     b.HasIndex("PropertyId");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
 
                     b.ToTable("ClientTasks");
                 });
@@ -2732,23 +2742,59 @@ namespace FyreApp.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AssetId")
+                    b.Property<int?>("AssetId")
                         .HasColumnType("integer");
 
                     b.Property<int>("ClientTaskId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PerformedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Result")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
 
                     b.Property<string>("Routine")
                         .IsRequired()
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<int?>("RoutineServiceLevelId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TechnicianId")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("UptickProductId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("UptickRemarkId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("UptickRoutineId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AssetId");
 
-                    b.HasIndex("ClientTaskId", "AssetId", "Routine")
+                    b.HasIndex("RoutineServiceLevelId");
+
+                    b.HasIndex("TechnicianId");
+
+                    b.HasIndex("UptickId")
                         .IsUnique();
+
+                    b.HasIndex("ClientTaskId", "AssetId", "Routine")
+                        .IsUnique()
+                        .HasFilter("\"UptickId\" IS NULL");
 
                     b.ToTable("ServiceTasks");
                 });
@@ -3870,8 +3916,7 @@ namespace FyreApp.Migrations
                     b.HasOne("FyreApp.Models.Asset", "Asset")
                         .WithMany()
                         .HasForeignKey("AssetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
                         .WithMany("Assets")
@@ -3879,9 +3924,23 @@ namespace FyreApp.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("FyreApp.Models.RoutineServiceLevel", "RoutineServiceLevel")
+                        .WithMany()
+                        .HasForeignKey("RoutineServiceLevelId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.UptickUser", "Technician")
+                        .WithMany()
+                        .HasForeignKey("TechnicianId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Asset");
 
                     b.Navigation("ClientTask");
+
+                    b.Navigation("RoutineServiceLevel");
+
+                    b.Navigation("Technician");
                 });
 
             modelBuilder.Entity("FyreApp.Models.ServiceType", b =>

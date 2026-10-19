@@ -74,6 +74,13 @@ public sealed class UptickRaw
                 ? n
                 : null;
 
+    // A relationship's id as text, for ones that aren't numbers (a task's status: "COMPLETE")
+    public string? RelText(string name) =>
+        Get(R, name) is { ValueKind: JsonValueKind.Object } rel && rel.TryGetProperty("data", out var d)
+            && d.ValueKind == JsonValueKind.Object && d.TryGetProperty("id", out var id)
+                ? id.ToString()
+                : null;
+
     public static JsonElement Get(JsonElement o, string name) =>
         o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out var v) ? v : default;
 

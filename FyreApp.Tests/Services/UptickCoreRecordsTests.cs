@@ -55,7 +55,8 @@ public class UptickCoreRecordsTests
     private static UptickMapping Mapping(AppDbContext db) => new(db,
         [new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
             new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db),
-            new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db), new TimelineEventMapper(db)],
+            new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db),
+            new TaskMapper(db), new ServiceTaskMapper(db), new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
     // Every mapper in order, as a run ends
@@ -481,5 +482,84 @@ public class UptickCoreRecordsTests
         Assert.Equal(("1.02 - Battery missing", "Critical defect", true, (await db.AssetTypes.SingleAsync()).Id),
             (remarkType.Label, remarkType.SeverityLabel, remarkType.OwnerResponsible, remarkType.AssetTypeId!.Value));
         Assert.Equal(remarkType.Id, (await db.Remarks.SingleAsync()).RemarkTypeId);
+    }
+
+    private static UptickRecord RawTask(string id, string? propertyId, string status = "COMPLETE", string? assignedTo = null) => Raw("tasks", id,
+        "{\"ref\":\"T-" + id + "\",\"name\":\"PM2026/10 Servicing - Portables & Fire Equipment\",\"description\":\"Oct 2026 PM\"," +
+        "\"scope_of_works\":\"- 09 - Fire Hose Reels (Section 9): Annual\",\"due\":\"2026-10-31\",\"priority\":5," +
+        "\"created\":\"2026-10-15T11:42:34+11:00\",\"is_active\":" + (status == "COMPLETE" ? "false" : "true") + "," +
+        "\"status_changed_complete\":\"2026-10-15T15:22:53+11:00\",\"status_changed_inspected\":\"2026-10-15T15:15:25+11:00\"," +
+        "\"invoice_note\":\"As per quote Q-2790\",\"technician_note\":\"\"}",
+        "{\"status\":{\"data\":{\"id\":\"" + status + "\",\"type\":\"TaskStatus\"}},\"category\":" + To("TaskCategory", "1") +
+        ",\"property\":" + To("Property", propertyId) + ",\"client\":" + To("Client", "2806") + ",\"assigned_to\":" + To("User", assignedTo) +
+        ",\"servicegroup\":" + To("ServiceGroup", "4") + "}");
+
+    private static UptickRecord RawServiceTask(string id, string taskId, string? assetId, string? levelId, string result = "P") => Raw("servicetasks", id,
+        "{\"result\":\"" + result + "\",\"performed_date\":\"2026-10-15T15:15:18+11:00\",\"notes\":\"\"}",
+        "{\"task\":" + To("Task", taskId) + ",\"item\":" + To("Asset", assetId) + ",\"routineserviceleveltype\":" + To("RoutineServiceLevelType", levelId) +
+        ",\"technician\":" + To("User", "371") + ",\"routine\":" + To("Routine", "165899") + ",\"product\":" + To("Product", assetId == null ? "905" : null) + "}");
+
+    [Fact]
+    public async Task Tasks_and_their_service_tasks_are_mapped_and_the_task_page_shows_Upticks_fields()
+    {
+        await using var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"),
+            RawUser("371", "Wes Speedon (Field Tech)", "wes@fyrepower.com.au", "FIELD"),
+            Raw("taskcategories", "1", """{"name":"I&T"}"""), Raw("servicegroups", "4", """{"name":"Servicing - Portables & Fire Equipment"}"""),
+            RawAssetType("10", "Fire Hose Reel"), RawAsset("42896", "1491", "10"),
+            Raw("routineservicetypes", "9", """{"name":"09 - Fire Hose Reels","is_active":true}"""),
+            Raw("routineserviceleveltypes", "44", """{"name":"Annual","interval":12,"frequency":"M","is_active":true}""",
+                "{\"routineservicetype\":" + To("RoutineServiceType", "9") + "}"),
+            RawTask("46781", "1491", assignedTo: "371"), RawTask("46790", null, status: "READY"),
+            RawServiceTask("216732", "46781", "42896", "44"), RawServiceTask("216733", "46781", null, null),
+            RawServiceTask("216734", "99999", "42896", "44"));
+        await db.SaveChangesAsync();
+
+        var results = await MapAllAsync(db);
+        Assert.Equal(2, results["tasks"].Mapped);
+        Assert.Equal((2, 1), (results["servicetasks"].Mapped!.Value, results["servicetasks"].MapFailed));
+        Assert.Contains("216734: Its task (99999) isn't in FyreApp.", results["servicetasks"].MapErrors);
+
+        var property = await db.Properties.SingleAsync(p => p.UptickId == 1491);
+        var task = await db.ClientTasks.Include(t => t.AssignedTo).SingleAsync(t => t.UptickId == 46781);
+        Assert.Equal(("T-46781", "46781", property.Id, property.ClientId, "I&T", ClientTaskStatus.Completed, false),
+            (task.Ref, task.ExternalId, task.PropertyId, task.ClientId, task.Category, task.Status, task.IsActive));
+        Assert.Equal(("Wes Speedon (Field Tech)", "Wes Speedon (Field Tech)", "- 09 - Fire Hose Reels (Section 9): Annual"),
+            (task.AssignedTo!.Name, task.UptickTechnician, task.ScopeOfWorks));
+        Assert.Equal((new DateTime(2026, 10, 31, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 10, 15, 4, 22, 53, DateTimeKind.Utc)),
+            (task.DueDateUtc!.Value, task.CompletedUtc!.Value));
+
+        // No property in Uptick: on the placeholder property, as the tasks export did
+        var orphan = await db.ClientTasks.Include(t => t.Property).SingleAsync(t => t.UptickId == 46790);
+        Assert.Equal((FyreApp.Services.Imports.Uptick.TaskImporter.NoPropertySiteName, ClientTaskStatus.Open), (orphan.Property.Name, orphan.Status));
+
+        var lines = await db.ServiceTasks.OrderBy(s => s.UptickId).ToListAsync();
+        Assert.Equal(("09 - Fire Hose Reels: Annual", "Pass", (await db.Assets.SingleAsync()).Id, 165899L),
+            (lines[0].Routine, lines[0].Result, lines[0].AssetId!.Value, lines[0].UptickRoutineId!.Value));
+        Assert.Equal((null, 905L), (lines[1].AssetId, lines[1].UptickProductId!.Value));
+
+        var fields = await FyreApp.Services.Tasks.TaskUptickFields.ForAsync(db, task, CancellationToken.None);
+        Assert.Equal(("COMPLETE", "As per quote Q-2790", "Servicing - Portables & Fire Equipment", "2026-10-15"),
+            (fields["Status"], fields["Invoice Note"], fields["Service Group"], fields["Performed Date"]));
+        Assert.False(fields.ContainsKey("Technician Note"));
+    }
+
+    [Fact]
+    public async Task A_task_the_tasks_export_placed_is_updated_and_keeps_its_export_only_columns()
+    {
+        await using var db = DbContextFactory.Create();
+        var client = new Client { Name = "Allied", UptickId = 2806, ExternalId = "2806" };
+        var property = new Property { Name = "Big River", UptickId = 1491, ExternalId = "P-0016", Client = client };
+        var task = new ClientTask { Client = client, Property = property, Title = "Old", ExternalId = "46781", UptickData = """{"Tags":"Urgent","Status":"READY"}""" };
+        db.AddRange(client, property, task);
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"), RawTask("46781", "1491"));
+        await db.SaveChangesAsync();
+
+        await MapAllAsync(db);
+
+        var mapped = await db.ClientTasks.SingleAsync();
+        Assert.Equal((task.Id, 46781L, "PM2026/10 Servicing - Portables & Fire Equipment"), (mapped.Id, mapped.UptickId!.Value, mapped.Title));
+        var fields = await FyreApp.Services.Tasks.TaskUptickFields.ForAsync(db, mapped, CancellationToken.None);
+        Assert.Equal(("Urgent", "COMPLETE"), (fields["Tags"], fields["Status"]));
     }
 }

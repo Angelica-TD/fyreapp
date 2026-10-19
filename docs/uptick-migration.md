@@ -439,7 +439,15 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      each property, mapped with routine services in 4e), `remarktypes` → RemarkType (severity shown as Uptick
      names it: 0 Informational, 1 Recommendation, 2 Non-conformance, 5 Non-critical defect, 10 Critical defect).
      Types and levels the exports made by name are claimed by name; file-imported remarks are linked to their type.
-   - 4c: `tasks` → ClientTask, `servicetasks` → ServiceTask.
+   - 4c (done): `tasks` → ClientTask (`UptickId`, `ScopeOfWorks` as a column), `servicetasks` → ServiceTask
+     (`UptickId`, result, performed date, technician, routine level; no asset for a line of stock used, and the
+     task + asset + routine uniqueness only for the lines FyreApp generates). A task is assigned to its
+     `assigned_to` user (else `technician`); one with no property goes on the "No property" placeholder, routine
+     (I&T) tasks link to and roll forward FyreApp's maintenance schedules, and remarks and reports imported
+     earlier are linked, all as the tasks export did. The task page reads what only Uptick has (status, notes,
+     authorisation, service group, …) from the task's raw copy (`TaskUptickFields`), over its export row. The
+     tasks file import is off. A service task's routine, remark and product are kept as Uptick ids for 4d, 4e and
+     phase 5.
    - 4d: `remarks`, `reports`, linked to their task by ID (`RepairTaskExternalId` / `TaskExternalId` go).
    - 4e: `routines`, `routineservices` (+ `routineservicelevels`); the file imports for all of these turned off.
 5. **Commercial:** defect quotes, sales quotes, invoices, credit notes, billing, products, stock.
