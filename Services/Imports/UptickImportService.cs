@@ -37,6 +37,9 @@ public class UptickImportService : IUptickImportService
         (UptickExportType.Tasks, "Tasks", new[] { "Ref", "Category", "Scope of works", "Property Ref", "Due" }),
         (UptickExportType.Remarks, "Remarks", new[] { "Remark Type", "Property Ref", "Severity", "Resolution" }),
         (UptickExportType.Reports, "Reports", new[] { "Report Type", "Property Ref", "Issued", "Inspected" }),
+        (UptickExportType.Products, "Products", new[] { "Unit Description", "Default Price", "Stocked" }),
+        (UptickExportType.Warehouses, "Warehouses", new[] { "Manager", "Reserved (Incoming Stock)", "Stock Value" }),
+        (UptickExportType.Stocks, "Stock", new[] { "Warehouse", "On Hand", "Restock Level" }),
     };
 
     public static string FromApiMessage(string name) =>

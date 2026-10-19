@@ -126,9 +126,10 @@ public class Accreditation : IUptickRecord
 }
 
 // Something Uptick sells or uses (Uptick "products" export)
-public class Product : IUptickRecord
+public class Product : IUptickRecord, IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
 
     [Required, StringLength(300)] public string Name { get; set; } = string.Empty;
@@ -163,9 +164,10 @@ public class Product : IUptickRecord
 }
 
 // A stock location (Uptick "warehouses" export): the warehouse or a technician's van
-public class Warehouse : IUptickRecord
+public class Warehouse : IUptickRecord, IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
 
     [Required, StringLength(200)] public string Name { get; set; } = string.Empty;
@@ -179,11 +181,17 @@ public class Warehouse : IUptickRecord
     public string? UptickData { get; set; }
 }
 
-// How much of a product a warehouse holds (Uptick "annotated stocks" export). The export has no IDs, so each
-// import replaces the lot: it's a snapshot.
-public class Stock
+// How much of a product a warehouse holds (Uptick's stock). The annotated stocks export had no IDs, so each import
+// replaced the lot as a snapshot; from the API each has its id and links to its product and warehouse.
+public class Stock : IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
+
+    public int? ProductId { get; set; }
+    public Product? ProductRecord { get; set; }
+    public int? WarehouseId { get; set; }
+    public Warehouse? WarehouseRecord { get; set; }
 
     [Required, StringLength(200)] public string Warehouse { get; set; } = string.Empty;
     [Required, StringLength(300)] public string Product { get; set; } = string.Empty;
