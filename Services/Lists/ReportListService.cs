@@ -18,9 +18,9 @@ public class ReportListService : IReportListService
     private readonly AppDbContext _db;
     public ReportListService(AppDbContext db) => _db = db;
 
-    private IQueryable<ServiceReport> Filtered(ReportFilter filter)
+    private IQueryable<Report> Filtered(ReportFilter filter)
     {
-        var q = _db.ServiceReports.AsQueryable();
+        var q = _db.Reports.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {

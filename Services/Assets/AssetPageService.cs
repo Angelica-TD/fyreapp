@@ -45,7 +45,7 @@ public class AssetPageService : IAssetPageService
         tab = AssetPageVm.NormaliseTab(tab);
 
         // Uptick's severity: higher is worse (10 critical defect … 0 informational)
-        var defects = await _db.Defects.AsNoTracking()
+        var defects = await _db.Remarks.AsNoTracking()
             .Where(d => d.AssetId == id)
             .OrderByDescending(d => d.Active).ThenByDescending(d => d.RaisedUtc)
             .ToListAsync(ct);
@@ -55,9 +55,9 @@ public class AssetPageService : IAssetPageService
         {
             Asset = asset,
             Tab = tab,
-            MostSevereOpenDefect = open.FirstOrDefault(),
-            OpenDefects = open,
-            Defects = defects,
+            MostSevereOpenRemark = open.FirstOrDefault(),
+            OpenRemarks = open,
+            Remarks = defects,
             LastServiceBy = tab == "asset" ? await LastServiceByAsync(asset, ct) : null,
             Timeline = tab == "asset" ? await _timeline.ForAssetAsync(asset, notesOnly, ct) : [],
             NotesOnly = notesOnly,
@@ -71,7 +71,7 @@ public class AssetPageService : IAssetPageService
         asset.LastServicedById is { } userId
             ? await _db.UptickUsers.AsNoTracking().Where(u => u.Id == userId).Select(u => u.Name).FirstOrDefaultAsync(ct)
         : asset.LastServiceDate is not { } date ? null
-        : await _db.ServiceReports.AsNoTracking()
+        : await _db.Reports.AsNoTracking()
             .Where(r => r.PropertyId == asset.PropertyId && r.InspectedDate == date && r.Technician != null)
             .OrderByDescending(r => r.IssuedDate)
             .Select(r => r.Technician)

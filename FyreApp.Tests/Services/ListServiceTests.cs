@@ -46,10 +46,10 @@ public class ListServiceTests
         var asset = new Asset { Name = "4 - DCP AB(E) 4.5KG", Property = active };
         var retired = new Asset { Name = "Retired", Property = active, IsActive = false };
 
-        Defect D(string id, Property site, Asset? a, string severity, bool open = true) =>
+        Remark D(string id, Property site, Asset? a, string severity, bool open = true) =>
             new() { ExternalId = id, Property = site, Asset = a, SeverityLabel = severity, Active = open, RemarkType = "00 - Asset Failed" };
 
-        db.Defects.AddRange(
+        db.Remarks.AddRange(
             D("54214", active, asset, "Non-conformance"),                 // shown
             D("54280", active, asset, "Critical defect"),                 // shown (newest)
             D("9999", active, asset, "Non-critical defect"),              // shown (numerically lowest)
@@ -72,10 +72,10 @@ public class ListServiceTests
     {
         using var db = DbContextFactory.Create();
         var (active, _) = await SeedAsync(db);
-        db.ServiceReports.AddRange(
-            new ServiceReport { ExternalId = "52331", Ref = "R-52331", Property = active, ReportType = "Service Report", Compliant = false },
-            new ServiceReport { ExternalId = "9000", Ref = "R-09000", Property = active, ReportType = "Service Report", Compliant = true },
-            new ServiceReport { ExternalId = "52362", Ref = "R-52362", Property = active, ReportType = "Service Report", Compliant = true });
+        db.Reports.AddRange(
+            new Report { ExternalId = "52331", Ref = "R-52331", Property = active, ReportType = "Service Report", Compliant = false },
+            new Report { ExternalId = "9000", Ref = "R-09000", Property = active, ReportType = "Service Report", Compliant = true },
+            new Report { ExternalId = "52362", Ref = "R-52362", Property = active, ReportType = "Service Report", Compliant = true });
         await db.SaveChangesAsync();
 
         var result = await new ReportListService(db).SearchAsync(new ReportFilter());
@@ -103,9 +103,9 @@ public class ListServiceTests
     }
 
     [Fact]
-    public void Defect_DisplayRef_IsUptickStyle()
+    public void Remark_DisplayRef_IsUptickStyle()
     {
-        Assert.Equal("D-54214", new Defect { ExternalId = "54214" }.DisplayRef);
-        Assert.Equal("FD-1001", new Defect { FyreRef = "FD-1001" }.DisplayRef);
+        Assert.Equal("D-54214", new Remark { ExternalId = "54214" }.DisplayRef);
+        Assert.Equal("FD-1001", new Remark { FyreRef = "FD-1001" }.DisplayRef);
     }
 }

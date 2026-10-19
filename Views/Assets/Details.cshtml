@@ -3,7 +3,7 @@
 @using FyreApp.ViewModels.Assets
 
 @* The asset page, laid out like Uptick's: the property's title, the asset on the left,
-   Asset / Defect history / Service History tabs on the right *@
+   Asset / Remark history / Service History tabs on the right *@
 @{
     var a = Model.Asset;
     var site = a.Property;
@@ -52,7 +52,7 @@
                             @if (a.InactiveDate is { } off) { <span class="text-muted small">since @off.ToSydney().ToOrdinalDate()</span> }
                         </div>
                     }
-                    @if (Model.MostSevereOpenDefect is { } worst)
+                    @if (Model.MostSevereOpenRemark is { } worst)
                     {
                         <div>
                             <span class="badge text-uppercase @RemarkSeverity.BadgeCss(worst.Severity)">@(worst.SeverityLabel ?? "Defect")</span>
@@ -119,7 +119,7 @@
                 case "defects":
                     <div class="card property-card">
                         <div class="card-header"><span>Defect history</span></div>
-                        @if (!Model.Defects.Any())
+                        @if (!Model.Remarks.Any())
                         {
                             <div class="card-body text-muted fst-italic">No defects …</div>
                         }
@@ -131,7 +131,7 @@
                                         <tr><th></th><th>ID</th><th>Identified</th><th>Severity</th><th>Remark</th><th>Location</th><th>Resolved</th><th>Quotes</th></tr>
                                     </thead>
                                     <tbody>
-                                        @foreach (var d in Model.Defects)
+                                        @foreach (var d in Model.Remarks)
                                         {
                                             <tr>
                                                 <td>
@@ -212,11 +212,11 @@
                                     <tr><th>Severity</th><th>ID</th><th>Identified</th><th>Remark</th><th>Quotes</th></tr>
                                 </thead>
                                 <tbody>
-                                    @if (!Model.OpenDefects.Any())
+                                    @if (!Model.OpenRemarks.Any())
                                     {
                                         <tr><td colspan="5" class="text-muted fst-italic">No open defects …</td></tr>
                                     }
-                                    @foreach (var d in Model.OpenDefects)
+                                    @foreach (var d in Model.OpenRemarks)
                                     {
                                         <tr>
                                             <td><span class="badge text-uppercase @RemarkSeverity.BadgeCss(d.Severity)">@(d.SeverityLabel ?? "-")</span></td>

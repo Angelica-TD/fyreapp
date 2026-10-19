@@ -14,8 +14,8 @@ public class TaskPageVm
     public string Tab { get; set; } = "task";
 
     // Reports done on this task, remarks it repairs, and routines it was generated from
-    public IReadOnlyList<ServiceReport> Reports { get; set; } = [];
-    public IReadOnlyList<Defect> Repairs { get; set; } = [];
+    public IReadOnlyList<Report> Reports { get; set; } = [];
+    public IReadOnlyList<Remark> Repairs { get; set; } = [];
     public IReadOnlyList<string> Routines { get; set; } = [];
 
     // The routines its Work tab lists assets for: the ones it was generated from, or for imported Uptick tasks
@@ -26,10 +26,10 @@ public class TaskPageVm
     public IReadOnlyList<(string Routine, Asset Asset)> ServiceAssets { get; set; } = [];
 
     // Its routines (Work tab's Asset Maintenance summary), each with its routine record (ID, due date) when found
-    public IReadOnlyList<(string Routine, RoutineOccurrence? Occurrence)> Visits { get; set; } = [];
+    public IReadOnlyList<(string Routine, Routine? Occurrence)> Visits { get; set; } = [];
 
     // Remarks identified or resolved on this task (Work tab's Remark registry), and each serviced asset's open remarks
-    public IReadOnlyList<(Defect Remark, bool Resolved)> Remarks { get; set; } = [];
+    public IReadOnlyList<(Remark Remark, bool Resolved)> Remarks { get; set; } = [];
     public IReadOnlyDictionary<int, int> OpenRemarks { get; set; } = new Dictionary<int, int>();
 
     // The assets serviced on this task, with the date (their last service, claimed by this task: see TaskPageService)

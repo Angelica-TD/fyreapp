@@ -22,10 +22,10 @@ public class PropertyPageServiceTests
             new Asset { Property = site, Name = "020 - Fire Hose Reel", InspectionOrder = 20, AssetTypes = { hoseReel } },
             new Asset { Property = site, Name = "018 - DCP 4.5KG", InspectionOrder = 0, AssetTypes = { extinguisher } },
             new Asset { Property = site, Name = "Old extinguisher", IsActive = false, AssetTypes = { extinguisher } });
-        db.Defects.AddRange(
-            new Defect { Property = site, Severity = 2, SeverityLabel = "Non-conformance", Active = true, RaisedUtc = Utc("2026-10-07 04:00"), Description = "Signage missing" },
-            new Defect { Property = site, Severity = 0, SeverityLabel = "Informational", Active = true, RaisedUtc = Utc("2026-10-01 04:00") },
-            new Defect { Property = site, Severity = 10, SeverityLabel = "Critical defect", Active = false, RaisedUtc = Utc("2026-01-01 04:00"), InactiveUtc = Utc("2026-02-01 04:00") });
+        db.Remarks.AddRange(
+            new Remark { Property = site, Severity = 2, SeverityLabel = "Non-conformance", Active = true, RaisedUtc = Utc("2026-10-07 04:00"), Description = "Signage missing" },
+            new Remark { Property = site, Severity = 0, SeverityLabel = "Informational", Active = true, RaisedUtc = Utc("2026-10-01 04:00") },
+            new Remark { Property = site, Severity = 10, SeverityLabel = "Critical defect", Active = false, RaisedUtc = Utc("2026-01-01 04:00"), InactiveUtc = Utc("2026-02-01 04:00") });
         db.ClientTasks.Add(new ClientTask
         {
             Client = site.Client, Property = site, Title = "PM2026/04 Servicing", Ref = "T-31713",
@@ -35,7 +35,7 @@ public class PropertyPageServiceTests
         return site;
     }
 
-    private static PropertyPageService Sut(AppDbContext db) => new(db, new RoutineService(db), new TimelineService(db));
+    private static PropertyPageService Sut(AppDbContext db) => new(db, new RoutineListService(db), new TimelineService(db));
 
     [Fact]
     public async Task Summary_ShowsTheMostSevereOpenRemark()

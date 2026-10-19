@@ -69,14 +69,14 @@ public class UptickDetailsImportTests
         await db.SaveChangesAsync();
 
         await ImportRoutines(db, "1,10 - Extinguishers: Annual,2026-10-31,,,P,,Magidale,P-0152,Magidale Pty Ltd,Servicing,,0:30:00,Dwayne Page");
-        var o = await db.RoutineOccurrences.SingleAsync();
+        var o = await db.Routines.SingleAsync();
         Assert.Equal(("Dwayne Page", 30), (o.DefaultTechnician, o.EstimatedMinutes));
 
         // Same status, new technician in Uptick
         var second = await ImportRoutines(db, "1,10 - Extinguishers: Annual,2026-10-31,,,P,,Magidale,P-0152,Magidale Pty Ltd,Servicing,Auscoast,1:15:00,Neil");
 
         Assert.Equal(1, second.OccurrencesUpdated);
-        Assert.Equal(("Neil", "Auscoast", 75, RoutineOccurrenceStatus.Pending), (o.DefaultTechnician, o.Subcontractor, o.EstimatedMinutes, o.Status));
+        Assert.Equal(("Neil", "Auscoast", 75, RoutineStatus.Pending), (o.DefaultTechnician, o.Subcontractor, o.EstimatedMinutes, o.Status));
     }
 
     [Theory]
@@ -92,15 +92,15 @@ public class UptickDetailsImportTests
     {
         using var db = DbContextFactory.Create();
         var site = new Property { Name = "Camajay", Client = new Client { Name = "Camajay" } };
-        RoutineOccurrence O(string due, string? tech, int? minutes) => new()
+        Routine O(string due, string? tech, int? minutes) => new()
         {
-            Property = site, Routine = "10 - Extinguishers: Six-monthly", ServiceGroup = "Servicing",
+            Property = site, Name = "10 - Extinguishers: Six-monthly", ServiceGroup = "Servicing",
             DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), DefaultTechnician = tech, EstimatedMinutes = minutes
         };
-        db.RoutineOccurrences.AddRange(O("2026-04-30", "Neil", 30), O("2026-10-31", "Neil", 60), O("2026-06-30", null, null));
+        db.Routines.AddRange(O("2026-04-30", "Neil", 30), O("2026-10-31", "Neil", 60), O("2026-06-30", null, null));
         await db.SaveChangesAsync();
 
-        var group = Assert.Single((await new RoutineService(db).ForPropertyAsync(site.Id, 2026)).Groups);
+        var group = Assert.Single((await new RoutineListService(db).ForPropertyAsync(site.Id, 2026)).Groups);
 
         Assert.Equal(("Neil", 90), (group.Technician, group.EstimatedMinutes));
     }
@@ -132,7 +132,7 @@ public class UptickDetailsImportTests
         // Queensland is UTC+10 all year
         Assert.Equal(("4.5kg to be exchanged for 2.5kg", 20, new DateTime(2026, 9, 30, 1, 50, 31, DateTimeKind.Utc)),
             (asset.InternalNote, asset.InspectionOrder, asset.InactiveDate));
-        var defect = await db.Defects.SingleAsync();
+        var defect = await db.Remarks.SingleAsync();
         Assert.Equal((new DateTime(2026, 10, 13, 6, 5, 10, DateTimeKind.Utc), new DateTime(2026, 10, 8)), (defect.InactiveUtc, defect.QuotedDate));
     }
 }

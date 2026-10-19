@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace FyreApp.Models;
 
 // A defect / non-conformance raised against a property or asset (Uptick "Remark")
-public class Defect
+public class Remark
 {
     public int Id { get; set; }
 

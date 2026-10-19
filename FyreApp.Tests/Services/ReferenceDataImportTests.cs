@@ -86,11 +86,11 @@ public class ReferenceDataImportTests
     }
 
     [Fact]
-    public async Task RemarkTypes_LinkExistingDefectsByUptickId_AndNewRemarksLinkOnImport()
+    public async Task RemarkTypes_LinkExistingRemarksByUptickId_AndNewRemarksLinkOnImport()
     {
         using var db = DbContextFactory.Create();
         var site = new Property { Name = "HQ", ExternalId = "P-1", Client = new Client { Name = "Acme" } };
-        db.Defects.Add(new Defect { Property = site, ExternalId = "500", RemarkType = "1.02 - Battery missing", UptickData = "{\"ID\":\"500\",\"Remark Type ID\":\"723\"}" });
+        db.Remarks.Add(new Remark { Property = site, ExternalId = "500", RemarkType = "1.02 - Battery missing", UptickData = "{\"ID\":\"500\",\"Remark Type ID\":\"723\"}" });
         await db.SaveChangesAsync();
 
         var result = await Import(db, UptickExportType.RemarkTypes, Csv(RemarkTypeHeaders, new Dictionary<string, string>
@@ -103,13 +103,13 @@ public class ReferenceDataImportTests
         Assert.Equal(1, result.Created);
         var remarkType = await db.RemarkTypes.Include(r => r.AssetType).SingleAsync();
         Assert.Equal(("Critical defect", "Smoke Alarm"), (remarkType.SeverityLabel, remarkType.AssetType!.Name));
-        Assert.Equal(remarkType.Id, (await db.Defects.SingleAsync()).RemarkTypeId);
+        Assert.Equal(remarkType.Id, (await db.Remarks.SingleAsync()).RemarkTypeId);
 
         // A remark imported afterwards links straight away
         await Import(db, UptickExportType.Remarks, Csv(
             new[] { "ID", "Remark Type", "Remark Type ID", "Property Ref", "Severity", "Resolution" },
             new Dictionary<string, string> { ["ID"] = "501", ["Remark Type"] = "1.02 - Battery missing indication", ["Remark Type ID"] = "723", ["Property Ref"] = "P-1" }));
-        Assert.Equal(remarkType.Id, (await db.Defects.SingleAsync(d => d.ExternalId == "501")).RemarkTypeId);
+        Assert.Equal(remarkType.Id, (await db.Remarks.SingleAsync(d => d.ExternalId == "501")).RemarkTypeId);
     }
 
     [Fact]

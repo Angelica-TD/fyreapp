@@ -30,17 +30,17 @@ public class TaskPageService : ITaskPageService
         if (task == null) return null;
 
         // Routines this task was generated from (Routines page → Generate tasks)
-        var routines = await _db.RoutineOccurrences.AsNoTracking()
+        var routines = await _db.Routines.AsNoTracking()
             .Include(o => o.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
             .Where(o => o.ClientTaskId == id)
             .ToListAsync(ct);
 
-        var siteRoutines = routines.Select(o => new RoutineAssets.SiteRoutine(o.PropertyId, o.Routine, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Routine))).ToList();
+        var siteRoutines = routines.Select(o => new RoutineAssets.SiteRoutine(o.PropertyId, o.Name, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Name))).ToList();
         // Imported tasks list assets for every routine their scope names, even ones whose routine isn't imported
         if (siteRoutines.Count == 0 && UptickJson.Value(task.UptickData, "Scope of works") is { } scope)
             siteRoutines = RoutineAssets.FromScope(task.PropertyId, scope, await _db.RoutineServiceTypes.AsNoTracking().Select(t => t.Name).ToListAsync(ct)).ToList();
         var visits = routines.Count > 0
-            ? routines.OrderBy(o => o.Routine).ThenBy(o => o.DueDate).Select(o => (o.Routine, (RoutineOccurrence?)o)).ToList()
+            ? routines.OrderBy(o => o.Name).ThenBy(o => o.DueDate).Select(o => (o.Name, (Routine?)o)).ToList()
             : await NearestRoutinesAsync(task, siteRoutines.Select(r => r.Routine).ToList(), ct);
         var serviceAssets = await ServiceAssetsAsync(id, siteRoutines, ct);
         var assetIds = serviceAssets.Select(a => a.Asset.Id).Distinct().ToList();
@@ -50,21 +50,21 @@ public class TaskPageService : ITaskPageService
             Task = task,
             Tab = TaskPageVm.Tabs.Any(t => t.Key == tab) ? tab! : "task",
             Uptick = TaskPageVm.ParseUptick(task.UptickData),
-            Routines = routines.Select(o => o.Routine).Distinct().Order().ToList(),
+            Routines = routines.Select(o => o.Name).Distinct().Order().ToList(),
             ServiceRoutines = siteRoutines.Select(r => r.Routine).ToList(),
             ServiceAssets = serviceAssets,
             Visits = visits,
-            OpenRemarks = await _db.Defects.AsNoTracking()
+            OpenRemarks = await _db.Remarks.AsNoTracking()
                 .Where(d => d.Active && d.AssetId != null && assetIds.Contains(d.AssetId.Value))
                 .GroupBy(d => d.AssetId!.Value)
                 .Select(g => new { g.Key, Count = g.Count() })
                 .ToDictionaryAsync(g => g.Key, g => g.Count, ct),
             // Reports done on this task, and remarks it was raised to repair (linked from Uptick imports)
-            Reports = await _db.ServiceReports.AsNoTracking()
+            Reports = await _db.Reports.AsNoTracking()
                 .Where(r => r.ClientTaskId == id)
                 .OrderByDescending(r => r.InspectedDate)
                 .ToListAsync(ct),
-            Repairs = await _db.Defects.AsNoTracking()
+            Repairs = await _db.Remarks.AsNoTracking()
                 .Include(d => d.Asset)
                 .Where(d => d.RepairTaskId == id)
                 .OrderBy(d => d.Asset != null ? d.Asset.Name : "")
@@ -100,22 +100,22 @@ public class TaskPageService : ITaskPageService
 
     // An imported Uptick routine task's routines, one per routine its scope of works names: the property's raised or
     // completed routine of that name due in the task's month, else nearest it (within a couple of months either side)
-    private async Task<List<(string Routine, RoutineOccurrence? Occurrence)>> NearestRoutinesAsync(
+    private async Task<List<(string Routine, Routine? Occurrence)>> NearestRoutinesAsync(
         ClientTask task, IReadOnlyList<string> names, CancellationToken ct)
     {
-        if (names.Count == 0 || task.DueDateUtc is not DateTime due) return names.Order().Select(n => (n, (RoutineOccurrence?)null)).ToList();
+        if (names.Count == 0 || task.DueDateUtc is not DateTime due) return names.Order().Select(n => (n, (Routine?)null)).ToList();
 
         var from = due.AddMonths(-2);
         var to = due.AddMonths(2);
-        var found = (await _db.RoutineOccurrences.AsNoTracking()
+        var found = (await _db.Routines.AsNoTracking()
                 .Where(o => o.PropertyId == task.PropertyId && (o.ClientTaskId == null || o.ClientTaskId == task.Id)
-                            && (o.Status == RoutineOccurrenceStatus.Generated || o.Status == RoutineOccurrenceStatus.Complete)
+                            && (o.Status == RoutineStatus.Generated || o.Status == RoutineStatus.Complete)
                             && o.DueDate >= from && o.DueDate <= to)
                 .ToListAsync(ct))
-            .Where(o => names.Contains(o.Routine, StringComparer.OrdinalIgnoreCase))
+            .Where(o => names.Contains(o.Name, StringComparer.OrdinalIgnoreCase))
             .ToList();
         return names.Order()
-            .Select(n => (n, found.Where(o => string.Equals(o.Routine, n, StringComparison.OrdinalIgnoreCase))
+            .Select(n => (n, found.Where(o => string.Equals(o.Name, n, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(o => o.DueDate.Year == due.Year && o.DueDate.Month == due.Month ? 0 : 1)
                 .ThenBy(o => Math.Abs((o.DueDate - due).Ticks))
                 .FirstOrDefault()))
@@ -165,11 +165,11 @@ public class TaskPageService : ITaskPageService
 
     // The Remark registry: remarks identified on the task (Uptick's "Created on Task Ref"), and ones it resolved: remarks it
     // was raised to repair, and remarks on the assets it serviced closed off while its work was being done
-    private async Task<IReadOnlyList<(Defect Remark, bool Resolved)>> RemarksAsync(TaskPageVm vm, List<int> assetIds, CancellationToken ct)
+    private async Task<IReadOnlyList<(Remark Remark, bool Resolved)>> RemarksAsync(TaskPageVm vm, List<int> assetIds, CancellationToken ct)
     {
         var task = vm.Task;
         var since = DateTime.SpecifyKind(vm.WorkFrom.AddDays(-1), DateTimeKind.Utc);
-        var remarks = await _db.Defects.AsNoTracking()
+        var remarks = await _db.Remarks.AsNoTracking()
             .Include(d => d.Asset)
             .Where(d => d.PropertyId == task.PropertyId
                         && ((task.Ref != null && d.RaisedOnTaskRef == task.Ref)
@@ -177,7 +177,7 @@ public class TaskPageService : ITaskPageService
                             || (!d.Active && d.AssetId != null && assetIds.Contains(d.AssetId.Value) && d.InactiveUtc >= since)))
             .ToListAsync(ct);
 
-        bool ClosedDuringWork(Defect d) => d.AssetId is int assetId && vm.PerformedOn.ContainsKey(assetId) && d.InactiveUtc?.ToSydney().Date is DateTime closed
+        bool ClosedDuringWork(Remark d) => d.AssetId is int assetId && vm.PerformedOn.ContainsKey(assetId) && d.InactiveUtc?.ToSydney().Date is DateTime closed
             && closed >= vm.WorkFrom && (vm.WorkTo is not DateTime to || closed <= to);
 
         return remarks
@@ -193,7 +193,7 @@ public class TaskPageService : ITaskPageService
     private async Task<IReadOnlyList<(string Routine, Asset Asset)>> ServiceAssetsAsync(
         int taskId, IReadOnlyCollection<RoutineAssets.SiteRoutine> routines, CancellationToken ct)
     {
-        var saved = await _db.TaskAssets.AsNoTracking()
+        var saved = await _db.ServiceTasks.AsNoTracking()
             .Where(a => a.ClientTaskId == taskId)
             .Select(a => new { a.Id, a.Routine, a.Asset })
             .ToListAsync(ct);

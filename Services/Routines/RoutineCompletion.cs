@@ -19,20 +19,20 @@ public static class RoutineCompletion
 
         // Routines the task was generated from; for an imported Uptick task, the property's raised routines its
         // scope of works names that are due in the task's month
-        var routines = await db.RoutineOccurrences
+        var routines = await db.Routines
             .Include(o => o.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
-            .Where(o => o.ClientTaskId == task.Id && o.Status == RoutineOccurrenceStatus.Generated)
+            .Where(o => o.ClientTaskId == task.Id && o.Status == RoutineStatus.Generated)
             .ToListAsync(ct);
         if (routines.Count == 0)
-            routines = await InScopeAsync(db, db.RoutineOccurrences
+            routines = await InScopeAsync(db, db.Routines
                 .Include(o => o.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
-                .Where(o => o.ClientTaskId == null && o.Status == RoutineOccurrenceStatus.Generated), task, ct);
+                .Where(o => o.ClientTaskId == null && o.Status == RoutineStatus.Generated), task, ct);
 
         var moved = 0;
         var monthsLate = 0;
         foreach (var o in routines)
         {
-            o.Status = RoutineOccurrenceStatus.Complete;
+            o.Status = RoutineStatus.Complete;
             o.CompletedDate = done;
             o.ClientTaskId ??= task.Id;
         }
@@ -45,9 +45,9 @@ public static class RoutineCompletion
             monthsLate = Math.Max(monthsLate, late);
 
             var type = TypeOf(o);
-            var later = (await db.RoutineOccurrences
+            var later = (await db.Routines
                     .Include(x => x.RoutineServiceLevel!).ThenInclude(l => l.RoutineServiceType)
-                    .Where(x => x.PropertyId == o.PropertyId && x.Status == RoutineOccurrenceStatus.Pending && x.ClientTaskId == null
+                    .Where(x => x.PropertyId == o.PropertyId && x.Status == RoutineStatus.Pending && x.ClientTaskId == null
                                 && x.DueDate > o.DueDate)
                     .ToListAsync(ct))
                 .Where(x => string.Equals(TypeOf(x), type, StringComparison.OrdinalIgnoreCase))
@@ -63,8 +63,8 @@ public static class RoutineCompletion
 
             // Routine services set up in FyreApp count from their last annual date: move it too, so editing the
             // service later forecasts from when the work was done rather than undoing the move
-            var serviceIds = later.Append(o).Select(x => x.PropertyRoutineServiceId).OfType<int>().Distinct().ToList();
-            foreach (var service in await db.PropertyRoutineServices.Where(s => serviceIds.Contains(s.Id)).ToListAsync(ct))
+            var serviceIds = later.Append(o).Select(x => x.RoutineServiceId).OfType<int>().Distinct().ToList();
+            foreach (var service in await db.RoutineServices.Where(s => serviceIds.Contains(s.Id)).ToListAsync(ct))
                 service.LastAnnualDate = AddMonths(service.LastAnnualDate, late);
         }
 
@@ -73,8 +73,8 @@ public static class RoutineCompletion
 
     // For an imported Uptick task: the property's routines (of those given) its scope of works names that are due in
     // the task's month
-    public static async Task<List<RoutineOccurrence>> InScopeAsync(
-        AppDbContext db, IQueryable<RoutineOccurrence> occurrences, ClientTask task, CancellationToken ct = default)
+    public static async Task<List<Routine>> InScopeAsync(
+        AppDbContext db, IQueryable<Routine> occurrences, ClientTask task, CancellationToken ct = default)
     {
         if (task.DueDateUtc is not DateTime taskDue || UptickJson.Value(task.UptickData, "Scope of works") is not { } scope)
             return [];
@@ -88,7 +88,7 @@ public static class RoutineCompletion
         return (await occurrences
                 .Where(o => o.PropertyId == task.PropertyId && o.DueDate >= monthStart && o.DueDate < monthEnd)
                 .ToListAsync(ct))
-            .Where(o => names.Contains(o.Routine, StringComparer.OrdinalIgnoreCase))
+            .Where(o => names.Contains(o.Name, StringComparer.OrdinalIgnoreCase))
             .ToList();
     }
 
@@ -102,8 +102,8 @@ public static class RoutineCompletion
     }
 
     // The routine service type: from its level, else its name ("<type>: <level>")
-    private static string TypeOf(RoutineOccurrence o) =>
-        o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Routine);
+    private static string TypeOf(Routine o) =>
+        o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Name);
 
     // Month-end dates stay month-end
     private static DateTime AddMonths(DateTime d, int months)

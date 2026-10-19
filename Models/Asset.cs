@@ -75,6 +75,6 @@ public class Asset : IUptickMapped
     // Many-to-many
     public ICollection<AssetType> AssetTypes { get; set; } = new List<AssetType>();
     public ICollection<MaintenanceSchedule> MaintenanceSchedules { get; set; }
-    public ICollection<Defect> Defects { get; set; } = new List<Defect>();
+    public ICollection<Remark> Remarks { get; set; } = new List<Remark>();
 
 }

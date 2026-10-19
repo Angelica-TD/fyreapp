@@ -11,13 +11,13 @@ namespace FyreApp.Controllers;
 [Authorize(Roles = "Admin")]
 public class RoutinesController : Controller
 {
-    private readonly IRoutineService _routines;
-    public RoutinesController(IRoutineService routines) => _routines = routines;
+    private readonly IRoutineListService _routines;
+    public RoutinesController(IRoutineListService routines) => _routines = routines;
 
     [HttpGet]
     public async Task<IActionResult> Index(
         string? search, string? clientActive, DateTime? dueFrom, DateTime? dueTo,
-        List<string>? propertyStatus, List<RoutineOccurrenceStatus>? status, int page = 1, bool f = false,
+        List<string>? propertyStatus, List<RoutineStatus>? status, int page = 1, bool f = false,
         CancellationToken ct = default)
     {
         var filter = BuildFilter(search, clientActive, dueFrom, dueTo, propertyStatus, status, f);
@@ -29,7 +29,7 @@ public class RoutinesController : Controller
     [HttpGet]
     public async Task<IActionResult> Download(
         string? search, string? clientActive, DateTime? dueFrom, DateTime? dueTo,
-        List<string>? propertyStatus, List<RoutineOccurrenceStatus>? status, bool f = false,
+        List<string>? propertyStatus, List<RoutineStatus>? status, bool f = false,
         CancellationToken ct = default)
     {
         var filter = BuildFilter(search, clientActive, dueFrom, dueTo, propertyStatus, status, f);
@@ -43,7 +43,7 @@ public class RoutinesController : Controller
     public async Task<IActionResult> GenerateTasks(
         List<int>? ids, bool allMatching, string? returnUrl,
         string? search, string? clientActive, DateTime? dueFrom, DateTime? dueTo,
-        List<string>? propertyStatus, List<RoutineOccurrenceStatus>? status, bool f = false,
+        List<string>? propertyStatus, List<RoutineStatus>? status, bool f = false,
         CancellationToken ct = default)
     {
         var filter = BuildFilter(search, clientActive, dueFrom, dueTo, propertyStatus, status, f);
@@ -78,7 +78,7 @@ public class RoutinesController : Controller
     // submitted, what's in the query string is used as is, so a cleared filter means "any".
     private static RoutineFilter BuildFilter(
         string? search, string? clientActive, DateTime? dueFrom, DateTime? dueTo,
-        List<string>? propertyStatus, List<RoutineOccurrenceStatus>? status, bool f)
+        List<string>? propertyStatus, List<RoutineStatus>? status, bool f)
     {
         var filter = RoutineFilter.Default(DateTime.UtcNow.ToSydney());
         if (f)

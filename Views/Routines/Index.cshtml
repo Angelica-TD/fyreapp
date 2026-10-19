@@ -7,15 +7,15 @@
     ViewData["Title"] = "Routines";
     var f = Model.Filter;
 
-    string StatusLabel(RoutineOccurrenceStatus s) => FyreApp.Services.Routines.RoutineService.StatusLabel(s);
+    string StatusLabel(RoutineStatus s) => FyreApp.Services.Routines.RoutineListService.StatusLabel(s);
 
     var filterValues = f.QueryValues().ToList();
 
-    string StatusBadge(RoutineOccurrenceStatus s) => s switch
+    string StatusBadge(RoutineStatus s) => s switch
     {
-        RoutineOccurrenceStatus.Pending => "bg-warning text-dark",
-        RoutineOccurrenceStatus.Generated => "bg-info text-dark",
-        RoutineOccurrenceStatus.Complete => "bg-success",
+        RoutineStatus.Pending => "bg-warning text-dark",
+        RoutineStatus.Generated => "bg-info text-dark",
+        RoutineStatus.Complete => "bg-success",
         _ => "bg-secondary"
     };
 }
@@ -93,7 +93,7 @@
                 <div class="row mb-3 align-items-center">
                     <span class="col-sm-3 col-form-label text-sm-end">Status:</span>
                     <div class="col-sm-9">
-                        @foreach (var s in Enum.GetValues<RoutineOccurrenceStatus>())
+                        @foreach (var s in Enum.GetValues<RoutineStatus>())
                         {
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="checkbox" name="status" value="@s" id="st-@s"

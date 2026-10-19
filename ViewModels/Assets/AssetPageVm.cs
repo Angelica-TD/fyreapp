@@ -3,7 +3,7 @@ using FyreApp.Models;
 
 namespace FyreApp.ViewModels.Assets;
 
-// The asset page, laid out like Uptick's: the asset on the left, tabs (Asset, Defect history, Service History) on the right
+// The asset page, laid out like Uptick's: the asset on the left, tabs (Asset, Remark history, Service History) on the right
 public class AssetPageVm
 {
     public static readonly (string Key, string Label)[] Tabs =
@@ -17,19 +17,19 @@ public class AssetPageVm
     public required string Tab { get; init; }
 
     // "INFORMATIONAL is highest severity defect (identified 1 month ago)"
-    public Defect? MostSevereOpenDefect { get; init; }
+    public Remark? MostSevereOpenRemark { get; init; }
 
     // Asset tab
     public string? LastServiceBy { get; init; }
-    public IReadOnlyList<Defect> OpenDefects { get; init; } = [];
+    public IReadOnlyList<Remark> OpenRemarks { get; init; } = [];
     public IReadOnlyList<TimelineEvent> Timeline { get; init; } = [];
     public bool NotesOnly { get; init; }
 
     // Uptick's custom fields with a value for this asset (extra fields export + the asset's Uptick row)
     public IReadOnlyList<FyreApp.Services.Imports.ExtraFieldValue> ExtraFields { get; init; } = [];
 
-    // Defect history tab: every defect, open first
-    public IReadOnlyList<Defect> Defects { get; init; } = [];
+    // Remark history tab: every defect, open first
+    public IReadOnlyList<Remark> Remarks { get; init; } = [];
 }
 
 // Uptick's asset Update form

@@ -22,10 +22,10 @@ public class DisplayRefTests
     [InlineData("R-51081", "98765", null, "R-51081")]   // Uptick's printed report ref
     [InlineData(null, "98765", null, "98765")]
     [InlineData(null, null, "SR-1001", "SR-1001")]
-    public void ServiceReport_PrefersReportRef_ThenUptickId_ThenFyreRef(
+    public void Report_PrefersReportRef_ThenUptickId_ThenFyreRef(
         string? reportRef, string? externalId, string? fyreRef, string? expected)
     {
-        var report = new ServiceReport { Ref = reportRef, ExternalId = externalId, FyreRef = fyreRef };
+        var report = new Report { Ref = reportRef, ExternalId = externalId, FyreRef = fyreRef };
 
         Assert.Equal(expected, report.DisplayRef);
     }

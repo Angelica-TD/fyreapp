@@ -434,7 +434,7 @@ public class UptickImportServiceTests
             "remarks.csv", UptickExportType.Remarks, dryRun: false);
 
         Assert.Equal(1, result.Created);
-        var defect = await db.Defects.SingleAsync();
+        var defect = await db.Remarks.SingleAsync();
         Assert.Equal(asset.Id, defect.AssetId);
         Assert.Equal(2, defect.Severity);
         Assert.Equal("T-45073", defect.RaisedOnTaskRef);
@@ -454,7 +454,7 @@ public class UptickImportServiceTests
 
         Assert.Equal(1, result.Created);
         Assert.Single(result.Notes);
-        Assert.Null((await db.Defects.SingleAsync()).AssetId);
+        Assert.Null((await db.Remarks.SingleAsync()).AssetId);
     }
 
     // -------------------------------------------------------
@@ -476,7 +476,7 @@ public class UptickImportServiceTests
             "reports.csv", UptickExportType.Reports, dryRun: false);
 
         Assert.Equal(1, result.Created);
-        var report = await db.ServiceReports.SingleAsync();
+        var report = await db.Reports.SingleAsync();
         Assert.Equal(site.Id, report.PropertyId);
         Assert.Equal("R-51081", report.Ref);
         Assert.True(report.Compliant);
@@ -495,7 +495,7 @@ public class UptickImportServiceTests
             "reports.csv", UptickExportType.Reports, dryRun: true);
 
         Assert.Equal(1, result.Created);
-        Assert.Empty(await db.ServiceReports.ToListAsync());
+        Assert.Empty(await db.Reports.ToListAsync());
     }
 
     // -------------------------------------------------------

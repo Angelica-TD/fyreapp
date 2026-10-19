@@ -54,8 +54,8 @@ public class RoutineSetupService : IRoutineSetupService
             .ToListAsync(ct);
 
         // Routines the property already has, per type: its levels with occurrences, imported or set up here
-        var existing = (await _db.RoutineOccurrences.AsNoTracking()
-                .Where(o => o.PropertyId == siteId && o.Status != RoutineOccurrenceStatus.Cancelled && o.RoutineServiceLevelId != null)
+        var existing = (await _db.Routines.AsNoTracking()
+                .Where(o => o.PropertyId == siteId && o.Status != RoutineStatus.Cancelled && o.RoutineServiceLevelId != null)
                 .Select(o => new { o.RoutineServiceLevel!.RoutineServiceTypeId, o.RoutineServiceLevelId })
                 .Distinct()
                 .ToListAsync(ct))
@@ -123,13 +123,13 @@ public class RoutineSetupService : IRoutineSetupService
 
         var today = DateTime.UtcNow.ToSydney().Date;
         var subcontractor = string.IsNullOrWhiteSpace(input.Subcontractor) ? null : input.Subcontractor.Trim();
-        var services = new List<PropertyRoutineService>();
+        var services = new List<RoutineService>();
         var occurrences = 0;
 
         foreach (var group in levels.GroupBy(l => l.RoutineServiceType).OrderBy(g => g.Key.Name))
         {
             var type = group.Key;
-            var service = new PropertyRoutineService
+            var service = new RoutineService
             {
                 PropertyId = siteId,
                 RoutineServiceTypeId = type.Id,
@@ -148,14 +148,14 @@ public class RoutineSetupService : IRoutineSetupService
         if (services.Count == 0)
             return new AddRoutineServicesResult(0, 0, "None of the ticked levels are active routine levels.");
 
-        _db.PropertyRoutineServices.AddRange(services);
+        _db.RoutineServices.AddRange(services);
         await _db.SaveChangesAsync(ct);
         var firstDue = services.SelectMany(s => s.Occurrences).Select(o => (DateTime?)o.DueDate).Min();
         return new AddRoutineServicesResult(services.Count, occurrences, FirstDue: firstDue);
     }
 
     // Adds the service's forecast routines to it, leaving out any already kept (level, due date). Returns how many.
-    private static int ForecastInto(PropertyRoutineService service, RoutineServiceType type, IReadOnlyCollection<RoutineServiceLevel> levels,
+    private static int ForecastInto(RoutineService service, RoutineServiceType type, IReadOnlyCollection<RoutineServiceLevel> levels,
         DateTime today, ISet<(int LevelId, DateTime Due)>? keep)
     {
         var byId = levels.ToDictionary(l => l.Id);
@@ -164,15 +164,15 @@ public class RoutineSetupService : IRoutineSetupService
         {
             if (keep != null && keep.Contains((due.Level.Id, due.DueDate))) continue;
             var level = byId[due.Level.Id];
-            service.Occurrences.Add(new RoutineOccurrence
+            service.Occurrences.Add(new Routine
             {
                 PropertyId = service.PropertyId,
-                Routine = Cap($"{type.Name}: {level.Name}", 300),
+                Name = Cap($"{type.Name}: {level.Name}", 300),
                 RoutineServiceLevelId = level.Id,
                 DueDate = due.DueDate,
                 ToleranceStart = due.ToleranceStart,
                 ToleranceEnd = due.ToleranceEnd,
-                Status = RoutineOccurrenceStatus.Pending,
+                Status = RoutineStatus.Pending,
                 ServiceGroup = Cap(type.ServiceGroup, 100),
                 Subcontractor = service.Subcontractor
             });
@@ -184,17 +184,17 @@ public class RoutineSetupService : IRoutineSetupService
     // ---- Editing and removing
 
     // Routines that are history and stay as they are: a task's been raised for them, or they're done or cancelled
-    private static bool IsHistory(RoutineOccurrence o) => o.Status != RoutineOccurrenceStatus.Pending || o.ClientTaskId != null;
+    private static bool IsHistory(Routine o) => o.Status != RoutineStatus.Pending || o.ClientTaskId != null;
 
     public async Task<IReadOnlyList<RoutineServiceSummaryVm>> ListAsync(int siteId, CancellationToken ct = default) =>
-        (await _db.PropertyRoutineServices.AsNoTracking()
+        (await _db.RoutineServices.AsNoTracking()
             .Where(s => s.PropertyId == siteId)
             .Select(s => new
             {
                 s.Id, Type = s.RoutineServiceType.Name, Levels = s.Levels.OrderBy(l => l.IntervalMonths).Select(l => l.Name).ToList(),
                 s.StartDate, s.LastAnnualDate, s.EndDate, s.Subcontractor,
-                Pending = s.Occurrences.Count(o => o.Status == RoutineOccurrenceStatus.Pending && o.ClientTaskId == null),
-                Next = s.Occurrences.Where(o => o.Status == RoutineOccurrenceStatus.Pending).OrderBy(o => o.DueDate).Select(o => (DateTime?)o.DueDate).FirstOrDefault()
+                Pending = s.Occurrences.Count(o => o.Status == RoutineStatus.Pending && o.ClientTaskId == null),
+                Next = s.Occurrences.Where(o => o.Status == RoutineStatus.Pending).OrderBy(o => o.DueDate).Select(o => (DateTime?)o.DueDate).FirstOrDefault()
             })
             .ToListAsync(ct))
         .OrderBy(s => s.Type)
@@ -207,7 +207,7 @@ public class RoutineSetupService : IRoutineSetupService
 
     public async Task<EditRoutineServiceVm?> EditFormAsync(int id, CancellationToken ct = default)
     {
-        var service = await _db.PropertyRoutineServices.AsNoTracking()
+        var service = await _db.RoutineServices.AsNoTracking()
             .Include(s => s.Property)
             .Include(s => s.Levels)
             .Include(s => s.RoutineServiceType).ThenInclude(t => t.Levels)
@@ -239,7 +239,7 @@ public class RoutineSetupService : IRoutineSetupService
     // Saves the changes and forecasts again: pending routines (no task yet) are replaced; history is kept
     public async Task<RoutineServiceChangeResult> UpdateAsync(int id, EditRoutineServiceInput input, CancellationToken ct = default)
     {
-        var service = await _db.PropertyRoutineServices
+        var service = await _db.RoutineServices
             .Include(s => s.Levels)
             .Include(s => s.RoutineServiceType)
             .Include(s => s.Occurrences)
@@ -266,7 +266,7 @@ public class RoutineSetupService : IRoutineSetupService
         foreach (var l in levels) service.Levels.Add(l);
 
         var pending = service.Occurrences.Where(o => !IsHistory(o)).ToList();
-        _db.RoutineOccurrences.RemoveRange(pending);
+        _db.Routines.RemoveRange(pending);
         foreach (var o in pending) service.Occurrences.Remove(o);
 
         var keep = service.Occurrences
@@ -284,7 +284,7 @@ public class RoutineSetupService : IRoutineSetupService
     // Removes the routine service and its pending routines; ones with a task, or done, stay as history
     public async Task<RoutineServiceChangeResult> RemoveAsync(int id, CancellationToken ct = default)
     {
-        var service = await _db.PropertyRoutineServices
+        var service = await _db.RoutineServices
             .Include(s => s.Occurrences)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
         if (service == null) return RoutineServiceChangeResult.NotFound;
@@ -292,12 +292,12 @@ public class RoutineSetupService : IRoutineSetupService
         var history = service.Occurrences.Where(IsHistory).ToList();
         foreach (var o in history)
         {
-            o.PropertyRoutineServiceId = null;
+            o.RoutineServiceId = null;
             service.Occurrences.Remove(o);
         }
         var pending = service.Occurrences.Where(o => !IsHistory(o)).ToList();
-        _db.RoutineOccurrences.RemoveRange(pending);
-        _db.PropertyRoutineServices.Remove(service);
+        _db.Routines.RemoveRange(pending);
+        _db.RoutineServices.Remove(service);
 
         await _db.SaveChangesAsync(ct);
         return new RoutineServiceChangeResult(true, service.PropertyId, Removed: pending.Count, Kept: history.Count);

@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Routines;
 
-public interface IRoutineService
+public interface IRoutineListService
 {
     Task<RoutineListVm> SearchAsync(RoutineFilter filter, CancellationToken ct = default);
 
@@ -28,15 +28,15 @@ public interface IRoutineService
 public record GenerateRoutineTasksResult(int TasksCreated, int RoutinesUsed, int RoutinesSkipped);
 
 // Routine occurrences imported from Uptick, listed and filtered like Uptick's Routines page
-public class RoutineService : IRoutineService
+public class RoutineListService : IRoutineListService
 {
     private readonly AppDbContext _db;
-    public RoutineService(AppDbContext db) => _db = db;
+    public RoutineListService(AppDbContext db) => _db = db;
 
     // The one place the filters are applied, so the list, its download and "select all" always agree
-    private IQueryable<RoutineOccurrence> Filtered(RoutineFilter filter)
+    private IQueryable<Routine> Filtered(RoutineFilter filter)
     {
-        var q = _db.RoutineOccurrences.AsQueryable();
+        var q = _db.Routines.AsQueryable();
 
         if (filter.ClientActive is bool clientActive)
             q = q.Where(o => o.Property.Client.Active == clientActive);
@@ -69,14 +69,14 @@ public class RoutineService : IRoutineService
         {
             var term = filter.Search.Trim().ToLower();
             q = q.Where(o =>
-                o.Routine.ToLower().Contains(term) ||
+                o.Name.ToLower().Contains(term) ||
                 o.Property.Name.ToLower().Contains(term) ||
                 (o.Property.ExternalId != null && o.Property.ExternalId.ToLower().Contains(term)) ||
                 o.Property.Client.Name.ToLower().Contains(term));
         }
 
         // As Uptick lists them
-        return q.OrderBy(o => o.Routine).ThenBy(o => o.DueDate).ThenBy(o => o.Property.ExternalId).ThenBy(o => o.Id);
+        return q.OrderBy(o => o.Name).ThenBy(o => o.DueDate).ThenBy(o => o.Property.ExternalId).ThenBy(o => o.Id);
     }
 
     public async Task<RoutineListVm> SearchAsync(RoutineFilter filter, CancellationToken ct = default)
@@ -93,7 +93,7 @@ public class RoutineService : IRoutineService
             .Select(o => new RoutineListItemVm
             {
                 Id = o.Id,
-                Routine = o.Routine,
+                Routine = o.Name,
                 PropertyId = o.PropertyId,
                 PropertyRef = o.Property.ExternalId ?? o.Property.FyreRef,
                 PropertyName = o.Property.Name,
@@ -115,7 +115,7 @@ public class RoutineService : IRoutineService
         var rows = await Filtered(filter).AsNoTracking()
             .Select(o => new
             {
-                o.Routine,
+                Routine = o.Name,
                 PropertyRef = o.Property.ExternalId ?? o.Property.FyreRef,
                 Property = o.Property.Name,
                 Address = o.Property.AddressDisplay,
@@ -173,7 +173,7 @@ public class RoutineService : IRoutineService
     {
         var selected = allMatching
             ? Filtered(filter)
-            : _db.RoutineOccurrences.Where(o => ids.Contains(o.Id));
+            : _db.Routines.Where(o => ids.Contains(o.Id));
 
         var occurrences = await selected
             .Include(o => o.Property)
@@ -182,12 +182,12 @@ public class RoutineService : IRoutineService
             .ToListAsync(ct);
 
         // Only routines still waiting for a task; ones already raised or done are left alone
-        var pending = occurrences.Where(o => o.Status == RoutineOccurrenceStatus.Pending).ToList();
+        var pending = occurrences.Where(o => o.Status == RoutineStatus.Pending).ToList();
         var skipped = occurrences.Count - pending.Count;
 
         // The assets each routine services, listed on the task's Work tab
         var assets = await RoutineAssets.ForAsync(_db, pending
-            .Select(o => new RoutineAssets.SiteRoutine(o.PropertyId, o.Routine, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Routine)))
+            .Select(o => new RoutineAssets.SiteRoutine(o.PropertyId, o.Name, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Name)))
             .ToList(), ct);
 
         // One task per property, service group and month, named like Uptick's ("PM2026/11 Servicing - …")
@@ -198,14 +198,14 @@ public class RoutineService : IRoutineService
         {
             var (siteId, serviceGroup, year, month) = group.Key;
             var site = group.First().Property;
-            var routines = group.OrderBy(o => o.Routine).ToList();
+            var routines = group.OrderBy(o => o.Name).ToList();
 
             var task = new ClientTask
             {
                 ClientId = site.ClientId,
                 PropertyId = siteId,
                 Title = Truncate($"PM{year}/{month:00} {(serviceGroup == "" ? "Routine servicing" : serviceGroup)}", 120),
-                Description = Truncate("Scope of works:\n" + string.Join("\n", routines.Select(o => $"- {o.Routine}")), 4000),
+                Description = Truncate("Scope of works:\n" + string.Join("\n", routines.Select(o => $"- {o.Name}")), 4000),
                 Category = "I&T",
                 Status = ClientTaskStatus.Open,
                 Priority = ClientTaskPriority.Normal,
@@ -218,13 +218,13 @@ public class RoutineService : IRoutineService
             foreach (var schedule in routines.Select(o => o.MaintenanceSchedule).OfType<MaintenanceSchedule>().Distinct())
                 task.CoveredSchedules.Add(schedule);
 
-            foreach (var line in routines.Select(o => o.Routine).Distinct().SelectMany(r => assets[(siteId, r)]))
-                task.Assets.Add(new TaskAsset { AssetId = line.AssetId, Routine = line.Routine });
+            foreach (var line in routines.Select(o => o.Name).Distinct().SelectMany(r => assets[(siteId, r)]))
+                task.Assets.Add(new ServiceTask { AssetId = line.AssetId, Routine = line.Routine });
 
             foreach (var o in routines)
             {
                 o.ClientTask = task;
-                o.Status = RoutineOccurrenceStatus.Generated;
+                o.Status = RoutineStatus.Generated;
             }
 
             tasks.Add(task);
@@ -243,13 +243,13 @@ public class RoutineService : IRoutineService
         var yearEnd = yearStart.AddYears(1);
         var today = DateTime.UtcNow.ToSydney().Date;
 
-        var occurrences = await _db.RoutineOccurrences.AsNoTracking()
+        var occurrences = await _db.Routines.AsNoTracking()
             .Where(o => o.PropertyId == siteId && o.DueDate >= yearStart && o.DueDate < yearEnd
-                        && o.Status != RoutineOccurrenceStatus.Cancelled)
+                        && o.Status != RoutineStatus.Cancelled)
             .Select(o => new
             {
                 o.Id,
-                o.Routine,
+                Routine = o.Name,
                 Type = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.RoutineServiceType.Name : null,
                 TypeServiceGroup = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.RoutineServiceType.ServiceGroup : null,
                 Level = o.RoutineServiceLevel != null ? o.RoutineServiceLevel.Name : null,
@@ -316,7 +316,7 @@ public class RoutineService : IRoutineService
             .Where(t => t.PropertyId == siteId && t.DueDateUtc != null
                         && t.Status != ClientTaskStatus.Cancelled
                         && (t.MaintenanceScheduleId != null || t.CoveredSchedules.Any()
-                            || _db.RoutineOccurrences.Any(o => o.ClientTaskId == t.Id)))
+                            || _db.Routines.Any(o => o.ClientTaskId == t.Id)))
             .Select(t => new { t.Id, t.Ref, t.FyreRef, t.Title, t.DueDateUtc, t.Status })
             .ToListAsync(ct);
 
@@ -340,14 +340,14 @@ public class RoutineService : IRoutineService
     }
 
     // Uptick's legend: forecasted, task created, completed within / outside tolerance, not completed and outside tolerance
-    public static RoutineMarkerState MarkerState(RoutineOccurrenceStatus status, DateTime? toleranceEnd, DateTime? completed, DateTime today) =>
-        status == RoutineOccurrenceStatus.Complete
+    public static RoutineMarkerState MarkerState(RoutineStatus status, DateTime? toleranceEnd, DateTime? completed, DateTime today) =>
+        status == RoutineStatus.Complete
             ? (completed is DateTime c && toleranceEnd is DateTime end && c.Date > end.Date
                 ? RoutineMarkerState.CompletedOutsideTolerance
                 : RoutineMarkerState.CompletedWithinTolerance)
             : toleranceEnd is DateTime e && today > e.Date
                 ? RoutineMarkerState.NotCompletedOutsideTolerance
-                : status == RoutineOccurrenceStatus.Generated
+                : status == RoutineStatus.Generated
                     ? RoutineMarkerState.TaskCreated
                     : RoutineMarkerState.Forecasted;
 
@@ -358,9 +358,9 @@ public class RoutineService : IRoutineService
         return i < 0 ? (routine, "") : (routine[..i], routine[(i + 2)..]);
     }
 
-    public static string StatusLabel(RoutineOccurrenceStatus s) => s switch
+    public static string StatusLabel(RoutineStatus s) => s switch
     {
-        RoutineOccurrenceStatus.Generated => "Task raised",
+        RoutineStatus.Generated => "Task raised",
         _ => s.ToString()
     };
 

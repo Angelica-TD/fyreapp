@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Imports.Uptick;
 
-// Uptick "Remarks" export -> Defect, matched to Property on "Property Ref" and to Asset on "Asset ID".
+// Uptick "Remarks" export -> Remark, matched to Property on "Property Ref" and to Asset on "Asset ID".
 public class RemarkImporter : UptickImporter
 {
     public RemarkImporter(AppDbContext db) : base(db) { }
@@ -26,7 +26,7 @@ public class RemarkImporter : UptickImporter
         var remarkTypeIds = await Db.RemarkTypes.AsNoTracking()
             .Where(r => r.ExternalId != null)
             .ToDictionaryAsync(r => r.ExternalId!, r => r.Id, StringComparer.OrdinalIgnoreCase, ct);
-        var existing = ByExternalId(await Db.Defects.AsNoTracking()
+        var existing = ByExternalId(await Db.Remarks.AsNoTracking()
             .Where(d => d.ExternalId != null)
             .Select(d => new ImportedRecord(d.Id, d.ExternalId!, d.UptickData))
             .ToListAsync(ct));
@@ -34,8 +34,8 @@ public class RemarkImporter : UptickImporter
         await AddPlaceholderSitesAsync(rows.Where(r => NewOrChanged(r, "ID", existing)), sitesByRef, "Property Name", dryRun, ctx, ct);
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var toCreate = new List<Defect>();
-        var toUpdate = new Dictionary<int, Action<Defect>>();
+        var toCreate = new List<Remark>();
+        var toUpdate = new Dictionary<int, Action<Remark>>();
         var unlinkedAssets = 0;
 
         foreach (var row in rows)
@@ -65,7 +65,7 @@ public class RemarkImporter : UptickImporter
 
             if (action == RowAction.Create)
             {
-                var defect = new Defect { ExternalId = id };
+                var defect = new Remark { ExternalId = id };
                 Map(defect, row, siteId, assetId, remarkTypeId, taskIds);
                 toCreate.Add(defect);
             }
@@ -83,13 +83,13 @@ public class RemarkImporter : UptickImporter
 
         if (dryRun) return;
 
-        await ApplyUpdatesAsync(Db.Defects, toUpdate, d => d.Id, ct);
-        Db.Defects.AddRange(toCreate);
+        await ApplyUpdatesAsync(Db.Remarks, toUpdate, d => d.Id, ct);
+        Db.Remarks.AddRange(toCreate);
         await Db.SaveChangesAsync(ct);
     }
 
     // Everything a remark takes from its Uptick row, for new and updated remarks alike
-    private static void Map(Defect d, ImportRow row, int siteId, int? assetId, int? remarkTypeId, IReadOnlyDictionary<string, int> taskIds)
+    private static void Map(Remark d, ImportRow row, int siteId, int? assetId, int? remarkTypeId, IReadOnlyDictionary<string, int> taskIds)
     {
         d.UptickData = row.ToJson();
         d.PropertyId = siteId;

@@ -425,7 +425,19 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      API). Their importer classes and `ExternalId` stay until phase 6: the importers still in use (tasks,
      remarks, reports, …) link to properties by ref and to assets by `ExternalId`, and the FyreRef triggers read
      it.
-4. **Work:** tasks, service tasks, remarks, reports, routines, routine services/levels/types.
+4. **Work:** tasks, service tasks, remarks, reports, routines, routine services/levels/types. In five PRs:
+   - 4a (done): `Defect` → `Remark`, `ServiceReport` → `Report`, `RoutineOccurrence` → `Routine` (its
+     `Routine` text → `Name`, as a class can't have a member of its own name; `RoutineOccurrenceStatus` →
+     `RoutineStatus`), `PropertyRoutineService` → `RoutineService` (the routines list service it would clash
+     with is now `RoutineListService`), `TaskAsset` → `ServiceTask`: tables, columns, constraints, indexes,
+     sequences and the FD / FSR FyreRef triggers. The levels join keeps its table name
+     `PropertyRoutineServiceLevels` (`RoutineServiceLevels` is the levels). Words shown on screen ("Defect
+     history", "Defect repairs") are unchanged.
+   - 4b: reference data the work records link to: `routineservicetypes`, `routineservicelevels` (+
+     `routineserviceleveltypes`), `remarktypes`.
+   - 4c: `tasks` → ClientTask, `servicetasks` → ServiceTask.
+   - 4d: `remarks`, `reports`, linked to their task by ID (`RepairTaskExternalId` / `TaskExternalId` go).
+   - 4e: `routines`, `routineservices`; the file imports for all of these turned off.
 5. **Commercial:** defect quotes, sales quotes, invoices, credit notes, billing, products, stock.
 6. **Remaining reference data;** remove the file importers and `UptickData` columns.
 7. **Files.**

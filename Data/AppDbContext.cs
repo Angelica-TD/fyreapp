@@ -49,8 +49,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<QuoteLineItem> QuoteLineItems => Set<QuoteLineItem>();
     public DbSet<PropertyContact> PropertyContacts => Set<PropertyContact>();
     public DbSet<ClientContact> ClientContacts => Set<ClientContact>();
-    public DbSet<Defect> Defects => Set<Defect>();
-    public DbSet<ServiceReport> ServiceReports => Set<ServiceReport>();
+    public DbSet<Remark> Remarks => Set<Remark>();
+    public DbSet<Report> Reports => Set<Report>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<AssetTypeVariant> AssetTypeVariants => Set<AssetTypeVariant>();
     public DbSet<RemarkType> RemarkTypes => Set<RemarkType>();
@@ -60,8 +60,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<TimelineEvent> TimelineEvents => Set<TimelineEvent>();
     public DbSet<RoutineServiceType> RoutineServiceTypes => Set<RoutineServiceType>();
     public DbSet<RoutineServiceLevel> RoutineServiceLevels => Set<RoutineServiceLevel>();
-    public DbSet<RoutineOccurrence> RoutineOccurrences => Set<RoutineOccurrence>();
-    public DbSet<PropertyRoutineService> PropertyRoutineServices => Set<PropertyRoutineService>();
+    public DbSet<Routine> Routines => Set<Routine>();
+    public DbSet<RoutineService> RoutineServices => Set<RoutineService>();
     public DbSet<SecurityGroup> SecurityGroups => Set<SecurityGroup>();
     public DbSet<ExtraField> ExtraFields => Set<ExtraField>();
     public DbSet<PromptQuestion> PromptQuestions => Set<PromptQuestion>();
@@ -78,7 +78,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
     public DbSet<StockLevel> StockLevels => Set<StockLevel>();
-    public DbSet<TaskAsset> TaskAssets => Set<TaskAsset>();
+    public DbSet<ServiceTask> ServiceTasks => Set<ServiceTask>();
     public DbSet<UptickRecord> UptickRecords => Set<UptickRecord>();
     public DbSet<UptickEndpointState> UptickEndpointStates => Set<UptickEndpointState>();
     public DbSet<UptickMigrationRun> UptickMigrationRuns => Set<UptickMigrationRun>();
@@ -238,15 +238,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(c => c.ClientId);
         });
 
-        modelBuilder.Entity<Defect>(entity =>
+        modelBuilder.Entity<Remark>(entity =>
         {
             entity.HasOne(d => d.Property)
-                .WithMany(s => s.Defects)
+                .WithMany(s => s.Remarks)
                 .HasForeignKey(d => d.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(d => d.Asset)
-                .WithMany(a => a.Defects)
+                .WithMany(a => a.Remarks)
                 .HasForeignKey(d => d.AssetId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
@@ -267,10 +267,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(d => d.RepairTaskExternalId);
         });
 
-        modelBuilder.Entity<ServiceReport>(entity =>
+        modelBuilder.Entity<Report>(entity =>
         {
             entity.HasOne(r => r.Property)
-                .WithMany(s => s.ServiceReports)
+                .WithMany(s => s.Reports)
                 .HasForeignKey(r => r.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
 
@@ -592,9 +592,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(a => a.UptickUserId).IsUnique();
         });
 
-        modelBuilder.Entity<Defect>()
+        modelBuilder.Entity<Remark>()
             .HasOne(d => d.RemarkTypeRef)
-            .WithMany(r => r.Defects)
+            .WithMany(r => r.Remarks)
             .HasForeignKey(d => d.RemarkTypeId)
             .OnDelete(DeleteBehavior.SetNull)
             .IsRequired(false);
@@ -620,7 +620,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .UsingEntity(j => j.ToTable("MaintenanceScheduleRoutineLevels"));
         });
 
-        modelBuilder.Entity<RoutineOccurrence>(entity =>
+        modelBuilder.Entity<Routine>(entity =>
         {
             entity.HasOne(o => o.Property)
                 .WithMany()
@@ -653,9 +653,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(o => o.PropertyId);
 
             // Removing a routine service removes the occurrences it forecast
-            entity.HasOne(o => o.PropertyRoutineService)
+            entity.HasOne(o => o.RoutineService)
                 .WithMany(s => s.Occurrences)
-                .HasForeignKey(o => o.PropertyRoutineServiceId)
+                .HasForeignKey(o => o.RoutineServiceId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .IsRequired(false);
         });
@@ -690,7 +690,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<FormResponse>().HasIndex(f => new { f.TargetContentType, f.TargetObjectId });
         modelBuilder.Entity<StockLevel>().HasIndex(s => s.Product);
 
-        modelBuilder.Entity<PropertyRoutineService>(entity =>
+        modelBuilder.Entity<RoutineService>(entity =>
         {
             entity.HasOne(s => s.Property)
                 .WithMany()
@@ -713,7 +713,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
 
         // Assets a routine task services: gone with the task or the asset
-        modelBuilder.Entity<TaskAsset>(entity =>
+        modelBuilder.Entity<ServiceTask>(entity =>
         {
             entity.HasOne(a => a.ClientTask).WithMany(t => t.Assets).HasForeignKey(a => a.ClientTaskId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(a => a.Asset).WithMany().HasForeignKey(a => a.AssetId).OnDelete(DeleteBehavior.Cascade);
@@ -724,8 +724,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         // (see migration AddFyreRefs), so EF reads them back instead of sending them
         foreach (var type in new[]
                  {
-                     typeof(Client), typeof(Property), typeof(Asset), typeof(PropertyContact), typeof(ClientContact), typeof(Defect),
-                     typeof(ServiceReport), typeof(MaintenanceSchedule), typeof(ClientTask)
+                     typeof(Client), typeof(Property), typeof(Asset), typeof(PropertyContact), typeof(ClientContact), typeof(Remark),
+                     typeof(Report), typeof(MaintenanceSchedule), typeof(ClientTask)
                  })
         {
             modelBuilder.Entity(type).Property<string?>("FyreRef").ValueGeneratedOnAdd();
@@ -735,8 +735,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         // Raw Uptick rows: "json" rather than "jsonb" so the export's column order is kept for display
         foreach (var type in new[]
                  {
-                     typeof(Client), typeof(Property), typeof(Asset), typeof(PropertyContact), typeof(ClientContact), typeof(Defect), typeof(ServiceReport), typeof(ClientTask),
-                     typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(RoutineOccurrence),
+                     typeof(Client), typeof(Property), typeof(Asset), typeof(PropertyContact), typeof(ClientContact), typeof(Remark), typeof(Report), typeof(ClientTask),
+                     typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(Routine),
                      typeof(Contractor), typeof(Supplier), typeof(UptickUser), typeof(ExtraField), typeof(PromptQuestion),
                      typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem), typeof(Invoice), typeof(CreditNote),
                      typeof(DefectQuote), typeof(SalesQuote), typeof(PropertySchedule), typeof(FormResponse), typeof(Accreditation),
