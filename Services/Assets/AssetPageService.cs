@@ -65,10 +65,12 @@ public class AssetPageService : IAssetPageService
         };
     }
 
-    // Uptick's export doesn't say who last serviced an asset; the technician on the property's
-    // report from that day does
+    // Who Uptick says last serviced it; for an asset from the file export (which doesn't say), the technician on
+    // the property's report from that day
     private async Task<string?> LastServiceByAsync(Asset asset, CancellationToken ct) =>
-        asset.LastServiceDate is not { } date ? null
+        asset.LastServicedById is { } userId
+            ? await _db.UptickUsers.AsNoTracking().Where(u => u.Id == userId).Select(u => u.Name).FirstOrDefaultAsync(ct)
+        : asset.LastServiceDate is not { } date ? null
         : await _db.ServiceReports.AsNoTracking()
             .Where(r => r.PropertyId == asset.PropertyId && r.InspectedDate == date && r.Technician != null)
             .OrderByDescending(r => r.IssuedDate)

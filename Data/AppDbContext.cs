@@ -171,6 +171,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<Asset>(entity =>
         {
             entity.HasIndex(a => a.ExternalId).IsUnique();
+            entity.HasIndex(a => a.UptickId).IsUnique();
+            entity.HasOne(a => a.LastServicedBy).WithMany().HasForeignKey(a => a.LastServicedById).OnDelete(DeleteBehavior.SetNull);
             entity.Property(a => a.IsActive).HasDefaultValue(true).HasSentinel(true);
             entity.Property(a => a.BaseDate).HasColumnType("timestamptz");
             entity.Property(a => a.InstallationDate).HasColumnType("timestamptz");
@@ -492,6 +494,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<AssetType>(entity =>
         {
             entity.HasIndex(t => t.ExternalId).IsUnique();
+            entity.HasIndex(t => t.UptickId).IsUnique();
             entity.Property(t => t.Active).HasDefaultValue(true).HasSentinel(true);
         });
 
@@ -502,6 +505,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .HasForeignKey(v => v.AssetTypeId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(v => v.ExternalId).IsUnique();
+            entity.HasIndex(v => v.UptickId).IsUnique();
             entity.HasIndex(v => new { v.AssetTypeId, v.Name });
             entity.Property(v => v.Active).HasDefaultValue(true).HasSentinel(true);
         });

@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using FyreApp.Data;
 using FyreApp.Models;
@@ -36,11 +35,9 @@ public class TimelineEventMapper : IUptickMapper
                 .Select(p => new { UptickId = p.UptickId!.Value, p.Id }).ToListAsync(ct))
             .ToDictionary(p => p.UptickId, p => p.Id);
 
-        // An asset is held by its Uptick id
-        _assets = new Dictionary<long, int>();
-        foreach (var a in await _db.Assets.AsNoTracking().Where(a => a.ExternalId != null).Select(a => new { a.ExternalId, a.Id }).ToListAsync(ct))
-            if (long.TryParse(a.ExternalId, NumberStyles.None, CultureInfo.InvariantCulture, out var id))
-                _assets.TryAdd(id, a.Id);
+        _assets = (await _db.Assets.AsNoTracking().Where(a => a.UptickId != null)
+                .Select(a => new { UptickId = a.UptickId!.Value, a.Id }).ToListAsync(ct))
+            .ToDictionary(a => a.UptickId, a => a.Id);
 
         await LinkHeldSinceAsync(ct);
     }

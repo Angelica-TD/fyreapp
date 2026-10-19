@@ -10,7 +10,7 @@ using Xunit;
 namespace FyreApp.Tests.Services;
 
 // Uptick's clients, properties, their contacts and users taken into FyreApp's tables (docs/uptick-migration.md
-// phase 3b): linked by Uptick id, rows from earlier file imports updated in place, deletions deactivating
+// phases 3b and 3c, with asset types, variants and assets): linked by Uptick id, rows from earlier file imports updated in place, deletions deactivating
 public class UptickCoreRecordsTests
 {
     private static readonly DateTime Now = new(2026, 10, 18, 0, 0, 0, DateTimeKind.Utc);
@@ -54,7 +54,7 @@ public class UptickCoreRecordsTests
 
     private static UptickMapping Mapping(AppDbContext db) => new(db,
         [new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
-            new TimelineEventMapper(db)],
+            new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db), new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
     // Every mapper in order, as a run ends
@@ -222,5 +222,101 @@ public class UptickCoreRecordsTests
         await MapAllAsync(db);
 
         Assert.Equal((await db.Properties.SingleAsync()).Id, (await db.TimelineEvents.SingleAsync()).PropertyId);
+    }
+
+    private static UptickRecord RawAssetType(string id, string name) => Raw("assettypes", id,
+        "{\"name\":\"" + name + "\",\"category\":\"AS1851 Sec 10 - Portable Fire Extinguishers\",\"sequence_group\":\"Portables\",\"description\":\"\",\"is_active\":true}");
+
+    private static UptickRecord RawVariant(string id, string typeId, string name, string? productId = null) => Raw("assettypevariants", id,
+        "{\"name\":\"" + name + "\",\"is_active\":true}",
+        "{\"type\":" + To("AssetType", typeId) + ",\"default_replacement_product\":" + To("Product", productId) + "}");
+
+    private static UptickRecord RawAsset(string id, string propertyId, string typeId, string? variantId = null, string? servicedBy = null,
+        string result = "P", string label = "") => Raw("assets", id,
+        "{\"ref\":\"001\",\"label\":\"" + label + "\",\"location\":\"Kitchen\",\"make\":\"\",\"barcode\":\"\",\"quantity\":2," +
+        "\"inspection_ref\":\"\",\"compliant\":" + (result == "F" ? "false" : "true") + ",\"last_service_result\":\"" + result + "\"," +
+        "\"is_active\":true,\"base_date\":null,\"installation_date\":\"2019-06-01\",\"inspected_date\":\"2026-10-15\"," +
+        "\"inactive_date\":null,\"internal_note\":\"\",\"inspection_order\":3}",
+        "{\"type\":" + To("AssetType", typeId) + ",\"variant\":" + To("AssetTypeVariant", variantId) + ",\"property\":" + To("Property", propertyId) +
+        ",\"serviced_by\":" + To("User", servicedBy) + "}");
+
+    [Fact]
+    public async Task Assets_are_mapped_with_their_type_variant_and_who_last_serviced_them()
+    {
+        await using var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(RawClient("2806", "Allied OT Pty Limited"), RawProperty("1491", "P-0016", "2806"),
+            RawUser("371", "Wes Speedon (Field Tech)", "wes@fyrepower.com.au", "FIELD"),
+            Raw("products", "905", """{"name":"5.0X C02 Extinguisher Exchange"}"""),
+            RawAssetType("10", "Fire Extinguisher"), RawVariant("112", "10", "CO2 5.0KG", productId: "905"),
+            RawAsset("42896", "1491", "10", variantId: "112", servicedBy: "371"),
+            RawAsset("42897", "1491", "10", result: "F", label: "Spare"),
+            Raw("contenttypes", "51", """{"model":"asset"}"""),
+            Raw("timelineevents", "1", """{"key":"general","type":"E","text":"Asset serviced.","object_id":42896}""",
+                "{\"content_type\":" + To("ContentType", "51") + "}"));
+        await db.SaveChangesAsync();
+
+        var results = await MapAllAsync(db);
+        Assert.Equal(2, results["assets"].Mapped);
+
+        var type = await db.AssetTypes.SingleAsync();
+        Assert.Equal((10L, "Fire Extinguisher", "Portables"), (type.UptickId!.Value, type.Name, type.SequenceGroup));
+        var variant = await db.AssetTypeVariants.SingleAsync();
+        Assert.Equal((112L, type.Id, "5.0X C02 Extinguisher Exchange"), (variant.UptickId!.Value, variant.AssetTypeId, variant.DefaultReplacementProduct));
+
+        var asset = await db.Assets.Include(a => a.AssetTypes).Include(a => a.LastServicedBy).SingleAsync(a => a.UptickId == 42896);
+        Assert.Equal(("42896", "Fire Extinguisher CO2 5.0KG", "001", "Kitchen", "2", "Pass"),
+            (asset.ExternalId, asset.Name, asset.Ref, asset.Location, asset.Quantity, asset.Compliance));
+        Assert.Equal((type.Id, variant.Id, "CO2 5.0KG", 3), (asset.AssetTypes.Single().Id, asset.AssetTypeVariantId!.Value, asset.Variant, asset.InspectionOrder!.Value));
+        Assert.Equal((new DateTime(2019, 6, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc)),
+            (asset.InstallationDate!.Value, asset.LastServiceDate!.Value));
+        Assert.Equal("Wes Speedon (Field Tech)", asset.LastServicedBy!.Name);
+        Assert.Equal(asset.Id, (await db.TimelineEvents.SingleAsync()).AssetId);
+
+        var spare = await db.Assets.SingleAsync(a => a.UptickId == 42897);
+        Assert.Equal(("Spare", "Fail", null), (spare.Name, spare.Compliance, spare.LastServicedById));
+    }
+
+    [Fact]
+    public async Task Types_variants_and_assets_from_the_file_imports_are_claimed_not_added_again()
+    {
+        await using var db = DbContextFactory.Create();
+        var client = new Client { Name = "Allied", UptickId = 2806, ExternalId = "2806" };
+        var property = new Property { Name = "Big River", UptickId = 1491, ExternalId = "P-0016", Client = client };
+        // Made by name from the assets export, then a variant from the variants export, then the asset
+        var type = new AssetType { Name = "fire extinguisher" };
+        var variant = new AssetTypeVariant { Name = "CO2 5.0KG", AssetType = type };
+        var asset = new Asset { Name = "Old", ExternalId = "42896", Property = property, AssetTypes = { type }, InternalNote = "x" };
+        db.AddRange(client, property, type, variant, asset);
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"),
+            RawAssetType("10", "Fire Extinguisher"), RawVariant("112", "10", "CO2 5.0kg"), RawAsset("42896", "1491", "10", variantId: "112"));
+        await db.SaveChangesAsync();
+
+        await MapAllAsync(db);
+
+        var types = await db.AssetTypes.ToListAsync();
+        Assert.Equal((type.Id, 10L, "Fire Extinguisher"), (Assert.Single(types).Id, types[0].UptickId!.Value, types[0].Name));
+        Assert.Equal((variant.Id, 112L), ((await db.AssetTypeVariants.SingleAsync()).Id, (await db.AssetTypeVariants.SingleAsync()).UptickId!.Value));
+        var mapped = await db.Assets.SingleAsync();
+        Assert.Equal((asset.Id, 42896L, variant.Id, null), (mapped.Id, mapped.UptickId!.Value, mapped.AssetTypeVariantId!.Value, mapped.InternalNote));
+    }
+
+    [Fact]
+    public async Task An_asset_whose_property_isnt_held_waits_and_one_deleted_in_Uptick_goes_inactive()
+    {
+        await using var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"), RawAssetType("10", "Fire Extinguisher"),
+            RawAsset("42896", "1491", "10"), RawAsset("42897", "777", "10"));
+        await db.SaveChangesAsync();
+
+        var results = await MapAllAsync(db);
+        Assert.Equal((1, 1), (results["assets"].Mapped!.Value, results["assets"].MapFailed));
+        Assert.Contains("42897: Its property (777) isn't in FyreApp.", results["assets"].MapErrors);
+
+        var deleted = await db.UptickRecords.SingleAsync(r => r.Resource == "assets" && r.UptickId == "42896");
+        deleted.DeletedUtc = Now;
+        deleted.MappedUtc = null;
+        await db.SaveChangesAsync();
+        await MapAllAsync(db);
+        Assert.False((await db.Assets.SingleAsync()).IsActive);
     }
 }

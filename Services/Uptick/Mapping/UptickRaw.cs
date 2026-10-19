@@ -58,6 +58,14 @@ public sealed class UptickRaw
             ? t.UtcDateTime
             : null;
 
+    // A plain date ("2026-10-15"), stored as that day at midnight UTC like the file imports did
+    public DateTime? Date(string name) =>
+        Str(A, name) is { } s && DateTime.TryParseExact(s, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
+            ? DateTime.SpecifyKind(d, DateTimeKind.Utc)
+            : null;
+
+    public int? Int(string name) => Long(A, name) is { } n && n is >= int.MinValue and <= int.MaxValue ? (int)n : null;
+
     // The Uptick id a relationship points to ("client": {"data": {"id": "2806", ...}}), null when unset
     public long? Rel(string name) =>
         Get(R, name) is { ValueKind: JsonValueKind.Object } rel && rel.TryGetProperty("data", out var d)

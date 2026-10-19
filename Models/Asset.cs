@@ -8,6 +8,9 @@ public class Asset
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
 
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
+
     // Used for import matching (maps from Uptick asset export "ID")
     [StringLength(64)]
     public string? ExternalId { get; set; }
@@ -51,6 +54,10 @@ public class Asset
     public DateTime? BaseDate { get; set; }
     public DateTime? InstallationDate { get; set; }
     public DateTime? LastServiceDate { get; set; }
+
+    // Who last serviced it (Uptick's "serviced_by")
+    public int? LastServicedById { get; set; }
+    public UptickUser? LastServicedBy { get; set; }
 
     // When it was made inactive (Uptick "Inactive Date")
     public DateTime? InactiveDate { get; set; }

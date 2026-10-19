@@ -135,7 +135,7 @@ public class UptickTimelineTests
         Assert.Null((await db.TimelineEvents.SingleAsync(e => e.UptickId == 2)).AssetId);
 
         // The asset comes in afterwards (a file import); the next mapping pass links its events, with nothing waiting
-        var asset = new Asset { Name = "001 - DCP", ExternalId = "41642", PropertyId = (await db.Properties.SingleAsync()).Id };
+        var asset = new Asset { Name = "001 - DCP", UptickId = 41642, ExternalId = "41642", PropertyId = (await db.Properties.SingleAsync()).Id };
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
         Assert.Equal(0, (await MapAsync(db)).Mapped);
