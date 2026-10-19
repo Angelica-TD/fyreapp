@@ -448,7 +448,13 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      authorisation, service group, …) from the task's raw copy (`TaskUptickFields`), over its export row. The
      tasks file import is off. A service task's routine, remark and product are kept as Uptick ids for 4d, 4e and
      phase 5.
-   - 4d: `remarks`, `reports`, linked to their task by ID (`RepairTaskExternalId` / `TaskExternalId` go).
+   - 4d (done): `remarks` → Remark and `reports` → Report, with `UptickId`; their file imports are off. Uptick's
+     remark has no property: it's at its asset's. Its "raised on" task is the task of its "Added" remark event, its
+     repair task the task of a service task done for it (a Repair task first, else the latest; service tasks on
+     routine visits fix remarks too), its quote ref and status its most progressed defect quote's (raw copy until
+     phase 5). Statuses read as the export wrote them ("Needs Quoting", "Expired/Declined"). A report links to its
+     task and takes its type, technician and author by name; one deleted in Uptick is removed.
+     `RepairTaskExternalId` / `TaskExternalId` hold Uptick's task id and go with the file importers in phase 6.
    - 4e: `routines`, `routineservices` (+ `routineservicelevels`); the file imports for all of these turned off.
 5. **Commercial:** defect quotes, sales quotes, invoices, credit notes, billing, products, stock.
 6. **Remaining reference data;** remove the file importers and `UptickData` columns.

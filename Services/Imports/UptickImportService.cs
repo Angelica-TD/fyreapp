@@ -35,6 +35,8 @@ public class UptickImportService : IUptickImportService
         (UptickExportType.RoutineServiceLevels, "Routine service levels", new[] { "Display Code", "Routine Service Type ID", "Interval" }),
         (UptickExportType.RemarkTypes, "Remark types", new[] { "Label", "Asset Type Tag", "Owner Responsible" }),
         (UptickExportType.Tasks, "Tasks", new[] { "Ref", "Category", "Scope of works", "Property Ref", "Due" }),
+        (UptickExportType.Remarks, "Remarks", new[] { "Remark Type", "Property Ref", "Severity", "Resolution" }),
+        (UptickExportType.Reports, "Reports", new[] { "Report Type", "Property Ref", "Issued", "Inspected" }),
     };
 
     public static string FromApiMessage(string name) =>
