@@ -64,6 +64,10 @@ public class Remark : IUptickMapped
     // Uptick task / quote references
     public string? RaisedOnTaskRef { get; set; }
     public string? QuoteRef { get; set; }
+
+    // Its most progressed defect quote in Uptick
+    public int? DefectQuoteId { get; set; }
+    public DefectQuote? DefectQuote { get; set; }
     public string? QuoteStatus { get; set; }
     public string? RepairTaskRef { get; set; }
     public string? RepairTaskStatus { get; set; }

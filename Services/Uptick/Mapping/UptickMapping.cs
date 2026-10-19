@@ -73,8 +73,9 @@ public class UptickMapping
             var state = await _db.UptickEndpointStates.FirstOrDefaultAsync(s => s.Resource == mapper.Resource, ct);
             if (state != null)
             {
-                state.MappedCount = await _db.UptickRecords
-                    .CountAsync(r => r.Resource == mapper.Resource && r.MappedUtc != null && r.DeletedUtc == null, ct);
+                // Counted over every record of the endpoint, as ClearMappedAsync clears them
+                state.MappedCount = await LongCommandAsync(() => _db.UptickRecords
+                    .CountAsync(r => r.Resource == mapper.Resource && r.MappedUtc != null && r.DeletedUtc == null, ct));
                 await _db.SaveChangesAsync(ct);
             }
         }
@@ -90,22 +91,28 @@ public class UptickMapping
         }
     }
 
+    // One statement over every record of an endpoint: ~1 M timeline events take longer than the default 30 s
+    private async Task<T> LongCommandAsync<T>(Func<Task<T>> command)
+    {
+        if (!_db.Database.IsRelational()) return await command();
+        var timeout = _db.Database.GetCommandTimeout();
+        _db.Database.SetCommandTimeout(TimeSpan.FromMinutes(15));
+        try
+        {
+            return await command();
+        }
+        finally
+        {
+            _db.Database.SetCommandTimeout(timeout);
+        }
+    }
+
     private async Task ClearMappedAsync(string resource, CancellationToken ct)
     {
         var rows = _db.UptickRecords.Where(r => r.Resource == resource && r.MappedUtc != null);
         if (_db.Database.IsRelational())
         {
-            // One statement over every record of the endpoint: ~1 M timeline events take longer than the default 30 s
-            var timeout = _db.Database.GetCommandTimeout();
-            _db.Database.SetCommandTimeout(TimeSpan.FromMinutes(15));
-            try
-            {
-                await rows.ExecuteUpdateAsync(s => s.SetProperty(r => r.MappedUtc, (DateTime?)null), ct);
-            }
-            finally
-            {
-                _db.Database.SetCommandTimeout(timeout);
-            }
+            await LongCommandAsync(() => rows.ExecuteUpdateAsync(s => s.SetProperty(r => r.MappedUtc, (DateTime?)null), ct));
             return;
         }
 

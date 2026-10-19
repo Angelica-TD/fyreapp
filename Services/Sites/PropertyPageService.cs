@@ -74,13 +74,14 @@ public class PropertyPageService : IPropertyPageService
                     .Where(r => r.PropertyId == id)
                     .OrderByDescending(r => r.IssuedDate ?? r.InspectedDate)
                     .ToListAsync(ct),
-                // Uptick's quotes and schedules, matched on the property's ref (sales quotes on its name)
-                DefectQuotes = site.ExternalId == null ? [] : await _db.DefectQuotes.AsNoTracking()
-                    .Where(q => q.PropertyRef == site.ExternalId)
+                // Uptick's quotes, at the property; schedules matched on its ref
+                DefectQuotes = await _db.DefectQuotes.AsNoTracking()
+                    .Include(q => q.ClientTask)
+                    .Where(q => q.PropertyId == id)
                     .OrderByDescending(q => q.Date)
                     .ToListAsync(ct),
                 ServiceQuotes = await _db.ServiceQuotes.AsNoTracking()
-                    .Where(q => q.PropertyName == site.Name)
+                    .Where(q => q.PropertyId == id)
                     .OrderByDescending(q => q.Created)
                     .ToListAsync(ct),
                 Schedules = site.ExternalId == null ? [] : await _db.PropertySchedules.AsNoTracking()

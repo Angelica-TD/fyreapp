@@ -34,6 +34,7 @@ public class RemarkListService : IRemarkListService
             .Include(d => d.Asset).ThenInclude(a => a!.AssetTypes)
             .Include(d => d.RemarkTypeRef)
             .Include(d => d.RepairTask)
+            .Include(d => d.DefectQuote)
             .AsSplitQuery()
             .FirstOrDefaultAsync(d => d.Id == id, ct);
 

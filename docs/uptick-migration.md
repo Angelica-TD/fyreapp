@@ -472,7 +472,11 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      into it), `stock` → Stock (`UptickId`, linked to its product and warehouse, names kept for the Products page;
      available = on hand − reserved, required = what's short of the restock level). The annotated stocks export's
      snapshot rows (no ids) are cleared on the first pass. Their file imports are off.
-   - 5c: `defectquotes`, `servicequotes` (remarks then link to their quote).
+   - 5c (done): `defectquotes` → DefectQuote (`UptickId`, at its property, linked to the task it was raised on;
+     subtotal, tax and total from its `defectquotelineitems`), `servicequotes` → ServiceQuote (at its property;
+     subtotal = `product_subtotal`). Remarks link to their most progressed defect quote (`DefectQuoteId`, quoted
+     date = the quote's date); the remark page links to the quote's row on the property's Records tab. A quote gone
+     from Uptick is marked DELETED. Their file imports are off.
    - 5d: `invoices`, `creditnotes`, linked to their tasks.
    - 5e: `billingcards`, `billingcontracts`, `billingcontractlineitems`; the file imports for all of these off.
 6. **Remaining reference data;** remove the file importers and `UptickData` columns.
