@@ -9,6 +9,7 @@ namespace FyreApp.Services.Uptick.Mapping;
 public class PropertyMapper : UptickEntityMapper<Property>
 {
     private Dictionary<long, int> _clients = new();
+    private Dictionary<long, int> _cards = new();
 
     public PropertyMapper(AppDbContext db) : base(db) { }
 
@@ -19,6 +20,7 @@ public class PropertyMapper : UptickEntityMapper<Property>
         _clients = (await Db.Clients.AsNoTracking().Where(c => c.UptickId != null)
                 .Select(c => new { UptickId = c.UptickId!.Value, c.Id }).ToListAsync(ct))
             .ToDictionary(c => c.UptickId, c => c.Id);
+        _cards = await BillingCardMapper.IdsAsync(Db, ct);
     }
 
     protected override async Task<Dictionary<long, Property>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
@@ -74,6 +76,7 @@ public class PropertyMapper : UptickEntityMapper<Property>
         p.ServiceRequirements = raw.Text("service_requirements");
         p.SafetyRequirements = raw.Text("safety_requirements");
         p.BillingRequirements = raw.Text("billing_requirements");
+        p.BillingCardId = raw.Rel("billingcard") is { } card && _cards.TryGetValue(card, out var cardId) ? cardId : null;
     }
 
     protected override void Deactivate(Property p) => p.Active = false;

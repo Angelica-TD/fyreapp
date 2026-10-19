@@ -8,9 +8,13 @@ namespace FyreApp.Services.Uptick.Mapping;
 // updated, placeholders filled in. Fields the API doesn't have (report address and organisation) are kept.
 public class ClientMapper : UptickEntityMapper<Client>
 {
+    private Dictionary<long, int> _cards = new();
+
     public ClientMapper(AppDbContext db) : base(db) { }
 
     public override string Resource => "clients";
+
+    public override async Task BeginAsync(CancellationToken ct) => _cards = await BillingCardMapper.IdsAsync(Db, ct);
 
     protected override async Task<Dictionary<long, Client>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
@@ -34,6 +38,7 @@ public class ClientMapper : UptickEntityMapper<Client>
         if (c.Created == default) c.Created = DateTime.UtcNow;
         c.Updated = raw.Time("updated");
         c.Active = raw.Bool("is_active") ?? true;
+        c.BillingCardId = raw.Rel("billingcard") is { } card && _cards.TryGetValue(card, out var cardId) ? cardId : null;
 
         c.Reference = raw.Text("ref");
         c.PrimarySector = raw.Text("sector");

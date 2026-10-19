@@ -35,8 +35,8 @@ builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IMaintenanceScheduleService, MaintenanceScheduleService>();
 builder.Services.AddScoped<IScheduleImportService, ScheduleImportService>();
 // Clients, properties, contacts, users, asset types, variants, assets, routine service types and levels,
-// remark types, tasks, remarks, reports, routines, products, warehouses, stock, defect quotes, sales quotes, invoices
-// and credit notes come from Uptick's API now
+// remark types, tasks, remarks, reports, routines, products, warehouses, stock, defect quotes, sales quotes, invoices,
+// credit notes, billing cards, billing contracts and their line items come from Uptick's API now
 // (UptickImportService.FromApi); their importers stay until phase 6 removes the file imports
 builder.Services.AddScoped<FyreApp.Services.Routines.IRoutineListService, FyreApp.Services.Routines.RoutineListService>();
 builder.Services.AddScoped<FyreApp.Services.Routines.IRoutineSetupService, FyreApp.Services.Routines.RoutineSetupService>();
@@ -52,9 +52,6 @@ builder.Services.AddScoped<UptickImporter, SecurityGroupImporter>();
 builder.Services.AddScoped<UptickImporter, ExtraFieldImporter>();
 builder.Services.AddScoped<UptickImporter, PromptQuestionImporter>();
 builder.Services.AddScoped<UptickImporter, AccreditationImporter>();
-builder.Services.AddScoped<UptickImporter, BillingCardImporter>();
-builder.Services.AddScoped<UptickImporter, BillingContractImporter>();
-builder.Services.AddScoped<UptickImporter, BillingContractLineItemImporter>();
 builder.Services.AddScoped<UptickImporter, PropertyScheduleImporter>();
 builder.Services.AddScoped<UptickImporter, FormResponseImporter>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IDirectoryListService, FyreApp.Services.Lists.DirectoryListService>();
@@ -79,6 +76,7 @@ builder.Services.AddHttpClient(FyreApp.Services.Uptick.Api.UptickApiClient.HttpC
 builder.Services.AddSingleton<FyreApp.Services.Uptick.Api.IUptickApiClient, FyreApp.Services.Uptick.Api.UptickApiClient>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Migration.UptickMigrator>();
 // Mappers from the raw copy into FyreApp's tables, in the order they run (docs/uptick-migration.md §3.4)
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.BillingCardMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.ClientMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.PropertyMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.ClientContactMapper>();
@@ -93,6 +91,8 @@ builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreAp
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.ProductMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.WarehouseMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.StockMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.BillingContractMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.BillingContractLineItemMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.RoutineServiceMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.RoutineServiceLevelLinkMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.TaskMapper>();

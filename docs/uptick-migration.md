@@ -482,7 +482,11 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      (`UptickId`, linked to its invoice, with its total). Some 4,500 old invoices (2020–21, synced from Xero) have
      only a billing card, so they're on no property's page. An invoice gone from Uptick is marked DELETED. Their
      file imports are off.
-   - 5e: `billingcards`, `billingcontracts`, `billingcontractlineitems`; the file imports for all of these off.
+   - 5e (done): `billingcards` → BillingCard (`UptickId`; mapped first, so clients and properties link to theirs by
+     `BillingCardId`; invoice count from the raw invoices), `billingcontracts` → BillingContract (at its property;
+     Uptick's codes worded as the export did: F → Fixed, Q → Quarterly, A → Advance), `billingcontractlineitems` →
+     BillingContractLineItem (on its contract, product by name). The Billing tab finds them by these links. Their
+     file imports are off: every phase 5 entity now comes from the API.
 6. **Remaining reference data;** remove the file importers and `UptickData` columns.
 7. **Files.**
 8. **The rest:** typed entities and screens for the endpoints still only in the raw copy, in order of need.
