@@ -3,9 +3,12 @@ using System.ComponentModel.DataAnnotations;
 namespace FyreApp.Models;
 
 // A defect / non-conformance raised against a property or asset (Uptick "Remark")
-public class Remark
+public class Remark : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from Uptick remark export "ID"
     [StringLength(64)]

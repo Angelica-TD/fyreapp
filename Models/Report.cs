@@ -3,9 +3,12 @@ using System.ComponentModel.DataAnnotations;
 namespace FyreApp.Models;
 
 // A service/inspection report issued for a property (Uptick "Report")
-public class Report
+public class Report : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from Uptick report export "ID"
     [StringLength(64)]

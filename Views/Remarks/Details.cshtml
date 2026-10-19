@@ -20,6 +20,8 @@
         </a>
     </h1>
 
+    @await Component.InvokeAsync("LocalEdits", new { entity = "Remark", id = d.Id })
+
     <div class="row g-3">
         <div class="col-lg-6">
             <div class="card property-card">

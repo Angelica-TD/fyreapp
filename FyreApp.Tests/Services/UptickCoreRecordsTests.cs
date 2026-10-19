@@ -56,7 +56,7 @@ public class UptickCoreRecordsTests
         [new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
             new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db),
             new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db),
-            new TaskMapper(db), new ServiceTaskMapper(db), new TimelineEventMapper(db)],
+            new TaskMapper(db), new ServiceTaskMapper(db), new RemarkMapper(db), new ReportMapper(db), new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
     // Every mapper in order, as a run ends
@@ -562,4 +562,67 @@ public class UptickCoreRecordsTests
         var fields = await FyreApp.Services.Tasks.TaskUptickFields.ForAsync(db, mapped, CancellationToken.None);
         Assert.Equal(("Urgent", "COMPLETE"), (fields["Tags"], fields["Status"]));
     }
+
+    [Fact]
+    public async Task Remarks_and_reports_are_mapped_with_their_asset_task_repair_and_quote()
+    {
+        await using var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"),
+            RawUser("371", "Wes Speedon (Field Tech)", "wes@fyrepower.com.au", "FIELD"),
+            Raw("taskcategories", "1", """{"name":"I&T"}"""), Raw("taskcategories", "3", """{"name":"Repair"}"""),
+            RawAssetType("10", "Fire Hose Reel"), RawAsset("42896", "1491", "10"),
+            Raw("remarktypes", "720", """{"label":"00 - Custom note","severity":0,"is_active":true}"""),
+            RawTask("46781", "1491"), RawTask("46900", "1491", status: "READY"),
+            Raw("defectquotes", "3001", """{"ref":"Q-2790","status":"APPROVED"}"""),
+            Raw("remarks", "55218", """{"ref":"D-55218","status":"NEEDS_QUOTING","severity":10,"description":"Hose cracked","location":"","is_active":true,"identified":"2026-10-15T15:14:49+11:00"}""",
+                "{\"type\":" + To("RemarkType", "720") + ",\"asset\":" + To("Asset", "42896") + ",\"most_progressed_defectquote\":" + To("DefectQuote", "3001") + "}"),
+            Raw("remarks", "55219", """{"status":"RESOLVED","is_active":false}""", "{\"asset\":" + To("Asset", "77777") + "}"),
+            Raw("remarkevents", "71532", """{"event":"A"}""", "{\"task\":" + To("Task", "46781") + ",\"remark\":" + To("Remark", "55218") + "}"),
+            Raw("reporttypes", "4", """{"name":"Service Report"}"""),
+            Raw("reports", "53286", """{"ref":"R-53286","title":"","issued":"2026-10-15","inspected":"2026-10-14","compliant":true,"is_published":true,"is_amendment":false,"general_note":"All good"}""",
+                "{\"task\":" + To("Task", "46781") + ",\"type\":" + To("ReportType", "4") + ",\"property\":" + To("Property", "1491") + ",\"technician\":" + To("User", "371") + "}"));
+        // The repair: a service task done for the remark on task 46900, made a Repair task below
+        var repair = RawServiceTask("216800", "46900", "42896", null);
+        repair.Relationships = repair.Relationships.Replace("{\"task\"", "{\"remark\":" + To("Remark", "55218") + ",\"task\"");
+        db.UptickRecords.Add(repair);
+        await db.SaveChangesAsync();
+        // Make 46900 a Repair task
+        var raw46900 = await db.UptickRecords.SingleAsync(r => r.Resource == "tasks" && r.UptickId == "46900");
+        raw46900.Relationships = raw46900.Relationships.Replace(To("TaskCategory", "1"), To("TaskCategory", "3"));
+        await db.SaveChangesAsync();
+
+        var results = await MapAllAsync(db);
+        Assert.Equal((1, 1), (results["remarks"].Mapped!.Value, results["remarks"].MapFailed));
+        Assert.Contains("55219: Its asset (77777) isn't in FyreApp.", results["remarks"].MapErrors);
+
+        var asset = await db.Assets.SingleAsync();
+        var remark = await db.Remarks.SingleAsync();
+        Assert.Equal((55218L, "D-55218", asset.PropertyId, asset.Id, "00 - Custom note", "Needs Quoting", "Critical defect"),
+            (remark.UptickId!.Value, remark.DisplayRef, remark.PropertyId, remark.AssetId!.Value, remark.RemarkType, remark.Status, remark.SeverityLabel));
+        Assert.Equal(("T-46781", "Q-2790", "APPROVED", "T-46900", "READY"),
+            (remark.RaisedOnTaskRef, remark.QuoteRef, remark.QuoteStatus, remark.RepairTaskRef, remark.RepairTaskStatus));
+        Assert.Equal((await db.ClientTasks.SingleAsync(t => t.UptickId == 46900)).Id, remark.RepairTaskId);
+
+        var report = await db.Reports.SingleAsync();
+        var task = await db.ClientTasks.SingleAsync(t => t.UptickId == 46781);
+        Assert.Equal(("R-53286", "Service Report", task.Id, "T-46781", "Wes Speedon (Field Tech)", true, "All good"),
+            (report.Ref, report.ReportType, report.ClientTaskId!.Value, report.TaskRef, report.Technician, report.Published, report.GeneralNote));
+        Assert.Equal((new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc), true), (report.IssuedDate!.Value, report.Compliant!.Value));
+
+        // A report deleted in Uptick leaves FyreApp
+        var raw = await db.UptickRecords.SingleAsync(r => r.Resource == "reports");
+        raw.DeletedUtc = Now;
+        raw.MappedUtc = null;
+        await db.SaveChangesAsync();
+        await MapAllAsync(db);
+        Assert.Empty(await db.Reports.ToListAsync());
+    }
+
+    [Theory]
+    [InlineData("NEEDS_QUOTING", "Needs Quoting")]
+    [InlineData("RESOLVED", "Resolved")]
+    [InlineData("PENDING_SUBMISSION", "Pending Submission")]
+    [InlineData("EXPIRED_DECLINED", "Expired/Declined")]
+    public void A_remark_status_reads_as_the_export_wrote_it(string uptick, string label) =>
+        Assert.Equal(label, RemarkMapper.StatusLabel(uptick));
 }

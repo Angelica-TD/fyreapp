@@ -262,6 +262,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(d => d.QuotedDate).HasColumnType("timestamptz");
 
             entity.HasIndex(d => d.ExternalId).IsUnique();
+            entity.HasIndex(d => d.UptickId).IsUnique();
             entity.HasIndex(d => d.PropertyId);
             entity.HasIndex(d => d.AssetId);
             entity.HasIndex(d => d.RepairTaskExternalId);
@@ -284,6 +285,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(r => r.InspectedDate).HasColumnType("timestamptz");
 
             entity.HasIndex(r => r.ExternalId).IsUnique();
+            entity.HasIndex(r => r.UptickId).IsUnique();
             entity.HasIndex(r => r.PropertyId);
             entity.HasIndex(r => r.TaskExternalId);
         });
