@@ -13,7 +13,8 @@ public class LocalEditsController : Controller
     private static readonly Dictionary<string, Type> Entities = new[]
     {
         typeof(Client), typeof(Property), typeof(PropertyContact), typeof(ClientContact), typeof(UptickUser),
-        typeof(Asset), typeof(AssetType), typeof(AssetTypeVariant)
+        typeof(Asset), typeof(AssetType), typeof(AssetTypeVariant), typeof(RoutineServiceType), typeof(RoutineServiceLevel),
+        typeof(RemarkType)
     }.ToDictionary(t => t.Name);
 
     private readonly AppDbContext _db;

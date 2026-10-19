@@ -96,7 +96,7 @@ public class RemarkTypeImporter : UptickImporter
         }
     }
 
-    private static string? RemarkTypeIdIn(string? uptickData)
+    internal static string? RemarkTypeIdIn(string? uptickData)
     {
         if (string.IsNullOrWhiteSpace(uptickData)) return null;
         using var doc = JsonDocument.Parse(uptickData);

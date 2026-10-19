@@ -39,13 +39,13 @@
             <div class="card-body">
                 <h2 class="h6">Import order</h2>
                 <p class="small text-muted mb-2">
-                    Clients, properties, their contacts, users, asset types, variants and assets come from Uptick's API
+                    Clients, properties, their contacts, users, asset types, variants, assets, routine service types and
+                    levels and remark types come from Uptick's API
                     (<a asp-controller="UptickMigration" asp-action="Index">Uptick migration</a>): run it first. The exports
                     below match records it brought in.
                 </p>
                 <ol class="small mb-0 ps-3">
-                    <li>Reference data: remark types, routine service types, routine service levels
-                        (security groups, extra fields and prompt questions any time)</li>
+                    <li>Reference data: security groups, extra fields and prompt questions (any time)</li>
                     <li><a asp-controller="MaintenanceSchedules" asp-action="Import">Routines</a></li>
                     <li>Remarks (after assets, so they link to the asset)</li>
                     <li>Reports</li>

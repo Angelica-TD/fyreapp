@@ -4,9 +4,12 @@ namespace FyreApp.Models;
 
 // An Uptick routine, e.g. "10 - Portable and Wheeled Fire Extinguishers" (Uptick routine service types export).
 // Uptick reference data; FyreApp's own ServiceType (quoting) is separate.
-public class RoutineServiceType
+public class RoutineServiceType : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from Uptick routine service types export "ID"
     [StringLength(64)]

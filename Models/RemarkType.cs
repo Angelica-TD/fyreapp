@@ -3,9 +3,12 @@ using System.ComponentModel.DataAnnotations;
 namespace FyreApp.Models;
 
 // Kind of defect Uptick technicians raise, e.g. "1.02 - Battery missing indication" (Uptick remark types export)
-public class RemarkType
+public class RemarkType : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from Uptick remark types export "ID" (remarks carry it as "Remark Type ID")
     [StringLength(64)]

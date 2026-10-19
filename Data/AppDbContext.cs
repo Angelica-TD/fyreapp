@@ -546,6 +546,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
             entity.HasIndex(r => r.ExternalId).IsUnique();
+            entity.HasIndex(r => r.UptickId).IsUnique();
             entity.Property(r => r.Active).HasDefaultValue(true).HasSentinel(true);
         });
 
@@ -603,6 +604,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         {
             entity.HasIndex(t => t.ExternalId).IsUnique();
             entity.HasIndex(t => t.Name);
+            entity.HasIndex(t => t.UptickId).IsUnique();
             entity.Property(t => t.Active).HasDefaultValue(true).HasSentinel(true);
         });
 
@@ -613,6 +615,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .HasForeignKey(l => l.RoutineServiceTypeId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(l => l.ExternalId).IsUnique();
+            entity.HasIndex(l => l.UptickId).IsUnique();
             entity.Property(l => l.Active).HasDefaultValue(true).HasSentinel(true);
 
             entity.HasMany(l => l.Schedules)
