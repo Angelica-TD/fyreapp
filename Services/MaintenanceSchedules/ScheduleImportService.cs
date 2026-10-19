@@ -515,7 +515,7 @@ public class ScheduleImportService : IScheduleImportService
         _ => 3 // Complete, Cancelled
     };
 
-    private static RoutineStatus OccurrenceStatus(string? status, string? completedDate) =>
+    internal static RoutineStatus OccurrenceStatus(string? status, string? completedDate) =>
         !string.IsNullOrWhiteSpace(completedDate) ? RoutineStatus.Complete
         : (status ?? "").Trim().ToUpperInvariant() switch
         {

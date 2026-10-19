@@ -655,6 +655,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(o => o.CompletedDate).HasColumnType("timestamptz");
 
             entity.HasIndex(o => o.ExternalId).IsUnique();
+            entity.HasIndex(o => o.UptickId).IsUnique();
             entity.HasIndex(o => new { o.DueDate, o.Status }); // the Routines page filters on these
             entity.HasIndex(o => o.PropertyId);
 
@@ -698,6 +699,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
         modelBuilder.Entity<RoutineService>(entity =>
         {
+            entity.HasIndex(s => s.UptickId).IsUnique();
             entity.HasOne(s => s.Property)
                 .WithMany()
                 .HasForeignKey(s => s.PropertyId)

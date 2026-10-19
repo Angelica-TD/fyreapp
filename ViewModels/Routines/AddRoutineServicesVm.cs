@@ -48,6 +48,9 @@ public class RoutineServiceSummaryVm
     public DateTime? EndDate { get; set; }
     public string? Subcontractor { get; set; }
 
+    // Set up in Uptick (migrated): Uptick forecasts its routines, so it isn't edited or removed here
+    public bool FromUptick { get; set; }
+
     // Forecast routines still waiting for a task, and when the next is due
     public int PendingRoutines { get; set; }
     public DateTime? NextDue { get; set; }

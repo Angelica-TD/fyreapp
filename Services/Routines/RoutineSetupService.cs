@@ -183,6 +183,9 @@ public class RoutineSetupService : IRoutineSetupService
 
     // ---- Editing and removing
 
+    // Uptick forecasts the routines of one set up there, and the next migration run would put them back
+    public const string FromUptickError = "This routine service is set up in Uptick; change it there.";
+
     // Routines that are history and stay as they are: a task's been raised for them, or they're done or cancelled
     private static bool IsHistory(Routine o) => o.Status != RoutineStatus.Pending || o.ClientTaskId != null;
 
@@ -192,7 +195,7 @@ public class RoutineSetupService : IRoutineSetupService
             .Select(s => new
             {
                 s.Id, Type = s.RoutineServiceType.Name, Levels = s.Levels.OrderBy(l => l.IntervalMonths).Select(l => l.Name).ToList(),
-                s.StartDate, s.LastAnnualDate, s.EndDate, s.Subcontractor,
+                s.StartDate, s.LastAnnualDate, s.EndDate, s.Subcontractor, FromUptick = s.UptickId != null,
                 Pending = s.Occurrences.Count(o => o.Status == RoutineStatus.Pending && o.ClientTaskId == null),
                 Next = s.Occurrences.Where(o => o.Status == RoutineStatus.Pending).OrderBy(o => o.DueDate).Select(o => (DateTime?)o.DueDate).FirstOrDefault()
             })
@@ -201,7 +204,7 @@ public class RoutineSetupService : IRoutineSetupService
         .Select(s => new RoutineServiceSummaryVm
         {
             Id = s.Id, RoutineType = s.Type, Levels = s.Levels, StartDate = s.StartDate, LastAnnualDate = s.LastAnnualDate,
-            EndDate = s.EndDate, Subcontractor = s.Subcontractor, PendingRoutines = s.Pending, NextDue = s.Next
+            EndDate = s.EndDate, Subcontractor = s.Subcontractor, PendingRoutines = s.Pending, NextDue = s.Next, FromUptick = s.FromUptick
         })
         .ToList();
 
@@ -245,6 +248,7 @@ public class RoutineSetupService : IRoutineSetupService
             .Include(s => s.Occurrences)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
         if (service == null) return RoutineServiceChangeResult.NotFound;
+        if (service.UptickId != null) return new RoutineServiceChangeResult(true, service.PropertyId, Error: FromUptickError);
 
         if (input.StartDate is not DateTime start || input.LastAnnualDate is not DateTime lastAnnual)
             return new RoutineServiceChangeResult(true, service.PropertyId, Error: "Start date and last annual date are required.");
@@ -288,6 +292,7 @@ public class RoutineSetupService : IRoutineSetupService
             .Include(s => s.Occurrences)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
         if (service == null) return RoutineServiceChangeResult.NotFound;
+        if (service.UptickId != null) return new RoutineServiceChangeResult(true, service.PropertyId, Error: FromUptickError);
 
         var history = service.Occurrences.Where(IsHistory).ToList();
         foreach (var o in history)

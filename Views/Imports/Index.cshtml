@@ -40,13 +40,12 @@
                 <h2 class="h6">Import order</h2>
                 <p class="small text-muted mb-2">
                     Clients, properties, their contacts, users, asset types, variants, assets, routine service types and
-                    levels, remark types, tasks, remarks and reports come from Uptick's API
+                    levels, remark types, tasks, remarks, reports and routines come from Uptick's API
                     (<a asp-controller="UptickMigration" asp-action="Index">Uptick migration</a>): run it first. The exports
                     below match records it brought in.
                 </p>
                 <ol class="small mb-0 ps-3">
                     <li>Reference data: security groups, extra fields and prompt questions (any time)</li>
-                    <li><a asp-controller="MaintenanceSchedules" asp-action="Import">Routines</a></li>
                 </ol>
                 <p class="small text-muted mt-2 mb-0">
                     Billing (billing cards, contracts and their line items, invoices, credit notes), quotes, sales quotes,

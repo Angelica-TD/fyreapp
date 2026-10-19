@@ -35,11 +35,18 @@
                                 @if (s.NextDue is { } next) { <div class="small text-muted">next @next.ToString("MMM yyyy")</div> }
                             </td>
                             <td class="text-end text-nowrap">
+                                @if (s.FromUptick)
+                                {
+                                    <span class="small text-muted">Set up in Uptick</span>
+                                }
+                                else
+                                {
                                 <a class="btn btn-sm btn-outline-secondary" asp-action="EditRoutineService" asp-route-id="@s.Id">Edit</a>
                                 <form asp-action="RemoveRoutineService" asp-route-id="@s.Id" method="post" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-outline-danger"
                                             onclick="return confirm('Remove this routine service and its @s.PendingRoutines pending routine(s)? Routines with a task, or done, stay.')">Remove</button>
                                 </form>
+                                }
                             </td>
                         </tr>
                     }
