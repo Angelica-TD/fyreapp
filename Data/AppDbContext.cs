@@ -690,8 +690,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         {
             entity.HasIndex(i => i.PropertyRef);
             entity.HasIndex(i => i.TaskExternalId);
+            entity.HasIndex(i => i.UptickId).IsUnique();
+            entity.HasOne(i => i.Property).WithMany().HasForeignKey(i => i.PropertyId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(i => i.ClientTask).WithMany().HasForeignKey(i => i.ClientTaskId).OnDelete(DeleteBehavior.SetNull);
         });
-        modelBuilder.Entity<CreditNote>().HasIndex(c => c.InvoiceExternalId);
+        modelBuilder.Entity<CreditNote>(entity =>
+        {
+            entity.HasIndex(c => c.InvoiceExternalId);
+            entity.HasIndex(c => c.UptickId).IsUnique();
+            entity.HasOne(c => c.Invoice).WithMany().HasForeignKey(c => c.InvoiceId).OnDelete(DeleteBehavior.SetNull);
+        });
         modelBuilder.Entity<DefectQuote>(entity =>
         {
             entity.HasIndex(q => q.PropertyRef);

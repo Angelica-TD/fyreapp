@@ -120,7 +120,7 @@ public class UptickBillingImportTests
         db.ClientTasks.Add(task);
         db.UptickUsers.Add(new UptickUser { ExternalId = "305", Name = "Wes Speedon (Field Tech)", LicenseType = "FIELD" });
         db.Invoices.AddRange(
-            new Invoice { ExternalId = "1", Number = "IV1", TaskExternalId = "46502", Total = 716.65m },
+            new Invoice { ExternalId = "1", Number = "IV1", TaskExternalId = "46502", ClientTask = task, Total = 716.65m },
             new Invoice { ExternalId = "2", Number = "IV2", TaskExternalId = "99999" });
         db.FormResponses.AddRange(
             new FormResponse { ExternalId = "248", Ref = "F-00248", TargetContentType = FormResponse.TaskContentType, TargetObjectId = "46502", SubmitterExternalId = "305" },

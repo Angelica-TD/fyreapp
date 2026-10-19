@@ -70,11 +70,11 @@ public class TaskPageService : ITaskPageService
                 .OrderBy(d => d.Asset != null ? d.Asset.Name : "")
                 .ThenBy(d => d.Id)
                 .ToListAsync(ct),
-            // Uptick invoices and form responses name the task by its Uptick ID
-            Invoices = task.ExternalId == null ? [] : await _db.Invoices.AsNoTracking()
-                .Where(i => i.TaskExternalId == task.ExternalId)
+            Invoices = await _db.Invoices.AsNoTracking()
+                .Where(i => i.ClientTaskId == id)
                 .OrderByDescending(i => i.Date)
                 .ToListAsync(ct),
+            // Uptick form responses name the task by its Uptick ID
             Forms = task.ExternalId == null ? [] : (await (
                     from f in _db.FormResponses.AsNoTracking()
                     where f.TargetContentType == FormResponse.TaskContentType && f.TargetObjectId == task.ExternalId
