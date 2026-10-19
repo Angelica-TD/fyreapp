@@ -346,6 +346,15 @@ later Refresh or Full run applies **last change wins, per field**:
 
 If staff work only in Uptick until cutover, this rarely comes into play, but it keeps re-runs safe.
 
+Built in phase 3d. `AppDbContext` records the edits itself on save (`LocalEditLog`), from the change tracker:
+every modified field of a row with an `UptickId` (`IUptickMapped`), so every form, bulk action and
+activate / deactivate is covered without each one doing it. An asset's type, held in the `AssetAssetTypes` join,
+is the field `AssetTypes` (by AssetType id). Mappers save with recording off (`RecordLocalEdits`) and, for
+each open edit of a row, put FyreApp's value back over the one just mapped while Uptick's is still the one stored
+at the edit, or close it (`ClosedReason` "Uptick"). Editing a field back to Uptick's value closes it
+("Reverted"). Asset, property and client pages show open edits ("Edited in FyreApp") with an admin
+**Reset to Uptick's** ("Reset").
+
 ## 8. Files
 
 "All data" includes the files Uptick stores: report PDFs, photos, signatures, attachments
@@ -411,7 +420,11 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      assets that don't have one); `Compliance` from `last_service_result` (P / F / N → Pass / Fail / N/A), the
      last service date from `inspected_date`. Uptick's `uptick_ref` is "A-" + the id, so it isn't stored;
      `Asset.Ref` stays the ref within the property ("001").
-   - 3d: `LocalEdit`; the file importers for these turned off.
+   - 3d (done): `LocalEdit` (§7); the file imports for clients, client and property contacts, properties,
+     users, asset types, variants and assets are off (an upload of one of those exports says they come from the
+     API). Their importer classes and `ExternalId` stay until phase 6: the importers still in use (tasks,
+     remarks, reports, …) link to properties by ref and to assets by `ExternalId`, and the FyreRef triggers read
+     it.
 4. **Work:** tasks, service tasks, remarks, reports, routines, routine services/levels/types.
 5. **Commercial:** defect quotes, sales quotes, invoices, credit notes, billing, products, stock.
 6. **Remaining reference data;** remove the file importers and `UptickData` columns.

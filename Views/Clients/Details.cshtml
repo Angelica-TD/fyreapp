@@ -37,6 +37,8 @@
     </div>
 }
 
+@await Component.InvokeAsync("LocalEdits", new { entity = "Client", id = c.Id })
+
 <div class="row g-4">
 
     @* ── Left column: client details ── *@

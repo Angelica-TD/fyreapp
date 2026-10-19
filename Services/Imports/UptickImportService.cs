@@ -16,9 +16,25 @@ public class UptickImportService : IUptickImportService
     // Exports handled by their own pages; recognised so we can point the user there.
     private static readonly (string Name, string[] Headers)[] OtherExports =
     {
-        ("Clients", new[] { "Name", "Property Count (Total)", "Primary Contact Name" }),
         ("Routine schedules", new[] { "Routine", "Due Date", "Property ref" })
     };
+
+    // Exports whose records come from Uptick's API now (the Uptick migration page): their file imports are off.
+    // Recognised so an upload says so instead of failing to recognise the file.
+    public static readonly (UptickExportType? Type, string Name, string[] Headers)[] FromApi =
+    {
+        (null, "Clients", new[] { "Name", "Property Count (Total)", "Primary Contact Name" }),
+        (UptickExportType.Properties, "Properties", new[] { "Ref", "Name", "Client ID", "Address Street Address" }),
+        (UptickExportType.PropertyContacts, "Property contacts", new[] { "Property Ref", "Contact Name", "Role", "Report req" }),
+        (UptickExportType.ClientContacts, "Client contacts", new[] { "Client ID", "Client Name", "Position", "Phone" }),
+        (UptickExportType.Assets, "Assets", new[] { "Label", "Property Ref", "Guid", "Type", "Variant" }),
+        (UptickExportType.AssetTypes, "Asset types", new[] { "Name", "Sequence Pattern", "Applicable Routines" }),
+        (UptickExportType.AssetTypeVariants, "Asset type variants", new[] { "Name", "Asset Type ID", "Default Replacement Product" }),
+        (UptickExportType.Users, "Users", new[] { "Date joined", "Last login", "Security Groups" }),
+    };
+
+    public static string FromApiMessage(string name) =>
+        $"{name} come from Uptick's API now (Admin → Uptick migration), so their file import is off.";
 
     public UptickImportService(IEnumerable<UptickImporter> importers) =>
         Importers = importers.OrderBy(i => i.Type).ToList();
@@ -57,7 +73,12 @@ public class UptickImportService : IUptickImportService
         UptickImporter? importer;
         if (type != null)
         {
-            importer = Importers.First(i => i.Type == type);
+            importer = Importers.FirstOrDefault(i => i.Type == type);
+            if (importer == null)
+            {
+                result.Error = FromApiMessage(FromApi.FirstOrDefault(f => f.Type == type).Name ?? type.ToString()!);
+                return result;
+            }
             if (headers.Count > 0 && !importer.Recognises(headers))
             {
                 var missing = importer.SignatureHeaders.Where(h => !headers.Contains(TabularFileReader.NormalizeHeader(h)));
@@ -68,6 +89,11 @@ public class UptickImportService : IUptickImportService
         else
         {
             importer = Importers.FirstOrDefault(i => i.Recognises(headers));
+            if (importer == null && FromApi.FirstOrDefault(f => Matches(f.Headers)).Name is { } fromApi)
+            {
+                result.Error = FromApiMessage(fromApi);
+                return result;
+            }
             if (importer == null)
             {
                 var other = OtherExports.FirstOrDefault(o => Matches(o.Headers)).Name;

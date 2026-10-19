@@ -113,7 +113,11 @@ namespace FyreApp.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Admin")]
-        public IActionResult Import() => View();
+        public IActionResult Import()
+        {
+            TempData["Error"] = FyreApp.Services.Imports.UptickImportService.FromApiMessage("Clients");
+            return RedirectToAction(nameof(Index));
+        }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -322,7 +326,9 @@ namespace FyreApp.Controllers
         [RequestSizeLimit(ImportLimits.MaxUploadBytes)]
         public async Task<IActionResult> StartImport(IFormFile file, bool dryRun)
         {
-            
+            // Clients come from Uptick's API now (docs/uptick-migration.md phase 3)
+            if (file != null) return BadRequest(FyreApp.Services.Imports.UptickImportService.FromApiMessage("Clients"));
+
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
 

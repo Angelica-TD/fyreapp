@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Models;
 
-public class PropertyContact
+public class PropertyContact : IUptickMapped
 {
     public int Id { get; set; }
 

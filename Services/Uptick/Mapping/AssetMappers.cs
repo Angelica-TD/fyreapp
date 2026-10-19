@@ -220,4 +220,27 @@ public class AssetMapper : UptickEntityMapper<Asset>
     };
 
     protected override void Deactivate(Asset a) => a.IsActive = false;
+
+    // The type is held in the AssetAssetTypes join rather than a column
+    protected override string? UptickValue(Asset a, LocalEdit edit) =>
+        edit.Field == LocalEditLog.AssetTypes ? LocalEditLog.Text(a.AssetTypes.FirstOrDefault()?.Id) : base.UptickValue(a, edit);
+
+    protected override void Keep(Asset a, LocalEdit edit)
+    {
+        if (edit.Field != LocalEditLog.AssetTypes)
+        {
+            base.Keep(a, edit);
+            return;
+        }
+        var keep = edit.FyreAppValue == null ? (int?)null : int.Parse(edit.FyreAppValue, System.Globalization.CultureInfo.InvariantCulture);
+        foreach (var other in a.AssetTypes.Where(t => t.Id != keep).ToList()) a.AssetTypes.Remove(other);
+        Db.ChangeTracker.DetectChanges();
+
+        // Mapping just removed FyreApp's type: its join row is marked deleted, so un-delete it rather than adding
+        // the type again (which EF leaves deleted)
+        var join = Db.ChangeTracker.Entries().FirstOrDefault(e => e.Metadata.Name == "AssetAssetType" && e.State == EntityState.Deleted
+            && (int)e.Property("AssetsId").CurrentValue! == a.Id && (int?)e.Property("AssetTypesId").CurrentValue == keep);
+        if (join != null) join.State = EntityState.Unchanged;
+        else if (keep != null && !a.AssetTypes.Any(t => t.Id == keep) && Db.AssetTypes.Find(keep.Value) is { } type) a.AssetTypes.Add(type);
+    }
 }

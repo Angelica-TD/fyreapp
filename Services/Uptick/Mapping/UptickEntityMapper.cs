@@ -55,6 +55,7 @@ public abstract class UptickEntityMapper<T> : IUptickMapper where T : class
         }
 
         var existing = await ExistingAsync(raws, ct);
+        var edits = await OpenEditsAsync(existing.Values, ct);
         foreach (var raw in raws)
         {
             existing.TryGetValue(raw.Id, out var entity);
@@ -73,7 +74,11 @@ public abstract class UptickEntityMapper<T> : IUptickMapper where T : class
                     Db.Add(entity);
                     existing[raw.Id] = entity;
                 }
-                else Map(entity, raw);
+                else
+                {
+                    Map(entity, raw);
+                    if (edits.TryGetValue(IdOf(entity), out var open)) KeepLocalEdits(entity, raw, open);
+                }
             }
             catch (Exception ex) when (ex is UptickMapException or InvalidOperationException or FormatException)
             {
@@ -81,10 +86,58 @@ public abstract class UptickEntityMapper<T> : IUptickMapper where T : class
             }
         }
 
-        await Db.SaveChangesAsync(ct);
-        await AfterAsync(ct);
+        // What mapping writes is Uptick's, not an edit made in FyreApp
+        Db.RecordLocalEdits = false;
+        try
+        {
+            await Db.SaveChangesAsync(ct);
+            await AfterAsync(ct);
+        }
+        finally
+        {
+            Db.RecordLocalEdits = true;
+        }
         return failures;
     }
+
+    // Fields changed in FyreApp (§7): while Uptick's value is still the one it had at the edit, FyreApp's stays;
+    // once Uptick's has changed, it wins and the edit is closed
+    private void KeepLocalEdits(T entity, UptickRaw raw, List<LocalEdit> edits)
+    {
+        var entry = Db.Entry(entity);
+        foreach (var edit in edits)
+        {
+            string? uptick;
+            if (edit.Field == LocalEditLog.AssetTypes) uptick = UptickValue(entity, edit);
+            else if (entry.Metadata.FindProperty(edit.Field) == null) continue;
+            else uptick = LocalEditLog.Text(entry.Property(edit.Field).CurrentValue);
+
+            if (uptick == edit.UptickValue) Keep(entity, edit);
+            else LocalEditLog.Close(edit, "Uptick", "Uptick", DateTime.UtcNow);
+        }
+    }
+
+    // A field's value as just mapped from Uptick, for a field that isn't a plain property (an asset's type)
+    protected virtual string? UptickValue(T entity, LocalEdit edit) => edit.UptickValue;
+
+    // Puts FyreApp's value back over what was just mapped
+    protected virtual void Keep(T entity, LocalEdit edit)
+    {
+        var p = Db.Entry(entity).Property(edit.Field);
+        p.CurrentValue = p.OriginalValue;
+    }
+
+    private async Task<Dictionary<int, List<LocalEdit>>> OpenEditsAsync(IEnumerable<T> rows, CancellationToken ct)
+    {
+        var ids = rows.Where(r => Db.Entry(r).State != EntityState.Added).Select(IdOf).ToList();
+        if (ids.Count == 0) return new Dictionary<int, List<LocalEdit>>();
+        var entity = typeof(T).Name;
+        return (await Db.LocalEdits.Where(e => e.ClosedUtc == null && e.Entity == entity && ids.Contains(e.RecordId)).ToListAsync(ct))
+            .GroupBy(e => e.RecordId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+    }
+
+    private int IdOf(T entity) => (int)Db.Entry(entity).Property("Id").CurrentValue!;
 
     // The rows by Uptick id: those that have it, then those a file import made, by the text it stored in
     // ExternalId (Uptick's id, or a property's ref)

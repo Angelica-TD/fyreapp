@@ -27,6 +27,7 @@
     {
         <div class="alert alert-danger">@TempData["Error"]</div>
     }
+    @await Component.InvokeAsync("LocalEdits", new { entity = "Property", id = site.Id })
 
     <ul class="nav nav-pills property-tabs mb-3">
         @foreach (var (key, label) in PropertyPageVm.Tabs)

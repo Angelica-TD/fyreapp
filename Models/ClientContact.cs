@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace FyreApp.Models;
 
 // A contact at a client (Uptick "Client contacts" export), beside the client's primary contact
-public class ClientContact
+public class ClientContact : IUptickMapped
 {
     public int Id { get; set; }
 

@@ -319,4 +319,126 @@ public class UptickCoreRecordsTests
         await MapAllAsync(db);
         Assert.False((await db.Assets.SingleAsync()).IsActive);
     }
+
+    // A property with one asset, mapped from Uptick
+    private static async Task<AppDbContext> MappedAssetAsync()
+    {
+        var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"),
+            RawAssetType("10", "Fire Extinguisher"), RawAssetType("11", "Fire Blanket"), RawAsset("42896", "1491", "10"));
+        await db.SaveChangesAsync();
+        await MapAllAsync(db);
+        db.ChangeTracker.Clear();
+        return db;
+    }
+
+    private static async Task ChangeInUptickAsync(AppDbContext db, string id, string field, string json)
+    {
+        var raw = await db.UptickRecords.SingleAsync(r => r.Resource == "assets" && r.UptickId == id);
+        var attributes = System.Text.Json.Nodes.JsonNode.Parse(raw.Attributes)!.AsObject();
+        attributes[field] = System.Text.Json.Nodes.JsonNode.Parse(json);
+        raw.Attributes = attributes.ToJsonString();
+        raw.MappedUtc = null;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+    }
+
+    [Fact]
+    public async Task A_field_edited_in_FyreApp_survives_mapping_until_Uptick_changes_it()
+    {
+        await using var db = await MappedAssetAsync();
+        var asset = await db.Assets.SingleAsync();
+        asset.Location = "Plant room";
+        await db.SaveChangesAsync();
+
+        var edit = await db.LocalEdits.SingleAsync();
+        Assert.Equal(("Asset", asset.Id, "Location", "Kitchen", "Plant room", true),
+            (edit.Entity, edit.RecordId, edit.Field, edit.UptickValue, edit.FyreAppValue, edit.IsOpen));
+
+        // A re-map, and a change in Uptick to another field: FyreApp's location stays
+        await MapAllAsync(db, remap: true);
+        await ChangeInUptickAsync(db, "42896", "internal_note", "\"Swap at next service\"");
+        await MapAllAsync(db);
+        asset = await db.Assets.SingleAsync();
+        Assert.Equal(("Plant room", "Swap at next service"), (asset.Location, asset.InternalNote));
+        Assert.True((await db.LocalEdits.SingleAsync()).IsOpen);
+
+        // Changed in Uptick since: Uptick's wins and the edit closes
+        await ChangeInUptickAsync(db, "42896", "location", "\"Store room\"");
+        await MapAllAsync(db);
+        Assert.Equal("Store room", (await db.Assets.SingleAsync()).Location);
+        edit = await db.LocalEdits.SingleAsync();
+        Assert.Equal((false, "Uptick"), (edit.IsOpen, edit.ClosedReason));
+    }
+
+    [Fact]
+    public async Task An_asset_type_changed_in_FyreApp_is_kept_and_can_be_reset()
+    {
+        await using var db = await MappedAssetAsync();
+        var asset = await db.Assets.Include(a => a.AssetTypes).SingleAsync();
+        var extinguisher = asset.AssetTypes.Single();
+        var blanket = await db.AssetTypes.SingleAsync(t => t.UptickId == 11);
+        asset.AssetTypes.Clear();
+        asset.AssetTypes.Add(blanket);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var edit = await db.LocalEdits.SingleAsync();
+        Assert.Equal((LocalEditLog.AssetTypes, extinguisher.Id.ToString(), blanket.Id.ToString()), (edit.Field, edit.UptickValue, edit.FyreAppValue));
+
+        await MapAllAsync(db, remap: true);
+        Assert.Equal(blanket.Id, (await db.Assets.Include(a => a.AssetTypes).SingleAsync()).AssetTypes.Single().Id);
+        db.ChangeTracker.Clear();
+
+        // An admin puts it back to Uptick's
+        asset = await db.Assets.Include(a => a.AssetTypes).SingleAsync();
+        edit = await db.LocalEdits.SingleAsync();
+        LocalEditLog.Reset(db, edit, asset, "admin", Now);
+        db.RecordLocalEdits = false;
+        await db.SaveChangesAsync();
+        db.RecordLocalEdits = true;
+        db.ChangeTracker.Clear();
+
+        Assert.Equal(extinguisher.Id, (await db.Assets.Include(a => a.AssetTypes).SingleAsync()).AssetTypes.Single().Id);
+        edit = await db.LocalEdits.SingleAsync();
+        Assert.Equal((false, "Reset", "admin"), (edit.IsOpen, edit.ClosedReason, edit.ClosedBy));
+    }
+
+    [Fact]
+    public async Task Editing_back_to_Uptick_closes_the_edit_and_FyreApps_own_records_record_nothing()
+    {
+        await using var db = await MappedAssetAsync();
+        var asset = await db.Assets.SingleAsync();
+        asset.InspectionOrder = 9;
+        await db.SaveChangesAsync();
+        asset.InspectionOrder = 7;
+        await db.SaveChangesAsync();
+        var edit = await db.LocalEdits.SingleAsync();
+        Assert.Equal(("3", "7", true), (edit.UptickValue, edit.FyreAppValue, edit.IsOpen));
+
+        asset.InspectionOrder = 3;
+        await db.SaveChangesAsync();
+        Assert.Equal((false, "Reverted"), ((await db.LocalEdits.SingleAsync()).IsOpen, (await db.LocalEdits.SingleAsync()).ClosedReason));
+
+        // Made in FyreApp: nothing in Uptick to keep it from
+        var own = new Asset { Name = "New", PropertyId = asset.PropertyId };
+        db.Assets.Add(own);
+        await db.SaveChangesAsync();
+        own.Location = "Roof";
+        await db.SaveChangesAsync();
+        Assert.Single(await db.LocalEdits.ToListAsync());
+    }
+
+    [Fact]
+    public async Task An_export_now_migrated_from_the_API_isnt_imported()
+    {
+        var service = new FyreApp.Services.Imports.UptickImportService([]);
+        using var csv = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("Ref,Name,Client ID,Address Street Address\nP-0016,Big River,2806,11 Greg Chappell Dr\n"));
+
+        var result = await service.ImportAsync(csv, "properties.csv", null, dryRun: true);
+
+        Assert.Equal("Properties come from Uptick's API now (Admin → Uptick migration), so their file import is off.", result.Error);
+        using var again = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("Label,Property Ref,Guid,Type,Variant\n"));
+        Assert.StartsWith("Assets come from", (await service.ImportAsync(again, "x.csv", FyreApp.Services.Imports.UptickExportType.Assets, true)).Error);
+    }
 }

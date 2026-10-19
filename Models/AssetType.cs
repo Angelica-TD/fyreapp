@@ -5,7 +5,7 @@ namespace FyreApp.Models;
 
 // Kind of asset, e.g. "Fire Extinguisher". Created by name from the assets export, and filled in
 // from Uptick's asset types export (reference data).
-public class AssetType
+public class AssetType : IUptickMapped
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
