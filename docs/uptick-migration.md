@@ -433,11 +433,15 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      sequences and the FD / FSR FyreRef triggers. The levels join keeps its table name
      `PropertyRoutineServiceLevels` (`RoutineServiceLevels` is the levels). Words shown on screen ("Defect
      history", "Defect repairs") are unchanged.
-   - 4b: reference data the work records link to: `routineservicetypes`, `routineservicelevels` (+
-     `routineserviceleveltypes`), `remarktypes`.
+   - 4b (done): reference data the work records link to, with `UptickId` and their file imports off:
+     `routineservicetypes` → RoutineServiceType (standard and service group by name from the raw copy),
+     `routineserviceleveltypes` → RoutineServiceLevel (Uptick's `routineservicelevels` are the levels set up at
+     each property, mapped with routine services in 4e), `remarktypes` → RemarkType (severity shown as Uptick
+     names it: 0 Informational, 1 Recommendation, 2 Non-conformance, 5 Non-critical defect, 10 Critical defect).
+     Types and levels the exports made by name are claimed by name; file-imported remarks are linked to their type.
    - 4c: `tasks` → ClientTask, `servicetasks` → ServiceTask.
    - 4d: `remarks`, `reports`, linked to their task by ID (`RepairTaskExternalId` / `TaskExternalId` go).
-   - 4e: `routines`, `routineservices`; the file imports for all of these turned off.
+   - 4e: `routines`, `routineservices` (+ `routineservicelevels`); the file imports for all of these turned off.
 5. **Commercial:** defect quotes, sales quotes, invoices, credit notes, billing, products, stock.
 6. **Remaining reference data;** remove the file importers and `UptickData` columns.
 7. **Files.**

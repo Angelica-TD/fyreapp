@@ -31,6 +31,9 @@ public class UptickImportService : IUptickImportService
         (UptickExportType.AssetTypes, "Asset types", new[] { "Name", "Sequence Pattern", "Applicable Routines" }),
         (UptickExportType.AssetTypeVariants, "Asset type variants", new[] { "Name", "Asset Type ID", "Default Replacement Product" }),
         (UptickExportType.Users, "Users", new[] { "Date joined", "Last login", "Security Groups" }),
+        (UptickExportType.RoutineServiceTypes, "Routine service types", new[] { "Name", "Standard Reference", "Default Performance Standard" }),
+        (UptickExportType.RoutineServiceLevels, "Routine service levels", new[] { "Display Code", "Routine Service Type ID", "Interval" }),
+        (UptickExportType.RemarkTypes, "Remark types", new[] { "Label", "Asset Type Tag", "Owner Responsible" }),
     };
 
     public static string FromApiMessage(string name) =>

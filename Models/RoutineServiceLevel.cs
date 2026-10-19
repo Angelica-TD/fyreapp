@@ -4,9 +4,12 @@ namespace FyreApp.Models;
 
 // How often a routine is done, e.g. "Six-monthly" for "10 - Portable and Wheeled Fire Extinguishers"
 // (Uptick routine service level types export). The routines export names an occurrence "<routine>: <level>".
-public class RoutineServiceLevel
+public class RoutineServiceLevel : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from Uptick routine service level types export "ID"
     [StringLength(64)]

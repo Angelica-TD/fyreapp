@@ -54,7 +54,8 @@ public class UptickCoreRecordsTests
 
     private static UptickMapping Mapping(AppDbContext db) => new(db,
         [new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
-            new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db), new TimelineEventMapper(db)],
+            new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db),
+            new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db), new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
     // Every mapper in order, as a run ends
@@ -440,5 +441,45 @@ public class UptickCoreRecordsTests
         Assert.Equal("Properties come from Uptick's API now (Admin → Uptick migration), so their file import is off.", result.Error);
         using var again = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("Label,Property Ref,Guid,Type,Variant\n"));
         Assert.StartsWith("Assets come from", (await service.ImportAsync(again, "x.csv", FyreApp.Services.Imports.UptickExportType.Assets, true)).Error);
+    }
+
+    [Fact]
+    public async Task Routine_service_types_levels_and_remark_types_are_mapped_and_claim_what_the_exports_made()
+    {
+        await using var db = DbContextFactory.Create();
+        // From the routines export (by name) and a remarks export (its row names the remark type's id)
+        var made = new RoutineServiceType { Name = "10 - Portable and Wheeled Fire Extinguishers" };
+        db.RoutineServiceTypes.Add(made);
+        db.RoutineServiceLevels.Add(new RoutineServiceLevel { Name = "six-monthly", RoutineServiceType = made, IntervalMonths = 6 });
+        var client = new Client { Name = "Allied", UptickId = 2806, ExternalId = "2806" };
+        var property = new Property { Name = "Big River", UptickId = 1491, ExternalId = "P-0016", Client = client };
+        db.AddRange(client, property, new Remark { Property = property, ExternalId = "500", UptickData = "{\"ID\":\"500\",\"Remark Type ID\":\"723\"}" });
+        db.UptickRecords.AddRange(
+            Raw("standards", "1", """{"name":"AS1851-2012"}"""), Raw("servicegroups", "4", """{"name":"Servicing - Portables & Fire Equipment"}"""),
+            Raw("routineservicetypes", "10", """{"name":"10 - Portable and Wheeled Fire Extinguishers","standard_reference":"AS1851-2012 Section 10","is_active":true,"is_custom":false}""",
+                "{\"standard\":" + To("Standard", "1") + ",\"servicegroup\":" + To("ServiceGroup", "4") + "}"),
+            Raw("routineserviceleveltypes", "14", """{"name":"Six-monthly","display_code":"H","interval":6,"frequency":"M","service_rank":2,"is_default_enabled":true,"is_active":true}""",
+                "{\"routineservicetype\":" + To("RoutineServiceType", "10") + "}"),
+            Raw("routineserviceleveltypes", "15", """{"name":"Five-yearly","interval":5,"frequency":"Y","is_active":true}""",
+                "{\"routineservicetype\":" + To("RoutineServiceType", "10") + "}"),
+            RawAssetType("10", "Fire Extinguisher"),
+            Raw("remarktypes", "723", """{"label":"1.02 - Battery missing","severity":10,"resolution":"Supply and install new batteries","is_owner_responsible":true,"is_active":true}""",
+                "{\"type\":" + To("AssetType", "10") + "}"));
+        await db.SaveChangesAsync();
+
+        await MapAllAsync(db);
+
+        var type = await db.RoutineServiceTypes.SingleAsync();
+        Assert.Equal((made.Id, 10L, "AS1851-2012", "AS1851-2012 Section 10", "Servicing - Portables & Fire Equipment"),
+            (type.Id, type.UptickId!.Value, type.Standard, type.StandardReference, type.ServiceGroup));
+        var levels = await db.RoutineServiceLevels.OrderBy(l => l.UptickId).ToListAsync();
+        Assert.Equal(2, levels.Count);
+        Assert.Equal((14L, "Six-monthly", "H", 6, 2), (levels[0].UptickId!.Value, levels[0].Name, levels[0].DisplayCode, levels[0].IntervalMonths, levels[0].ServiceRank!.Value));
+        Assert.Equal((type.Id, 60), (levels[1].RoutineServiceTypeId, levels[1].IntervalMonths));
+
+        var remarkType = await db.RemarkTypes.SingleAsync();
+        Assert.Equal(("1.02 - Battery missing", "Critical defect", true, (await db.AssetTypes.SingleAsync()).Id),
+            (remarkType.Label, remarkType.SeverityLabel, remarkType.OwnerResponsible, remarkType.AssetTypeId!.Value));
+        Assert.Equal(remarkType.Id, (await db.Remarks.SingleAsync()).RemarkTypeId);
     }
 }

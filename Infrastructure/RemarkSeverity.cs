@@ -12,4 +12,15 @@ public static class RemarkSeverity
         1 => "bg-info text-dark",
         _ => "bg-secondary"
     };
+
+    // As Uptick names a severity
+    public static string? Label(int? severity) => severity switch
+    {
+        0 => "Informational",
+        1 => "Recommendation",
+        2 => "Non-conformance",
+        5 => "Non-critical defect",
+        10 => "Critical defect",
+        _ => null
+    };
 }
