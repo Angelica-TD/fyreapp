@@ -71,7 +71,7 @@ public class TaskImporter : UptickImporter
                 // A few Uptick tasks have no property; keep them on one placeholder property
                 if (noPropertySiteId == null)
                 {
-                    var (npId, npClientId) = await GetNoPropertySiteAsync(dryRun, ct);
+                    var (npId, npClientId) = await GetNoPropertySiteAsync(Db, dryRun, ct);
                     noPropertySiteId = npId;
                     clientIdBySite[npId] = npClientId;
                 }
@@ -108,7 +108,7 @@ public class TaskImporter : UptickImporter
             await ApplyUpdatesAsync(Db.ClientTasks.Include(t => t.CoveredSchedules), toUpdate.ToDictionary(
                 p => p.Key, p => (Action<ClientTask>)(t => { p.Value(t); updated.Add(t); })), t => t.Id, ct);
 
-        var rolled = RollSchedulesForward(toCreate.Concat(updated).ToList(), dryRun);
+        var rolled = RollSchedulesForward(Db, toCreate.Concat(updated).ToList(), dryRun);
 
         ctx.Result.Created = toCreate.Count;
         ctx.Result.Updated = toUpdate.Count;
@@ -131,13 +131,13 @@ public class TaskImporter : UptickImporter
         Db.ClientTasks.AddRange(toCreate);
         await Db.SaveChangesAsync(ct);
 
-        var (reports, remarks) = await LinkWaitingRecordsAsync(toCreate, ct);
+        var (reports, remarks) = await LinkWaitingRecordsAsync(Db, toCreate, ct);
         if (reports + remarks > 0)
             ctx.Result.Notes.Add($"{reports} report(s) and {remarks} remark(s) imported earlier were linked to their task.");
     }
 
     // Reports and remarks imported before their task point at it by Uptick task ID; link them now
-    private async Task<(int Reports, int Remarks)> LinkWaitingRecordsAsync(IReadOnlyList<ClientTask> created, CancellationToken ct)
+    internal static async Task<(int Reports, int Remarks)> LinkWaitingRecordsAsync(AppDbContext db, IReadOnlyList<ClientTask> created, CancellationToken ct)
     {
         var idByExt = created.Where(t => t.ExternalId != null)
             .GroupBy(t => t.ExternalId!, StringComparer.OrdinalIgnoreCase)
@@ -147,12 +147,12 @@ public class TaskImporter : UptickImporter
         foreach (var chunk in idByExt.Keys.Chunk(1000))
         {
             var exts = chunk.ToList();
-            foreach (var r in await Db.Reports.Where(r => r.ClientTaskId == null && r.TaskExternalId != null && exts.Contains(r.TaskExternalId)).ToListAsync(ct))
+            foreach (var r in await db.Reports.Where(r => r.ClientTaskId == null && r.TaskExternalId != null && exts.Contains(r.TaskExternalId)).ToListAsync(ct))
             {
                 r.ClientTaskId = idByExt[r.TaskExternalId!];
                 reports++;
             }
-            foreach (var d in await Db.Remarks.Where(d => d.RepairTaskId == null && d.RepairTaskExternalId != null && exts.Contains(d.RepairTaskExternalId)).ToListAsync(ct))
+            foreach (var d in await db.Remarks.Where(d => d.RepairTaskId == null && d.RepairTaskExternalId != null && exts.Contains(d.RepairTaskExternalId)).ToListAsync(ct))
             {
                 d.RepairTaskId = idByExt[d.RepairTaskExternalId!];
                 remarks++;
@@ -160,7 +160,7 @@ public class TaskImporter : UptickImporter
         }
 
         if (reports + remarks > 0)
-            await Db.SaveChangesAsync(ct);
+            await db.SaveChangesAsync(ct);
         return (reports, remarks);
     }
 
@@ -176,6 +176,7 @@ public class TaskImporter : UptickImporter
         t.ClientId = clientId;
         t.Title = Truncate(row.Get("Name") ?? FirstLine(row.Get("Description")) ?? row.Get("Ref") ?? row.Get("ID")!, 120);
         t.Description = BuildDescription(row.Get("Description"), row.Get("Scope of works"));
+        t.ScopeOfWorks = Cap(row.Get("Scope of works"), 4000);
         t.Status = status;
         t.Priority = MapPriority(row.GetInt("Priority"));
         t.DueDateUtc = row.GetDate("Due");
@@ -193,7 +194,7 @@ public class TaskImporter : UptickImporter
 
     // For each linked schedule, while a completed imported task covers its next occurrence, log it in
     // maintenance history and move to the following occurrence. Returns how many occurrences were done.
-    private int RollSchedulesForward(IReadOnlyList<ClientTask> tasks, bool dryRun)
+    internal static int RollSchedulesForward(AppDbContext db, IReadOnlyList<ClientTask> tasks, bool dryRun)
     {
         var rolled = 0;
         var completedBySchedule = tasks
@@ -216,7 +217,7 @@ public class TaskImporter : UptickImporter
 
                 if (!dryRun)
                 {
-                    Db.MaintenanceHistory.Add(new MaintenanceHistory
+                    db.MaintenanceHistory.Add(new MaintenanceHistory
                     {
                         MaintenanceSchedule = schedule,
                         CompletedAt = done.CompletedUtc ?? done.DueDateUtc ?? due,
@@ -235,15 +236,15 @@ public class TaskImporter : UptickImporter
         return rolled;
     }
 
-    private async Task<(int Id, int ClientId)> GetNoPropertySiteAsync(bool dryRun, CancellationToken ct)
+    internal static async Task<(int Id, int ClientId)> GetNoPropertySiteAsync(AppDbContext db, bool dryRun, CancellationToken ct)
     {
-        var site = await Db.Properties.FirstOrDefaultAsync(s => s.IsPlaceholder && s.ExternalId == null && s.Name == NoPropertySiteName, ct);
+        var site = await db.Properties.FirstOrDefaultAsync(s => s.IsPlaceholder && s.ExternalId == null && s.Name == NoPropertySiteName, ct);
         if (site != null) return (site.Id, site.ClientId);
         if (dryRun) return (int.MinValue, 0);
 
-        site = new Property { Name = NoPropertySiteName, IsPlaceholder = true, Active = false, Client = await GetUnassignedClientAsync(ct) };
-        Db.Properties.Add(site);
-        await Db.SaveChangesAsync(ct);
+        site = new Property { Name = NoPropertySiteName, IsPlaceholder = true, Active = false, Client = await UnassignedClientAsync(db, ct) };
+        db.Properties.Add(site);
+        await db.SaveChangesAsync(ct);
         return (site.Id, site.ClientId);
     }
 
@@ -268,14 +269,14 @@ public class TaskImporter : UptickImporter
     };
 
     // Uptick priority: 5 is the default; lower is more urgent
-    private static ClientTaskPriority MapPriority(int? priority) => priority switch
+    internal static ClientTaskPriority MapPriority(int? priority) => priority switch
     {
         null or 5 => ClientTaskPriority.Normal,
         < 5 => ClientTaskPriority.High,
         _ => ClientTaskPriority.Low
     };
 
-    private static string? BuildDescription(string? description, string? scope)
+    internal static string? BuildDescription(string? description, string? scope)
     {
         var text = scope == null || string.Equals(scope, description, StringComparison.Ordinal)
             ? description
@@ -283,8 +284,8 @@ public class TaskImporter : UptickImporter
         return text == null ? null : Truncate(text, 4000);
     }
 
-    private static string? FirstLine(string? s) =>
+    internal static string? FirstLine(string? s) =>
         s?.Split('\n').Select(l => l.Trim()).FirstOrDefault(l => l.Length > 0);
 
-    private static string Truncate(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
+    internal static string Truncate(string s, int max) => s.Length <= max ? s : s[..(max - 1)] + "…";
 }

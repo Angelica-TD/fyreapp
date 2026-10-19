@@ -139,6 +139,7 @@ public class RoutineServiceTaskTests
         var task = new ClientTask
         {
             ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2026/10 Servicing", ExternalId = "46682",
+            ScopeOfWorks = "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual",
             UptickData = """{"Scope of works":"- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"}"""
         };
         db.ClientTasks.Add(task);
@@ -167,6 +168,7 @@ public class RoutineServiceTaskTests
         var task = new ClientTask
         {
             ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2026/10 Servicing", Ref = "T-46682", ExternalId = "46682", DueDateUtc = Utc(10, 31),
+            ScopeOfWorks = "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual",
             UptickData = """{"Scope of works":"- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"}"""
         };
         db.ClientTasks.Add(task);
@@ -214,6 +216,7 @@ public class RoutineServiceTaskTests
         {
             ClientId = glory.ClientId, PropertyId = glory.Id, Title = title, ExternalId = title, Ref = "T-" + title,
             DueDateUtc = DateTime.SpecifyKind(new DateTime(2026, month, 28), DateTimeKind.Utc),
+            ScopeOfWorks = $"- {Extinguishers} (AS1851-2012 Section 10): {(month == 10 ? "Annual" : "Six-monthly")}",
             UptickData = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string?>
             {
                 ["Scope of works"] = $"- {Extinguishers} (AS1851-2012 Section 10): {(month == 10 ? "Annual" : "Six-monthly")}",

@@ -147,8 +147,10 @@ public abstract class UptickImporter
     public const string UnassignedClientName = "Unassigned (not in Uptick export)";
 
     // Holds placeholder properties whose client isn't known from the row
-    protected async Task<Client> GetUnassignedClientAsync(CancellationToken ct) =>
-        await Db.Clients.FirstOrDefaultAsync(c => c.IsPlaceholder && c.ExternalId == null && c.Name == UnassignedClientName, ct)
+    protected Task<Client> GetUnassignedClientAsync(CancellationToken ct) => UnassignedClientAsync(Db, ct);
+
+    internal static async Task<Client> UnassignedClientAsync(AppDbContext db, CancellationToken ct) =>
+        await db.Clients.FirstOrDefaultAsync(c => c.IsPlaceholder && c.ExternalId == null && c.Name == UnassignedClientName, ct)
         ?? new Client { Name = UnassignedClientName, IsPlaceholder = true, Active = false, Created = DateTime.UtcNow };
 
     // A row can point at a property that isn't in FyreApp, usually because it's archived in Uptick and so

@@ -20,6 +20,7 @@ public class TaskPageTests
         {
             Property = site, Client = site.Client, Title = "Q-2790 Works", Ref = "T-46748", ExternalId = "46748", Category = "Repair",
             Description = "Prepare\n\nQuote to replace failed items as per service report.", AssignedTo = dwayne,
+            ScopeOfWorks = "Quote to replace failed items as per service report.",
             UptickData = """{"Description":"Prepare","Scope of works":"Quote to replace failed items as per service report.","Status":"READY","Tags":"Parts Required, Urgent","Invoice Note":"As per accepted defect quote Q-2790."}"""
         };
         db.AddRange(task, customer);

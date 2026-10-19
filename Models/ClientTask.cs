@@ -19,9 +19,12 @@ public enum ClientTaskPriority
     Urgent = 4
 }
 
-public class ClientTask
+public class ClientTask : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from Uptick task export "ID"
     [StringLength(64)]
@@ -64,6 +67,10 @@ public class ClientTask
 
     [StringLength(4000)]
     public string? Description { get; set; }
+
+    // Uptick's scope of works, one routine per line: "- 09 - Fire Hose Reels (Section 9): Annual"
+    [StringLength(4000)]
+    public string? ScopeOfWorks { get; set; }
 
     public ClientTaskStatus Status { get; set; } = ClientTaskStatus.Open;
     public ClientTaskPriority Priority { get; set; } = ClientTaskPriority.Normal;

@@ -76,7 +76,7 @@ public static class RoutineCompletion
     public static async Task<List<Routine>> InScopeAsync(
         AppDbContext db, IQueryable<Routine> occurrences, ClientTask task, CancellationToken ct = default)
     {
-        if (task.DueDateUtc is not DateTime taskDue || UptickJson.Value(task.UptickData, "Scope of works") is not { } scope)
+        if (task.DueDateUtc is not DateTime taskDue || task.ScopeOfWorks is not { } scope)
             return [];
 
         var names = RoutineAssets.FromScope(task.PropertyId, scope, await db.RoutineServiceTypes.Select(t => t.Name).ToListAsync(ct))

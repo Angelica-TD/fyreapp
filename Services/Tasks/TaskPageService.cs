@@ -37,7 +37,7 @@ public class TaskPageService : ITaskPageService
 
         var siteRoutines = routines.Select(o => new RoutineAssets.SiteRoutine(o.PropertyId, o.Name, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Name))).ToList();
         // Imported tasks list assets for every routine their scope names, even ones whose routine isn't imported
-        if (siteRoutines.Count == 0 && UptickJson.Value(task.UptickData, "Scope of works") is { } scope)
+        if (siteRoutines.Count == 0 && task.ScopeOfWorks is { } scope)
             siteRoutines = RoutineAssets.FromScope(task.PropertyId, scope, await _db.RoutineServiceTypes.AsNoTracking().Select(t => t.Name).ToListAsync(ct)).ToList();
         var visits = routines.Count > 0
             ? routines.OrderBy(o => o.Name).ThenBy(o => o.DueDate).Select(o => (o.Name, (Routine?)o)).ToList()
@@ -49,7 +49,7 @@ public class TaskPageService : ITaskPageService
         {
             Task = task,
             Tab = TaskPageVm.Tabs.Any(t => t.Key == tab) ? tab! : "task",
-            Uptick = TaskPageVm.ParseUptick(task.UptickData),
+            Uptick = await TaskUptickFields.ForAsync(_db, task, ct),
             Routines = routines.Select(o => o.Name).Distinct().Order().ToList(),
             ServiceRoutines = siteRoutines.Select(r => r.Routine).ToList(),
             ServiceAssets = serviceAssets,
@@ -194,8 +194,9 @@ public class TaskPageService : ITaskPageService
         int taskId, IReadOnlyCollection<RoutineAssets.SiteRoutine> routines, CancellationToken ct)
     {
         var saved = await _db.ServiceTasks.AsNoTracking()
-            .Where(a => a.ClientTaskId == taskId)
-            .Select(a => new { a.Id, a.Routine, a.Asset })
+            // (lines of stock used have no asset)
+            .Where(a => a.ClientTaskId == taskId && a.AssetId != null)
+            .Select(a => new { a.Id, a.Routine, Asset = a.Asset! })
             .ToListAsync(ct);
         if (saved.Count > 0 || routines.Count == 0)
             return Ordered(saved.Select(a => (a.Routine, a.Asset)));

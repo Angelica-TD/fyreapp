@@ -346,6 +346,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(t => t.IsActive).HasDefaultValue(true).HasSentinel(true);
             entity.HasIndex(t => t.IsActive);
             entity.HasIndex(t => t.ExternalId).IsUnique();
+            entity.HasIndex(t => t.UptickId).IsUnique();
 
             entity.HasMany(t => t.CoveredSchedules)
                 .WithMany(s => s.CoveringTasks)
@@ -720,7 +721,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         {
             entity.HasOne(a => a.ClientTask).WithMany(t => t.Assets).HasForeignKey(a => a.ClientTaskId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(a => a.Asset).WithMany().HasForeignKey(a => a.AssetId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasIndex(a => new { a.ClientTaskId, a.AssetId, a.Routine }).IsUnique();
+            entity.HasOne(a => a.RoutineServiceLevel).WithMany().HasForeignKey(a => a.RoutineServiceLevelId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(a => a.Technician).WithMany().HasForeignKey(a => a.TechnicianId).OnDelete(DeleteBehavior.SetNull);
+            entity.Property(a => a.PerformedUtc).HasColumnType("timestamptz");
+            entity.HasIndex(a => a.UptickId).IsUnique();
+            // One line per asset and routine for the tasks FyreApp generates; Uptick's can repeat one
+            entity.HasIndex(a => new { a.ClientTaskId, a.AssetId, a.Routine }).IsUnique().HasFilter("\"UptickId\" IS NULL");
         });
 
         // FyreApp refs ("C-1001", "P-1001", ...) are assigned on insert by a Postgres trigger
