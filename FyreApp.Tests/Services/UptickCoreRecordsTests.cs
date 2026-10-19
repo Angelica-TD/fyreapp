@@ -56,7 +56,8 @@ public class UptickCoreRecordsTests
         [new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
             new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db),
             new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db),
-            new ProductMapper(db), new WarehouseMapper(db), new StockMapper(db), new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db), new RemarkMapper(db),
+            new ProductMapper(db), new WarehouseMapper(db), new StockMapper(db), new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db),
+            new DefectQuoteMapper(db), new ServiceQuoteMapper(db), new RemarkMapper(db),
             new ReportMapper(db), new RoutineMapper(db), new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
@@ -574,7 +575,7 @@ public class UptickCoreRecordsTests
             RawAssetType("10", "Fire Hose Reel"), RawAsset("42896", "1491", "10"),
             Raw("remarktypes", "720", """{"label":"00 - Custom note","severity":0,"is_active":true}"""),
             RawTask("46781", "1491"), RawTask("46900", "1491", status: "READY"),
-            Raw("defectquotes", "3001", """{"ref":"Q-2790","status":"APPROVED"}"""),
+            Raw("defectquotes", "3001", """{"ref":"Q-2790","status":"APPROVED","date":"2026-10-16"}""", "{\"property\":" + To("Property", "1491") + "}"),
             Raw("remarks", "55218", """{"ref":"D-55218","status":"NEEDS_QUOTING","severity":10,"description":"Hose cracked","location":"","is_active":true,"identified":"2026-10-15T15:14:49+11:00"}""",
                 "{\"type\":" + To("RemarkType", "720") + ",\"asset\":" + To("Asset", "42896") + ",\"most_progressed_defectquote\":" + To("DefectQuote", "3001") + "}"),
             Raw("remarks", "55219", """{"status":"RESOLVED","is_active":false}""", "{\"asset\":" + To("Asset", "77777") + "}"),
@@ -603,6 +604,8 @@ public class UptickCoreRecordsTests
         Assert.Equal(("T-46781", "Q-2790", "APPROVED", "T-46900", "READY"),
             (remark.RaisedOnTaskRef, remark.QuoteRef, remark.QuoteStatus, remark.RepairTaskRef, remark.RepairTaskStatus));
         Assert.Equal((await db.ClientTasks.SingleAsync(t => t.UptickId == 46900)).Id, remark.RepairTaskId);
+        Assert.Equal(((await db.DefectQuotes.SingleAsync()).Id, new DateTime(2026, 10, 16, 0, 0, 0, DateTimeKind.Utc)),
+            (remark.DefectQuoteId!.Value, remark.QuotedDate!.Value));
 
         var report = await db.Reports.SingleAsync();
         var task = await db.ClientTasks.SingleAsync(t => t.UptickId == 46781);
@@ -617,6 +620,42 @@ public class UptickCoreRecordsTests
         await db.SaveChangesAsync();
         await MapAllAsync(db);
         Assert.Empty(await db.Reports.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Defect_and_sales_quotes_are_mapped_at_their_property_with_their_task_and_totals()
+    {
+        await using var db = DbContextFactory.Create();
+        db.DefectQuotes.Add(new DefectQuote { Reference = "Q-0970", ExternalId = "999", PropertyRef = "P-0016", Total = 1m });
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"), RawTask("9943", "1491"),
+            Raw("servicegroups", "4", """{"name":"Plumbing & Backflow"}"""),
+            Raw("defectquotes", "999", """{"ref":"Q-0970","date":"2023-09-25","status":"ACTIONED","due_date":"2023-10-25","description":"Exchange expired extinguishers","expiry_date":"2023-10-25","scope_of_works":"As per service report","authorisation_date":"2023-09-26T16:35:44.751217+10:00","status_changed_submitted":"2023-09-25T10:05:39.331441+10:00"}""",
+                "{\"task\":" + To("Task", "9943") + ",\"property\":" + To("Property", "1491") + ",\"servicegroup\":" + To("ServiceGroup", "4") + "}"),
+            Raw("defectquotelineitems", "1", """{"gst":3.0,"total":33.0,"subtotal":30.0}""", "{\"quote\":" + To("DefectQuote", "999") + "}"),
+            Raw("defectquotelineitems", "2", """{"gst":29.5,"total":324.5,"subtotal":295.0}""", "{\"quote\":" + To("DefectQuote", "999") + "}"),
+            Raw("defectquotes", "1000", """{"ref":"Q-0971"}""", "{\"property\":" + To("Property", "8888") + "}"),
+            Raw("documenttemplates", "3", """{"name":"Service Quote (Routines)"}"""),
+            Raw("servicequotes", "99", """{"ref":"SQ-0099","status":"EXPIRED","created":"2023-11-13T12:11:00.493378+11:00","template_name":"","description":"5 Yearly Overhaul of Hydrants","expiry_date":"2024-11-12","product_subtotal":415.0,"property_address":{"display":""}}""",
+                "{\"property_object\":" + To("Property", "1491") + ",\"documenttemplate\":" + To("DocumentTemplate", "3") + "}"));
+        await db.SaveChangesAsync();
+
+        var results = await MapAllAsync(db);
+        Assert.Equal((1, 1), (results["defectquotes"].Mapped!.Value, results["defectquotes"].MapFailed));
+
+        var property = await db.Properties.SingleAsync();
+        var task = await db.ClientTasks.SingleAsync();
+        var quote = await db.DefectQuotes.SingleAsync();
+        Assert.Equal((999L, property.Id, task.Id, "Q-0970", "ACTIONED", "P-0016", "Allied", "Plumbing & Backflow"),
+            (quote.UptickId!.Value, quote.PropertyId!.Value, quote.ClientTaskId!.Value, quote.Reference, quote.Status, quote.PropertyRef,
+                quote.ClientName, quote.ServiceGroup));
+        Assert.Equal((325m, 32.5m, 357.5m), (quote.Subtotal!.Value, quote.Tax!.Value, quote.Total!.Value));
+        Assert.Equal((new DateTime(2023, 9, 25, 0, 0, 0, DateTimeKind.Utc), new DateTime(2023, 9, 26, 0, 0, 0, DateTimeKind.Utc)),
+            (quote.Date!.Value, quote.AuthorisedDate!.Value));
+
+        var sales = await db.ServiceQuotes.SingleAsync();
+        Assert.Equal((99L, property.Id, "SQ-0099", "EXPIRED", "Big River Trade Centre", "Service Quote (Routines)", 415m, null),
+            (sales.UptickId!.Value, sales.PropertyId!.Value, sales.Ref, sales.Status, sales.PropertyName, sales.Template, sales.Subtotal!.Value, sales.Address));
+        Assert.Equal(new DateTime(2023, 11, 13, 0, 0, 0, DateTimeKind.Utc), sales.Created);
     }
 
     [Theory]

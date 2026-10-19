@@ -257,6 +257,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
 
+            entity.HasOne(d => d.DefectQuote)
+                .WithMany()
+                .HasForeignKey(d => d.DefectQuoteId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             entity.Property(d => d.RaisedUtc).HasColumnType("timestamptz");
             entity.Property(d => d.InactiveUtc).HasColumnType("timestamptz");
             entity.Property(d => d.QuotedDate).HasColumnType("timestamptz");
@@ -691,8 +696,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         {
             entity.HasIndex(q => q.PropertyRef);
             entity.HasIndex(q => q.Reference);
+            entity.HasIndex(q => q.UptickId).IsUnique();
+            entity.HasOne(q => q.Property).WithMany().HasForeignKey(q => q.PropertyId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(q => q.ClientTask).WithMany().HasForeignKey(q => q.ClientTaskId).OnDelete(DeleteBehavior.SetNull);
         });
-        modelBuilder.Entity<ServiceQuote>().HasIndex(q => q.PropertyName);
+        modelBuilder.Entity<ServiceQuote>(entity =>
+        {
+            entity.HasIndex(q => q.PropertyName);
+            entity.HasIndex(q => q.UptickId).IsUnique();
+            entity.HasOne(q => q.Property).WithMany().HasForeignKey(q => q.PropertyId).OnDelete(DeleteBehavior.SetNull);
+        });
         modelBuilder.Entity<PropertySchedule>().HasIndex(s => s.PropertyRef);
         modelBuilder.Entity<FormResponse>().HasIndex(f => new { f.TargetContentType, f.TargetObjectId });
         modelBuilder.Entity<Stock>(entity =>

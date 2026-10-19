@@ -2,12 +2,18 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Models;
 
-// An Uptick quote to fix defects at a property (Uptick "quotes" export; "Defect quotes" in Uptick). Separate from
-// FyreApp's own quotes. Remarks name theirs by ref ("Quote Ref").
-public class DefectQuote : IUptickRecord
+// An Uptick quote to fix defects at a property (Uptick "defectquotes"; "Defect quotes" in Uptick). Separate from
+// FyreApp's own quotes. Linked to its property and the task it was raised on; remarks link to theirs.
+public class DefectQuote : IUptickRecord, IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
+
+    public int? PropertyId { get; set; }
+    public Property? Property { get; set; }
+    public int? ClientTaskId { get; set; }
+    public ClientTask? ClientTask { get; set; }
 
     // e.g. "Q-2785"
     [Required, StringLength(30)] public string Reference { get; set; } = string.Empty;
@@ -37,12 +43,16 @@ public class DefectQuote : IUptickRecord
     public string? UptickData { get; set; }
 }
 
-// An Uptick sales quote (Uptick "sales quotes" export). The export names the property and client but not their
-// refs, so it's matched to a property by name.
-public class ServiceQuote : IUptickRecord
+// An Uptick sales quote (Uptick "servicequotes"; "Sales quotes" in Uptick), linked to its property. The sales
+// quotes export named the property but not its ref, so those were matched to a property by name.
+public class ServiceQuote : IUptickRecord, IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
+
+    public int? PropertyId { get; set; }
+    public Property? Property { get; set; }
 
     // e.g. "SQ-0361"
     [Required, StringLength(30)] public string Ref { get; set; } = string.Empty;

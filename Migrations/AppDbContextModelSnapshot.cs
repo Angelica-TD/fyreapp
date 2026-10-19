@@ -1106,6 +1106,9 @@ namespace FyreApp.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<int?>("ClientTaskId")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("Date")
                         .HasColumnType("timestamp with time zone");
 
@@ -1121,6 +1124,9 @@ namespace FyreApp.Migrations
                     b.Property<string>("ExternalId")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<int?>("PropertyId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("PropertyName")
                         .HasMaxLength(300)
@@ -1165,14 +1171,24 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ClientTaskId");
 
                     b.HasIndex("ExternalId")
                         .IsUnique();
 
+                    b.HasIndex("PropertyId");
+
                     b.HasIndex("PropertyRef");
 
                     b.HasIndex("Reference");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
 
                     b.ToTable("DefectQuotes");
                 });
@@ -2113,6 +2129,9 @@ namespace FyreApp.Migrations
                     b.Property<int?>("AssetId")
                         .HasColumnType("integer");
 
+                    b.Property<int?>("DefectQuoteId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
@@ -2192,6 +2211,8 @@ namespace FyreApp.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AssetId");
+
+                    b.HasIndex("DefectQuoteId");
 
                     b.HasIndex("ExternalId")
                         .IsUnique();
@@ -2728,6 +2749,9 @@ namespace FyreApp.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<int?>("PropertyId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("PropertyName")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
@@ -2754,12 +2778,20 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
                         .IsUnique();
 
+                    b.HasIndex("PropertyId");
+
                     b.HasIndex("PropertyName");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
 
                     b.ToTable("ServiceQuotes");
                 });
@@ -3683,6 +3715,23 @@ namespace FyreApp.Migrations
                     b.Navigation("Property");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.DefectQuote", b =>
+                {
+                    b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
+                        .WithMany()
+                        .HasForeignKey("ClientTaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ClientTask");
+
+                    b.Navigation("Property");
+                });
+
             modelBuilder.Entity("FyreApp.Models.MaintenanceHistory", b =>
                 {
                     b.HasOne("FyreApp.Models.MaintenanceSchedule", "MaintenanceSchedule")
@@ -3841,6 +3890,11 @@ namespace FyreApp.Migrations
                         .HasForeignKey("AssetId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("FyreApp.Models.DefectQuote", "DefectQuote")
+                        .WithMany()
+                        .HasForeignKey("DefectQuoteId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FyreApp.Models.Property", "Property")
                         .WithMany("Remarks")
                         .HasForeignKey("PropertyId")
@@ -3858,6 +3912,8 @@ namespace FyreApp.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Asset");
+
+                    b.Navigation("DefectQuote");
 
                     b.Navigation("Property");
 
@@ -3961,6 +4017,16 @@ namespace FyreApp.Migrations
                         .IsRequired();
 
                     b.Navigation("RoutineServiceType");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.ServiceQuote", b =>
+                {
+                    b.HasOne("FyreApp.Models.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Property");
                 });
 
             modelBuilder.Entity("FyreApp.Models.ServiceTask", b =>

@@ -16,7 +16,7 @@ public class RemarkMapper : UptickEntityMapper<Remark>
     private Dictionary<long, (int Id, string Label)> _types = new();
     private Dictionary<long, string?> _raisedOn = new();
     private Dictionary<long, (int Id, long? UptickId, string? Ref, string? Status)> _repairs = new();
-    private Dictionary<long, (string? Ref, string? Status)> _quotes = new();
+    private Dictionary<long, (int Id, string Ref, string? Status, DateTime? Date)> _quotes = new();
 
     public RemarkMapper(AppDbContext db) : base(db) { }
 
@@ -55,8 +55,9 @@ public class RemarkMapper : UptickEntityMapper<Remark>
             return (task.Id, task.UptickId, task.Ref, task.UptickId is { } id ? statuses.GetValueOrDefault(id) : null);
         });
 
-        _quotes = (await RawAsync(Db, "defectquotes", ct))
-            .ToDictionary(q => q.Id, q => (UptickRaw.Str(q.A, "ref"), UptickRaw.Str(q.A, "status")));
+        _quotes = (await Db.DefectQuotes.AsNoTracking().Where(q => q.UptickId != null)
+                .Select(q => new { UptickId = q.UptickId!.Value, q.Id, q.Reference, q.Status, q.Date }).ToListAsync(ct))
+            .ToDictionary(q => q.UptickId, q => (q.Id, q.Reference, q.Status, q.Date));
     }
 
     protected override async Task<Dictionary<long, Remark>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
@@ -78,7 +79,8 @@ public class RemarkMapper : UptickEntityMapper<Remark>
         (int Id, string Label)? type = raw.Rel("type") is { } t && _types.TryGetValue(t, out var found) ? found : null;
         var severity = raw.Int("severity");
         (int Id, long? UptickId, string? Ref, string? Status)? repair = _repairs.TryGetValue(raw.Id, out var rep) ? rep : null;
-        (string? Ref, string? Status)? quote = raw.Rel("most_progressed_defectquote") is { } q && _quotes.TryGetValue(q, out var qf) ? qf : null;
+        (int Id, string Ref, string? Status, DateTime? Date)? quote =
+            raw.Rel("most_progressed_defectquote") is { } q && _quotes.TryGetValue(q, out var qf) ? qf : null;
 
         r.UptickId = raw.Id;
         r.ExternalId = raw.Id.ToString();
@@ -97,8 +99,10 @@ public class RemarkMapper : UptickEntityMapper<Remark>
         r.RaisedUtc = raw.Time("identified") ?? raw.Time("created");
         r.InactiveUtc = raw.Time("inactive_date");
         r.RaisedOnTaskRef = _raisedOn.GetValueOrDefault(raw.Id);
+        r.DefectQuoteId = quote?.Id;
         r.QuoteRef = quote?.Ref;
         r.QuoteStatus = quote?.Status;
+        r.QuotedDate = quote?.Date;
         r.RepairTaskExternalId = repair?.UptickId?.ToString();
         r.RepairTaskId = repair?.Id;
         r.RepairTaskRef = repair?.Ref;

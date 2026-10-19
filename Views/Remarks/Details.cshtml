@@ -111,7 +111,14 @@
                     <dl class="row property-facts mb-0">
                         <dt class="col-4">Quote</dt>
                         <dd class="col-8">
-                            @if (d.QuoteRef != null)
+                            @if (d.DefectQuote is { PropertyId: { } quotePropertyId })
+                            {
+                                <a asp-controller="Property" asp-action="Details" asp-route-id="@quotePropertyId" asp-route-tab="records"
+                                   asp-fragment="quote-@d.DefectQuoteId">@d.QuoteRef</a>
+                                @if (d.QuoteStatus != null) { <span class="badge bg-light text-dark border ms-1">@d.QuoteStatus.ToUpperInvariant()</span> }
+                                @if (d.QuotedDate is { } quoted) { <div class="small text-muted">Quoted @quoted.ToOrdinalDate()</div> }
+                            }
+                            else if (d.QuoteRef != null)
                             {
                                 @d.QuoteRef
                                 @if (d.QuoteStatus != null) { <span class="badge bg-light text-dark border ms-1">@d.QuoteStatus.ToUpperInvariant()</span> }

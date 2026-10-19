@@ -40,6 +40,8 @@ public class UptickImportService : IUptickImportService
         (UptickExportType.Products, "Products", new[] { "Unit Description", "Default Price", "Stocked" }),
         (UptickExportType.Warehouses, "Warehouses", new[] { "Manager", "Reserved (Incoming Stock)", "Stock Value" }),
         (UptickExportType.Stocks, "Stock", new[] { "Warehouse", "On Hand", "Restock Level" }),
+        (UptickExportType.DefectQuotes, "Quotes", new[] { "Reference", "Total material cost", "Scope of Works" }),
+        (UptickExportType.ServiceQuotes, "Sales quotes", new[] { "Template", "Work and services subtotal", "Programme maintenance subtotal sell" }),
     };
 
     public static string FromApiMessage(string name) =>

@@ -56,27 +56,37 @@
     }
 </div>
 
-@* Uptick's quotes for the property (quotes export, matched on its ref) *@
+@* Uptick's defect quotes for the property; a remark's quote links to its row *@
 <div class="card property-card">
     <div class="card-header"><span>Defect quotes (@Model.DefectQuotes.Count)</span></div>
     @if (!Model.DefectQuotes.Any())
     {
-        <div class="card-body text-muted">No quotes. They come from Uptick's quotes export (Import page).</div>
+        <div class="card-body text-muted">No quotes.</div>
     }
     else
     {
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead>
-                    <tr><th>Ref</th><th>Date</th><th>Expiry</th><th>Scope of works</th><th class="text-end">Total</th><th>Status</th></tr>
+                    <tr><th>Ref</th><th>Date</th><th>Expiry</th><th>Task</th><th>Scope of works</th><th class="text-end">Total</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                     @foreach (var q in Model.DefectQuotes)
                     {
-                        <tr>
+                        <tr id="quote-@q.Id">
                             <td class="text-nowrap">@q.Reference</td>
                             <td class="text-nowrap">@(q.Date?.ToOrdinalDate() ?? "-")</td>
                             <td class="text-nowrap">@(q.ExpiryDate?.ToOrdinalDate() ?? "-")</td>
+                            <td class="text-nowrap">
+                                @if (q.ClientTask != null)
+                                {
+                                    <a asp-controller="Task" asp-action="Details" asp-route-id="@q.ClientTaskId">@(q.ClientTask.DisplayRef ?? "Task")</a>
+                                }
+                                else
+                                {
+                                    <text>-</text>
+                                }
+                            </td>
                             <td class="small" style="white-space: pre-line">@Short(q.ScopeOfWorks ?? q.Description)</td>
                             <td class="text-end text-nowrap">@(q.Total?.ToString("C", Money) ?? "-")</td>
                             <td><span class="badge @QuoteBadge(q.Status)">@(q.Status ?? "-")</span></td>
@@ -88,7 +98,7 @@
     }
 </div>
 
-@* Uptick's sales quotes (sales quotes export: it names the property, so matched on name) *@
+@* Uptick's sales quotes for the property *@
 @if (Model.ServiceQuotes.Any())
 {
     <div class="card property-card">
