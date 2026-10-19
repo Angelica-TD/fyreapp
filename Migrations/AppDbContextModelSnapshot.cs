@@ -2340,6 +2340,9 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ClientTaskId");
@@ -2354,6 +2357,9 @@ namespace FyreApp.Migrations
                     b.HasIndex("RoutineServiceId");
 
                     b.HasIndex("RoutineServiceLevelId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
 
                     b.HasIndex("DueDate", "Status");
 
@@ -2394,11 +2400,17 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("PropertyId");
 
                     b.HasIndex("RoutineServiceTypeId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
 
                     b.ToTable("RoutineServices");
                 });

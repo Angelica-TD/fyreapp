@@ -31,24 +31,19 @@ namespace FyreApp.Controllers
 
         [Authorize(Roles = "Admin")]
         [HttpGet]
-        public IActionResult Import() => View();
+        public IActionResult Import() => RoutinesFromApi();
 
         [Authorize(Roles = "Admin")]
         [HttpPost]
         [ValidateAntiForgeryToken]
         [RequestSizeLimit(ImportLimits.MaxUploadBytes)]
-        public async Task<IActionResult> Import(IFormFile? file, bool dryRun, CancellationToken ct)
+        public IActionResult Import(IFormFile? file, bool dryRun) => RoutinesFromApi();
+
+        // Routines come from Uptick's API now (docs/uptick-migration.md phase 4e); the import stays until phase 6
+        private IActionResult RoutinesFromApi()
         {
-            if (file == null || file.Length == 0)
-            {
-                ModelState.AddModelError("file", "Choose a CSV or XLSX file to import.");
-                return View();
-            }
-
-            await using var stream = file.OpenReadStream();
-            var result = await _importService.ImportUptickAsync(stream, file.FileName, dryRun, ct);
-
-            return View(result);
+            TempData["Error"] = FyreApp.Services.Imports.UptickImportService.FromApiMessage("Routines");
+            return RedirectToAction("Index", "UptickMigration");
         }
 
         [Authorize(Roles = "Admin")]

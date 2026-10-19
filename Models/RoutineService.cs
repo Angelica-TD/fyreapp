@@ -6,9 +6,12 @@ namespace FyreApp.Models;
 // "14 - Emergency planning in facilities", with the levels done there (Six-monthly, Annual), from a start
 // date, counted from the last annual service. Its occurrences are forecast as Routines, which the
 // property's Routines tab and the Routines page show alongside the ones imported from Uptick.
-public class RoutineService
+public class RoutineService : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id for one migrated through its API (set up in Uptick, so not changed or removed in FyreApp)
+    public long? UptickId { get; set; }
 
     public int PropertyId { get; set; }
     public Property Property { get; set; } = null!;

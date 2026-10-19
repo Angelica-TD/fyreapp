@@ -56,7 +56,8 @@ public class UptickCoreRecordsTests
         [new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
             new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db),
             new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db),
-            new TaskMapper(db), new ServiceTaskMapper(db), new RemarkMapper(db), new ReportMapper(db), new TimelineEventMapper(db)],
+            new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db), new RemarkMapper(db),
+            new ReportMapper(db), new RoutineMapper(db), new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
     // Every mapper in order, as a run ends
@@ -625,4 +626,56 @@ public class UptickCoreRecordsTests
     [InlineData("EXPIRED_DECLINED", "Expired/Declined")]
     public void A_remark_status_reads_as_the_export_wrote_it(string uptick, string label) =>
         Assert.Equal(label, RemarkMapper.StatusLabel(uptick));
+
+    [Fact]
+    public async Task Routine_services_their_levels_and_routines_are_mapped_with_schedules_and_tasks()
+    {
+        await using var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"),
+            Raw("taskcategories", "1", """{"name":"I&T"}"""), Raw("servicegroups", "4", """{"name":"Servicing - Portables & Fire Equipment"}"""),
+            Raw("contractors", "5", """{"name":"CR&K Kay Plumbing"}"""),
+            RawAssetType("10", "Fire Hose Reel"), RawAsset("42896", "1491", "10"),
+            Raw("routineservicetypes", "9", """{"name":"09 - Fire Hose Reels","is_active":true}"""),
+            Raw("routineserviceleveltypes", "44", """{"name":"Annual","interval":12,"frequency":"M","is_active":true}""",
+                "{\"routineservicetype\":" + To("RoutineServiceType", "9") + "}"),
+            Raw("routineserviceleveltypes", "45", """{"name":"Six-monthly","interval":6,"frequency":"M","is_active":true}""",
+                "{\"routineservicetype\":" + To("RoutineServiceType", "9") + "}"),
+            Raw("routineservices", "18996", """{"start_date":"2026-10-01","annual_test_date":"2026-10-01","end_date":null,"is_active":true,"created":"2026-10-15T11:42:19+11:00"}""",
+                "{\"type\":" + To("RoutineServiceType", "9") + ",\"property\":" + To("Property", "1491") + ",\"servicegroup\":" + To("ServiceGroup", "4") +
+                ",\"contractor\":" + To("Contractor", "5") + "}"),
+            Raw("routineservicelevels", "22231", """{"is_active":true,"estimated_duration":"0:30:00"}""",
+                "{\"type\":" + To("RoutineServiceLevelType", "44") + ",\"routineservice\":" + To("RoutineService", "18996") + "}"),
+            Raw("routineservicelevels", "22232", """{"is_active":false}""",
+                "{\"type\":" + To("RoutineServiceLevelType", "45") + ",\"routineservice\":" + To("RoutineService", "18996") + "}"),
+            Raw("routines", "165899", """{"due":"2026-10-31","status":"C","completed_date":"2026-10-15","display_name":"09 - Fire Hose Reels: Annual","tolerance_period_start":"2026-08-01","tolerance_period_end":"2026-12-01"}""",
+                "{\"routineservicelevel\":" + To("RoutineServiceLevel", "22231") + "}"),
+            Raw("routines", "165900", """{"due":"2099-10-31","status":"P","display_name":"09 - Fire Hose Reels: Annual"}""",
+                "{\"routineservicelevel\":" + To("RoutineServiceLevel", "22231") + "}"),
+            RawTask("46781", "1491"), RawServiceTask("216732", "46781", "42896", "44"));
+        await db.SaveChangesAsync();
+
+        var results = await MapAllAsync(db);
+        Assert.Equal((1, 2, 2), (results["routineservices"].Mapped!.Value, results["routineservicelevels"].Mapped!.Value, results["routines"].Mapped!.Value));
+
+        var service = await db.RoutineServices.Include(s => s.Levels).SingleAsync();
+        Assert.Equal((18996L, "Annual", "CR&K Kay Plumbing", new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc)),
+            (service.UptickId!.Value, service.Levels.Single().Name, service.Subcontractor, service.StartDate));
+
+        // One schedule for the property's annual routines, which the routine task covers
+        var schedule = await db.MaintenanceSchedules.Include(s => s.MaintenanceInterval).Include(s => s.RoutineLevels).SingleAsync();
+        Assert.Equal((12, "Annual"), (schedule.MaintenanceInterval.Months, schedule.RoutineLevels.Single().Name));
+
+        var task = await db.ClientTasks.Include(t => t.CoveredSchedules).SingleAsync();
+        Assert.Equal(schedule.Id, task.CoveredSchedules.Single().Id);
+        var done = await db.Routines.SingleAsync(r => r.UptickId == 165899);
+        Assert.Equal((RoutineStatus.Complete, service.Id, schedule.Id, task.Id, "Servicing - Portables & Fire Equipment", 30),
+            (done.Status, done.RoutineServiceId!.Value, done.MaintenanceScheduleId!.Value, done.ClientTaskId!.Value, done.ServiceGroup, done.EstimatedMinutes!.Value));
+        Assert.Equal(new DateTime(2026, 12, 1, 0, 0, 0, DateTimeKind.Utc), done.ToleranceEnd);
+        Assert.Equal(RoutineStatus.Pending, (await db.Routines.SingleAsync(r => r.UptickId == 165900)).Status);
+
+        // Set up in Uptick: not changed or removed in FyreApp
+        var setup = new FyreApp.Services.Routines.RoutineSetupService(db);
+        Assert.Equal(FyreApp.Services.Routines.RoutineSetupService.FromUptickError, (await setup.RemoveAsync(service.Id)).Error);
+        Assert.True((await setup.ListAsync(service.PropertyId)).Single().FromUptick);
+    }
 }

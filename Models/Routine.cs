@@ -13,9 +13,12 @@ public enum RoutineStatus
 // One due occurrence of an Uptick routine at a property, e.g. "04 - Fire Hydrant Systems (Flow Test): Annual"
 // due 31 Oct 2026 (one row of the Uptick routines export). Schedules summarise these per property + interval;
 // the Routines page lists them as Uptick does. Re-importing the routines export updates their status.
-public class Routine
+public class Routine : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from Uptick routines export "ID"
     [StringLength(64)]

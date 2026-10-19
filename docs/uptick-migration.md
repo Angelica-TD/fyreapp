@@ -425,7 +425,7 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      API). Their importer classes and `ExternalId` stay until phase 6: the importers still in use (tasks,
      remarks, reports, …) link to properties by ref and to assets by `ExternalId`, and the FyreRef triggers read
      it.
-4. **Work:** tasks, service tasks, remarks, reports, routines, routine services/levels/types. In five PRs:
+4. **Work** (done): tasks, service tasks, remarks, reports, routines, routine services/levels/types. In five PRs:
    - 4a (done): `Defect` → `Remark`, `ServiceReport` → `Report`, `RoutineOccurrence` → `Routine` (its
      `Routine` text → `Name`, as a class can't have a member of its own name; `RoutineOccurrenceStatus` →
      `RoutineStatus`), `PropertyRoutineService` → `RoutineService` (the routines list service it would clash
@@ -455,7 +455,13 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      phase 5). Statuses read as the export wrote them ("Needs Quoting", "Expired/Declined"). A report links to its
      task and takes its type, technician and author by name; one deleted in Uptick is removed.
      `RepairTaskExternalId` / `TaskExternalId` hold Uptick's task id and go with the file importers in phase 6.
-   - 4e: `routines`, `routineservices` (+ `routineservicelevels`); the file imports for all of these turned off.
+   - 4e (done): `routineservices` → RoutineService (`UptickId`; an inactive one ends; Uptick forecasts its
+     routines, so FyreApp doesn't let it be edited or removed), `routineservicelevels` → its `Levels` (an inactive
+     one is taken off), `routines` → Routine (`UptickId`): its property, routine service and level through its
+     routine service level, its status, tolerance, service group, subcontractor and duration, and the task it was
+     done on from the service tasks done for it. Maintenance schedules are made from the routines as the routines
+     export made them (one per property and interval, next run the earliest outstanding routine), before tasks are
+     mapped so routine tasks link to them. The routines import is off.
 5. **Commercial:** defect quotes, sales quotes, invoices, credit notes, billing, products, stock.
 6. **Remaining reference data;** remove the file importers and `UptickData` columns.
 7. **Files.**
