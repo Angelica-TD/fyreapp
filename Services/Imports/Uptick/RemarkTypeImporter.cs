@@ -78,7 +78,7 @@ public class RemarkTypeImporter : UptickImporter
         // Link defects imported earlier, by the "Remark Type ID" in their Uptick data
         var idsByExt = await Db.RemarkTypes.Where(r => r.ExternalId != null)
             .ToDictionaryAsync(r => r.ExternalId!, r => r.Id, StringComparer.OrdinalIgnoreCase, ct);
-        var defects = await Db.Defects.Where(d => d.RemarkTypeId == null && d.UptickData != null).ToListAsync(ct);
+        var defects = await Db.Remarks.Where(d => d.RemarkTypeId == null && d.UptickData != null).ToListAsync(ct);
         var linked = 0;
         foreach (var defect in defects)
         {

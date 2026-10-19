@@ -10,7 +10,7 @@ using Xunit;
 namespace FyreApp.Tests.Services;
 
 // Tasks generated from routines list the assets they service (Work tab)
-public class RoutineTaskAssetTests
+public class RoutineServiceTaskTests
 {
     private const string Extinguishers = "10 - Portable and Wheeled Fire Extinguishers";
     private const string Doorsets = "12 - Passive Fire (Hinged and Pivoted Doorsets - Common)";
@@ -27,9 +27,9 @@ public class RoutineTaskAssetTests
         }.Where(kv => kv.Value != null).ToDictionary())
     };
 
-    private static RoutineOccurrence Due(Property site, string routine, string group = "Servicing") => new()
+    private static Routine Due(Property site, string routine, string group = "Servicing") => new()
     {
-        Property = site, Routine = routine, ServiceGroup = group, Status = RoutineOccurrenceStatus.Pending,
+        Property = site, Name = routine, ServiceGroup = group, Status = RoutineStatus.Pending,
         DueDate = DateTime.SpecifyKind(new DateTime(2026, 11, 30), DateTimeKind.Utc)
     };
 
@@ -51,7 +51,7 @@ public class RoutineTaskAssetTests
             new Asset { Property = glory, Name = "Front door", Ref = "5", AssetTypes = { doorset } },
             new Asset { Property = calce, Name = "FE Office", Ref = "1", AssetTypes = { extinguisher } });
 
-        db.RoutineOccurrences.AddRange(
+        db.Routines.AddRange(
             Due(glory, Extinguishers + ": Six-monthly"),
             Due(glory, Doorsets + ": Annual", "Passive"),
             Due(glory, Doorsets + ": Six-monthly", "Passive"),
@@ -65,11 +65,11 @@ public class RoutineTaskAssetTests
     {
         using var db = DbContextFactory.Create();
         var (glory, calce) = await SeedAsync(db);
-        var ids = await db.RoutineOccurrences.Select(o => o.Id).ToListAsync();
+        var ids = await db.Routines.Select(o => o.Id).ToListAsync();
 
-        await new RoutineService(db).GenerateTasksAsync(ids, allMatching: false, AnyFilter, null);
+        await new RoutineListService(db).GenerateTasksAsync(ids, allMatching: false, AnyFilter, null);
 
-        var lines = await db.TaskAssets.Select(a => new { a.ClientTask.PropertyId, a.ClientTask.Title, a.Asset.Name, a.Routine }).ToListAsync();
+        var lines = await db.ServiceTasks.Select(a => new { a.ClientTask.PropertyId, a.ClientTask.Title, a.Asset.Name, a.Routine }).ToListAsync();
 
         // Glory's servicing task: its two active extinguishers, not the inactive one or the blanket (no blanket routine due)
         Assert.Equal(new[] { "FE Hall", "FE Kitchen" },
@@ -86,8 +86,8 @@ public class RoutineTaskAssetTests
     {
         using var db = DbContextFactory.Create();
         var (glory, _) = await SeedAsync(db);
-        var ids = await db.RoutineOccurrences.Where(o => o.PropertyId == glory.Id).Select(o => o.Id).ToListAsync();
-        await new RoutineService(db).GenerateTasksAsync(ids, allMatching: false, AnyFilter, null);
+        var ids = await db.Routines.Where(o => o.PropertyId == glory.Id).Select(o => o.Id).ToListAsync();
+        await new RoutineListService(db).GenerateTasksAsync(ids, allMatching: false, AnyFilter, null);
         var task = await db.ClientTasks.SingleAsync(t => t.Title.EndsWith("Servicing"));
 
         var vm = (await new TaskPageService(db).LoadAsync(task.Id, "work"))!;
@@ -101,10 +101,10 @@ public class RoutineTaskAssetTests
     {
         using var db = DbContextFactory.Create();
         var (glory, _) = await SeedAsync(db);
-        var ids = await db.RoutineOccurrences.Where(o => o.PropertyId == glory.Id).Select(o => o.Id).ToListAsync();
-        await new RoutineService(db).GenerateTasksAsync(ids, allMatching: false, AnyFilter, null);
+        var ids = await db.Routines.Where(o => o.PropertyId == glory.Id).Select(o => o.Id).ToListAsync();
+        await new RoutineListService(db).GenerateTasksAsync(ids, allMatching: false, AnyFilter, null);
         var task = await db.ClientTasks.SingleAsync(t => t.Title.EndsWith("Servicing"));
-        db.TaskAssets.RemoveRange(db.TaskAssets);
+        db.ServiceTasks.RemoveRange(db.ServiceTasks);
         await db.SaveChangesAsync();
 
         var vm = (await new TaskPageService(db).LoadAsync(task.Id, "work"))!;
@@ -150,7 +150,7 @@ public class RoutineTaskAssetTests
         Assert.Equal(new[] { "FE Kitchen", "FE Hall" }, vm.ServiceAssets.Select(a => a.Asset.Name));
         Assert.Empty(vm.Routines); // not generated from routines
         // Its routine still heads the Work tab, without an ID or due date (none imported)
-        Assert.Equal((Extinguishers + ": Annual", (RoutineOccurrence?)null), Assert.Single(vm.Visits));
+        Assert.Equal((Extinguishers + ": Annual", (Routine?)null), Assert.Single(vm.Visits));
     }
 
     [Fact]
@@ -160,10 +160,10 @@ public class RoutineTaskAssetTests
         var (glory, calce) = await SeedAsync(db);
         db.RoutineServiceTypes.Add(new RoutineServiceType { Name = Extinguishers });
         DateTime Utc(int month, int day) => DateTime.SpecifyKind(new DateTime(2026, month, day), DateTimeKind.Utc);
-        var annual = new RoutineOccurrence { Property = glory, ExternalId = "49441", Routine = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineOccurrenceStatus.Generated };
-        db.RoutineOccurrences.AddRange(annual,
-            new RoutineOccurrence { Property = glory, Routine = Extinguishers + ": Annual", DueDate = Utc(11, 1), Status = RoutineOccurrenceStatus.Generated },
-            new RoutineOccurrence { Property = calce, Routine = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineOccurrenceStatus.Generated });
+        var annual = new Routine { Property = glory, ExternalId = "49441", Name = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineStatus.Generated };
+        db.Routines.AddRange(annual,
+            new Routine { Property = glory, Name = Extinguishers + ": Annual", DueDate = Utc(11, 1), Status = RoutineStatus.Generated },
+            new Routine { Property = calce, Name = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineStatus.Generated });
         var task = new ClientTask
         {
             ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2026/10 Servicing", Ref = "T-46682", ExternalId = "46682", DueDateUtc = Utc(10, 31),
@@ -175,11 +175,11 @@ public class RoutineTaskAssetTests
         kitchen.LastServiceDate = new DateTime(2026, 10, 14);
         kitchen.Compliance = "Pass";
         hall.LastServiceDate = new DateTime(2025, 10, 9);
-        db.Defects.AddRange(
-            new Defect { Property = glory, Asset = kitchen, Description = "Flow test 10 @ 1.26 L/sec", RaisedOnTaskRef = "T-46682" },
-            new Defect { Property = glory, Asset = kitchen, Description = "Flow test/ 96.6 L/m", Active = false, InactiveUtc = Utc(10, 14).AddHours(4) },
-            new Defect { Property = glory, Asset = hall, Description = "Closed last month", Active = false, InactiveUtc = Utc(9, 20) },
-            new Defect { Property = glory, Asset = hall, Description = "Still open", RaisedOnTaskRef = "T-40000" });
+        db.Remarks.AddRange(
+            new Remark { Property = glory, Asset = kitchen, Description = "Flow test 10 @ 1.26 L/sec", RaisedOnTaskRef = "T-46682" },
+            new Remark { Property = glory, Asset = kitchen, Description = "Flow test/ 96.6 L/m", Active = false, InactiveUtc = Utc(10, 14).AddHours(4) },
+            new Remark { Property = glory, Asset = hall, Description = "Closed last month", Active = false, InactiveUtc = Utc(9, 20) },
+            new Remark { Property = glory, Asset = hall, Description = "Still open", RaisedOnTaskRef = "T-40000" });
         await db.SaveChangesAsync();
 
         var vm = (await new TaskPageService(db).LoadAsync(task.Id, "work"))!;

@@ -104,24 +104,24 @@ public class RoutineSetupTests
         }, "admin");
 
         Assert.Equal((1, 2, (string?)null, Day(2027, 3, 1)), (result.Services, result.Occurrences, result.Error, result.FirstDue));
-        var service = await db.PropertyRoutineServices.Include(s => s.Levels).SingleAsync();
+        var service = await db.RoutineServices.Include(s => s.Levels).SingleAsync();
         Assert.Equal((type.Id, "Annual", "admin"), (service.RoutineServiceTypeId, Assert.Single(service.Levels).Name, service.CreatedBy));
-        var routines = await db.RoutineOccurrences.OrderBy(o => o.DueDate).ToListAsync();
+        var routines = await db.Routines.OrderBy(o => o.DueDate).ToListAsync();
         Assert.Equal(new[] { Day(2027, 3, 1), Day(2028, 3, 1) }, routines.Select(o => o.DueDate));
         Assert.All(routines, o =>
         {
-            Assert.Equal("14 - Emergency planning in facilities: Annual", o.Routine);
-            Assert.Equal((RoutineOccurrenceStatus.Pending, "Emergency Planning", "Rays Advantage Electrical", service.Id),
-                (o.Status, o.ServiceGroup, o.Subcontractor, o.PropertyRoutineServiceId));
+            Assert.Equal("14 - Emergency planning in facilities: Annual", o.Name);
+            Assert.Equal((RoutineStatus.Pending, "Emergency Planning", "Rays Advantage Electrical", service.Id),
+                (o.Status, o.ServiceGroup, o.Subcontractor, o.RoutineServiceId));
         });
 
         // They show on the property's Routines tab like imported ones
-        var grid = await new RoutineService(db).ForPropertyAsync(site.Id, 2027);
+        var grid = await new RoutineListService(db).ForPropertyAsync(site.Id, 2027);
         Assert.Equal("14 - Emergency planning in facilities", Assert.Single(Assert.Single(grid.Groups).Rows).Routine);
     }
 
     // A six-monthly + annual service from Oct 2026, whose first routine (Mar 2027) already has a task
-    private static async Task<(FyreApp.Data.AppDbContext Db, Property Property, RoutineServiceType Type, PropertyRoutineService Service)> WithServiceAsync()
+    private static async Task<(FyreApp.Data.AppDbContext Db, Property Property, RoutineServiceType Type, RoutineService Service)> WithServiceAsync()
     {
         var (db, site, type) = await SeedAsync();
         var svc = new RoutineSetupService(db);
@@ -130,11 +130,11 @@ public class RoutineSetupTests
             StartDate = new DateTime(2026, 10, 1), LastAnnualDate = new DateTime(2026, 3, 15), EndDate = new DateTime(2028, 12, 31),
             Levels = type.Levels.Where(l => l.Active).Select(l => l.Id).ToList()
         }, "admin");
-        var first = await db.RoutineOccurrences.OrderBy(o => o.DueDate).FirstAsync();
-        first.Status = RoutineOccurrenceStatus.Generated;
+        var first = await db.Routines.OrderBy(o => o.DueDate).FirstAsync();
+        first.Status = RoutineStatus.Generated;
         first.ClientTask = new ClientTask { Property = site, ClientId = site.ClientId, Title = "PM2027/03 Emergency Planning" };
         await db.SaveChangesAsync();
-        return (db, site, type, await db.PropertyRoutineServices.SingleAsync());
+        return (db, site, type, await db.RoutineServices.SingleAsync());
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public class RoutineSetupTests
         var (db, site, type, service) = await WithServiceAsync();
         using var _ = db;
         // Before: Mar 2027 annual (task raised), Sep 2027 six-monthly, Mar 2028 annual, Sep 2028 six-monthly
-        Assert.Equal(4, await db.RoutineOccurrences.CountAsync());
+        Assert.Equal(4, await db.Routines.CountAsync());
         var annual = type.Levels.Single(l => l.Name == "Annual");
 
         var result = await new RoutineSetupService(db).UpdateAsync(service.Id, new EditRoutineServiceInput
@@ -153,12 +153,12 @@ public class RoutineSetupTests
         });
 
         Assert.Equal((true, site.Id, (string?)null, 3, 2, 1), (result.Found, result.PropertyId, result.Error, result.Removed, result.Added, result.Kept));
-        var routines = await db.RoutineOccurrences.OrderBy(o => o.DueDate).ToListAsync();
+        var routines = await db.Routines.OrderBy(o => o.DueDate).ToListAsync();
         // The Mar 2027 one with its task is kept (not forecast twice); the rest are annuals to the new end date
         Assert.Equal(new[] { Day(2027, 3, 1), Day(2028, 3, 1), Day(2029, 3, 1) }, routines.Select(o => o.DueDate));
         Assert.NotNull(routines[0].ClientTaskId);
         Assert.Equal(new[] { null, "Rays Advantage Electrical", "Rays Advantage Electrical" }, routines.Select(o => o.Subcontractor));
-        var saved = await db.PropertyRoutineServices.Include(s => s.Levels).SingleAsync();
+        var saved = await db.RoutineServices.Include(s => s.Levels).SingleAsync();
         Assert.Equal(("Annual", Day(2029, 12, 31)), (Assert.Single(saved.Levels).Name, saved.EndDate));
     }
 
@@ -171,7 +171,7 @@ public class RoutineSetupTests
 
         var noLevels = await svc.UpdateAsync(service.Id, new EditRoutineServiceInput { StartDate = new DateTime(2026, 10, 1), LastAnnualDate = new DateTime(2026, 3, 1) });
         Assert.Equal("Tick at least one level (or remove the routine service).", noLevels.Error);
-        Assert.Equal(4, await db.RoutineOccurrences.CountAsync());
+        Assert.Equal(4, await db.Routines.CountAsync());
         Assert.False((await svc.UpdateAsync(999, new EditRoutineServiceInput())).Found);
         Assert.Null(await svc.EditFormAsync(999));
     }
@@ -201,9 +201,9 @@ public class RoutineSetupTests
         var result = await svc.RemoveAsync(service.Id);
 
         Assert.Equal((true, 3, 1), (result.Found, result.Removed, result.Kept));
-        Assert.Equal(0, await db.PropertyRoutineServices.CountAsync());
-        var kept = await db.RoutineOccurrences.SingleAsync();
-        Assert.Equal((Day(2027, 3, 1), (int?)null), (kept.DueDate, kept.PropertyRoutineServiceId));
+        Assert.Equal(0, await db.RoutineServices.CountAsync());
+        var kept = await db.Routines.SingleAsync();
+        Assert.Equal((Day(2027, 3, 1), (int?)null), (kept.DueDate, kept.RoutineServiceId));
         Assert.Empty(await svc.ListAsync(site.Id));
         Assert.False((await svc.RemoveAsync(service.Id)).Found);
     }
@@ -224,6 +224,6 @@ public class RoutineSetupTests
         }, "admin");
 
         Assert.Equal(error, result.Error);
-        Assert.Equal(0, await db.PropertyRoutineServices.CountAsync());
+        Assert.Equal(0, await db.RoutineServices.CountAsync());
     }
 }

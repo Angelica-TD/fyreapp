@@ -23,7 +23,7 @@ public class TaskPageTests
             UptickData = """{"Description":"Prepare","Scope of works":"Quote to replace failed items as per service report.","Status":"READY","Tags":"Parts Required, Urgent","Invoice Note":"As per accepted defect quote Q-2790."}"""
         };
         db.AddRange(task, customer);
-        db.Defects.Add(new Defect { Property = site, Asset = new Asset { Name = "1 - HYD Pillar Landing Valve", Property = site }, RepairTask = task, Description = "Hydrant valve" });
+        db.Remarks.Add(new Remark { Property = site, Asset = new Asset { Name = "1 - HYD Pillar Landing Valve", Property = site }, RepairTask = task, Description = "Hydrant valve" });
         await db.SaveChangesAsync();
 
         var vm = (await new TaskPageService(db).LoadAsync(task.Id, "work"))!;

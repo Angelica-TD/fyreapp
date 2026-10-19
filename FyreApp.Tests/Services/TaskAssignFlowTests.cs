@@ -23,10 +23,10 @@ public class TaskAssignFlowTests
     {
         var site = new Property { Name = "Ezfurn", ExternalId = "P-0391", Status = "ACTIVE", Client = new Client { Name = "Ezfurn" } };
         var other = new Property { Name = "Kamber", ExternalId = "P-3330", Status = "ACTIVE", Client = new Client { Name = "Kamber" } };
-        db.RoutineOccurrences.AddRange(
-            new RoutineOccurrence { Property = site, Routine = "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", ServiceGroup = "Servicing - Portables & Fire Equipment", DueDate = Day(2026, 11, 30) },
-            new RoutineOccurrence { Property = other, Routine = "11 - Fire Blankets: Six-monthly", ServiceGroup = "Servicing - Portables & Fire Equipment", DueDate = Day(2026, 11, 30) },
-            new RoutineOccurrence { Property = site, Routine = "06 - Fire Detection (Fire Panels): Monthly", ServiceGroup = "Fire Detection", DueDate = Day(2026, 12, 31) });
+        db.Routines.AddRange(
+            new Routine { Property = site, Name = "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", ServiceGroup = "Servicing - Portables & Fire Equipment", DueDate = Day(2026, 11, 30) },
+            new Routine { Property = other, Name = "11 - Fire Blankets: Six-monthly", ServiceGroup = "Servicing - Portables & Fire Equipment", DueDate = Day(2026, 11, 30) },
+            new Routine { Property = site, Name = "06 - Fire Detection (Fire Panels): Monthly", ServiceGroup = "Fire Detection", DueDate = Day(2026, 12, 31) });
         // Already in hand: imported from Uptick with its technician, and one made in FyreApp
         db.ClientTasks.AddRange(
             new ClientTask { Property = site, Client = site.Client, Title = "PM2026/11 Imported", Category = "I&T", DueDateUtc = Day(2026, 11, 30), UptickTechnician = "Dwayne Page" },
@@ -58,7 +58,7 @@ public class TaskAssignFlowTests
 
         // Routines → due this month (November) → select all → Generate tasks
         var routines = new RoutineFilter { ClientActive = null, PropertyStatus = new(), Status = new(), DueFrom = new DateTime(2026, 11, 1), DueTo = new DateTime(2026, 11, 30) };
-        var generated = await new RoutineService(db).GenerateTasksAsync(Array.Empty<int>(), allMatching: true, routines, "admin");
+        var generated = await new RoutineListService(db).GenerateTasksAsync(Array.Empty<int>(), allMatching: true, routines, "admin");
         Assert.Equal(2, generated.TasksCreated);
 
         var wes = await TechAsync(db, "Wes Speedon (Field Tech)");

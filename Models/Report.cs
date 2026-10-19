@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace FyreApp.Models;
 
 // A service/inspection report issued for a property (Uptick "Report")
-public class ServiceReport
+public class Report
 {
     public int Id { get; set; }
 

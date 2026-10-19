@@ -21,10 +21,10 @@ public class ScheduleImportService : IScheduleImportService
 
     private sealed record SiteRef(int Id, string Name, string? ExternalId, string ClientName);
 
-    // One routines export row, kept as a RoutineOccurrence
+    // One routines export row, kept as a Routine
     private sealed record OccurrenceRow(
         string? ExternalId, int PropertyId, int Months, string Routine, RoutineServiceLevel? Level, DateTime Due,
-        DateTime? ToleranceStart, DateTime? ToleranceEnd, RoutineOccurrenceStatus Status, DateTime? Completed,
+        DateTime? ToleranceStart, DateTime? ToleranceEnd, RoutineStatus Status, DateTime? Completed,
         string? ServiceGroup, string? DefaultTechnician, string? Subcontractor, int? EstimatedMinutes, string? UptickData);
 
     private sealed class Group
@@ -310,11 +310,11 @@ public class ScheduleImportService : IScheduleImportService
         // Occurrences: one per routines row (as Uptick lists them), linked to their schedule. New ones are added;
         // ones already in FyreApp are left alone except to move their status forward (pending → task raised →
         // complete), so completions in Uptick come through but tasks raised in FyreApp are never undone.
-        var existingOccurrences = await _db.RoutineOccurrences
+        var existingOccurrences = await _db.Routines
             .Where(o => o.ExternalId != null)
             .ToDictionaryAsync(o => o.ExternalId!, StringComparer.OrdinalIgnoreCase, ct);
         var seenOccurrences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var newOccurrences = new List<RoutineOccurrence>();
+        var newOccurrences = new List<Routine>();
 
         foreach (var row in occurrences)
         {
@@ -341,12 +341,12 @@ public class ScheduleImportService : IScheduleImportService
                 continue;
             }
 
-            var occurrence = new RoutineOccurrence { ExternalId = row.ExternalId, PropertyId = row.PropertyId };
+            var occurrence = new Routine { ExternalId = row.ExternalId, PropertyId = row.PropertyId };
             newOccurrences.Add(occurrence);
 
             if (dryRun) continue;
 
-            occurrence.Routine = row.Routine.Length <= 300 ? row.Routine : row.Routine[..300];
+            occurrence.Name = row.Routine.Length <= 300 ? row.Routine : row.Routine[..300];
             occurrence.RoutineServiceLevel = row.Level;
             occurrence.MaintenanceSchedule = scheduleByKey.GetValueOrDefault((row.PropertyId, row.Months));
             occurrence.DueDate = row.Due;
@@ -382,7 +382,7 @@ public class ScheduleImportService : IScheduleImportService
             }
 
             _db.MaintenanceSchedules.AddRange(toCreate);
-            _db.RoutineOccurrences.AddRange(newOccurrences);
+            _db.Routines.AddRange(newOccurrences);
             await _db.SaveChangesAsync(ct);
         }
         catch (DbUpdateException ex)
@@ -508,21 +508,21 @@ public class ScheduleImportService : IScheduleImportService
         (status ?? "").Trim().Equals("G", StringComparison.OrdinalIgnoreCase);
 
     // How far along an occurrence is; re-imports only ever move it forward
-    private static int StatusRank(RoutineOccurrenceStatus s) => s switch
+    private static int StatusRank(RoutineStatus s) => s switch
     {
-        RoutineOccurrenceStatus.Pending => 1,
-        RoutineOccurrenceStatus.Generated => 2,
+        RoutineStatus.Pending => 1,
+        RoutineStatus.Generated => 2,
         _ => 3 // Complete, Cancelled
     };
 
-    private static RoutineOccurrenceStatus OccurrenceStatus(string? status, string? completedDate) =>
-        !string.IsNullOrWhiteSpace(completedDate) ? RoutineOccurrenceStatus.Complete
+    private static RoutineStatus OccurrenceStatus(string? status, string? completedDate) =>
+        !string.IsNullOrWhiteSpace(completedDate) ? RoutineStatus.Complete
         : (status ?? "").Trim().ToUpperInvariant() switch
         {
-            "G" => RoutineOccurrenceStatus.Generated,
-            "C" or "COMPLETE" or "COMPLETED" => RoutineOccurrenceStatus.Complete,
-            "X" or "CANCELLED" or "CANCELED" => RoutineOccurrenceStatus.Cancelled,
-            _ => RoutineOccurrenceStatus.Pending
+            "G" => RoutineStatus.Generated,
+            "C" or "COMPLETE" or "COMPLETED" => RoutineStatus.Complete,
+            "X" or "CANCELLED" or "CANCELED" => RoutineStatus.Cancelled,
+            _ => RoutineStatus.Pending
         };
 
     private static string NameKey(string clientName, string siteName) =>

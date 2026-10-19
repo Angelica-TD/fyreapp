@@ -4,7 +4,7 @@ namespace FyreApp.Models;
 
 // An asset a routine task services, e.g. extinguisher "FE 3" for "10 - Portable and Wheeled Fire Extinguishers: Six-monthly"
 // (the task's Work tab). Saved when the task is generated from routines, so the list stays as it was planned.
-public class TaskAsset
+public class ServiceTask
 {
     public int Id { get; set; }
 

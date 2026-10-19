@@ -33,8 +33,8 @@ public class RoutineTests
             "3,10 - Portable and Wheeled Fire Extinguishers: Six-monthly,2026-10-01,,,G,,Magidale,P-0152,Magidale Pty Ltd,Servicing"));
 
         Assert.Equal((3, 0), (result.OccurrencesCreated, result.OccurrencesUpdated));
-        var occurrences = await db.RoutineOccurrences.Include(o => o.MaintenanceSchedule!.MaintenanceInterval).OrderBy(o => o.ExternalId).ToListAsync();
-        Assert.Equal(new[] { RoutineOccurrenceStatus.Pending, RoutineOccurrenceStatus.Complete, RoutineOccurrenceStatus.Generated }, occurrences.Select(o => o.Status));
+        var occurrences = await db.Routines.Include(o => o.MaintenanceSchedule!.MaintenanceInterval).OrderBy(o => o.ExternalId).ToListAsync();
+        Assert.Equal(new[] { RoutineStatus.Pending, RoutineStatus.Complete, RoutineStatus.Generated }, occurrences.Select(o => o.Status));
         Assert.Equal(new[] { 12, 12, 6 }, occurrences.Select(o => o.MaintenanceSchedule!.MaintenanceInterval.Months));
         Assert.Equal((new DateTime(2026, 8, 31), "Pumps & Tanks"), (occurrences[0].ToleranceStart, occurrences[0].ServiceGroup));
     }
@@ -50,7 +50,7 @@ public class RoutineTests
         var second = await Import(db, Routines("1,09 - Fire Hose Reels: Annual,2026-10-31,,,G,,Magidale,P-0152,Magidale Pty Ltd,"));
 
         Assert.Equal((0, 1), (second.OccurrencesCreated, second.OccurrencesUpdated));
-        Assert.Equal(RoutineOccurrenceStatus.Generated, (await db.RoutineOccurrences.SingleAsync()).Status);
+        Assert.Equal(RoutineStatus.Generated, (await db.Routines.SingleAsync()).Status);
     }
 
     [Fact]
@@ -65,26 +65,26 @@ public class RoutineTests
         await Import(db, Routines(pending));
 
         // Task raised in FyreApp
-        var occurrence = await db.RoutineOccurrences.SingleAsync();
+        var occurrence = await db.Routines.SingleAsync();
         var task = new ClientTask { Title = "PM2026/10", ClientId = occurrence.Property.ClientId, PropertyId = occurrence.PropertyId };
         occurrence.ClientTask = task;
-        occurrence.Status = RoutineOccurrenceStatus.Generated;
+        occurrence.Status = RoutineStatus.Generated;
         await db.SaveChangesAsync();
 
         // Uptick still says pending: nothing changes
         var again = await Import(db, Routines(pending));
         Assert.Equal((0, 0), (again.OccurrencesCreated, again.OccurrencesUpdated));
-        Assert.Equal((RoutineOccurrenceStatus.Generated, task.Id), (occurrence.Status, occurrence.ClientTaskId));
+        Assert.Equal((RoutineStatus.Generated, task.Id), (occurrence.Status, occurrence.ClientTaskId));
 
         // Completed in Uptick: comes through, task link kept
         var done = await Import(db, Routines(complete));
         Assert.Equal(1, done.OccurrencesUpdated);
-        Assert.Equal((RoutineOccurrenceStatus.Complete, new DateTime(2026, 10, 20), task.Id),
+        Assert.Equal((RoutineStatus.Complete, new DateTime(2026, 10, 20), task.Id),
             (occurrence.Status, occurrence.CompletedDate, occurrence.ClientTaskId));
 
         // And never back again
         await Import(db, Routines(pending));
-        Assert.Equal(RoutineOccurrenceStatus.Complete, occurrence.Status);
+        Assert.Equal(RoutineStatus.Complete, occurrence.Status);
     }
 
     // -------------------------------------------------------
@@ -99,16 +99,16 @@ public class RoutineTests
         var onHold = new Property { Name = "Paused", ExternalId = "P-0200", Status = "ONHOLD", Client = active };
         var goneSite = new Property { Name = "Gone", ExternalId = "P-0300", Status = "ACTIVE", Client = inactive };
 
-        RoutineOccurrence O(Property s, string routine, string due, RoutineOccurrenceStatus status) =>
-            new() { Property = s, Routine = routine, DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), Status = status };
+        Routine O(Property s, string routine, string due, RoutineStatus status) =>
+            new() { Property = s, Name = routine, DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), Status = status };
 
-        db.RoutineOccurrences.AddRange(
-            O(site, "04 - Fire Hydrant Systems (Flow Test): Annual", "2026-10-31", RoutineOccurrenceStatus.Pending),     // shown
-            O(site, "04 - Fire Hydrant Systems (Landing Valves): Annual", "2026-10-31", RoutineOccurrenceStatus.Pending), // shown
-            O(site, "10 - Extinguishers: Six-monthly", "2026-10-01", RoutineOccurrenceStatus.Generated),                 // task raised
-            O(site, "09 - Fire Hose Reels: Annual", "2026-11-01", RoutineOccurrenceStatus.Pending),                       // next month
-            O(onHold, "09 - Fire Hose Reels: Annual", "2026-10-15", RoutineOccurrenceStatus.Pending),                     // property on hold
-            O(goneSite, "09 - Fire Hose Reels: Annual", "2026-10-15", RoutineOccurrenceStatus.Pending));                  // client inactive
+        db.Routines.AddRange(
+            O(site, "04 - Fire Hydrant Systems (Flow Test): Annual", "2026-10-31", RoutineStatus.Pending),     // shown
+            O(site, "04 - Fire Hydrant Systems (Landing Valves): Annual", "2026-10-31", RoutineStatus.Pending), // shown
+            O(site, "10 - Extinguishers: Six-monthly", "2026-10-01", RoutineStatus.Generated),                 // task raised
+            O(site, "09 - Fire Hose Reels: Annual", "2026-11-01", RoutineStatus.Pending),                       // next month
+            O(onHold, "09 - Fire Hose Reels: Annual", "2026-10-15", RoutineStatus.Pending),                     // property on hold
+            O(goneSite, "09 - Fire Hose Reels: Annual", "2026-10-15", RoutineStatus.Pending));                  // client inactive
         await db.SaveChangesAsync();
     }
 
@@ -118,10 +118,10 @@ public class RoutineTests
         using var db = DbContextFactory.Create();
         await SeedAsync(db);
 
-        var result = await new RoutineService(db).SearchAsync(RoutineFilter.Default(new DateTime(2026, 10, 6)));
+        var result = await new RoutineListService(db).SearchAsync(RoutineFilter.Default(new DateTime(2026, 10, 6)));
 
         Assert.Equal(2, result.Total);
-        Assert.All(result.Items, i => Assert.Equal(("P-0152", "Karen Gould", RoutineOccurrenceStatus.Pending), (i.PropertyRef, i.ClientContact, i.Status)));
+        Assert.All(result.Items, i => Assert.Equal(("P-0152", "Karen Gould", RoutineStatus.Pending), (i.PropertyRef, i.ClientContact, i.Status)));
         Assert.Equal(4, result.Filter.ActiveCount);
     }
 
@@ -130,7 +130,7 @@ public class RoutineTests
     {
         using var db = DbContextFactory.Create();
         await SeedAsync(db);
-        var svc = new RoutineService(db);
+        var svc = new RoutineListService(db);
 
         var all = await svc.SearchAsync(new RoutineFilter { ClientActive = null, PropertyStatus = new(), Status = new() });
         var hoseReels = await svc.SearchAsync(new RoutineFilter { ClientActive = null, PropertyStatus = new(), Status = new(), Search = "hose reel" });
@@ -162,15 +162,15 @@ public class RoutineTests
             NextRunDate = DateTime.SpecifyKind(new DateTime(2026, 11, 30), DateTimeKind.Utc)
         };
 
-        RoutineOccurrence O(Property s, string routine, string group, string due, RoutineOccurrenceStatus status = RoutineOccurrenceStatus.Pending, MaintenanceSchedule? ms = null) =>
-            new() { Property = s, Routine = routine, ServiceGroup = group, DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), Status = status, MaintenanceSchedule = ms };
+        Routine O(Property s, string routine, string group, string due, RoutineStatus status = RoutineStatus.Pending, MaintenanceSchedule? ms = null) =>
+            new() { Property = s, Name = routine, ServiceGroup = group, DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), Status = status, MaintenanceSchedule = ms };
 
-        db.RoutineOccurrences.AddRange(
+        db.Routines.AddRange(
             O(calce, "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", "Servicing - Portables & Fire Equipment", "2026-11-30"),
             O(glory, "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", "Servicing - Portables & Fire Equipment", "2026-11-30", ms: schedule),
             O(glory, "11 - Fire Blankets: Six-monthly", "Servicing - Portables & Fire Equipment", "2026-11-30", ms: schedule),
             O(glory, "06 - Fire Detection (Fire Panels): Monthly", "Fire Detection (FIP, Exits) System Servicing", "2026-11-15"),
-            O(glory, "09 - Fire Hose Reels: Annual", "Servicing - Portables & Fire Equipment", "2026-11-30", RoutineOccurrenceStatus.Generated));
+            O(glory, "09 - Fire Hose Reels: Annual", "Servicing - Portables & Fire Equipment", "2026-11-30", RoutineStatus.Generated));
         await db.SaveChangesAsync();
         return (calce, glory, schedule);
     }
@@ -182,9 +182,9 @@ public class RoutineTests
     {
         using var db = DbContextFactory.Create();
         var (_, glory, schedule) = await SeedForGenerateAsync(db);
-        var all = await db.RoutineOccurrences.Select(o => o.Id).ToListAsync();
+        var all = await db.Routines.Select(o => o.Id).ToListAsync();
 
-        var result = await new RoutineService(db).GenerateTasksAsync(all, allMatching: false, AnyFilter, "user-1");
+        var result = await new RoutineListService(db).GenerateTasksAsync(all, allMatching: false, AnyFilter, "user-1");
 
         // Calce portables; Glory portables (extinguishers + blankets); Glory fire detection. Hose reels already had a task.
         Assert.Equal((3, 4, 1), (result.TasksCreated, result.RoutinesUsed, result.RoutinesSkipped));
@@ -196,10 +196,10 @@ public class RoutineTests
         Assert.Contains("- 11 - Fire Blankets: Six-monthly", gloryPortables.Description);
         Assert.Equal(schedule.Id, Assert.Single(gloryPortables.CoveredSchedules).Id);
 
-        var occurrences = await db.RoutineOccurrences.ToListAsync();
-        Assert.All(occurrences.Where(o => o.Routine != "09 - Fire Hose Reels: Annual"), o =>
-            Assert.Equal((RoutineOccurrenceStatus.Generated, true), (o.Status, o.ClientTaskId != null)));
-        Assert.Null(occurrences.Single(o => o.Routine == "09 - Fire Hose Reels: Annual").ClientTaskId);
+        var occurrences = await db.Routines.ToListAsync();
+        Assert.All(occurrences.Where(o => o.Name != "09 - Fire Hose Reels: Annual"), o =>
+            Assert.Equal((RoutineStatus.Generated, true), (o.Status, o.ClientTaskId != null)));
+        Assert.Null(occurrences.Single(o => o.Name == "09 - Fire Hose Reels: Annual").ClientTaskId);
     }
 
     [Fact]
@@ -210,7 +210,7 @@ public class RoutineTests
 
         var filter = AnyFilter;
         filter.Search = "calce";
-        var result = await new RoutineService(db).GenerateTasksAsync(Array.Empty<int>(), allMatching: true, filter, null);
+        var result = await new RoutineListService(db).GenerateTasksAsync(Array.Empty<int>(), allMatching: true, filter, null);
 
         Assert.Equal((1, 1, 0), (result.TasksCreated, result.RoutinesUsed, result.RoutinesSkipped));
         Assert.Equal(calce.Id, (await db.ClientTasks.SingleAsync()).PropertyId);
@@ -223,8 +223,8 @@ public class RoutineTests
         await SeedForGenerateAsync(db);
 
         var filter = AnyFilter;
-        filter.Status = new() { RoutineOccurrenceStatus.Pending };
-        var csv = Encoding.UTF8.GetString(await new RoutineService(db).DownloadCsvAsync(filter)).TrimStart('﻿');
+        filter.Status = new() { RoutineStatus.Pending };
+        var csv = Encoding.UTF8.GetString(await new RoutineListService(db).DownloadCsvAsync(filter)).TrimStart('﻿');
         var lines = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
         Assert.StartsWith("Routine,Property ref,Property,", lines[0]);

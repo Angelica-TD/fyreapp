@@ -16,7 +16,7 @@ public class RoutineFilter
 
     // Empty = any
     public List<string> PropertyStatus { get; set; } = new() { "ACTIVE" };
-    public List<RoutineOccurrenceStatus> Status { get; set; } = new() { RoutineOccurrenceStatus.Pending };
+    public List<RoutineStatus> Status { get; set; } = new() { RoutineStatus.Pending };
 
     public int Page { get; set; } = 1;
 
@@ -57,7 +57,7 @@ public class RoutineListItemVm
     public string ClientName { get; set; } = string.Empty;
     public string? ClientContact { get; set; }
     public DateTime DueDate { get; set; }
-    public RoutineOccurrenceStatus Status { get; set; }
+    public RoutineStatus Status { get; set; }
     public int? MaintenanceScheduleId { get; set; }
     public int? ClientTaskId { get; set; }
 }

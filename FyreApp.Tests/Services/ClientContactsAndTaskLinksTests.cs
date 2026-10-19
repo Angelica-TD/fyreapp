@@ -90,8 +90,8 @@ public class ClientContactsAndTaskLinksTests
             new Dictionary<string, string> { ["ID"] = "7", ["Remark Type"] = "Asset Failed", ["Property Ref"] = "P-1", ["Repair Task ID"] = "46715" });
 
         var task = await db.ClientTasks.SingleAsync();
-        Assert.Equal(task.Id, (await db.ServiceReports.SingleAsync()).ClientTaskId);
-        Assert.Equal(task.Id, (await db.Defects.SingleAsync()).RepairTaskId);
+        Assert.Equal(task.Id, (await db.Reports.SingleAsync()).ClientTaskId);
+        Assert.Equal(task.Id, (await db.Remarks.SingleAsync()).RepairTaskId);
     }
 
     [Fact]
@@ -105,15 +105,15 @@ public class ClientContactsAndTaskLinksTests
             new Dictionary<string, string> { ["ID"] = "9", ["Report Type"] = "Service Report", ["Property Ref"] = "P-1", ["Task Id"] = "46715" });
         await Import(db, RemarkHeaders, UptickExportType.Remarks,
             new Dictionary<string, string> { ["ID"] = "7", ["Remark Type"] = "Asset Failed", ["Property Ref"] = "P-1", ["Repair Task ID"] = "46715" });
-        Assert.Null((await db.ServiceReports.AsNoTracking().SingleAsync()).ClientTaskId);
+        Assert.Null((await db.Reports.AsNoTracking().SingleAsync()).ClientTaskId);
 
         var result = await Import(db, TaskHeaders, UptickExportType.Tasks,
             new Dictionary<string, string> { ["ID"] = "46715", ["Ref"] = "T-46715", ["Name"] = "Service", ["Status"] = "READY", ["Property Ref"] = "P-1" });
 
         var task = await db.ClientTasks.SingleAsync();
         Assert.Contains(result.Notes, n => n.StartsWith("1 report(s) and 1 remark(s)"));
-        Assert.Equal(task.Id, (await db.ServiceReports.AsNoTracking().SingleAsync()).ClientTaskId);
-        Assert.Equal(task.Id, (await db.Defects.AsNoTracking().SingleAsync()).RepairTaskId);
+        Assert.Equal(task.Id, (await db.Reports.AsNoTracking().SingleAsync()).ClientTaskId);
+        Assert.Equal(task.Id, (await db.Remarks.AsNoTracking().SingleAsync()).RepairTaskId);
     }
 
     [Fact]

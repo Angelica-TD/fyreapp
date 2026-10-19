@@ -92,5 +92,5 @@ public class ClientTask
     public ICollection<MaintenanceSchedule> CoveredSchedules { get; set; } = new List<MaintenanceSchedule>();
 
     // Assets a routine task services (Work tab), saved when it was generated from routines
-    public ICollection<TaskAsset> Assets { get; set; } = new List<TaskAsset>();
+    public ICollection<ServiceTask> Assets { get; set; } = new List<ServiceTask>();
 }

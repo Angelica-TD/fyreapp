@@ -37,5 +37,5 @@ public class RemarkType
     // Every column of the Uptick export row as JSON (key order kept)
     public string? UptickData { get; set; }
 
-    public ICollection<Defect> Defects { get; set; } = new List<Defect>();
+    public ICollection<Remark> Remarks { get; set; } = new List<Remark>();
 }

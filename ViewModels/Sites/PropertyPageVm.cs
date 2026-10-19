@@ -21,7 +21,7 @@ public class PropertyPageVm
 
     // Summary: the most severe open remark and how many are open
     public int OpenRemarks { get; init; }
-    public Defect? MostSevereRemark { get; init; }
+    public Remark? MostSevereRemark { get; init; }
 
     // Property tab
     public IReadOnlyList<TimelineEvent> Timeline { get; init; } = [];
@@ -38,7 +38,7 @@ public class PropertyPageVm
     public string? AssetSearch { get; init; }
 
     // Remarks (under Assets)
-    public IReadOnlyList<Defect> Remarks { get; init; } = [];
+    public IReadOnlyList<Remark> Remarks { get; init; } = [];
     public bool ShowClosedRemarks { get; init; }
 
     // Routines tab
@@ -60,7 +60,7 @@ public class PropertyPageVm
     public IReadOnlyList<PropertySchedule> Schedules { get; init; } = [];
 
     // Records tab (service reports) and Tasks tab
-    public IReadOnlyList<ServiceReport> Reports { get; init; } = [];
+    public IReadOnlyList<Report> Reports { get; init; } = [];
     public IReadOnlyList<ClientTask> Tasks { get; init; } = [];
 }
 

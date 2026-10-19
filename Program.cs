@@ -39,7 +39,7 @@ builder.Services.AddScoped<IScheduleImportService, ScheduleImportService>();
 builder.Services.AddScoped<UptickImporter, RemarkImporter>();
 builder.Services.AddScoped<UptickImporter, ReportImporter>();
 builder.Services.AddScoped<UptickImporter, TaskImporter>();
-builder.Services.AddScoped<FyreApp.Services.Routines.IRoutineService, FyreApp.Services.Routines.RoutineService>();
+builder.Services.AddScoped<FyreApp.Services.Routines.IRoutineListService, FyreApp.Services.Routines.RoutineListService>();
 builder.Services.AddScoped<FyreApp.Services.Routines.IRoutineSetupService, FyreApp.Services.Routines.RoutineSetupService>();
 builder.Services.AddScoped<FyreApp.Services.Assets.IAssetListService, FyreApp.Services.Assets.AssetListService>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IPropertyListService, FyreApp.Services.Lists.PropertyListService>();

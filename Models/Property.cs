@@ -98,6 +98,6 @@ public class Property : IUptickMapped
     public ICollection<Asset> Assets { get; set; } = new List<Asset>();
     public ICollection<MaintenanceSchedule> MaintenanceSchedules { get; set; } = new List<MaintenanceSchedule>();
     public ICollection<PropertyContact> Contacts { get; set; } = new List<PropertyContact>();
-    public ICollection<Defect> Defects { get; set; } = new List<Defect>();
-    public ICollection<ServiceReport> ServiceReports { get; set; } = new List<ServiceReport>();
+    public ICollection<Remark> Remarks { get; set; } = new List<Remark>();
+    public ICollection<Report> Reports { get; set; } = new List<Report>();
 }

@@ -29,10 +29,10 @@ public class BulkActionTests
             new Asset { Name = "Fire Hose Reel", Ref = "1", Property = b });
         await db.SaveChangesAsync();
 
-        db.Defects.AddRange(
-            new Defect { ExternalId = "54214", Property = a, Asset = db.Assets.Local.First(x => x.Name == "DCP AB(E) 4.5KG"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true, Description = "Expired" },
-            new Defect { ExternalId = "54212", Property = a, Asset = db.Assets.Local.First(x => x.Name == "Fire Blanket"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true },
-            new Defect { ExternalId = "54179", Property = b, Asset = db.Assets.Local.First(x => x.Name == "Fire Hose Reel"), RemarkType = "00 - Asset Failed", SeverityLabel = "Critical defect", Active = true });
+        db.Remarks.AddRange(
+            new Remark { ExternalId = "54214", Property = a, Asset = db.Assets.Local.First(x => x.Name == "DCP AB(E) 4.5KG"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true, Description = "Expired" },
+            new Remark { ExternalId = "54212", Property = a, Asset = db.Assets.Local.First(x => x.Name == "Fire Blanket"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true },
+            new Remark { ExternalId = "54179", Property = b, Asset = db.Assets.Local.First(x => x.Name == "Fire Hose Reel"), RemarkType = "00 - Asset Failed", SeverityLabel = "Critical defect", Active = true });
         await db.SaveChangesAsync();
         return (a, b);
     }
@@ -100,10 +100,10 @@ public class BulkActionTests
         var tasks = await db.ClientTasks.ToListAsync();
         Assert.All(tasks, t => Assert.Equal(("Defect repairs", "Repair"), (t.Title, t.Category)));
         Assert.Contains(tasks, t => t.Description!.Contains("- D-54214 00 - Asset Failed (DCP AB(E) 4.5KG): Expired"));
-        Assert.All(await db.Defects.ToListAsync(), d => Assert.Equal("Open", d.RepairTaskStatus));
+        Assert.All(await db.Remarks.ToListAsync(), d => Assert.Equal("Open", d.RepairTaskStatus));
 
         Assert.Equal(3, await svc.SetResolvedAsync(All, filter, resolved: true));
-        Assert.All(await db.Defects.ToListAsync(), d => Assert.Equal((false, "Resolved"), (d.Active, d.Status)));
+        Assert.All(await db.Remarks.ToListAsync(), d => Assert.Equal((false, "Resolved"), (d.Active, d.Status)));
         // Resolved remarks drop out of the default (open) list
         Assert.Equal(0, (await svc.SearchAsync(filter)).Total);
     }

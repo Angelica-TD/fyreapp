@@ -23,10 +23,10 @@ public record PropertyPageQuery(
 public class PropertyPageService : IPropertyPageService
 {
     private readonly AppDbContext _db;
-    private readonly IRoutineService _routines;
+    private readonly IRoutineListService _routines;
     private readonly ITimelineService _timeline;
 
-    public PropertyPageService(AppDbContext db, IRoutineService routines, ITimelineService timeline)
+    public PropertyPageService(AppDbContext db, IRoutineListService routines, ITimelineService timeline)
     {
         _db = db;
         _routines = routines;
@@ -45,7 +45,7 @@ public class PropertyPageService : IPropertyPageService
         if (site == null) return null;
 
         // Uptick's severity: higher is worse (10 critical defect … 0 informational)
-        var openRemarks = _db.Defects.AsNoTracking().Where(d => d.PropertyId == id && d.Active);
+        var openRemarks = _db.Remarks.AsNoTracking().Where(d => d.PropertyId == id && d.Active);
         var openCount = await openRemarks.CountAsync(ct);
         var mostSevere = await openRemarks.OrderByDescending(d => d.Severity ?? -1).FirstOrDefaultAsync(ct);
 
@@ -56,7 +56,7 @@ public class PropertyPageService : IPropertyPageService
             {
                 Property = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
                 ShowClosedRemarks = query.ShowClosedRemarks,
-                Remarks = await _db.Defects.AsNoTracking()
+                Remarks = await _db.Remarks.AsNoTracking()
                     .Include(d => d.Asset)
                     .Where(d => d.PropertyId == id && (query.ShowClosedRemarks || d.Active))
                     .OrderByDescending(d => d.Severity ?? -1).ThenByDescending(d => d.RaisedUtc)
@@ -70,7 +70,7 @@ public class PropertyPageService : IPropertyPageService
             "records" => new PropertyPageVm
             {
                 Property = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
-                Reports = await _db.ServiceReports.AsNoTracking()
+                Reports = await _db.Reports.AsNoTracking()
                     .Where(r => r.PropertyId == id)
                     .OrderByDescending(r => r.IssuedDate ?? r.InspectedDate)
                     .ToListAsync(ct),
@@ -112,7 +112,7 @@ public class PropertyPageService : IPropertyPageService
 
     // Billing tab: the property's and client's billing cards (named by ID in their Uptick rows), the property's
     // billing contracts with their lines, and its invoices (newest first) with any credit notes
-    private async Task<PropertyPageVm> BillingAsync(Property site, int openCount, Defect? mostSevere, CancellationToken ct)
+    private async Task<PropertyPageVm> BillingAsync(Property site, int openCount, Remark? mostSevere, CancellationToken ct)
     {
         async Task<BillingCard?> Card(string? externalId) => externalId == null ? null
             : await _db.BillingCards.AsNoTracking().FirstOrDefaultAsync(c => c.ExternalId == externalId, ct);
@@ -147,7 +147,7 @@ public class PropertyPageService : IPropertyPageService
         };
     }
 
-    private async Task<PropertyPageVm> AssetsAsync(Property site, PropertyPageQuery query, int openCount, Defect? mostSevere, CancellationToken ct)
+    private async Task<PropertyPageVm> AssetsAsync(Property site, PropertyPageQuery query, int openCount, Remark? mostSevere, CancellationToken ct)
     {
         var all = await _db.Assets.AsNoTracking()
             .Include(a => a.AssetTypes)

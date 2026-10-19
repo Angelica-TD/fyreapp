@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Models;
 
-public enum RoutineOccurrenceStatus
+public enum RoutineStatus
 {
     Pending = 1,     // Uptick "P": no task raised yet
     Generated = 2,   // Uptick "G": a task has been raised
@@ -13,7 +13,7 @@ public enum RoutineOccurrenceStatus
 // One due occurrence of an Uptick routine at a property, e.g. "04 - Fire Hydrant Systems (Flow Test): Annual"
 // due 31 Oct 2026 (one row of the Uptick routines export). Schedules summarise these per property + interval;
 // the Routines page lists them as Uptick does. Re-importing the routines export updates their status.
-public class RoutineOccurrence
+public class Routine
 {
     public int Id { get; set; }
 
@@ -26,14 +26,14 @@ public class RoutineOccurrence
 
     // "<routine service type>: <level>" as Uptick names it
     [Required, StringLength(300)]
-    public string Routine { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
 
     public int? RoutineServiceLevelId { get; set; }
     public RoutineServiceLevel? RoutineServiceLevel { get; set; }
 
     // The routine service set up in FyreApp that forecast this occurrence (null for ones imported from Uptick)
-    public int? PropertyRoutineServiceId { get; set; }
-    public PropertyRoutineService? PropertyRoutineService { get; set; }
+    public int? RoutineServiceId { get; set; }
+    public RoutineService? RoutineService { get; set; }
 
     // The schedule (property + interval) this occurrence belongs to
     public int? MaintenanceScheduleId { get; set; }
@@ -43,7 +43,7 @@ public class RoutineOccurrence
     public DateTime? ToleranceStart { get; set; }
     public DateTime? ToleranceEnd { get; set; }
 
-    public RoutineOccurrenceStatus Status { get; set; } = RoutineOccurrenceStatus.Pending;
+    public RoutineStatus Status { get; set; } = RoutineStatus.Pending;
 
     // The task generated for this occurrence in FyreApp (Routines page → Generate tasks)
     public int? ClientTaskId { get; set; }

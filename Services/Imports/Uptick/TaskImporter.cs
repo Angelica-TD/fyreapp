@@ -147,12 +147,12 @@ public class TaskImporter : UptickImporter
         foreach (var chunk in idByExt.Keys.Chunk(1000))
         {
             var exts = chunk.ToList();
-            foreach (var r in await Db.ServiceReports.Where(r => r.ClientTaskId == null && r.TaskExternalId != null && exts.Contains(r.TaskExternalId)).ToListAsync(ct))
+            foreach (var r in await Db.Reports.Where(r => r.ClientTaskId == null && r.TaskExternalId != null && exts.Contains(r.TaskExternalId)).ToListAsync(ct))
             {
                 r.ClientTaskId = idByExt[r.TaskExternalId!];
                 reports++;
             }
-            foreach (var d in await Db.Defects.Where(d => d.RepairTaskId == null && d.RepairTaskExternalId != null && exts.Contains(d.RepairTaskExternalId)).ToListAsync(ct))
+            foreach (var d in await Db.Remarks.Where(d => d.RepairTaskId == null && d.RepairTaskExternalId != null && exts.Contains(d.RepairTaskExternalId)).ToListAsync(ct))
             {
                 d.RepairTaskId = idByExt[d.RepairTaskExternalId!];
                 remarks++;

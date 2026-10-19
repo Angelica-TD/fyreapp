@@ -13,7 +13,7 @@ public interface IRemarkListService
     Task<byte[]> CsvAsync(RemarkFilter filter, CancellationToken ct = default);
 
     // One remark with its property, client, asset, remark type and repair task, for its details page
-    Task<Defect?> FindAsync(int id, CancellationToken ct = default);
+    Task<Remark?> FindAsync(int id, CancellationToken ct = default);
 
     // Edit → Mark resolved / Reopen (Uptick's remark "Active": open = not resolved)
     Task<int> SetResolvedAsync(BulkSelection selection, RemarkFilter filter, bool resolved, CancellationToken ct = default);
@@ -28,8 +28,8 @@ public class RemarkListService : IRemarkListService
     private readonly AppDbContext _db;
     public RemarkListService(AppDbContext db) => _db = db;
 
-    public Task<Defect?> FindAsync(int id, CancellationToken ct = default) =>
-        _db.Defects.AsNoTracking()
+    public Task<Remark?> FindAsync(int id, CancellationToken ct = default) =>
+        _db.Remarks.AsNoTracking()
             .Include(d => d.Property).ThenInclude(s => s.Client)
             .Include(d => d.Asset).ThenInclude(a => a!.AssetTypes)
             .Include(d => d.RemarkTypeRef)
@@ -38,9 +38,9 @@ public class RemarkListService : IRemarkListService
             .FirstOrDefaultAsync(d => d.Id == id, ct);
 
     // The one place the filters are applied, so the list, its download and "select all" always agree
-    private IQueryable<Defect> Filtered(RemarkFilter filter)
+    private IQueryable<Remark> Filtered(RemarkFilter filter)
     {
-        var q = _db.Defects.AsQueryable();
+        var q = _db.Remarks.AsQueryable();
 
         if (filter.AssetActive is bool assetActive)
             q = q.Where(d => d.Asset != null && d.Asset.IsActive == assetActive);
@@ -84,11 +84,11 @@ public class RemarkListService : IRemarkListService
             .ThenByDescending(d => d.ExternalId);
     }
 
-    private IQueryable<Defect> Selected(BulkSelection selection, RemarkFilter filter)
+    private IQueryable<Remark> Selected(BulkSelection selection, RemarkFilter filter)
     {
         if (selection.AllMatching) return Filtered(filter);
         var ids = selection.Ids.ToList();
-        return _db.Defects.Where(d => ids.Contains(d.Id));
+        return _db.Remarks.Where(d => ids.Contains(d.Id));
     }
 
     private static string? RefOf(string? externalId, string? fyreRef) =>
@@ -112,7 +112,7 @@ public class RemarkListService : IRemarkListService
             })
             .ToListAsync(ct);
 
-        var severityOptions = await _db.Defects.AsNoTracking()
+        var severityOptions = await _db.Remarks.AsNoTracking()
             .Where(d => d.SeverityLabel != null)
             .Select(d => d.SeverityLabel!)
             .Distinct()

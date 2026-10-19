@@ -75,7 +75,7 @@
                 @if (Model.MostSevereRemark is { } worst)
                 {
                     <p>
-                        <span class="badge text-uppercase @RemarkSeverity.BadgeCss(worst.Severity)">@(worst.SeverityLabel ?? "Remark")</span>
+                        <span class="badge text-uppercase @RemarkSeverity.BadgeCss(worst.Severity)">@(worst.SeverityLabel ?? "Defect")</span>
                         is most severe of
                         <a asp-action="Details" asp-route-id="@site.Id" asp-route-tab="remarks">@Model.OpenRemarks open remark@(Model.OpenRemarks == 1 ? "" : "s")</a>.
                     </p>

@@ -4,9 +4,9 @@ namespace FyreApp.Models;
 
 // A routine set up on a property in FyreApp (Uptick's "Add routine services"): a routine type, e.g.
 // "14 - Emergency planning in facilities", with the levels done there (Six-monthly, Annual), from a start
-// date, counted from the last annual service. Its occurrences are forecast as RoutineOccurrences, which the
+// date, counted from the last annual service. Its occurrences are forecast as Routines, which the
 // property's Routines tab and the Routines page show alongside the ones imported from Uptick.
-public class PropertyRoutineService
+public class RoutineService
 {
     public int Id { get; set; }
 
@@ -34,5 +34,5 @@ public class PropertyRoutineService
     [StringLength(200)]
     public string? CreatedBy { get; set; }
 
-    public ICollection<RoutineOccurrence> Occurrences { get; set; } = new List<RoutineOccurrence>();
+    public ICollection<Routine> Occurrences { get; set; } = new List<Routine>();
 }

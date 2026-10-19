@@ -20,8 +20,8 @@ public class RoutineCompletionTests
 
     private static DateTime D(string date) => DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
 
-    private static RoutineOccurrence O(Property site, string routine, string due, RoutineOccurrenceStatus status = RoutineOccurrenceStatus.Pending) =>
-        new() { Property = site, Routine = routine, DueDate = D(due), ToleranceStart = D(due).AddMonths(-1), ToleranceEnd = D(due).AddMonths(1), Status = status };
+    private static Routine O(Property site, string routine, string due, RoutineStatus status = RoutineStatus.Pending) =>
+        new() { Property = site, Name = routine, DueDate = D(due), ToleranceStart = D(due).AddMonths(-1), ToleranceEnd = D(due).AddMonths(1), Status = status };
 
     private static ClientTaskService Tasks(AppDbContext db) =>
         new(db, new Mock<UserManager<ApplicationUser>>(Mock.Of<IUserStore<ApplicationUser>>(), null!, null!, null!, null!, null!, null!, null!, null!).Object,
@@ -35,20 +35,20 @@ public class RoutineCompletionTests
         using var db = DbContextFactory.Create();
         var site = NewSite("Magidale");
         var task = new ClientTask { Title = "PM2026/08 Servicing", Client = site.Client, Property = site, DueDateUtc = D("2026-08-31") };
-        var august = O(site, Extinguishers + ": Six-monthly", "2026-08-01", RoutineOccurrenceStatus.Generated);
+        var august = O(site, Extinguishers + ": Six-monthly", "2026-08-01", RoutineStatus.Generated);
         august.ClientTask = task;
         var february = O(site, Extinguishers + ": Annual", "2027-02-01");
         var nextAugust = O(site, Extinguishers + ": Six-monthly", "2027-08-01");
         var hoseReels = O(site, "09 - Fire Hose Reels: Six-monthly", "2027-02-01");
         var elsewhere = O(NewSite("Calce"), Extinguishers + ": Six-monthly", "2027-02-01");
-        db.RoutineOccurrences.AddRange(august, february, nextAugust, hoseReels, elsewhere);
+        db.Routines.AddRange(august, february, nextAugust, hoseReels, elsewhere);
         await db.SaveChangesAsync();
 
         var result = await RoutineCompletion.CompleteAsync(db, task, new DateTime(2026, 11, 14));
         await db.SaveChangesAsync();
 
         Assert.Equal((1, 2, 3), (result.Completed, result.Moved, result.MonthsLate));
-        Assert.Equal((RoutineOccurrenceStatus.Complete, D("2026-11-14")), (august.Status, august.CompletedDate));
+        Assert.Equal((RoutineStatus.Complete, D("2026-11-14")), (august.Status, august.CompletedDate));
         // The same routine's later ones move 3 months, keeping their levels and tolerance
         Assert.Equal((D("2027-05-01"), D("2027-04-01"), D("2027-06-01")), (february.DueDate, february.ToleranceStart, february.ToleranceEnd));
         Assert.Equal(D("2027-11-01"), nextAugust.DueDate);
@@ -71,21 +71,21 @@ public class RoutineCompletionTests
         await setup.AddAsync(site.Id, new() { StartDate = D("2026-01-01"), LastAnnualDate = D("2026-02-01"), Levels = { sixMonthly.Id } }, null);
 
         // The August routine's task, done in November
-        var august = await db.RoutineOccurrences.SingleAsync(o => o.DueDate == D("2026-08-01"));
+        var august = await db.Routines.SingleAsync(o => o.DueDate == D("2026-08-01"));
         var task = new ClientTask { Title = "PM2026/08", ClientId = site.ClientId, PropertyId = site.Id };
         august.ClientTask = task;
-        august.Status = RoutineOccurrenceStatus.Generated;
+        august.Status = RoutineStatus.Generated;
         await db.SaveChangesAsync();
         await RoutineCompletion.CompleteAsync(db, task, new DateTime(2026, 11, 20));
         await db.SaveChangesAsync();
 
-        var service = await db.PropertyRoutineServices.SingleAsync();
+        var service = await db.RoutineServices.SingleAsync();
         Assert.Equal(D("2026-05-01"), service.LastAnnualDate);
-        Assert.Equal(D("2027-05-01"), (await db.RoutineOccurrences.Where(o => o.Status == RoutineOccurrenceStatus.Pending).MinAsync(o => o.DueDate)));
+        Assert.Equal(D("2027-05-01"), (await db.Routines.Where(o => o.Status == RoutineStatus.Pending).MinAsync(o => o.DueDate)));
 
         // Editing it forecasts from the moved date, so the move stays
         await setup.UpdateAsync(service.Id, new() { StartDate = D("2026-01-01"), LastAnnualDate = service.LastAnnualDate, Levels = { sixMonthly.Id } });
-        var pending = await db.RoutineOccurrences.Where(o => o.Status == RoutineOccurrenceStatus.Pending).OrderBy(o => o.DueDate).Select(o => o.DueDate).Take(2).ToListAsync();
+        var pending = await db.Routines.Where(o => o.Status == RoutineStatus.Pending).OrderBy(o => o.DueDate).Select(o => o.DueDate).Take(2).ToListAsync();
         Assert.Equal(new[] { D("2026-11-01"), D("2027-05-01") }, pending);
     }
 
@@ -95,10 +95,10 @@ public class RoutineCompletionTests
         using var db = DbContextFactory.Create();
         var site = NewSite("Magidale");
         var task = new ClientTask { Title = "PM2026/08 Servicing", Client = site.Client, Property = site };
-        var august = O(site, Extinguishers + ": Six-monthly", "2026-08-01", RoutineOccurrenceStatus.Generated);
+        var august = O(site, Extinguishers + ": Six-monthly", "2026-08-01", RoutineStatus.Generated);
         august.ClientTask = task;
         var february = O(site, Extinguishers + ": Six-monthly", "2027-02-01");
-        db.RoutineOccurrences.AddRange(august, february);
+        db.Routines.AddRange(august, february);
         await db.SaveChangesAsync();
 
         var result = await RoutineCompletion.CompleteAsync(db, task, new DateTime(2026, 9, 1)); // tolerance runs to 1 Sep
@@ -118,11 +118,11 @@ public class RoutineCompletionTests
             Title = "PM2026/08 Servicing", Client = site.Client, Property = site, ExternalId = "46682", DueDateUtc = D("2026-08-31"),
             UptickData = """{"Scope of works":"- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Six-monthly"}"""
         };
-        var august = O(site, Extinguishers + ": Six-monthly", "2026-08-01", RoutineOccurrenceStatus.Generated);
-        var hoseReelsRaised = O(site, "09 - Fire Hose Reels: Annual", "2026-08-01", RoutineOccurrenceStatus.Generated); // not in its scope
+        var august = O(site, Extinguishers + ": Six-monthly", "2026-08-01", RoutineStatus.Generated);
+        var hoseReelsRaised = O(site, "09 - Fire Hose Reels: Annual", "2026-08-01", RoutineStatus.Generated); // not in its scope
         var february = O(site, Extinguishers + ": Six-monthly", "2027-02-01");
         db.ClientTasks.Add(task);
-        db.RoutineOccurrences.AddRange(august, hoseReelsRaised, february);
+        db.Routines.AddRange(august, hoseReelsRaised, february);
         await db.SaveChangesAsync();
 
         // Marked complete today: late by the months since August
@@ -130,8 +130,8 @@ public class RoutineCompletionTests
         var today = DateTime.UtcNow.ToSydney();
         var late = RoutineCompletion.MonthsLate(D("2026-08-01"), D("2026-09-01"), today);
 
-        Assert.Equal((RoutineOccurrenceStatus.Complete, task.Id), (august.Status, august.ClientTaskId));
-        Assert.Equal(RoutineOccurrenceStatus.Generated, hoseReelsRaised.Status);
+        Assert.Equal((RoutineStatus.Complete, task.Id), (august.Status, august.ClientTaskId));
+        Assert.Equal(RoutineStatus.Generated, hoseReelsRaised.Status);
         Assert.True(late > 0);
         Assert.Equal(D("2027-02-01").AddMonths(late), february.DueDate);
     }

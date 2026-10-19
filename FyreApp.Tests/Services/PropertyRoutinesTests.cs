@@ -17,8 +17,8 @@ public class PropertyRoutinesTests
 {
     private static DateTime D(string date) => DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
 
-    private static RoutineOccurrence O(Property site, string routine, string due, RoutineOccurrenceStatus status, string? group = null) =>
-        new() { Property = site, Routine = routine, DueDate = D(due), Status = status, ServiceGroup = group };
+    private static Routine O(Property site, string routine, string due, RoutineStatus status, string? group = null) =>
+        new() { Property = site, Name = routine, DueDate = D(due), Status = status, ServiceGroup = group };
 
     [Fact]
     public async Task ForProperty_GroupsRoutinesByServiceGroup_WithAMarkerInEachDueMonth()
@@ -31,19 +31,19 @@ public class PropertyRoutinesTests
             Name = "Annual", DisplayCode = "A",
             RoutineServiceType = new RoutineServiceType { Name = "15 - Emergency Escape Lighting and Exit Signs", ServiceGroup = "Fire Detection (FIP, Exits) System Servicing" }
         };
-        var exits = O(site, "15 - Emergency Escape Lighting and Exit Signs: Annual", "2026-08-31", RoutineOccurrenceStatus.Generated);
+        var exits = O(site, "15 - Emergency Escape Lighting and Exit Signs: Annual", "2026-08-31", RoutineStatus.Generated);
         exits.RoutineServiceLevel = level;
-        db.RoutineOccurrences.AddRange(
+        db.Routines.AddRange(
             exits,
-            O(site, "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", "2026-04-30", RoutineOccurrenceStatus.Complete, "Servicing - Portables & Fire Equipment"),
-            O(site, "10 - Portable and Wheeled Fire Extinguishers: Annual", "2026-10-31", RoutineOccurrenceStatus.Pending, "Servicing - Portables & Fire Equipment"),
-            O(site, "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", "2026-10-31", RoutineOccurrenceStatus.Pending, "Servicing - Portables & Fire Equipment"),
-            O(site, "09 - Fire Hose Reels: Annual", "2026-06-30", RoutineOccurrenceStatus.Cancelled, "Servicing - Portables & Fire Equipment"), // cancelled: not shown
-            O(site, "10 - Portable and Wheeled Fire Extinguishers: Annual", "2027-10-31", RoutineOccurrenceStatus.Pending, "Servicing - Portables & Fire Equipment"), // next year
-            O(other, "10 - Portable and Wheeled Fire Extinguishers: Annual", "2026-10-31", RoutineOccurrenceStatus.Pending, "Servicing - Portables & Fire Equipment")); // other property
+            O(site, "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", "2026-04-30", RoutineStatus.Complete, "Servicing - Portables & Fire Equipment"),
+            O(site, "10 - Portable and Wheeled Fire Extinguishers: Annual", "2026-10-31", RoutineStatus.Pending, "Servicing - Portables & Fire Equipment"),
+            O(site, "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", "2026-10-31", RoutineStatus.Pending, "Servicing - Portables & Fire Equipment"),
+            O(site, "09 - Fire Hose Reels: Annual", "2026-06-30", RoutineStatus.Cancelled, "Servicing - Portables & Fire Equipment"), // cancelled: not shown
+            O(site, "10 - Portable and Wheeled Fire Extinguishers: Annual", "2027-10-31", RoutineStatus.Pending, "Servicing - Portables & Fire Equipment"), // next year
+            O(other, "10 - Portable and Wheeled Fire Extinguishers: Annual", "2026-10-31", RoutineStatus.Pending, "Servicing - Portables & Fire Equipment")); // other property
         await db.SaveChangesAsync();
 
-        var vm = await new RoutineService(db).ForPropertyAsync(site.Id, 2026);
+        var vm = await new RoutineListService(db).ForPropertyAsync(site.Id, 2026);
 
         Assert.Equal(new[] { "Servicing - Portables & Fire Equipment", "Fire Detection (FIP, Exits) System Servicing" }, vm.Groups.Select(g => g.Name));
         var extinguishers = Assert.Single(vm.Groups[0].Rows);
@@ -63,13 +63,13 @@ public class PropertyRoutinesTests
         var site = new Property { Name = "Camajay Apartments", Client = new Client { Name = "Camajay" } };
         var routineTask = new ClientTask { Title = "PM2026/08 Servicing", Client = site.Client, Property = site, DueDateUtc = D("2026-08-31"), Status = ClientTaskStatus.Completed };
         var adHoc = new ClientTask { Title = "Fix door", Client = site.Client, Property = site, DueDateUtc = D("2026-08-15") };
-        var occurrence = O(site, "10 - Extinguishers: Annual", "2026-08-31", RoutineOccurrenceStatus.Complete);
+        var occurrence = O(site, "10 - Extinguishers: Annual", "2026-08-31", RoutineStatus.Complete);
         occurrence.ClientTask = routineTask;
-        db.RoutineOccurrences.Add(occurrence);
+        db.Routines.Add(occurrence);
         db.ClientTasks.Add(adHoc);
         await db.SaveChangesAsync();
 
-        var vm = await new RoutineService(db).ForPropertyAsync(site.Id, 2026);
+        var vm = await new RoutineListService(db).ForPropertyAsync(site.Id, 2026);
 
         var task = Assert.Single(vm.TasksByMonth[7]);
         Assert.Equal((routineTask.Id, true), (task.Id, task.Completed));
@@ -77,16 +77,16 @@ public class PropertyRoutinesTests
     }
 
     [Theory]
-    [InlineData(RoutineOccurrenceStatus.Pending, "2026-11-30", null, RoutineMarkerState.Forecasted)]
-    [InlineData(RoutineOccurrenceStatus.Generated, "2026-11-30", null, RoutineMarkerState.TaskCreated)]
-    [InlineData(RoutineOccurrenceStatus.Complete, "2026-09-30", "2026-09-15", RoutineMarkerState.CompletedWithinTolerance)]
-    [InlineData(RoutineOccurrenceStatus.Complete, "2026-09-30", "2026-10-02", RoutineMarkerState.CompletedOutsideTolerance)]
-    [InlineData(RoutineOccurrenceStatus.Pending, "2026-09-30", null, RoutineMarkerState.NotCompletedOutsideTolerance)]
-    [InlineData(RoutineOccurrenceStatus.Generated, "2026-09-30", null, RoutineMarkerState.NotCompletedOutsideTolerance)]
-    public void MarkerState_FollowsUptickLegend(RoutineOccurrenceStatus status, string toleranceEnd, string? completed, RoutineMarkerState expected)
+    [InlineData(RoutineStatus.Pending, "2026-11-30", null, RoutineMarkerState.Forecasted)]
+    [InlineData(RoutineStatus.Generated, "2026-11-30", null, RoutineMarkerState.TaskCreated)]
+    [InlineData(RoutineStatus.Complete, "2026-09-30", "2026-09-15", RoutineMarkerState.CompletedWithinTolerance)]
+    [InlineData(RoutineStatus.Complete, "2026-09-30", "2026-10-02", RoutineMarkerState.CompletedOutsideTolerance)]
+    [InlineData(RoutineStatus.Pending, "2026-09-30", null, RoutineMarkerState.NotCompletedOutsideTolerance)]
+    [InlineData(RoutineStatus.Generated, "2026-09-30", null, RoutineMarkerState.NotCompletedOutsideTolerance)]
+    public void MarkerState_FollowsUptickLegend(RoutineStatus status, string toleranceEnd, string? completed, RoutineMarkerState expected)
     {
         var today = new DateTime(2026, 10, 13);
-        Assert.Equal(expected, RoutineService.MarkerState(status, D(toleranceEnd), completed == null ? null : D(completed), today));
+        Assert.Equal(expected, RoutineListService.MarkerState(status, D(toleranceEnd), completed == null ? null : D(completed), today));
     }
 
     [Fact]
@@ -95,17 +95,17 @@ public class PropertyRoutinesTests
         using var db = DbContextFactory.Create();
         var site = new Property { Name = "Camajay Apartments", Client = new Client { Name = "Camajay" } };
         var task = new ClientTask { Title = "PM2026/10 Servicing", Client = site.Client, Property = site };
-        var raised = O(site, "10 - Extinguishers: Annual", "2026-10-31", RoutineOccurrenceStatus.Generated);
+        var raised = O(site, "10 - Extinguishers: Annual", "2026-10-31", RoutineStatus.Generated);
         raised.ClientTask = task;
-        var other = O(site, "09 - Fire Hose Reels: Annual", "2026-10-31", RoutineOccurrenceStatus.Pending);
-        db.RoutineOccurrences.AddRange(raised, other);
+        var other = O(site, "09 - Fire Hose Reels: Annual", "2026-10-31", RoutineStatus.Pending);
+        db.Routines.AddRange(raised, other);
         await db.SaveChangesAsync();
 
         var users = new Mock<UserManager<ApplicationUser>>(Mock.Of<IUserStore<ApplicationUser>>(), null!, null!, null!, null!, null!, null!, null!, null!);
         await new ClientTaskService(db, users.Object, Mock.Of<IMaintenanceScheduleService>()).CompleteAsync(task.Id);
 
-        Assert.Equal(RoutineOccurrenceStatus.Complete, raised.Status);
+        Assert.Equal(RoutineStatus.Complete, raised.Status);
         Assert.NotNull(raised.CompletedDate);
-        Assert.Equal(RoutineOccurrenceStatus.Pending, other.Status);
+        Assert.Equal(RoutineStatus.Pending, other.Status);
     }
 }

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Imports.Uptick;
 
-// Uptick "Reports" export -> ServiceReport, matched to Property on "Property Ref".
+// Uptick "Reports" export -> Report, matched to Property on "Property Ref".
 public class ReportImporter : UptickImporter
 {
     public ReportImporter(AppDbContext db) : base(db) { }
@@ -17,7 +17,7 @@ public class ReportImporter : UptickImporter
     {
         var sitesByRef = await LoadSiteIdsByRefAsync(ct);
         var taskIds = await LoadTaskIdsByExternalIdAsync(ct);
-        var existing = ByExternalId(await Db.ServiceReports.AsNoTracking()
+        var existing = ByExternalId(await Db.Reports.AsNoTracking()
             .Where(r => r.ExternalId != null)
             .Select(r => new ImportedRecord(r.Id, r.ExternalId!, r.UptickData))
             .ToListAsync(ct));
@@ -25,8 +25,8 @@ public class ReportImporter : UptickImporter
         await AddPlaceholderSitesAsync(rows.Where(r => NewOrChanged(r, "ID", existing)), sitesByRef, "Property", dryRun, ctx, ct);
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var toCreate = new List<ServiceReport>();
-        var toUpdate = new Dictionary<int, Action<ServiceReport>>();
+        var toCreate = new List<Report>();
+        var toUpdate = new Dictionary<int, Action<Report>>();
 
         foreach (var row in rows)
         {
@@ -43,7 +43,7 @@ public class ReportImporter : UptickImporter
 
             if (action == RowAction.Create)
             {
-                var report = new ServiceReport { ExternalId = id };
+                var report = new Report { ExternalId = id };
                 Map(report, row, siteId, taskIds);
                 toCreate.Add(report);
             }
@@ -58,13 +58,13 @@ public class ReportImporter : UptickImporter
         NoteNotInExport(ctx, existing, rows, "ID", "reports");
         if (dryRun) return;
 
-        await ApplyUpdatesAsync(Db.ServiceReports, toUpdate, r => r.Id, ct);
-        Db.ServiceReports.AddRange(toCreate);
+        await ApplyUpdatesAsync(Db.Reports, toUpdate, r => r.Id, ct);
+        Db.Reports.AddRange(toCreate);
         await Db.SaveChangesAsync(ct);
     }
 
     // Everything a report takes from its Uptick row, for new and updated reports alike
-    private static void Map(ServiceReport r, ImportRow row, int siteId, IReadOnlyDictionary<string, int> taskIds)
+    private static void Map(Report r, ImportRow row, int siteId, IReadOnlyDictionary<string, int> taskIds)
     {
         r.UptickData = row.ToJson();
         r.PropertyId = siteId;
