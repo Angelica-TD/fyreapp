@@ -34,10 +34,8 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IMaintenanceScheduleService, MaintenanceScheduleService>();
 builder.Services.AddScoped<IScheduleImportService, ScheduleImportService>();
-builder.Services.AddScoped<UptickImporter, PropertyImporter>();
-builder.Services.AddScoped<UptickImporter, PropertyContactImporter>();
-builder.Services.AddScoped<UptickImporter, ClientContactImporter>();
-builder.Services.AddScoped<UptickImporter, AssetImporter>();
+// Clients, properties, contacts, users, asset types, variants and assets come from Uptick's API now
+// (UptickImportService.FromApi); their importers stay until phase 6 removes the file imports
 builder.Services.AddScoped<UptickImporter, RemarkImporter>();
 builder.Services.AddScoped<UptickImporter, ReportImporter>();
 builder.Services.AddScoped<UptickImporter, TaskImporter>();
@@ -49,12 +47,9 @@ builder.Services.AddScoped<FyreApp.Services.Lists.IRemarkListService, FyreApp.Se
 builder.Services.AddScoped<FyreApp.Services.Lists.IReportListService, FyreApp.Services.Lists.ReportListService>();
 builder.Services.AddScoped<FyreApp.Services.Tasks.ITaskListService, FyreApp.Services.Tasks.TaskListService>();
 builder.Services.AddScoped<FyreApp.Services.Tasks.ITaskPageService, FyreApp.Services.Tasks.TaskPageService>();
-builder.Services.AddScoped<UptickImporter, AssetTypeImporter>();
-builder.Services.AddScoped<UptickImporter, AssetTypeVariantImporter>();
 builder.Services.AddScoped<UptickImporter, RemarkTypeImporter>();
 builder.Services.AddScoped<UptickImporter, RoutineServiceTypeImporter>();
 builder.Services.AddScoped<UptickImporter, RoutineServiceLevelImporter>();
-builder.Services.AddScoped<UptickImporter, UserImporter>();
 builder.Services.AddScoped<UptickImporter, ContractorImporter>();
 builder.Services.AddScoped<UptickImporter, SupplierImporter>();
 builder.Services.AddScoped<UptickImporter, SecurityGroupImporter>();
@@ -118,6 +113,7 @@ builder.Services.AddControllersWithViews(options =>
 
 
 
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 

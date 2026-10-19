@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Models;
 
-public class Property
+public class Property : IUptickMapped
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;

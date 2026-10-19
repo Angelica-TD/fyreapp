@@ -27,6 +27,7 @@
     {
         <div class="alert alert-success">@TempData["Success"]</div>
     }
+    @await Component.InvokeAsync("LocalEdits", new { entity = "Asset", id = a.Id })
 
     <div class="row g-3">
         @* The asset *@

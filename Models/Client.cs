@@ -4,7 +4,7 @@ using FyreApp.Infrastructure;
 
 namespace FyreApp.Models;
 
-public class Client
+public class Client : IUptickMapped
 {
     public int Id { get; set; }
 

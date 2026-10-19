@@ -5,7 +5,7 @@ namespace FyreApp.Models;
 // A login in Uptick (Uptick "Users" export): office staff, technicians, contractors and client portal users.
 // The source of truth for who's who. Anyone who signs in to FyreApp has a login (ApplicationUser) linked to
 // one of these, which takes its name and email from here.
-public class UptickUser
+public class UptickUser : IUptickMapped
 {
     public int Id { get; set; }
 

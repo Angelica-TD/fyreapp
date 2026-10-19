@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace FyreApp.Models;
 
 // Variant of an asset type, e.g. "DCP AB(E) 4.5KG" for "Fire Extinguisher" (Uptick asset type variants export)
-public class AssetTypeVariant
+public class AssetTypeVariant : IUptickMapped
 {
     public int Id { get; set; }
 

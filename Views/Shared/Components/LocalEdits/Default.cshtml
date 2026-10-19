@@ -1,0 +1,39 @@
+@model List<FyreApp.Infrastructure.LocalEditsViewComponent.Row>
+
+@* Fields of this record changed in FyreApp. Uptick still has its own value; migration runs keep FyreApp's
+   until the field changes in Uptick. *@
+@if (Model.Count > 0)
+{
+    var admin = User.IsInRole("Admin");
+    <div class="alert alert-warning local-edits">
+        <div class="fw-semibold mb-1">Edited in FyreApp</div>
+        <div class="small mb-2">
+            These fields differ from Uptick. Migration runs keep FyreApp's value until the field is changed in Uptick.
+        </div>
+        <table class="table table-sm mb-0 small align-middle">
+            <thead>
+                <tr><th>Field</th><th>FyreApp</th><th>Uptick</th><th>Edited</th>@if (admin) { <th></th> }</tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model)
+                {
+                    <tr>
+                        <td>@r.Field</td>
+                        <td>@r.FyreApp</td>
+                        <td>@r.Uptick</td>
+                        <td class="text-nowrap">@(r.Edit.EditedBy ?? "-"), @r.Edit.EditedUtc.ToLocalTime().ToString("d MMM yyyy")</td>
+                        @if (admin)
+                        {
+                            <td class="text-end">
+                                <form method="post" asp-controller="LocalEdits" asp-action="Reset" asp-route-id="@r.Edit.Id" class="d-inline">
+                                    <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                                    <button type="submit" class="btn btn-link btn-sm p-0">Reset to Uptick's</button>
+                                </form>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

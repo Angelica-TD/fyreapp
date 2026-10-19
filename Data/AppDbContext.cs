@@ -1,4 +1,5 @@
 using FyreApp.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -7,10 +8,30 @@ namespace FyreApp.Data;
 
 public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, string>
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options)
+    private readonly IHttpContextAccessor? _http;
+
+    public AppDbContext(DbContextOptions<AppDbContext> options, IHttpContextAccessor? http = null)
         : base(options)
     {
+        _http = http;
     }
+
+    // Off while mapping from Uptick (and resetting to Uptick's values): those writes aren't FyreApp edits
+    public bool RecordLocalEdits { get; set; } = true;
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        if (RecordLocalEdits) LocalEditLog.Record(this, _http?.HttpContext?.User.Identity?.Name, DateTime.UtcNow);
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        if (RecordLocalEdits) LocalEditLog.Record(this, _http?.HttpContext?.User.Identity?.Name, DateTime.UtcNow);
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    public DbSet<LocalEdit> LocalEdits => Set<LocalEdit>();
 
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<Property> Properties => Set<Property>();
@@ -542,6 +563,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(s => s.Active).HasDefaultValue(true).HasSentinel(true);
             entity.Property(s => s.CreatedUtc).HasColumnType("timestamptz");
             entity.Property(s => s.UpdatedUtc).HasColumnType("timestamptz");
+        });
+
+        modelBuilder.Entity<LocalEdit>(entity =>
+        {
+            entity.HasIndex(e => new { e.Entity, e.RecordId });
+            entity.Property(e => e.EditedUtc).HasColumnType("timestamptz");
+            entity.Property(e => e.ClosedUtc).HasColumnType("timestamptz");
         });
 
         modelBuilder.Entity<UptickUser>(entity =>
