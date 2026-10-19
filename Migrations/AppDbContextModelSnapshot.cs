@@ -440,6 +440,9 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("BusinessNumber")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -492,9 +495,15 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickId")
                         .IsUnique();
 
                     b.ToTable("BillingCards");
@@ -554,6 +563,9 @@ namespace FyreApp.Migrations
                     b.Property<DateTime?>("PeriodEnd")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("PropertyId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("PropertyName")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
@@ -575,12 +587,20 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
                         .IsUnique();
 
+                    b.HasIndex("PropertyId");
+
                     b.HasIndex("PropertyRef");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
 
                     b.ToTable("BillingContracts");
                 });
@@ -592,6 +612,9 @@ namespace FyreApp.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BillingContractId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ContractExternalId")
                         .HasMaxLength(64)
@@ -626,14 +649,22 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.Property<bool>("Visible")
                         .HasColumnType("boolean");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BillingContractId");
+
                     b.HasIndex("ContractExternalId");
 
                     b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickId")
                         .IsUnique();
 
                     b.ToTable("BillingContractLineItems");
@@ -659,6 +690,9 @@ namespace FyreApp.Migrations
                     b.Property<string>("BillingAttentionTo")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("BillingCardId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("BillingCcEmail")
                         .HasMaxLength(320)
@@ -759,6 +793,8 @@ namespace FyreApp.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Active");
+
+                    b.HasIndex("BillingCardId");
 
                     b.HasIndex("BillingEmail");
 
@@ -1754,6 +1790,9 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int?>("BillingCardId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("BillingRequirements")
                         .HasColumnType("text");
 
@@ -1828,6 +1867,8 @@ namespace FyreApp.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BillingCardId");
 
                     b.HasIndex("ClientId");
 
@@ -3701,6 +3742,36 @@ namespace FyreApp.Migrations
                     b.Navigation("AssetType");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.BillingContract", b =>
+                {
+                    b.HasOne("FyreApp.Models.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.BillingContractLineItem", b =>
+                {
+                    b.HasOne("FyreApp.Models.BillingContract", "BillingContract")
+                        .WithMany()
+                        .HasForeignKey("BillingContractId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("BillingContract");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.Client", b =>
+                {
+                    b.HasOne("FyreApp.Models.BillingCard", "BillingCard")
+                        .WithMany()
+                        .HasForeignKey("BillingCardId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("BillingCard");
+                });
+
             modelBuilder.Entity("FyreApp.Models.ClientContact", b =>
                 {
                     b.HasOne("FyreApp.Models.Client", "Client")
@@ -3827,11 +3898,18 @@ namespace FyreApp.Migrations
 
             modelBuilder.Entity("FyreApp.Models.Property", b =>
                 {
+                    b.HasOne("FyreApp.Models.BillingCard", "BillingCard")
+                        .WithMany()
+                        .HasForeignKey("BillingCardId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FyreApp.Models.Client", "Client")
                         .WithMany("Properties")
                         .HasForeignKey("ClientId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("BillingCard");
 
                     b.Navigation("Client");
                 });

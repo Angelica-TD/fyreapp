@@ -11,6 +11,10 @@ public class Client : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
+    // Who Uptick bills for it
+    public int? BillingCardId { get; set; }
+    public BillingCard? BillingCard { get; set; }
+
     // Used for import duplicate detection (maps from export "ID")
     public string? ExternalId { get; set; }
 

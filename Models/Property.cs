@@ -11,6 +11,10 @@ public class Property : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
+    // Who Uptick bills for it (else its client's billing card)
+    public int? BillingCardId { get; set; }
+    public BillingCard? BillingCard { get; set; }
+
     // Uptick's ref, e.g. "P-0712"
     [StringLength(64)]
     public string? Ref { get; set; }

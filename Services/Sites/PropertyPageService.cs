@@ -115,14 +115,14 @@ public class PropertyPageService : IPropertyPageService
     // billing contracts with their lines, and its invoices (newest first) with any credit notes
     private async Task<PropertyPageVm> BillingAsync(Property site, int openCount, Remark? mostSevere, CancellationToken ct)
     {
-        async Task<BillingCard?> Card(string? externalId) => externalId == null ? null
-            : await _db.BillingCards.AsNoTracking().FirstOrDefaultAsync(c => c.ExternalId == externalId, ct);
+        async Task<BillingCard?> Card(int? id) => id == null ? null
+            : await _db.BillingCards.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
 
-        var contracts = site.ExternalId == null ? [] : await _db.BillingContracts.AsNoTracking()
-            .Where(c => c.PropertyRef == site.ExternalId)
+        var contracts = await _db.BillingContracts.AsNoTracking()
+            .Where(c => c.PropertyId == site.Id)
             .OrderByDescending(c => c.Active).ThenByDescending(c => c.StartDate)
             .ToListAsync(ct);
-        var contractIds = contracts.Select(c => c.ExternalId).ToList();
+        var contractIds = contracts.Select(c => (int?)c.Id).ToList();
         var invoices = await _db.Invoices.AsNoTracking()
             .Where(i => i.PropertyId == site.Id)
             .OrderByDescending(i => i.Date).ThenByDescending(i => i.Number)
@@ -133,11 +133,11 @@ public class PropertyPageService : IPropertyPageService
         return new PropertyPageVm
         {
             Property = site, Tab = "billing", OpenRemarks = openCount, MostSevereRemark = mostSevere,
-            PropertyBillingCard = await Card(FyreApp.Services.Imports.UptickJson.Value(site.UptickData, "Billing Card ID")),
-            ClientBillingCard = await Card(FyreApp.Services.Imports.UptickJson.Value(site.Client.UptickData, "Billingcard ID")),
+            PropertyBillingCard = await Card(site.BillingCardId),
+            ClientBillingCard = await Card(site.Client.BillingCardId),
             BillingContracts = contracts,
             BillingContractLines = await _db.BillingContractLineItems.AsNoTracking()
-                .Where(l => contractIds.Contains(l.ContractExternalId))
+                .Where(l => contractIds.Contains(l.BillingContractId))
                 .OrderBy(l => l.Id)
                 .ToListAsync(ct),
             Invoices = invoices,

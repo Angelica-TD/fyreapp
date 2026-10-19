@@ -9,14 +9,15 @@ public interface IUptickRecord
     string? UptickData { get; set; }
 }
 
-// Who Uptick bills (Uptick "billing cards" export). Clients and properties name theirs by ID in their own
-// exports ("Billingcard ID", "Billing Card ID"), which is how the Billing tab finds them.
-public class BillingCard : IUptickRecord
+// Who Uptick bills (Uptick "billingcards"). Clients and properties link to theirs.
+public class BillingCard : IUptickRecord, IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
 
     [Required, StringLength(300)] public string Name { get; set; } = string.Empty;
+    public bool Active { get; set; } = true;
     [StringLength(100)] public string? Ref { get; set; }
     [StringLength(50)] public string? BusinessNumber { get; set; }
 
@@ -35,11 +36,15 @@ public class BillingCard : IUptickRecord
     public string? UptickData { get; set; }
 }
 
-// A recurring billing arrangement for a property (Uptick "billing contracts" export)
-public class BillingContract : IUptickRecord
+// A recurring billing arrangement for a property (Uptick "billingcontracts")
+public class BillingContract : IUptickRecord, IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
+
+    public int? PropertyId { get; set; }
+    public Property? Property { get; set; }
 
     [Required, StringLength(300)] public string Name { get; set; } = string.Empty;
     public bool Active { get; set; }
@@ -66,11 +71,15 @@ public class BillingContract : IUptickRecord
     public string? UptickData { get; set; }
 }
 
-// One line of a billing contract (Uptick "billing contract line items" export)
-public class BillingContractLineItem : IUptickRecord
+// One line of a billing contract (Uptick "billingcontractlineitems")
+public class BillingContractLineItem : IUptickRecord, IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
+
+    public int? BillingContractId { get; set; }
+    public BillingContract? BillingContract { get; set; }
 
     // The contract's Uptick ID ("Billing Contract ID")
     [StringLength(64)] public string? ContractExternalId { get; set; }

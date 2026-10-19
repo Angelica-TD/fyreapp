@@ -1,8 +1,7 @@
 @model FyreApp.ViewModels.Properties.PropertyPageVm
 @using FyreApp.Infrastructure
 
-@* Uptick's Billing tab: billing requirements, billing cards, billing contracts and invoices
-   (from Uptick's billing exports, matched on the property's ref and its Uptick billing card IDs) *@
+@* Uptick's Billing tab: billing requirements, billing cards, billing contracts and invoices *@
 @{
     var site = Model.Property;
     var client = site.Client;
@@ -54,7 +53,7 @@
     </div>
 
     <div class="col-lg-6">
-        @* Billing cards: the property's own, else the client's (Uptick's billing cards export) *@
+        @* Billing cards: the property's own and the client's *@
         @foreach (var (title, card) in new[] { ("Property billing card", Model.PropertyBillingCard), ("Client billing card", Model.ClientBillingCard) })
         {
             if (card == null) continue;
@@ -90,11 +89,11 @@
         {
             <div class="card property-card">
                 <div class="card-header"><span>Billing card</span></div>
-                <div class="card-body text-muted">No billing card. They come from Uptick's billing cards export (Import page).</div>
+                <div class="card-body text-muted">No billing card.</div>
             </div>
         }
 
-        @* Billing contracts with their lines (Uptick's billing contracts and line items exports) *@
+        @* Billing contracts with their lines *@
         <div class="card property-card">
             <div class="card-header"><span>Billing contracts</span></div>
             @if (!Model.BillingContracts.Any())
@@ -103,7 +102,7 @@
             }
             @foreach (var c in Model.BillingContracts)
             {
-                var lines = Model.BillingContractLines.Where(l => l.ContractExternalId == c.ExternalId).ToList();
+                var lines = Model.BillingContractLines.Where(l => l.BillingContractId == c.Id).ToList();
                 <div class="card-body border-bottom">
                     <div class="d-flex justify-content-between">
                         <strong>@c.Name</strong>

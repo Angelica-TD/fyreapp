@@ -676,16 +676,29 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<ExtraField>().HasIndex(f => f.ExternalId).IsUnique();
         modelBuilder.Entity<PromptQuestion>().HasIndex(q => q.ExternalId).IsUnique();
 
-        // Uptick billing, quotes, forms and stock. Linked to properties and tasks by their Uptick refs (not
-        // foreign keys), so the exports can be imported in any order.
+        // Uptick billing, quotes, forms and stock. The exports placed them by Uptick's id (ExternalId) and named
+        // properties and tasks by their refs; mapped from the API, they link to them.
         foreach (var type in new[]
                  {
                      typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem), typeof(Invoice), typeof(CreditNote),
                      typeof(DefectQuote), typeof(ServiceQuote), typeof(FormResponse), typeof(Accreditation), typeof(Product), typeof(Warehouse)
                  })
             modelBuilder.Entity(type).HasIndex(nameof(IUptickRecord.ExternalId)).IsUnique();
-        modelBuilder.Entity<BillingContract>().HasIndex(c => c.PropertyRef);
-        modelBuilder.Entity<BillingContractLineItem>().HasIndex(l => l.ContractExternalId);
+        modelBuilder.Entity<BillingCard>().HasIndex(c => c.UptickId).IsUnique();
+        modelBuilder.Entity<Client>().HasOne(c => c.BillingCard).WithMany().HasForeignKey(c => c.BillingCardId).OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<Property>().HasOne(p => p.BillingCard).WithMany().HasForeignKey(p => p.BillingCardId).OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<BillingContract>(entity =>
+        {
+            entity.HasIndex(c => c.PropertyRef);
+            entity.HasIndex(c => c.UptickId).IsUnique();
+            entity.HasOne(c => c.Property).WithMany().HasForeignKey(c => c.PropertyId).OnDelete(DeleteBehavior.SetNull);
+        });
+        modelBuilder.Entity<BillingContractLineItem>(entity =>
+        {
+            entity.HasIndex(l => l.ContractExternalId);
+            entity.HasIndex(l => l.UptickId).IsUnique();
+            entity.HasOne(l => l.BillingContract).WithMany().HasForeignKey(l => l.BillingContractId).OnDelete(DeleteBehavior.Cascade);
+        });
         modelBuilder.Entity<Invoice>(entity =>
         {
             entity.HasIndex(i => i.PropertyRef);

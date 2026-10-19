@@ -44,6 +44,9 @@ public class UptickImportService : IUptickImportService
         (UptickExportType.ServiceQuotes, "Sales quotes", new[] { "Template", "Work and services subtotal", "Programme maintenance subtotal sell" }),
         (UptickExportType.Invoices, "Invoices", new[] { "Number", "Invoice Ref", "Credit Total" }),
         (UptickExportType.CreditNotes, "Credit notes", new[] { "number", "invoice_id", "invoice__number" }),
+        (UptickExportType.BillingCards, "Billing cards", new[] { "Postal Attention", "Attached Clients", "Default Tax Code" }),
+        (UptickExportType.BillingContracts, "Billing contracts", new[] { "Invoice mode", "Annual value", "Price increase policy" }),
+        (UptickExportType.BillingContractLineItems, "Billing contract line items", new[] { "Billing Contract ID", "Unit Price", "Price Period" }),
     };
 
     public static string FromApiMessage(string name) =>

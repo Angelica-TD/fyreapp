@@ -53,10 +53,10 @@ public class UptickCoreRecordsTests
         "{\"home_branch\":{\"data\":null},\"servicegroup\":" + To("ServiceGroup", serviceGroup) + "}");
 
     private static UptickMapping Mapping(AppDbContext db) => new(db,
-        [new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
+        [new BillingCardMapper(db), new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
             new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db),
             new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db),
-            new ProductMapper(db), new WarehouseMapper(db), new StockMapper(db), new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db),
+            new ProductMapper(db), new WarehouseMapper(db), new StockMapper(db), new BillingContractMapper(db), new BillingContractLineItemMapper(db), new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db),
             new DefectQuoteMapper(db), new ServiceQuoteMapper(db), new InvoiceMapper(db), new CreditNoteMapper(db), new RemarkMapper(db),
             new ReportMapper(db), new RoutineMapper(db), new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
@@ -689,6 +689,43 @@ public class UptickCoreRecordsTests
         var notes = await db.CreditNotes.OrderBy(c => c.UptickId).ToListAsync();
         Assert.All(notes, n => Assert.Equal((invoice.Id, "IV000032831", "P-0016"), (n.InvoiceId!.Value, n.InvoiceNumber, n.PropertyRef)));
         Assert.Equal(("CN-31040", "CREDIT", 126.5m), (notes[0].Number, notes[0].Status, notes[0].Total!.Value));
+    }
+
+    [Fact]
+    public async Task Billing_cards_contracts_and_lines_are_mapped_and_linked_to_their_property()
+    {
+        await using var db = DbContextFactory.Create();
+        db.BillingCards.Add(new BillingCard { Name = "Old", ExternalId = "157" });
+        var client = RawClient("2806", "Allied");
+        client.Relationships = "{\"billingcard\":" + To("BillingCard", "336") + "}";
+        db.UptickRecords.AddRange(client, RawProperty("1491", "P-0016", "2806"),
+            Raw("accountingorganisations", "1", """{"name":"Fyrepower Fire Protection"}"""),
+            Raw("billingcards", "157", """{"abn":"20 642 908 601","name":"Allied OT Pty Limited","is_active":true,"postal_email":"anita@alliedx.com.au","postal_mobile":"0410453809","postal_address":{"display":"","streetline":"PO Box 1","city":"Burleigh Heads","state":"QLD","postal_code":"4220"}}""",
+                "{\"accounting_organisation\":" + To("AccountingOrganisation", "1") + "}"),
+            Raw("billingcards", "336", """{"name":"Allied Head Office","is_active":true}"""),
+            Raw("invoices", "1", """{"number":"IV1"}""", "{\"billingcard\":" + To("BillingCard", "157") + "}"),
+            Raw("products", "815", """{"name":"FIP Monthly","type":"S"}"""),
+            Raw("billingcontracts", "2", """{"name":"NTS","type":"F","notes":"FIP only","is_active":true,"recurrence":"Q","invoice_mode":"A","start_date":"2022-09-01","annual_value":"300.0000"}""",
+                "{\"property\":" + To("Property", "1491") + ",\"billingcard\":" + To("BillingCard", "336") + "}"),
+            Raw("billingcontractlineitems", "3", """{"type":"V","visible":true,"unit_price":"75.0000","description":"Fip Monthly"}""",
+                "{\"product\":" + To("Product", "815") + ",\"billingcontract\":" + To("BillingContract", "2") + "}"));
+        await db.SaveChangesAsync();
+
+        await MapAllAsync(db);
+
+        var card = await db.BillingCards.SingleAsync(c => c.UptickId == 157);
+        Assert.Equal(("Allied OT Pty Limited", "20 642 908 601", "PO Box 1 Burleigh Heads QLD 4220", 1, "Fyrepower Fire Protection"),
+            (card.Name, card.BusinessNumber, card.PostalAddress, card.NumberOfInvoices!.Value, card.AccountingOrganisation));
+        var property = await db.Properties.Include(p => p.Client).SingleAsync();
+        Assert.Equal((card.Id, (await db.BillingCards.SingleAsync(c => c.UptickId == 336)).Id),
+            (property.BillingCardId!.Value, property.Client.BillingCardId!.Value));
+
+        var contract = await db.BillingContracts.SingleAsync();
+        Assert.Equal((property.Id, "NTS", "Fixed", "Quarterly", "Advance", 300m, "Allied Head Office", true),
+            (contract.PropertyId!.Value, contract.Name, contract.Type, contract.Frequency, contract.InvoiceMode, contract.AnnualValue!.Value,
+                contract.BillingCardName, contract.Active));
+        var line = await db.BillingContractLineItems.SingleAsync();
+        Assert.Equal((contract.Id, "FIP Monthly", 75m, "Per visit"), (line.BillingContractId!.Value, line.Product, line.UnitPrice!.Value, line.Type));
     }
 
     [Theory]
