@@ -35,7 +35,7 @@ builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IMaintenanceScheduleService, MaintenanceScheduleService>();
 builder.Services.AddScoped<IScheduleImportService, ScheduleImportService>();
 // Clients, properties, contacts, users, asset types, variants, assets, routine service types and levels,
-// remark types, tasks, remarks, reports and routines come from Uptick's API now
+// remark types, tasks, remarks, reports, routines, products, warehouses and stock come from Uptick's API now
 // (UptickImportService.FromApi); their importers stay until phase 6 removes the file imports
 builder.Services.AddScoped<FyreApp.Services.Routines.IRoutineListService, FyreApp.Services.Routines.RoutineListService>();
 builder.Services.AddScoped<FyreApp.Services.Routines.IRoutineSetupService, FyreApp.Services.Routines.RoutineSetupService>();
@@ -50,9 +50,6 @@ builder.Services.AddScoped<UptickImporter, SupplierImporter>();
 builder.Services.AddScoped<UptickImporter, SecurityGroupImporter>();
 builder.Services.AddScoped<UptickImporter, ExtraFieldImporter>();
 builder.Services.AddScoped<UptickImporter, PromptQuestionImporter>();
-builder.Services.AddScoped<UptickImporter, ProductImporter>();
-builder.Services.AddScoped<UptickImporter, WarehouseImporter>();
-builder.Services.AddScoped<UptickImporter, StockImporter>();
 builder.Services.AddScoped<UptickImporter, AccreditationImporter>();
 builder.Services.AddScoped<UptickImporter, BillingCardImporter>();
 builder.Services.AddScoped<UptickImporter, BillingContractImporter>();
@@ -96,6 +93,9 @@ builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreAp
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.RoutineServiceTypeMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.RoutineServiceLevelMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.RemarkTypeMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.ProductMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.WarehouseMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.StockMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.RoutineServiceMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.RoutineServiceLevelLinkMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.TaskMapper>();

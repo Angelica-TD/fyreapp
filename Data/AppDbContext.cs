@@ -695,7 +695,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<ServiceQuote>().HasIndex(q => q.PropertyName);
         modelBuilder.Entity<PropertySchedule>().HasIndex(s => s.PropertyRef);
         modelBuilder.Entity<FormResponse>().HasIndex(f => new { f.TargetContentType, f.TargetObjectId });
-        modelBuilder.Entity<Stock>().HasIndex(s => s.Product);
+        modelBuilder.Entity<Stock>(entity =>
+        {
+            entity.HasIndex(s => s.Product);
+            entity.HasIndex(s => s.UptickId).IsUnique();
+            entity.HasOne(s => s.ProductRecord).WithMany().HasForeignKey(s => s.ProductId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(s => s.WarehouseRecord).WithMany().HasForeignKey(s => s.WarehouseId).OnDelete(DeleteBehavior.SetNull);
+        });
+        modelBuilder.Entity<Product>().HasIndex(p => p.UptickId).IsUnique();
+        modelBuilder.Entity<Warehouse>().HasIndex(w => w.UptickId).IsUnique();
 
         modelBuilder.Entity<RoutineService>(entity =>
         {

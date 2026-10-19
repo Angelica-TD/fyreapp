@@ -56,7 +56,7 @@ public class UptickCoreRecordsTests
         [new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
             new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db),
             new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db),
-            new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db), new RemarkMapper(db),
+            new ProductMapper(db), new WarehouseMapper(db), new StockMapper(db), new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db), new RemarkMapper(db),
             new ReportMapper(db), new RoutineMapper(db), new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
@@ -677,5 +677,35 @@ public class UptickCoreRecordsTests
         var setup = new FyreApp.Services.Routines.RoutineSetupService(db);
         Assert.Equal(FyreApp.Services.Routines.RoutineSetupService.FromUptickError, (await setup.RemoveAsync(service.Id)).Error);
         Assert.True((await setup.ListAsync(service.PropertyId)).Single().FromUptick);
+    }
+
+    [Fact]
+    public async Task Products_warehouses_and_stock_are_mapped_and_replace_the_stock_snapshot()
+    {
+        await using var db = DbContextFactory.Create();
+        db.Stocks.Add(new Stock { Warehouse = "Old", Product = "From the annotated stocks export" });
+        db.Products.Add(new Product { Name = "Old name", ExternalId = "704", LastUsedUtc = Now });
+        db.UptickRecords.AddRange(
+            RawUser("164", "Sam Nguyen (Field Tech)", "sam@fyrepower.com.au", "FIELD"),
+            Raw("suppliers", "12", """{"name":"Wormald"}"""),
+            Raw("products", "704", """{"name":"2.5kg ABE Extinguisher","type":"M","code":"FE25","sku":"W-25","cost_price":"40.0000","unit_price":"95.0000","is_active":true,"is_stocked":true}""",
+                "{\"supplier\":" + To("Supplier", "12") + "}"),
+            Raw("warehouses", "2", """{"name":"Sam Van","type":"VAN","is_active":true}""", "{\"manager\":" + To("User", "164") + ",\"branch\":{\"data\":null}}"),
+            Raw("stock", "104", """{"amount_on_hand":"5.00","amount_reserved_outgoing":2,"amount_reserved_incoming":1,"minimum_restock_level":4,"bin_location":"Shelf 2"}""",
+                "{\"product\":" + To("Product", "704") + ",\"warehouse\":" + To("Warehouse", "2") + "}"));
+        await db.SaveChangesAsync();
+
+        await MapAllAsync(db);
+
+        var product = await db.Products.SingleAsync();
+        Assert.Equal((704L, "2.5kg ABE Extinguisher", "Wormald", 95.0000m, true, Now),
+            (product.UptickId!.Value, product.Name, product.Supplier, product.DefaultPrice!.Value, product.Stocked, product.LastUsedUtc!.Value));
+        var warehouse = await db.Warehouses.SingleAsync();
+        Assert.Equal(("Sam Van", "VAN", "Sam Nguyen (Field Tech)", 200m), (warehouse.Name, warehouse.Type, warehouse.Manager, warehouse.StockValue!.Value));
+
+        var stock = await db.Stocks.SingleAsync();
+        Assert.Equal((product.Id, warehouse.Id, "2.5kg ABE Extinguisher", "Sam Van", 5m, 3m, 1m, 1m, "Shelf 2"),
+            (stock.ProductId!.Value, stock.WarehouseId!.Value, stock.Product, stock.Warehouse, stock.OnHand!.Value, stock.Available!.Value,
+                stock.OnOrder!.Value, stock.Required!.Value, stock.BinLocation));
     }
 }

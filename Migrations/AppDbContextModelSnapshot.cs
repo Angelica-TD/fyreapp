@@ -1594,9 +1594,15 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickId")
                         .IsUnique();
 
                     b.ToTable("Products");
@@ -2894,6 +2900,9 @@ namespace FyreApp.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer");
+
                     b.Property<decimal?>("Required")
                         .HasColumnType("numeric");
 
@@ -2917,14 +2926,27 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Warehouse")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int?>("WarehouseId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Product");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.HasIndex("WarehouseId");
 
                     b.ToTable("Stocks");
                 });
@@ -3350,9 +3372,15 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickId")
                         .IsUnique();
 
                     b.ToTable("Warehouses");
@@ -3975,6 +4003,23 @@ namespace FyreApp.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("DefaultInterval");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.Stock", b =>
+                {
+                    b.HasOne("FyreApp.Models.Product", "ProductRecord")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.Warehouse", "WarehouseRecord")
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ProductRecord");
+
+                    b.Navigation("WarehouseRecord");
                 });
 
             modelBuilder.Entity("FyreApp.Models.TimelineEvent", b =>

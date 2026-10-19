@@ -468,7 +468,10 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      keys, indexes and sequences renamed, the proposals first so the sales quotes can take the names they leave.
      `ServiceQuotesController` and `Views/ServiceQuotes` keep their names, so the proposal pages' URLs don't change
      (the client link is `/q/{token}`).
-   - 5b: `products`, `warehouses`, `stock` (what quote and invoice lines point at).
+   - 5b (done): `products` → Product, `warehouses` → Warehouse (manager by name; stock value = the stock mapped
+     into it), `stock` → Stock (`UptickId`, linked to its product and warehouse, names kept for the Products page;
+     available = on hand − reserved, required = what's short of the restock level). The annotated stocks export's
+     snapshot rows (no ids) are cleared on the first pass. Their file imports are off.
    - 5c: `defectquotes`, `servicequotes` (remarks then link to their quote).
    - 5d: `invoices`, `creditnotes`, linked to their tasks.
    - 5e: `billingcards`, `billingcontracts`, `billingcontractlineitems`; the file imports for all of these off.
