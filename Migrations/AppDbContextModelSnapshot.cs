@@ -244,6 +244,9 @@ namespace FyreApp.Migrations
                     b.Property<DateTime?>("LastServiceDate")
                         .HasColumnType("timestamptz");
 
+                    b.Property<int?>("LastServicedById")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Location")
                         .HasColumnType("text");
 
@@ -277,6 +280,9 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Variant")
                         .HasColumnType("text");
 
@@ -290,7 +296,12 @@ namespace FyreApp.Migrations
                     b.HasIndex("FyreRef")
                         .IsUnique();
 
+                    b.HasIndex("LastServicedById");
+
                     b.HasIndex("PropertyId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
 
                     b.ToTable("Assets");
                 });
@@ -355,9 +366,15 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickId")
                         .IsUnique();
 
                     b.ToTable("AssetTypes");
@@ -395,9 +412,15 @@ namespace FyreApp.Migrations
                     b.Property<string>("UptickData")
                         .HasColumnType("json");
 
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickId")
                         .IsUnique();
 
                     b.HasIndex("AssetTypeId", "Name");
@@ -3419,6 +3442,11 @@ namespace FyreApp.Migrations
                         .HasForeignKey("AssetTypeVariantId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("FyreApp.Models.UptickUser", "LastServicedBy")
+                        .WithMany()
+                        .HasForeignKey("LastServicedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FyreApp.Models.Property", "Property")
                         .WithMany("Assets")
                         .HasForeignKey("PropertyId")
@@ -3426,6 +3454,8 @@ namespace FyreApp.Migrations
                         .IsRequired();
 
                     b.Navigation("AssetTypeVariant");
+
+                    b.Navigation("LastServicedBy");
 
                     b.Navigation("Property");
                 });

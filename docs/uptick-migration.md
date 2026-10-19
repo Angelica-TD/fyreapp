@@ -242,8 +242,8 @@ Completeness is lines held against Uptick's count.
    `Key` (`trackedchange`, `general`, `correspondence`, …); `IsNote` for Uptick's type `C` events. Every event
    is mapped (~1.08 M, on 30-odd record types), each keeping `UptickObjectType` (the content type's model:
    `property`, `asset`, `task`, …) and `UptickObjectId`, so a task's or invoice's Timeline is there once a screen
-   shows it. `PropertyId` / `AssetId` are set when FyreApp holds the record, by its Uptick ID (an asset's is
-   its `ExternalId` until phase 3c); each mapping pass links events whose record has arrived since. `Html` is Uptick's `text` template filled from `data` (`TimelineText`):
+   shows it. `PropertyId` / `AssetId` are set when FyreApp holds the record, by its Uptick ID; each mapping
+   pass links events whose record has arrived since. `Html` is Uptick's `text` template filled from `data` (`TimelineText`):
    `{placeholders}` written as Uptick writes them (`None`, `True`), `#Dispatch:{dispatch_pk}` shown "#24440"
    with `data_links`' label as a tooltip, everything HTML-encoded except the `em`, `p` and `small` tags
    Uptick's templates use. Events FyreApp makes (notes, edits on the asset form) keep `Text` / `Field` / `Value`.
@@ -404,7 +404,13 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      waits (reported as failed) and is mapped once it is. The API has no users' security groups or branches,
      nor clients' report address and organisation, so the export's are kept. Uptick logins with licence `API`
      (FyreApp's own) are never linked to a FyreApp login.
-   - 3c: mappers for asset types, variants and assets.
+   - 3c (done): `UptickId` on Asset, AssetType and AssetTypeVariant; mappers for `assettypes`,
+     `assettypevariants` and `assets`, after users. Types the assets export made by name, and variants
+     without an id, are claimed by name (type + name). An asset takes its type, variant and
+     `Asset.LastServicedById` (`serviced_by`, an UptickUser; the asset page falls back to the report guess for
+     assets that don't have one); `Compliance` from `last_service_result` (P / F / N → Pass / Fail / N/A), the
+     last service date from `inspected_date`. Uptick's `uptick_ref` is "A-" + the id, so it isn't stored;
+     `Asset.Ref` stays the ref within the property ("001").
    - 3d: `LocalEdit`; the file importers for these turned off.
 4. **Work:** tasks, service tasks, remarks, reports, routines, routine services/levels/types.
 5. **Commercial:** defect quotes, sales quotes, invoices, credit notes, billing, products, stock.

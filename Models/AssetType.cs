@@ -10,6 +10,9 @@ public class AssetType
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
 
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
+
     // Maps from Uptick asset types export "ID"
     [StringLength(64)]
     public string? ExternalId { get; set; }
