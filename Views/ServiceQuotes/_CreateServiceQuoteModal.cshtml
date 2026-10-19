@@ -1,4 +1,4 @@
-@model FyreApp.ViewModels.ServiceQuotes.ServiceQuoteIndexVm
+@model FyreApp.ViewModels.Proposals.ProposalIndexVm
 @using FyreApp.Models
 @using FyreApp.Services.ServiceOfferings
 @inject IConfiguration Config
@@ -207,12 +207,12 @@
                         </div>
                         <div class="col-md-4">
                             <select name="Create.QuoteType" id="createQuoteType" class="form-select">
-                                <option value="@((int)ServiceQuoteType.OneTime)"
-                                        selected="@(Model.Create.QuoteType == ServiceQuoteType.OneTime)">
+                                <option value="@((int)ProposalType.OneTime)"
+                                        selected="@(Model.Create.QuoteType == ProposalType.OneTime)">
                                     One-Time
                                 </option>
-                                <option value="@((int)ServiceQuoteType.Routine)"
-                                        selected="@(Model.Create.QuoteType == ServiceQuoteType.Routine)">
+                                <option value="@((int)ProposalType.Routine)"
+                                        selected="@(Model.Create.QuoteType == ProposalType.Routine)">
                                     Routine / Contract
                                 </option>
                             </select>
@@ -238,7 +238,7 @@
                             <input name="Create.ExpiryDate" id="quoteExpiry" class="form-control" type="date"
                                    value="@(Model.Create.ExpiryDate.HasValue ? Model.Create.ExpiryDate.Value.ToString("yyyy-MM-dd") : "")" />
                         </div>
-                        <div class="col-md-4 @(Model.Create.QuoteType == ServiceQuoteType.Routine ? "" : "d-none")" id="createIntervalCol">
+                        <div class="col-md-4 @(Model.Create.QuoteType == ProposalType.Routine ? "" : "d-none")" id="createIntervalCol">
                             <label class="form-label">Interval</label>
                             <select name="Create.MaintenanceIntervalId" class="form-select">
                                 <option value="">-- Select interval --</option>
@@ -308,7 +308,7 @@
     // ── Interval visibility ──────────────────────────────────────────────────
     const createQuoteTypeSel = document.getElementById('createQuoteType');
     const createIntervalCol  = document.getElementById('createIntervalCol');
-    const routineValue       = '@((int)ServiceQuoteType.Routine)';
+    const routineValue       = '@((int)ProposalType.Routine)';
 
     function toggleCreateInterval() {
         createIntervalCol.classList.toggle('d-none', createQuoteTypeSel.value !== routineValue);

@@ -462,7 +462,16 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      done on from the service tasks done for it. Maintenance schedules are made from the routines as the routines
      export made them (one per property and interval, next run the earliest outstanding routine), before tasks are
      mapped so routine tasks link to them. The routines import is off.
-5. **Commercial:** defect quotes, sales quotes, invoices, credit notes, billing, products, stock.
+5. **Commercial:** defect quotes, sales quotes, invoices, credit notes, billing, products, stock. In five PRs:
+   - 5a (done): FyreApp's own proposals `ServiceQuote` → `Proposal` (with their enums, view models and service,
+     now under `Proposals/`), then Uptick's `SalesQuote` → `ServiceQuote`, and `StockLevel` → `Stock`; tables,
+     keys, indexes and sequences renamed, the proposals first so the sales quotes can take the names they leave.
+     `ServiceQuotesController` and `Views/ServiceQuotes` keep their names, so the proposal pages' URLs don't change
+     (the client link is `/q/{token}`).
+   - 5b: `products`, `warehouses`, `stock` (what quote and invoice lines point at).
+   - 5c: `defectquotes`, `servicequotes` (remarks then link to their quote).
+   - 5d: `invoices`, `creditnotes`, linked to their tasks.
+   - 5e: `billingcards`, `billingcontracts`, `billingcontractlineitems`; the file imports for all of these off.
 6. **Remaining reference data;** remove the file importers and `UptickData` columns.
 7. **Files.**
 8. **The rest:** typed entities and screens for the endpoints still only in the raw copy, in order of need.

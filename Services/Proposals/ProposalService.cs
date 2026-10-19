@@ -1,60 +1,60 @@
 using FyreApp.Data;
 using FyreApp.Models;
-using FyreApp.ViewModels.ServiceQuotes;
+using FyreApp.ViewModels.Proposals;
 using Microsoft.EntityFrameworkCore;
 
-namespace FyreApp.Services.ServiceQuotes;
+namespace FyreApp.Services.Proposals;
 
-public sealed class ServiceQuoteService : IServiceQuoteService
+public sealed class ProposalService : IProposalService
 {
     private readonly AppDbContext _db;
 
-    public ServiceQuoteService(AppDbContext db) => _db = db;
+    public ProposalService(AppDbContext db) => _db = db;
 
-    public async Task<List<ServiceQuote>> GetAllAsync(CancellationToken ct = default)
+    public async Task<List<Proposal>> GetAllAsync(CancellationToken ct = default)
     {
-        return await _db.ServiceQuotes
+        return await _db.Proposals
             .Include(q => q.Client)
             .Include(q => q.Property)
             .OrderByDescending(q => q.CreatedUtc)
             .ToListAsync(ct);
     }
 
-    public async Task<List<ServiceQuote>> GetByClientAsync(int clientId, CancellationToken ct = default)
+    public async Task<List<Proposal>> GetByClientAsync(int clientId, CancellationToken ct = default)
     {
-        return await _db.ServiceQuotes
+        return await _db.Proposals
             .Where(q => q.ClientId == clientId)
             .OrderByDescending(q => q.CreatedUtc)
             .ToListAsync(ct);
     }
 
-    public async Task<ServiceQuote?> GetByIdAsync(int id, CancellationToken ct = default)
+    public async Task<Proposal?> GetByIdAsync(int id, CancellationToken ct = default)
     {
-        return await _db.ServiceQuotes
+        return await _db.Proposals
             .Include(q => q.Client)
             .Include(q => q.Property)
             .Include(q => q.MaintenanceInterval)
             .FirstOrDefaultAsync(q => q.Id == id, ct);
     }
 
-    public async Task<ServiceQuote?> GetByTokenAsync(Guid token, CancellationToken ct = default)
+    public async Task<Proposal?> GetByTokenAsync(Guid token, CancellationToken ct = default)
     {
-        return await _db.ServiceQuotes
+        return await _db.Proposals
             .Include(q => q.Client)
             .Include(q => q.Property)
             .Include(q => q.MaintenanceInterval)
             .FirstOrDefaultAsync(q => q.ClientToken == token, ct);
     }
 
-    public async Task<ServiceQuoteCreateResult> CreateAsync(CreateServiceQuoteVm vm, int clientId, int? siteId, CancellationToken ct = default)
+    public async Task<ProposalCreateResult> CreateAsync(CreateProposalVm vm, int clientId, int? siteId, CancellationToken ct = default)
     {
         var title = vm.Title?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(title))
-            return new(ServiceQuoteCreateStatus.ValidationError, ErrorMessage: "Title is required.");
+            return new(ProposalCreateStatus.ValidationError, ErrorMessage: "Title is required.");
 
         var clientExists = await _db.Clients.AnyAsync(c => c.Id == clientId, ct);
         if (!clientExists)
-            return new(ServiceQuoteCreateStatus.ClientNotFound, ErrorMessage: "Client not found.");
+            return new(ProposalCreateStatus.ClientNotFound, ErrorMessage: "Client not found.");
 
         var quoteNumber = await GenerateQuoteNumberAsync(ct);
 
@@ -62,7 +62,7 @@ public sealed class ServiceQuoteService : IServiceQuoteService
             ? DateTime.SpecifyKind(vm.ExpiryDate.Value, DateTimeKind.Utc)
             : (DateTime?)null;
 
-        var quote = new ServiceQuote
+        var quote = new Proposal
         {
             ClientId = clientId,
             PropertyId = siteId,
@@ -71,60 +71,60 @@ public sealed class ServiceQuoteService : IServiceQuoteService
             Title = title,
             Description = string.IsNullOrWhiteSpace(vm.Description) ? null : vm.Description.Trim(),
             QuoteType = vm.QuoteType,
-            MaintenanceIntervalId = vm.QuoteType == ServiceQuoteType.Routine ? vm.MaintenanceIntervalId : null,
+            MaintenanceIntervalId = vm.QuoteType == ProposalType.Routine ? vm.MaintenanceIntervalId : null,
             Amount = vm.Amount,
             Notes = string.IsNullOrWhiteSpace(vm.Notes) ? null : vm.Notes.Trim(),
-            ExpiryDate = vm.QuoteType == ServiceQuoteType.OneTime ? expiryUtc : null,
-            Status = ServiceQuoteStatus.Draft,
+            ExpiryDate = vm.QuoteType == ProposalType.OneTime ? expiryUtc : null,
+            Status = ProposalStatus.Draft,
             CreatedUtc = DateTime.UtcNow
         };
 
-        _db.ServiceQuotes.Add(quote);
+        _db.Proposals.Add(quote);
         await _db.SaveChangesAsync(ct);
 
-        return new(ServiceQuoteCreateStatus.Success, QuoteId: quote.Id);
+        return new(ProposalCreateStatus.Success, QuoteId: quote.Id);
     }
 
-    public async Task<ServiceQuoteUpdateResult> UpdateAsync(int id, UpdateServiceQuoteRequest request, CancellationToken ct = default)
+    public async Task<ProposalUpdateResult> UpdateAsync(int id, UpdateProposalRequest request, CancellationToken ct = default)
     {
         var title = request.Title?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(title))
-            return new(ServiceQuoteUpdateStatus.ValidationError, ErrorMessage: "Title is required.");
+            return new(ProposalUpdateStatus.ValidationError, ErrorMessage: "Title is required.");
 
-        var quote = await _db.ServiceQuotes.FirstOrDefaultAsync(q => q.Id == id, ct);
+        var quote = await _db.Proposals.FirstOrDefaultAsync(q => q.Id == id, ct);
         if (quote is null)
-            return new(ServiceQuoteUpdateStatus.NotFound);
+            return new(ProposalUpdateStatus.NotFound);
 
         quote.Title = title;
         quote.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
         quote.Status = request.Status;
         quote.QuoteType = request.QuoteType;
-        quote.MaintenanceIntervalId = request.QuoteType == ServiceQuoteType.Routine ? request.MaintenanceIntervalId : null;
+        quote.MaintenanceIntervalId = request.QuoteType == ProposalType.Routine ? request.MaintenanceIntervalId : null;
         quote.Amount = request.Amount;
         quote.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
-        quote.ExpiryDate = request.QuoteType == ServiceQuoteType.OneTime && request.ExpiryDate.HasValue
+        quote.ExpiryDate = request.QuoteType == ProposalType.OneTime && request.ExpiryDate.HasValue
             ? DateTime.SpecifyKind(request.ExpiryDate.Value, DateTimeKind.Utc)
             : null;
         quote.UpdatedUtc = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
-        return new(ServiceQuoteUpdateStatus.Success);
+        return new(ProposalUpdateStatus.Success);
     }
 
-    public async Task<ServiceQuoteDeleteResult> DeleteAsync(int id, CancellationToken ct = default)
+    public async Task<ProposalDeleteResult> DeleteAsync(int id, CancellationToken ct = default)
     {
-        var quote = await _db.ServiceQuotes.FirstOrDefaultAsync(q => q.Id == id, ct);
+        var quote = await _db.Proposals.FirstOrDefaultAsync(q => q.Id == id, ct);
         if (quote is null)
-            return new(ServiceQuoteDeleteStatus.NotFound);
+            return new(ProposalDeleteStatus.NotFound);
 
-        _db.ServiceQuotes.Remove(quote);
+        _db.Proposals.Remove(quote);
         await _db.SaveChangesAsync(ct);
-        return new(ServiceQuoteDeleteStatus.Success);
+        return new(ProposalDeleteStatus.Success);
     }
 
     public async Task<PrepareQuoteForSendResult> PrepareForSendAsync(int id, CancellationToken ct = default)
     {
-        var quote = await _db.ServiceQuotes
+        var quote = await _db.Proposals
             .Include(q => q.Client)
             .FirstOrDefaultAsync(q => q.Id == id, ct);
 
@@ -140,7 +140,7 @@ public sealed class ServiceQuoteService : IServiceQuoteService
         if (quote.ClientToken is null)
             quote.ClientToken = Guid.NewGuid();
 
-        quote.Status = ServiceQuoteStatus.Sent;
+        quote.Status = ProposalStatus.Sent;
         quote.SentUtc = DateTime.UtcNow;
         quote.UpdatedUtc = DateTime.UtcNow;
 
@@ -153,42 +153,42 @@ public sealed class ServiceQuoteService : IServiceQuoteService
             Quote: quote);
     }
 
-    public async Task<ServiceQuoteUpdateResult> ApproveAsync(Guid token, CancellationToken ct = default)
+    public async Task<ProposalUpdateResult> ApproveAsync(Guid token, CancellationToken ct = default)
     {
-        var quote = await _db.ServiceQuotes.FirstOrDefaultAsync(q => q.ClientToken == token, ct);
+        var quote = await _db.Proposals.FirstOrDefaultAsync(q => q.ClientToken == token, ct);
         if (quote is null)
-            return new(ServiceQuoteUpdateStatus.NotFound);
+            return new(ProposalUpdateStatus.NotFound);
 
-        if (quote.Status != ServiceQuoteStatus.Sent)
-            return new(ServiceQuoteUpdateStatus.ValidationError,
+        if (quote.Status != ProposalStatus.Sent)
+            return new(ProposalUpdateStatus.ValidationError,
                 ErrorMessage: "This quote is not available for approval.");
 
-        quote.Status = ServiceQuoteStatus.Accepted;
+        quote.Status = ProposalStatus.Accepted;
         quote.UpdatedUtc = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
-        return new(ServiceQuoteUpdateStatus.Success);
+        return new(ProposalUpdateStatus.Success);
     }
 
-    public async Task<ServiceQuoteUpdateResult> DeclineAsync(Guid token, CancellationToken ct = default)
+    public async Task<ProposalUpdateResult> DeclineAsync(Guid token, CancellationToken ct = default)
     {
-        var quote = await _db.ServiceQuotes.FirstOrDefaultAsync(q => q.ClientToken == token, ct);
+        var quote = await _db.Proposals.FirstOrDefaultAsync(q => q.ClientToken == token, ct);
         if (quote is null)
-            return new(ServiceQuoteUpdateStatus.NotFound);
+            return new(ProposalUpdateStatus.NotFound);
 
-        if (quote.Status != ServiceQuoteStatus.Sent)
-            return new(ServiceQuoteUpdateStatus.ValidationError,
+        if (quote.Status != ProposalStatus.Sent)
+            return new(ProposalUpdateStatus.ValidationError,
                 ErrorMessage: "This quote is not available for action.");
 
-        quote.Status = ServiceQuoteStatus.Declined;
+        quote.Status = ProposalStatus.Declined;
         quote.UpdatedUtc = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
-        return new(ServiceQuoteUpdateStatus.Success);
+        return new(ProposalUpdateStatus.Success);
     }
 
     private async Task<string> GenerateQuoteNumberAsync(CancellationToken ct)
     {
         var prefix = $"QUO-{DateTime.UtcNow:yyyyMM}-";
-        var count = await _db.ServiceQuotes
+        var count = await _db.Proposals
             .Where(q => q.QuoteNumber.StartsWith(prefix))
             .CountAsync(ct);
         return $"{prefix}{(count + 1):D4}";

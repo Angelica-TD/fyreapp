@@ -39,7 +39,7 @@ public class DefectQuote : IUptickRecord
 
 // An Uptick sales quote (Uptick "sales quotes" export). The export names the property and client but not their
 // refs, so it's matched to a property by name.
-public class SalesQuote : IUptickRecord
+public class ServiceQuote : IUptickRecord
 {
     public int Id { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
@@ -181,7 +181,7 @@ public class Warehouse : IUptickRecord
 
 // How much of a product a warehouse holds (Uptick "annotated stocks" export). The export has no IDs, so each
 // import replaces the lot: it's a snapshot.
-public class StockLevel
+public class Stock
 {
     public int Id { get; set; }
 

@@ -1912,6 +1912,91 @@ namespace FyreApp.Migrations
                     b.ToTable("PropertySchedules");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.Proposal", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric(10,2)");
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("ClientToken")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamptz")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<int?>("MaintenanceIntervalId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<int?>("PropertyId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("QuoteNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("QuoteType")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SentUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<int?>("ServiceOfferingId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("UpdatedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("ClientToken")
+                        .IsUnique();
+
+                    b.HasIndex("MaintenanceIntervalId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.HasIndex("QuoteNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ServiceOfferingId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("Proposals");
+                });
+
             modelBuilder.Entity("FyreApp.Models.Quote", b =>
                 {
                     b.Property<int>("Id")
@@ -2554,70 +2639,6 @@ namespace FyreApp.Migrations
                     b.ToTable("RoutineServiceTypes");
                 });
 
-            modelBuilder.Entity("FyreApp.Models.SalesQuote", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Address")
-                        .HasColumnType("text");
-
-                    b.Property<string>("ClientName")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<DateTime?>("Created")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("PropertyName")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<string>("Ref")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<string>("ScopeOfWorksHtml")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<decimal?>("Subtotal")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("Template")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
-                    b.HasIndex("PropertyName");
-
-                    b.ToTable("SalesQuotes");
-                });
-
             modelBuilder.Entity("FyreApp.Models.SecurityGroup", b =>
                 {
                     b.Property<int>("Id")
@@ -2681,79 +2702,58 @@ namespace FyreApp.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("numeric(10,2)");
+                    b.Property<string>("Address")
+                        .HasColumnType("text");
 
-                    b.Property<int>("ClientId")
-                        .HasColumnType("integer");
+                    b.Property<string>("ClientName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
 
-                    b.Property<Guid?>("ClientToken")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamptz")
-                        .HasDefaultValueSql("now()");
+                    b.Property<DateTime?>("Created")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("timestamptz");
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("MaintenanceIntervalId")
-                        .HasColumnType("integer");
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
-                    b.Property<string>("Notes")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
+                    b.Property<string>("PropertyName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
 
-                    b.Property<int?>("PropertyId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("QuoteNumber")
+                    b.Property<string>("Ref")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
-                    b.Property<int>("QuoteType")
-                        .HasColumnType("integer");
+                    b.Property<string>("ScopeOfWorksHtml")
+                        .HasColumnType("text");
 
-                    b.Property<DateTime?>("SentUtc")
-                        .HasColumnType("timestamptz");
+                    b.Property<string>("Status")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
-                    b.Property<int?>("ServiceOfferingId")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("Subtotal")
+                        .HasColumnType("numeric");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
+                    b.Property<string>("Template")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<DateTime?>("UpdatedUtc")
-                        .HasColumnType("timestamptz");
+                    b.Property<string>("UptickData")
+                        .HasColumnType("json");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ClientId");
-
-                    b.HasIndex("ClientToken")
+                    b.HasIndex("ExternalId")
                         .IsUnique();
 
-                    b.HasIndex("MaintenanceIntervalId");
-
-                    b.HasIndex("PropertyId");
-
-                    b.HasIndex("QuoteNumber")
-                        .IsUnique();
-
-                    b.HasIndex("ServiceOfferingId");
-
-                    b.HasIndex("Status");
+                    b.HasIndex("PropertyName");
 
                     b.ToTable("ServiceQuotes");
                 });
@@ -2860,7 +2860,7 @@ namespace FyreApp.Migrations
                     b.ToTable("ServiceTypes");
                 });
 
-            modelBuilder.Entity("FyreApp.Models.StockLevel", b =>
+            modelBuilder.Entity("FyreApp.Models.Stock", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -2926,7 +2926,7 @@ namespace FyreApp.Migrations
 
                     b.HasIndex("Product");
 
-                    b.ToTable("StockLevels");
+                    b.ToTable("Stocks");
                 });
 
             modelBuilder.Entity("FyreApp.Models.Supplier", b =>
@@ -3713,6 +3713,38 @@ namespace FyreApp.Migrations
                     b.Navigation("Property");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.Proposal", b =>
+                {
+                    b.HasOne("FyreApp.Models.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.MaintenanceInterval", "MaintenanceInterval")
+                        .WithMany()
+                        .HasForeignKey("MaintenanceIntervalId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.ServiceOffering", "ServiceOffering")
+                        .WithMany()
+                        .HasForeignKey("ServiceOfferingId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Client");
+
+                    b.Navigation("MaintenanceInterval");
+
+                    b.Navigation("Property");
+
+                    b.Navigation("ServiceOffering");
+                });
+
             modelBuilder.Entity("FyreApp.Models.Quote", b =>
                 {
                     b.HasOne("FyreApp.Models.Client", "Client")
@@ -3901,38 +3933,6 @@ namespace FyreApp.Migrations
                         .IsRequired();
 
                     b.Navigation("RoutineServiceType");
-                });
-
-            modelBuilder.Entity("FyreApp.Models.ServiceQuote", b =>
-                {
-                    b.HasOne("FyreApp.Models.Client", "Client")
-                        .WithMany()
-                        .HasForeignKey("ClientId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FyreApp.Models.MaintenanceInterval", "MaintenanceInterval")
-                        .WithMany()
-                        .HasForeignKey("MaintenanceIntervalId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("FyreApp.Models.Property", "Property")
-                        .WithMany()
-                        .HasForeignKey("PropertyId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("FyreApp.Models.ServiceOffering", "ServiceOffering")
-                        .WithMany()
-                        .HasForeignKey("ServiceOfferingId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Client");
-
-                    b.Navigation("MaintenanceInterval");
-
-                    b.Navigation("Property");
-
-                    b.Navigation("ServiceOffering");
                 });
 
             modelBuilder.Entity("FyreApp.Models.ServiceTask", b =>

@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Models;
 
-public enum ServiceQuoteStatus
+public enum ProposalStatus
 {
     Draft = 1,
     Sent = 2,
@@ -11,7 +11,7 @@ public enum ServiceQuoteStatus
     Expired = 5
 }
 
-public enum ServiceQuoteType
+public enum ProposalType
 {
     [Display(Name = "One-Time")]
     OneTime = 1,
@@ -20,7 +20,7 @@ public enum ServiceQuoteType
     Routine = 2
 }
 
-public class ServiceQuote
+public class Proposal
 {
     public int Id { get; set; }
 
@@ -45,8 +45,8 @@ public class ServiceQuote
     [StringLength(4000)]
     public string? Description { get; set; }
 
-    public ServiceQuoteStatus Status { get; set; } = ServiceQuoteStatus.Draft;
-    public ServiceQuoteType QuoteType { get; set; } = ServiceQuoteType.OneTime;
+    public ProposalStatus Status { get; set; } = ProposalStatus.Draft;
+    public ProposalType QuoteType { get; set; } = ProposalType.OneTime;
 
     [Range(0, 9_999_999.99)]
     public decimal Amount { get; set; }

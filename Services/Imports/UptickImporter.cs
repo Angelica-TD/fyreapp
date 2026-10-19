@@ -34,7 +34,7 @@ public enum UptickExportType
     PromptQuestions = 18,
     Products = 19,
     Warehouses = 20,
-    StockLevels = 21,
+    Stocks = 21,
     Accreditations = 22,
 
     // Billing, quotes and forms (any order)
@@ -44,7 +44,7 @@ public enum UptickExportType
     Invoices = 26,
     CreditNotes = 27,
     DefectQuotes = 28,
-    SalesQuotes = 29,
+    ServiceQuotes = 29,
     PropertySchedules = 30,
     FormResponses = 31
 }

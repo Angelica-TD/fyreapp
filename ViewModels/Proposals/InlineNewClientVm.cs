@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace FyreApp.ViewModels.ServiceQuotes;
+namespace FyreApp.ViewModels.Proposals;
 
 public class InlineNewClientVm
 {

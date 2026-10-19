@@ -27,9 +27,9 @@ public class UptickBillingImportTests
             new RoutineServiceTypeImporter(db), new RoutineServiceLevelImporter(db), new ClientContactImporter(db),
             new UserImporter(db), new ContractorImporter(db), new SupplierImporter(db),
             new SecurityGroupImporter(db), new ExtraFieldImporter(db), new PromptQuestionImporter(db),
-            new ProductImporter(db), new WarehouseImporter(db), new StockLevelImporter(db), new AccreditationImporter(db),
+            new ProductImporter(db), new WarehouseImporter(db), new StockImporter(db), new AccreditationImporter(db),
             new BillingCardImporter(db), new BillingContractImporter(db), new BillingContractLineItemImporter(db), new InvoiceImporter(db),
-            new CreditNoteImporter(db), new DefectQuoteImporter(db), new SalesQuoteImporter(db), new PropertyScheduleImporter(db),
+            new CreditNoteImporter(db), new DefectQuoteImporter(db), new ServiceQuoteImporter(db), new PropertyScheduleImporter(db),
             new FormResponseImporter(db)
         }).ImportAsync(csv, "export.csv", null, dryRun: false);
 
@@ -40,7 +40,7 @@ public class UptickBillingImportTests
     public static TheoryData<string, UptickExportType> Headers => new()
     {
         { "\"ID\",\"Created\",\"Updated\",\"Expiry\",\"Property Name\",\"Property Ref\",\"Type\",\"Technician\",\"Number\"", UptickExportType.Accreditations },
-        { StockHeader, UptickExportType.StockLevels },
+        { StockHeader, UptickExportType.Stocks },
         { "\"ID\",\"Created\",\"Updated\",\"Synced\",\"Name\",\"Ref\",\"Business Number\",\"Postal Attention\",\"Postal Email\",\"Postal Mobile\",\"Postal Business Hours\",\"Postal After Hours\",\"Postal Address\",\"Number of Invoices\",\"Attached Clients\",\"Attached Properties\",\"Partner UID\",\"Accounting Organisation\",\"Default Tax Code\",\"Credit Limit\",\"Minimum Days Overdue\"", UptickExportType.BillingCards },
         { "\"ID\",\"Billing Contract Name\",\"Billing Contract ID\",\"Billing Contract Type\",\"Routine Type\",\"Level Type\",\"All Routines\",\"Product\",\"Description\",\"Unit Price\",\"Type\",\"Price Period\",\"Visible\",\"Property Ref\",\"Property\",\"Client Name\"", UptickExportType.BillingContractLineItems },
         { "\"ID\",\"Name\",\"Active\",\"Created\",\"Updated\",\"Type\",\"Frequency\",\"Invoice mode\",\"Property\",\"Property ref\",\"Client\",\"Start date\",\"Finish date\",\"Next due\",\"Annual value\",\"Notes\",\"Price increase policy\"", UptickExportType.BillingContracts },
@@ -49,7 +49,7 @@ public class UptickBillingImportTests
         { InvoiceHeader, UptickExportType.Invoices },
         { "\"ID\",\"Created\",\"Updated\",\"Supplier\",\"Name\",\"Type\",\"Description\",\"Unit Description\",\"Code\",\"SKU\",\"UPC\",\"Starred\",\"Active\",\"Stocked\",\"Cost Price\",\"Default Price\",\"Category\",\"Subcategory\",\"Last Used\"", UptickExportType.Products },
         { "\"ID\",\"Reference\",\"Created\",\"Status\",\"Property\",\"Property Ref\",\"Client\",\"Date\",\"Due Date\",\"Expiry Date\",\"Description\",\"Subtotal\",\"Tax\",\"Total\",\"Total material cost\",\"Total labour cost\",\"Scope of Works\"", UptickExportType.DefectQuotes },
-        { "\"ID\",\"Ref\",\"Status\",\"Property\",\"Address\",\"Client\",\"Description\",\"Scope of Works\",\"Created\",\"Expiry date\",\"Template\",\"Work and services subtotal\",\"Programme maintenance subtotal sell\"", UptickExportType.SalesQuotes },
+        { "\"ID\",\"Ref\",\"Status\",\"Property\",\"Address\",\"Client\",\"Description\",\"Scope of Works\",\"Created\",\"Expiry date\",\"Template\",\"Work and services subtotal\",\"Programme maintenance subtotal sell\"", UptickExportType.ServiceQuotes },
         { "\"Property Id\",\"Property Name\",\"Property Ref\",\"Schedule Number\",\"Schedule Date\",\"Schedule Type\",\"Issuer\"", UptickExportType.PropertySchedules },
         { "\"ID\",\"Created\",\"Updated\",\"Type\",\"Name\",\"Branch\",\"Manager\",\"Required\",\"Reserved (Incoming Stock)\",\"Reserved (Outgoing Stock)\",\"Stock Value\"", UptickExportType.Warehouses }
     };
@@ -107,7 +107,7 @@ public class UptickBillingImportTests
             "\"Fyrepower Warehouse\",\"Exit sign\",\"\",\"\",\"\",\"\",\"3\",\"3\",\"0\",\"0\",\"2\",\"0\",\"A1\",\"90\""));
 
         Assert.Contains(second.Notes, n => n.Contains("2 stock lines already in FyreApp were replaced"));
-        var line = await db.StockLevels.SingleAsync();
+        var line = await db.Stocks.SingleAsync();
         Assert.Equal(("Exit sign", 3m, "A1"), (line.Product, line.OnHand, line.BinLocation));
     }
 
@@ -140,9 +140,9 @@ public class UptickBillingImportTests
         db.Products.AddRange(
             new Product { ExternalId = "1", Name = "Exit sign", Code = "EXIT", Stocked = true },
             new Product { ExternalId = "2", Name = "Old blanket", Active = false });
-        db.StockLevels.AddRange(
-            new StockLevel { Warehouse = "Fyrepower Warehouse", Product = "Exit sign", OnHand = 4 },
-            new StockLevel { Warehouse = "Dwayne Van", Product = "Exit sign", OnHand = 1 });
+        db.Stocks.AddRange(
+            new Stock { Warehouse = "Fyrepower Warehouse", Product = "Exit sign", OnHand = 4 },
+            new Stock { Warehouse = "Dwayne Van", Product = "Exit sign", OnHand = 1 });
         db.Warehouses.Add(new Warehouse { ExternalId = "1", Name = "Fyrepower Warehouse", Type = "FACILITY" });
         await db.SaveChangesAsync();
         var svc = new ProductListService(db);

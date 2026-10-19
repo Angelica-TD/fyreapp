@@ -1,4 +1,4 @@
-@model FyreApp.Models.ServiceQuote
+@model FyreApp.Models.Proposal
 @using FyreApp.Models
 
 @{
@@ -6,10 +6,10 @@
     ViewData["Title"] = $"Quote {Model.QuoteNumber}";
 
     var action = TempData["QuoteAction"] as string;
-    var isSent = Model.Status == ServiceQuoteStatus.Sent;
-    var isAccepted = Model.Status == ServiceQuoteStatus.Accepted;
-    var isDeclined = Model.Status == ServiceQuoteStatus.Declined;
-    var quoteTypeName = Model.QuoteType == ServiceQuoteType.OneTime ? "One-Time" : "Routine / Contract";
+    var isSent = Model.Status == ProposalStatus.Sent;
+    var isAccepted = Model.Status == ProposalStatus.Accepted;
+    var isDeclined = Model.Status == ProposalStatus.Declined;
+    var quoteTypeName = Model.QuoteType == ProposalType.OneTime ? "One-Time" : "Routine / Contract";
 }
 
 <div class="card shadow-sm mx-auto" style="max-width:640px;">
@@ -42,7 +42,7 @@
         {
             <div class="alert alert-secondary">This quote has been declined.</div>
         }
-        else if (Model.Status == ServiceQuoteStatus.Draft || Model.Status == ServiceQuoteStatus.Expired)
+        else if (Model.Status == ProposalStatus.Draft || Model.Status == ProposalStatus.Expired)
         {
             <div class="alert alert-warning">This quote is no longer available for review.</div>
         }
@@ -64,7 +64,7 @@
                     <th class="text-muted fw-normal">Type</th>
                     <td>@quoteTypeName</td>
                 </tr>
-                @if (Model.QuoteType == ServiceQuoteType.Routine && Model.MaintenanceInterval is not null)
+                @if (Model.QuoteType == ProposalType.Routine && Model.MaintenanceInterval is not null)
                 {
                     <tr>
                         <th class="text-muted fw-normal">Interval</th>
@@ -122,13 +122,13 @@
 </div>
 
 @functions {
-    string StatusBadgeClass(ServiceQuoteStatus status) => status switch
+    string StatusBadgeClass(ProposalStatus status) => status switch
     {
-        ServiceQuoteStatus.Draft    => "bg-secondary",
-        ServiceQuoteStatus.Sent     => "bg-info text-dark",
-        ServiceQuoteStatus.Accepted => "bg-success",
-        ServiceQuoteStatus.Declined => "bg-danger",
-        ServiceQuoteStatus.Expired  => "bg-warning text-dark",
+        ProposalStatus.Draft    => "bg-secondary",
+        ProposalStatus.Sent     => "bg-info text-dark",
+        ProposalStatus.Accepted => "bg-success",
+        ProposalStatus.Declined => "bg-danger",
+        ProposalStatus.Expired  => "bg-warning text-dark",
         _                           => "bg-secondary"
     };
 }
