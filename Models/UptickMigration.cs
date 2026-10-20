@@ -102,3 +102,47 @@ public class UptickMigrationRun
     // Per endpoint: counts, status, schema changes (UptickEndpointResult[])
     public string? Report { get; set; }
 }
+
+// A file Uptick stores, copied into FyreApp's file store (§8): a document file (photo, signature, attachment;
+// Uptick "documentfiles") or a report's PDF. Each is checked again on a Files run and downloaded when it's new or
+// changed in Uptick.
+public class UptickFile
+{
+    public int Id { get; set; }
+
+    // "documentfiles" or "reports"
+    [StringLength(100)] public string Source { get; set; } = string.Empty;
+
+    // The document file's id (a GUID) or the report's id
+    [StringLength(64)] public string SourceId { get; set; } = string.Empty;
+
+    // Where Uptick keeps it, e.g. "properties/457/photos/items/7309/20260212/28438059.jpg" or
+    // "reports/9999/R-09999 P-0209 Service Report.pdf"; the last part is the file's name
+    [StringLength(1000)] public string? Path { get; set; }
+
+    public long? Size { get; set; }
+
+    // Uptick's etag (an MD5 of the file for most), as last downloaded or checked
+    [StringLength(100)] public string? Etag { get; set; }
+
+    // The record's "updated" when last checked: a report's PDF is looked at again once the report changes
+    public DateTime? SourceUpdatedUtc { get; set; }
+
+    [StringLength(200)] public string? ContentType { get; set; }
+
+    // Its key in FyreApp's file store; null until downloaded
+    [StringLength(300)] public string? StorageKey { get; set; }
+
+    // MD5 of what was stored
+    [StringLength(32)] public string? Md5 { get; set; }
+
+    public DateTime? DownloadedUtc { get; set; }
+    public DateTime CheckedUtc { get; set; }
+
+    // A report Uptick has no PDF for (yet)
+    public bool NoFile { get; set; }
+
+    // Why the last attempt failed, and how many have
+    [StringLength(500)] public string? Error { get; set; }
+    public int Failures { get; set; }
+}

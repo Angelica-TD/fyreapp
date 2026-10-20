@@ -81,6 +81,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<ServiceTask> ServiceTasks => Set<ServiceTask>();
     public DbSet<UptickRecord> UptickRecords => Set<UptickRecord>();
     public DbSet<UptickEndpointState> UptickEndpointStates => Set<UptickEndpointState>();
+    public DbSet<UptickFile> UptickFiles => Set<UptickFile>();
     public DbSet<UptickMigrationRun> UptickMigrationRuns => Set<UptickMigrationRun>();
 
 
@@ -104,6 +105,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         {
             entity.Property(r => r.Report).HasColumnType("jsonb");
             entity.HasIndex(r => r.StartedUtc);
+        });
+        // Uptick's files, copied into the file store (§8)
+        modelBuilder.Entity<UptickFile>(entity =>
+        {
+            entity.HasIndex(f => new { f.Source, f.SourceId }).IsUnique();
+            entity.Property(f => f.SourceUpdatedUtc).HasColumnType("timestamptz");
+            entity.Property(f => f.DownloadedUtc).HasColumnType("timestamptz");
+            entity.Property(f => f.CheckedUtc).HasColumnType("timestamptz");
         });
 
         // Client → Properties (1:N)

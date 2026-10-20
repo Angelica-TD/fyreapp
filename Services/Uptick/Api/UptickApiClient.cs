@@ -29,7 +29,19 @@ public interface IUptickApiClient
     // get to-many relationships, which list responses leave out.
     IAsyncEnumerable<UptickPage> ListAsync(string endpoint, DateTime? updatedSinceUtc = null, (string Field, string Value)? filter = null,
         (string Type, string Names)? fields = null, CancellationToken ct = default);
+
+    // Where to download a document file (a photo, signature or attachment; "documentfiles"): a short-lived signed
+    // link to Uptick's storage, which takes no API token. Null when Uptick has no such file.
+    Task<Uri?> DocumentDownloadUrlAsync(string documentFileId, CancellationToken ct = default);
+
+    // The PDF Uptick generated for a record (reports, quotes, invoices, …), with a short-lived download link; null
+    // when it has none (yet). Only read: FyreApp never asks Uptick to generate one.
+    Task<UptickPdf?> PdfAsync(string resource, string id, CancellationToken ct = default);
 }
+
+// A generated PDF: its key in Uptick's storage (e.g. "fyrepower/reports/9999/R-09999 P-0209 Service Report.pdf"),
+// size, when it was made, and where to download it
+public sealed record UptickPdf(string? Key, long? Size, DateTime? ModifiedUtc, Uri Url);
 
 public class UptickApiClient : IUptickApiClient
 {
@@ -131,10 +143,42 @@ public class UptickApiClient : IUptickApiClient
         }
     }
 
+    public async Task<Uri?> DocumentDownloadUrlAsync(string documentFileId, CancellationToken ct = default)
+    {
+        var response = await ExchangeAsync(HttpMethod.Get, new Uri(Root, $"documents/{Uri.EscapeDataString(documentFileId)}/download/"),
+            allowNotFound: true, ct);
+        return response.Location;
+    }
+
+    public async Task<UptickPdf?> PdfAsync(string resource, string id, CancellationToken ct = default)
+    {
+        var response = await ExchangeAsync(HttpMethod.Get, new Uri(Root, $"{resource.Trim('/')}/{Uri.EscapeDataString(id)}/pdf/"),
+            allowNotFound: true, ct);
+        if (response.Status == 404 || string.IsNullOrWhiteSpace(response.Body)) return null;
+
+        using var doc = JsonDocument.Parse(response.Body);
+        var root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("url", out var url) || url.ValueKind != JsonValueKind.String
+            || !Uri.TryCreate(url.GetString(), UriKind.Absolute, out var link))
+            return null;
+        string? Text(string name) => root.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+        return new UptickPdf(Text("key"),
+            root.TryGetProperty("size", out var size) && size.TryGetInt64(out var n) ? n : null,
+            DateTimeOffset.TryParse(Text("modified"), System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var modified) ? modified.UtcDateTime : null,
+            link);
+    }
+
     private Task<string> GetAsync(Uri uri, CancellationToken ct) => SendAsync(HttpMethod.Get, uri, ct);
 
+    internal async Task<string> SendAsync(HttpMethod method, Uri uri, CancellationToken ct) =>
+        (await ExchangeAsync(method, uri, allowNotFound: false, ct)).Body;
+
+    // What Uptick answered: the body, or where it redirects to (a download), or 404 when allowed
+    private sealed record Exchange(int Status, string Body, Uri? Location);
+
     // The only way a request reaches Uptick's data. GET and OPTIONS only: FyreApp never changes Uptick.
-    internal async Task<string> SendAsync(HttpMethod method, Uri uri, CancellationToken ct)
+    private async Task<Exchange> ExchangeAsync(HttpMethod method, Uri uri, bool allowNotFound, CancellationToken ct)
     {
         if (method != HttpMethod.Get && method != HttpMethod.Options)
             throw new InvalidOperationException("FyreApp only reads from Uptick.");
@@ -174,7 +218,11 @@ public class UptickApiClient : IUptickApiClient
             using (response)
             {
                 var status = (int)response.StatusCode;
-                if (response.IsSuccessStatusCode) return body!;
+                if (response.IsSuccessStatusCode) return new Exchange(status, body!, null);
+                // Redirects aren't followed (the HTTP client is set up not to): a download's is the file's link
+                if (status is >= 300 and < 400 && response.Headers.Location is { } location)
+                    return new Exchange(status, body!, location.IsAbsoluteUri ? location : new Uri(uri, location));
+                if (status == 404 && allowNotFound) return new Exchange(status, body!, null);
 
                 if (response.StatusCode == HttpStatusCode.Unauthorized && !reauthenticated)
                 {

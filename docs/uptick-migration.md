@@ -368,10 +368,26 @@ at the edit, or close it (`ClosedReason` "Uptick"). Editing a field back to Upti
 
 ## 8. Files
 
-"All data" includes the files Uptick stores: report PDFs, photos, signatures, attachments
-(`documentfiles` ~26 k, plus files referenced by `reports`, `taskclientsignatures`, `correspondence`). The raw
-copy holds their metadata and links; the files themselves are downloaded in their own run and recorded as
-`UptickFile` (source URL, size, content type, hash, storage key), skipping files already downloaded.
+"All data" includes the files Uptick stores: report PDFs, photos, signatures, attachments. The raw copy holds their
+metadata; the files themselves are downloaded in their own run (**Files**) and recorded as `UptickFile` (Uptick's
+path, size, etag, content type, MD5, storage key), skipping files already downloaded and unchanged.
+
+What there is (October 2026):
+- `documentfiles`: 26,346 files, 12.6 GB, each with its storage `path`, `size` and `metadata.etag` (the file's MD5).
+  Remark photos (8,843, 4.4 GB; `metadata.remark-photo-type` open / closed), asset photos (5,260, 2.6 GB), logbook
+  photos (1,442), customers' sign-off signatures (`tasks/<id>/InspectionReceipts/`, 6,198, small; Uptick's
+  `taskclientsignatures` point at them by `image_path`), and attachments uploaded onto tasks, properties, clients,
+  quotes, invoices and forms (~4,600, 4.4 GB). The list gives no link: `documents/<id>/download/` (the document
+  file's id) answers with a redirect to a short-lived signed link to Uptick's storage, fetched without the API token.
+  (`uploads/<type>/<id>/documents/` lists a record's top-level documents the same way.)
+- Report PDFs: `reports/<id>/pdf/` gives the PDF Uptick generated (`key`, `size`, `modified`, a signed `url`), or
+  nothing when it has made none. A `POST` there would generate one; FyreApp never sends it. Defect quotes, sales
+  quotes, purchase orders, invoices and form responses have the same `pdf/` (not copied yet).
+
+So each file costs one API request: ~46 k for a first run, about 13 hours at 60/minute. A run can be limited to the
+first N of each kind (a trial), is cancelled and resumed freely, and then only fetches what's new or changed (a new
+etag; a report updated since its PDF was checked). Each download is checked against Uptick's size and MD5 before it's
+stored; one that fails is tried again on the next runs, up to three times.
 
 **Storage: Amazon S3, Sydney region (`ap-southeast-2`).**
 - Keeps the data in Australia; Azure Blob (Australia East) would too, at a similar storage price.
@@ -383,9 +399,9 @@ copy holds their metadata and links; the files themselves are downloaded in thei
 - Bucket private; files served through FyreApp (authorisation checked) or short-lived pre-signed URLs.
   Credentials (`Storage:S3:*`) in `/etc/fyreapp.env`, from an IAM user limited to that bucket.
 
-The first Full run measures the total size from the metadata, so the monthly cost is known before the bucket is
-created. File downloads count against the same request budget: at 60/minute ~26 k files take ~7–8 hours, so this
-run is best left going overnight; it's resumable, so it can also run in parts.
+Storage is `IFileStore` (`Services/Files`): `Storage:Provider` `S3` in production, `Local` (`App_Data/files`) in
+development; unset, no Files run can start. Keys are `uptick/documentfiles/<id><ext>` and `uptick/reports/<id>.pdf`.
+About 15–20 GB in all.
 
 ## 9. Admin page: Uptick migration
 
@@ -532,7 +548,10 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      moved an Uptick id or property ref only `ExternalId` held into `UptickId` / `Ref`, and set any foreign key
      those columns could still fill. Copied names (`PropertyRef`, `PropertyName`, `ClientName`, `TaskRef`, …) stay
      as display text until their records get screens (phase 8).
-7. **Files.**
+7. **Files.** In two PRs:
+   - 7a (done): the file store (S3 / local folder), `UptickFile`, and the Files run on the admin page (§8), with a
+     trial limit. An admin can open a downloaded file from there.
+   - 7b: pages show the files: photos on remarks and assets, signatures and attachments on tasks, report PDFs.
 8. **The rest:** typed entities and screens for the endpoints still only in the raw copy, in order of need.
 9. **Cutover:** freeze Uptick, final Full run + files refresh, reconciliation sign-off, FyreApp becomes the
    system of record.
@@ -559,5 +578,4 @@ correspondence and files; they can't get all of Uptick into FyreApp.
    migration (it mostly matters for files).
 3. **Invoice line items.** Decided: fetched an invoice at a time for invoices whose held lines don't add up to
    their subtotal (§4.5).
-4. **Storage account.** An AWS account and S3 bucket in Sydney (§8), needed by the Files phase; the first run
-   measures the total file size so the cost is known first.
+4. **Storage account.** Decided: an S3 bucket in Sydney (§8), about 15–20 GB.
