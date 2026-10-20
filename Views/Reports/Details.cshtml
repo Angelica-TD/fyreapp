@@ -1,0 +1,134 @@
+@model FyreApp.ViewModels.Lists.ReportPageVm
+@using FyreApp.Infrastructure
+
+@* One report (Uptick "R-53286"): what it is and who did it, its PDF, then each asset's line on it *@
+@{
+    var r = Model.Report;
+    var site = r.Property;
+    ViewData["Title"] = r.DisplayRef ?? "Report";
+    string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
+    var failed = Model.Items.Count(i => i.Compliant == false);
+}
+
+<div class="property-page">
+    <h1 class="property-title">
+        <a class="text-reset text-decoration-none" asp-controller="Property" asp-action="Details" asp-route-id="@site.Id" asp-route-tab="records">
+            @if (site.DisplayRef != null)
+            {
+                <span class="property-title-ref">@site.DisplayRef</span>
+            }
+            <span class="property-title-name">@site.Name</span>
+        </a>
+    </h1>
+
+    <div class="row g-3">
+        <div class="col-lg-5">
+            <div class="card property-card">
+                <div class="card-body">
+                    <h2 class="h5 mb-2">
+                        <span class="text-muted fw-normal">@r.DisplayRef</span>
+                        @(r.ReportType ?? "Report")
+                    </h2>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        @if (r.Compliant == true) { <span class="badge bg-success">COMPLIANT</span> }
+                        else if (r.Compliant == false) { <span class="badge bg-danger">NOT COMPLIANT</span> }
+                        @if (!r.Published) { <span class="badge bg-secondary">NOT PUBLISHED</span> }
+                        @if (r.Amendment) { <span class="badge bg-info text-dark">AMENDMENT</span> }
+                    </div>
+                    @if (Model.PdfFileId is { } pdf)
+                    {
+                        <p class="mb-3">
+                            <a class="btn btn-sm btn-outline-primary" href="/Files/@pdf" target="_blank" rel="noopener">Open the PDF</a>
+                            <a class="btn btn-sm btn-link" href="/Files/@pdf?download=true">Download</a>
+                        </p>
+                    }
+                    <dl class="row property-facts mb-0">
+                        <dt class="col-4">Inspected</dt>
+                        <dd class="col-8">@(r.InspectedDate?.ToOrdinalDate() ?? "-")</dd>
+                        <dt class="col-4">Issued</dt>
+                        <dd class="col-8">@(r.IssuedDate?.ToOrdinalDate() ?? "-")</dd>
+                        <dt class="col-4">Technician</dt>
+                        <dd class="col-8">@Dash(r.Technician)</dd>
+                        <dt class="col-4">Author</dt>
+                        <dd class="col-8">@Dash(r.Author)</dd>
+                        <dt class="col-4">Task</dt>
+                        <dd class="col-8">
+                            @if (r.ClientTask != null)
+                            {
+                                <a asp-controller="Task" asp-action="Details" asp-route-id="@r.ClientTaskId">@r.ClientTask.DisplayRef</a>
+                                <span class="text-muted">· @r.ClientTask.Title</span>
+                            }
+                            else
+                            {
+                                @Dash(r.TaskName)
+                            }
+                        </dd>
+                        <dt class="col-4">Client</dt>
+                        <dd class="col-8"><a asp-controller="Clients" asp-action="Details" asp-route-id="@site.ClientId">@site.Client.Name</a></dd>
+                        @if (!string.IsNullOrWhiteSpace(r.GeneralNote))
+                        {
+                            <dt class="col-4">General note</dt>
+                            <dd class="col-8" style="white-space: pre-line">@r.GeneralNote</dd>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(r.CriticalNote))
+                        {
+                            <dt class="col-4">Critical note</dt>
+                            <dd class="col-8 text-danger" style="white-space: pre-line">@r.CriticalNote</dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+
+            @await Component.InvokeAsync("UptickFiles", new { resource = "reports", uptickId = r.UptickId })
+            @await Component.InvokeAsync("UptickRecord", new { resource = "reports", uptickId = r.UptickId })
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card property-card">
+                <div class="card-header">
+                    <span>Assets on the report</span>
+                    <span class="small text-muted ms-2">
+                        @Model.Items.Count.ToString("N0")@(failed > 0 ? $" · {failed:N0} not compliant" : "")
+                    </span>
+                </div>
+                @if (Model.Items.Count == 0)
+                {
+                    <div class="card-body text-muted">No asset lines for this report in Uptick.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Asset</th><th>Location</th><th>Barcode</th><th>Inspected</th><th>Result</th></tr></thead>
+                            <tbody>
+                                @foreach (var i in Model.Items)
+                                {
+                                    <tr>
+                                        <td>
+                                            @if (i.AssetId != null)
+                                            {
+                                                <a asp-controller="Assets" asp-action="Details" asp-route-id="@i.AssetId">@(i.Label ?? i.Asset?.Name ?? "Asset")</a>
+                                            }
+                                            else
+                                            {
+                                                @Dash(i.Label)
+                                            }
+                                        </td>
+                                        <td class="small">@Dash(i.Location)</td>
+                                        <td class="small">@Dash(i.Barcode)</td>
+                                        <td class="text-nowrap small">@(i.InspectedDate?.ToOrdinalDate() ?? "-")</td>
+                                        <td>
+                                            @if (i.Compliant == true) { <span class="badge bg-success">Pass</span> }
+                                            else if (i.Compliant == false) { <span class="badge bg-danger">Fail</span> }
+                                            else { <span class="text-muted">-</span> }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

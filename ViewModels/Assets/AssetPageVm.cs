@@ -30,7 +30,15 @@ public class AssetPageVm
 
     // Remark history tab: every defect, open first
     public IReadOnlyList<Remark> Remarks { get; init; } = [];
+
+    // Service History tab, as Uptick's: each time it was serviced on a task (newest first) with the stock used on it,
+    // and the reports it was on
+    public IReadOnlyList<AssetServiceLine> ServiceLines { get; init; } = [];
+    public IReadOnlyList<ReportItem> ReportLines { get; init; } = [];
 }
+
+// One service of the asset on a task, and the products used on it ("2 × 4.5Kg ABE Extinguisher")
+public sealed record AssetServiceLine(ServiceTask Line, IReadOnlyList<(string Product, decimal Quantity)> Used);
 
 // Uptick's asset Update form
 public class AssetEditVm

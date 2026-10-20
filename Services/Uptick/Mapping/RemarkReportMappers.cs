@@ -204,3 +204,57 @@ public class ReportMapper : UptickEntityMapper<Report>
     // Gone from Uptick: nothing in FyreApp points at a report, and the raw copy keeps it
     protected override void Deactivate(Report r) => Db.Reports.Remove(r);
 }
+
+// Uptick's reportitems -> ReportItem: each asset's line on a report, on the report and the asset (when FyreApp holds
+// it). One deleted in Uptick is removed.
+public class ReportItemMapper : UptickEntityMapper<ReportItem>
+{
+    private Dictionary<long, int> _reports = new();
+    private Dictionary<long, int> _assets = new();
+
+    public ReportItemMapper(AppDbContext db) : base(db) { }
+
+    public override string Resource => "reportitems";
+
+    public override async Task BeginAsync(CancellationToken ct)
+    {
+        _reports = (await Db.Reports.AsNoTracking().Where(r => r.UptickId != null)
+                .Select(r => new { UptickId = r.UptickId!.Value, r.Id }).ToListAsync(ct))
+            .ToDictionary(r => r.UptickId, r => r.Id);
+        _assets = (await Db.Assets.AsNoTracking().Where(a => a.UptickId != null)
+                .Select(a => new { UptickId = a.UptickId!.Value, a.Id }).ToListAsync(ct))
+            .ToDictionary(a => a.UptickId, a => a.Id);
+    }
+
+    protected override async Task<Dictionary<long, ReportItem>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
+    {
+        var ids = batch.Select(r => r.Id).ToList();
+        return Match(await Db.ReportItems.Where(i => i.UptickId != null && ids.Contains(i.UptickId.Value)).ToListAsync(ct), i => i.UptickId);
+    }
+
+    protected override ReportItem Create(UptickRaw raw) => new() { UptickId = raw.Id };
+
+    protected override void Map(ReportItem i, UptickRaw raw)
+    {
+        if (raw.Rel("report") is not { } reportId) throw new UptickMapException("It has no report.");
+        if (!_reports.TryGetValue(reportId, out var report)) throw new UptickMapException($"Its report ({reportId}) isn't in FyreApp.");
+
+        i.UptickId = raw.Id;
+        i.ReportId = report;
+        i.AssetId = raw.Rel("asset") is { } a && _assets.TryGetValue(a, out var asset) ? asset : null;
+        i.Label = raw.Text("label", 500);
+        i.Ref = raw.Text("ref", 100);
+        i.Location = raw.Text("location", 500);
+        i.Barcode = raw.Text("barcode", 100);
+        i.Make = raw.Text("make", 200);
+        i.Model = raw.Text("model", 200);
+        i.Size = raw.Text("size", 200);
+        i.Standard = raw.Text("standard", 200);
+        i.Compliant = raw.Bool("compliant");
+        i.InspectedDate = raw.Date("inspected_date");
+        i.ServicedDate = raw.Date("serviced_date");
+        i.BaseDate = raw.Date("base_date");
+    }
+
+    protected override void Deactivate(ReportItem i) => Db.ReportItems.Remove(i);
+}

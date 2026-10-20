@@ -1,0 +1,75 @@
+@model FyreApp.ViewModels.Assets.AssetPageVm
+
+@* Uptick's Service History: each time the asset was serviced on a task, with the products used on it, then every
+   report it was on *@
+<div class="card property-card mb-3">
+    <div class="card-header"><span>Service history</span></div>
+    @if (Model.ServiceLines.Count == 0)
+    {
+        <div class="card-body text-muted">
+            Not serviced on any task in Uptick.
+            @if (Model.Asset.LastServiceDate is { } last)
+            {
+                <div class="mt-2 text-body">Last serviced @last.ToOrdinalDate().</div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>When</th><th>Task</th><th>Routine</th><th>Result</th><th>Technician</th><th>Products used</th></tr></thead>
+                <tbody>
+                    @foreach (var (s, used) in Model.ServiceLines)
+                    {
+                        <tr>
+                            <td class="text-nowrap small">@(s.PerformedUtc?.ToSydney().ToOrdinalDate() ?? "-")</td>
+                            <td class="text-nowrap"><a asp-controller="Task" asp-action="Details" asp-route-id="@s.ClientTaskId" asp-route-tab="work">@s.ClientTask.DisplayRef</a></td>
+                            <td class="small">@s.Routine</td>
+                            <td>
+                                @if (AssetCompliance.PageBadge(s.Result) is { } result) { <span class="badge @result.Css">@result.Text</span> }
+                                else { <span class="text-muted">-</span> }
+                            </td>
+                            <td class="small">@(s.Technician?.Name ?? "-")</td>
+                            <td class="small">@(used.Count == 0 ? "-" : string.Join(", ", used.Select(u => $"{u.Quantity:0.##} × {u.Product}")))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="card property-card">
+    <div class="card-header"><span>On reports</span></div>
+    @if (Model.ReportLines.Count == 0)
+    {
+        <div class="card-body text-muted">Not on any report in Uptick.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Inspected</th><th>Report</th><th>As listed</th><th>Result</th></tr></thead>
+                <tbody>
+                    @foreach (var i in Model.ReportLines)
+                    {
+                        <tr>
+                            <td class="text-nowrap small">@((i.InspectedDate ?? i.Report.InspectedDate)?.ToOrdinalDate() ?? "-")</td>
+                            <td class="text-nowrap">
+                                <a asp-controller="Reports" asp-action="Details" asp-route-id="@i.ReportId">@(i.Report.DisplayRef ?? "Report")</a>
+                                <span class="small text-muted">· @i.Report.ReportType</span>
+                            </td>
+                            <td class="small">@i.Label@(string.IsNullOrWhiteSpace(i.Location) ? "" : $" · {i.Location}")</td>
+                            <td>
+                                @if (i.Compliant == true) { <span class="badge bg-success">Pass</span> }
+                                else if (i.Compliant == false) { <span class="badge bg-danger">Fail</span> }
+                                else { <span class="text-muted">-</span> }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

@@ -569,6 +569,11 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      `servicetask`, i.e. used); used, still on the task, and every movement. The Work tab lists the task's
      `subtasks` → Subtask (each routine due or product, done, reported, billed). Each on its task, removed when
      deleted in Uptick. (`taskstock` has no task link, so isn't mapped.)
+   - 8b (done): `reportitems` → ReportItem: each asset's line on a report (label, ref, location, barcode, compliant,
+     inspected / serviced / base dates; no readings or comments, which Uptick's API doesn't have), on its report and
+     asset. A report page (`/Reports/Details`: the report, its PDF, its lines, its files); report refs link to it, with
+     the PDF beside. The asset's Service History tab: each service line on a task (result, technician, with the stock
+     used on it, from `taskstocktransactions` onto that `servicetask`) and every report it was on.
 9. **Cutover:** freeze Uptick, final Full run + files refresh, reconciliation sign-off, FyreApp becomes the
    system of record.
 

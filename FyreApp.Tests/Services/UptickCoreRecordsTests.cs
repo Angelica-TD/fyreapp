@@ -60,7 +60,7 @@ public class UptickCoreRecordsTests
             new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db), new AssetTypeRoutineLinksMapper(db),
             new ProductMapper(db), new WarehouseMapper(db), new StockMapper(db), new BillingContractMapper(db), new BillingContractLineItemMapper(db), new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db),
             new DefectQuoteMapper(db), new ServiceQuoteMapper(db), new InvoiceMapper(db), new CreditNoteMapper(db), new DynamicFormResponseMapper(db), new RemarkMapper(db),
-            new ReportMapper(db), new RoutineMapper(db),
+            new ReportMapper(db), new ReportItemMapper(db), new RoutineMapper(db),
             new SubtaskMapper(db), new TaskSessionMapper(db), new AppointmentMapper(db), new AppointmentTechniciansMapper(db), new TaskStockTransactionMapper(db),
             new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
@@ -618,6 +618,45 @@ public class UptickCoreRecordsTests
         var stock = vm.Stock.Single(s => s.Quantity > 0);
         Assert.Equal((2m, 40m, "Wes Speedon (Field Tech)"), (stock.Quantity, stock.CostPrice!.Value, stock.UptickUser!.Name));
         Assert.Contains("7002: Its task (99999) isn't in FyreApp.", results["taskstocktransactions"].MapErrors);
+    }
+
+    [Fact]
+    public async Task Report_items_and_stock_used_on_service_lines_show_on_the_report_and_the_assets_history()
+    {
+        await using var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"),
+            RawUser("371", "Wes Speedon (Field Tech)", "wes@fyrepower.com.au", "FIELD"),
+            RawAssetType("10", "Fire Extinguisher"), RawAsset("42896", "1491", "10"), RawTask("46781", "1491"),
+            Raw("products", "704", """{"name":"2.5kg ABE Extinguisher"}"""),
+            Raw("contenttypes", "88", """{"app_label":"servicing","model":"servicetask"}"""),
+            RawServiceTask("216800", "46781", "42896", null),
+            Raw("taskstocktransactions", "7003", """{"delta":"-1.0000","cost_price":"40.0000","other_object_id":216800}""",
+                "{\"task\":" + To("Task", "46781") + ",\"product\":" + To("Product", "704") + ",\"other_content_type\":" + To("ContentType", "88") + "}"),
+            Raw("reports", "53286", """{"ref":"R-53286","title":"Service Report","issued":"2026-10-15","inspected":"2026-10-14","compliant":false}""",
+                "{\"task\":" + To("Task", "46781") + ",\"property\":" + To("Property", "1491") + "}"),
+            Raw("reportitems", "9001", """{"ref":"002","label":"002 - Fire Blanket","location":"Kitchen","compliant":false,"inspected_date":"2026-10-14"}""",
+                "{\"report\":" + To("Report", "53286") + ",\"asset\":" + To("Asset", "77777") + "}"),
+            Raw("reportitems", "9000", """{"ref":"001","label":"001 - Fire Extinguisher","location":"Kitchen","barcode":"05801","compliant":true,"inspected_date":"2026-10-14"}""",
+                "{\"report\":" + To("Report", "53286") + ",\"asset\":" + To("Asset", "42896") + "}"),
+            Raw("reportitems", "9002", """{"label":"Orphan"}""", "{\"report\":" + To("Report", "1") + "}"));
+        await db.SaveChangesAsync();
+
+        var results = await MapAllAsync(db);
+        Assert.Contains("9002: Its report (1) isn't in FyreApp.", results["reportitems"].MapErrors);
+
+        var report = await db.Reports.SingleAsync();
+        var page = (await new FyreApp.Services.Lists.ReportListService(db).DetailsAsync(report.Id))!;
+        // In the report's order, by ref; an asset FyreApp doesn't hold is still listed
+        Assert.Equal(["001 - Fire Extinguisher", "002 - Fire Blanket"], page.Items.Select(i => i.Label));
+        Assert.Equal((true, "05801", (int?)null), (page.Items[0].Compliant!.Value, page.Items[0].Barcode, page.Items[1].AssetId));
+
+        var asset = await db.Assets.SingleAsync();
+        var vm = (await new FyreApp.Services.Assets.AssetPageService(db, Moq.Mock.Of<FyreApp.Services.Timeline.ITimelineService>())
+            .LoadAsync(asset.Id, "service", false))!;
+        var (line, used) = Assert.Single(vm.ServiceLines);
+        Assert.Equal(("Pass", "Wes Speedon (Field Tech)"), (line.Result, line.Technician!.Name));
+        Assert.Equal(("2.5kg ABE Extinguisher", 1m), Assert.Single(used));
+        Assert.Equal(report.Id, Assert.Single(vm.ReportLines).ReportId);
     }
 
     [Fact]

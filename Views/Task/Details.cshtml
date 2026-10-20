@@ -433,7 +433,7 @@
                                 <div class="task-process-row">
                                     <i class="bi bi-arrow-return-right text-muted"></i>
                                     <span class="badge bg-light text-muted border text-uppercase">@(r.ReportType ?? "Report")</span>
-                                    <span><partial name="_ReportRef" model="(r.DisplayRef, r.UptickId is { } rid && Model.ReportPdfs.TryGetValue(rid, out var pdf) ? pdf : (int?)null)" /></span>
+                                    <span><partial name="_ReportRef" model="(r.Id, r.DisplayRef, r.UptickId is { } rid && Model.ReportPdfs.TryGetValue(rid, out var pdf) ? pdf : (int?)null)" /></span>
                                     <span class="text-muted">inspected @(r.InspectedDate.ToOrdinalDate() ?? "-")</span>
                                     @if (r.Compliant == false) { <span class="badge bg-danger">Not compliant</span> }
                                     @if (r.Published) { <span class="badge bg-success">Published</span> }

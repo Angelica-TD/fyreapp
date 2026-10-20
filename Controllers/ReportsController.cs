@@ -17,6 +17,10 @@ public class ReportsController : Controller
     public async Task<IActionResult> Index(string? search, int page = 1, CancellationToken ct = default) =>
         View(await _list.SearchAsync(new ReportFilter { Search = search, Page = page }, ct));
 
+    [HttpGet]
+    public async Task<IActionResult> Details(int id, CancellationToken ct = default) =>
+        await _list.DetailsAsync(id, ct) is { } vm ? View(vm) : NotFound();
+
     // Every report matching the search, as CSV
     [HttpGet]
     public async Task<IActionResult> Download(string? search, CancellationToken ct = default) =>

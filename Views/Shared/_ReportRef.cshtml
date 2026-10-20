@@ -1,11 +1,7 @@
-@model (string? Text, int? PdfFileId)
-@* A report's ref, linked to its PDF when FyreApp holds a copy *@
+@model (int ReportId, string? Text, int? PdfFileId)
+@* A report's ref, linked to its page, and its PDF when FyreApp holds a copy *@
+<a asp-controller="Reports" asp-action="Details" asp-route-id="@Model.ReportId">@(Model.Text ?? "Report")</a>
 @if (Model.PdfFileId is { } file)
 {
-    <a href="/Files/@file" target="_blank" rel="noopener" title="Open the report PDF">@(Model.Text ?? "Report")</a>
-    <span class="small text-muted">PDF</span>
-}
-else
-{
-    @(Model.Text ?? "—")
+    <a href="/Files/@file" target="_blank" rel="noopener" class="small ms-1" title="Open the report PDF">PDF</a>
 }
