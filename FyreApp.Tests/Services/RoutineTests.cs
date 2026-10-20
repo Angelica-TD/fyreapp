@@ -12,79 +12,22 @@ namespace FyreApp.Tests.Services;
 
 public class RoutineTests
 {
-    private const string Header = "ID,Routine,Due Date,Tolerance Period Start Date,Tolerance Period End Date,Status,Completed Date,Property name,Property ref,Client name,Service group";
-
-    private static Stream Routines(params string[] rows) =>
-        new MemoryStream(Encoding.UTF8.GetBytes(Header + "\r\n" + string.Join("\r\n", rows)));
-
-    private static Task<FyreApp.ViewModels.MaintenanceSchedules.ScheduleImportResultVm> Import(AppDbContext db, Stream csv) =>
-        new ScheduleImportService(db).ImportUptickAsync(csv, "routines.csv", dryRun: false);
-
     [Fact]
-    public async Task Import_KeepsEachRowAsAnOccurrenceLinkedToItsSchedule()
+    public async Task PropertyRoutines_GroupShowsTechnicianAndEstimatedHours()
     {
         using var db = DbContextFactory.Create();
-        db.Properties.Add(new Property { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
+        var site = new Property { Name = "Camajay", Client = new Client { Name = "Camajay" } };
+        Routine O(string due, string? tech, int? minutes) => new()
+        {
+            Property = site, Name = "10 - Extinguishers: Six-monthly", ServiceGroup = "Servicing",
+            DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), DefaultTechnician = tech, EstimatedMinutes = minutes
+        };
+        db.Routines.AddRange(O("2026-04-30", "Neil", 30), O("2026-10-31", "Neil", 60), O("2026-06-30", null, null));
         await db.SaveChangesAsync();
 
-        var result = await Import(db, Routines(
-            "1,04 - Fire Hydrant Systems (Flow Test): Annual,2026-10-31,2026-08-31,2026-12-31,P,,Magidale,P-0152,Magidale Pty Ltd,Pumps & Tanks",
-            "2,04 - Fire Hydrant Systems (Flow Test): Annual,2025-10-31,,,C,2025-10-20,Magidale,P-0152,Magidale Pty Ltd,Pumps & Tanks",
-            "3,10 - Portable and Wheeled Fire Extinguishers: Six-monthly,2026-10-01,,,G,,Magidale,P-0152,Magidale Pty Ltd,Servicing"));
+        var group = Assert.Single((await new RoutineListService(db).ForPropertyAsync(site.Id, 2026)).Groups);
 
-        Assert.Equal((3, 0), (result.OccurrencesCreated, result.OccurrencesUpdated));
-        var occurrences = await db.Routines.Include(o => o.MaintenanceSchedule!.MaintenanceInterval).OrderBy(o => o.ExternalId).ToListAsync();
-        Assert.Equal(new[] { RoutineStatus.Pending, RoutineStatus.Complete, RoutineStatus.Generated }, occurrences.Select(o => o.Status));
-        Assert.Equal(new[] { 12, 12, 6 }, occurrences.Select(o => o.MaintenanceSchedule!.MaintenanceInterval.Months));
-        Assert.Equal((new DateTime(2026, 8, 31), "Pumps & Tanks"), (occurrences[0].ToleranceStart, occurrences[0].ServiceGroup));
-    }
-
-    [Fact]
-    public async Task Reimport_UpdatesStatusInsteadOfDuplicating()
-    {
-        using var db = DbContextFactory.Create();
-        db.Properties.Add(new Property { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
-        await db.SaveChangesAsync();
-
-        await Import(db, Routines("1,09 - Fire Hose Reels: Annual,2026-10-31,,,P,,Magidale,P-0152,Magidale Pty Ltd,"));
-        var second = await Import(db, Routines("1,09 - Fire Hose Reels: Annual,2026-10-31,,,G,,Magidale,P-0152,Magidale Pty Ltd,"));
-
-        Assert.Equal((0, 1), (second.OccurrencesCreated, second.OccurrencesUpdated));
-        Assert.Equal(RoutineStatus.Generated, (await db.Routines.SingleAsync()).Status);
-    }
-
-    [Fact]
-    public async Task Reimport_OnlyMovesStatusForward_SoFyreAppTasksArentUndone()
-    {
-        using var db = DbContextFactory.Create();
-        db.Properties.Add(new Property { Name = "Magidale", ExternalId = "P-0152", Client = new Client { Name = "Magidale Pty Ltd" } });
-        await db.SaveChangesAsync();
-        const string pending = "1,09 - Fire Hose Reels: Annual,2026-10-31,,,P,,Magidale,P-0152,Magidale Pty Ltd,";
-        const string complete = "1,09 - Fire Hose Reels: Annual,2026-10-31,,,C,2026-10-20,Magidale,P-0152,Magidale Pty Ltd,";
-
-        await Import(db, Routines(pending));
-
-        // Task raised in FyreApp
-        var occurrence = await db.Routines.SingleAsync();
-        var task = new ClientTask { Title = "PM2026/10", ClientId = occurrence.Property.ClientId, PropertyId = occurrence.PropertyId };
-        occurrence.ClientTask = task;
-        occurrence.Status = RoutineStatus.Generated;
-        await db.SaveChangesAsync();
-
-        // Uptick still says pending: nothing changes
-        var again = await Import(db, Routines(pending));
-        Assert.Equal((0, 0), (again.OccurrencesCreated, again.OccurrencesUpdated));
-        Assert.Equal((RoutineStatus.Generated, task.Id), (occurrence.Status, occurrence.ClientTaskId));
-
-        // Completed in Uptick: comes through, task link kept
-        var done = await Import(db, Routines(complete));
-        Assert.Equal(1, done.OccurrencesUpdated);
-        Assert.Equal((RoutineStatus.Complete, new DateTime(2026, 10, 20), task.Id),
-            (occurrence.Status, occurrence.CompletedDate, occurrence.ClientTaskId));
-
-        // And never back again
-        await Import(db, Routines(pending));
-        Assert.Equal(RoutineStatus.Complete, occurrence.Status);
+        Assert.Equal(("Neil", 90), (group.Technician, group.EstimatedMinutes));
     }
 
     // -------------------------------------------------------

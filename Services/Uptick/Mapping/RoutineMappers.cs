@@ -210,11 +210,11 @@ public class RoutineMapper : UptickEntityMapper<Routine>
         r.ToleranceStart = raw.Date("tolerance_period_start");
         r.ToleranceEnd = raw.Date("tolerance_period_end");
         r.CompletedDate = raw.Date("completed_date") ?? raw.Time("completed_date");
-        r.Status = ScheduleImportService.OccurrenceStatus(raw.Text("status"), r.CompletedDate?.ToString("O"));
+        r.Status = RoutineRules.OccurrenceStatus(raw.Text("status"), r.CompletedDate?.ToString("O"));
         r.ClientTaskId = _tasks.TryGetValue(raw.Id, out var task) ? task : r.ClientTaskId;
         r.ServiceGroup = RoutineServiceTypeMapper.Cap(place.Group is { } g ? _places.Groups.GetValueOrDefault(g) : null, 100);
         r.Subcontractor = RoutineServiceTypeMapper.Cap(place.Contractor is { } c ? _places.Contractors.GetValueOrDefault(c) : null, 200);
-        r.EstimatedMinutes = ScheduleImportService.ParseMinutes(place.Duration) ?? r.EstimatedMinutes;
+        r.EstimatedMinutes = RoutineRules.ParseMinutes(place.Duration) ?? r.EstimatedMinutes;
     }
 
     // Gone from Uptick: cancelled, so it's no longer due
@@ -281,7 +281,7 @@ public class RoutinePlaces
             var status = UptickRaw.Str(r.A, "status");
             var key = (place.PropertyId, level.Months);
             if (!groups.TryGetValue(key, out var g))
-                groups[key] = g = (new(), new(), ScheduleImportService.ParseFrequency(name).Label);
+                groups[key] = g = (new(), new(), RoutineRules.ParseFrequency(name).Label);
             g.Occurrences.Add((name, DateTime.SpecifyKind(due.Date, DateTimeKind.Utc),
                 status is "C" or "X" || UptickRaw.Str(r.A, "completed_date") != null, status == "G"));
             g.Levels.Add(level.Id);
@@ -311,7 +311,7 @@ public class RoutinePlaces
         {
             if (!existing.TryGetValue(key, out var schedule))
             {
-                var next = ScheduleImportService.NextOutstanding(group.Occurrences, now) ?? group.Occurrences.Max(o => o.Due).AddMonths(key.Months);
+                var next = RoutineRules.NextOutstanding(group.Occurrences, now) ?? group.Occurrences.Max(o => o.Due).AddMonths(key.Months);
                 schedule = new MaintenanceSchedule
                 {
                     TargetType = ScheduleTargetType.Property,

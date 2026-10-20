@@ -14,36 +14,16 @@ namespace FyreApp.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IMaintenanceScheduleService _scheduleService;
-        private readonly IScheduleImportService _importService;
         private readonly UserManager<ApplicationUser> _userManager;
 
         public MaintenanceSchedulesController(
             AppDbContext context,
             IMaintenanceScheduleService scheduleService,
-            IScheduleImportService importService,
             UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _scheduleService = scheduleService;
-            _importService = importService;
             _userManager = userManager;
-        }
-
-        [Authorize(Roles = "Admin")]
-        [HttpGet]
-        public IActionResult Import() => RoutinesFromApi();
-
-        [Authorize(Roles = "Admin")]
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        [RequestSizeLimit(ImportLimits.MaxUploadBytes)]
-        public IActionResult Import(IFormFile? file, bool dryRun) => RoutinesFromApi();
-
-        // Routines come from Uptick's API now (docs/uptick-migration.md phase 4e); the import stays until phase 6
-        private IActionResult RoutinesFromApi()
-        {
-            TempData["Error"] = FyreApp.Services.Imports.UptickImportService.FromApiMessage("Routines");
-            return RedirectToAction("Index", "UptickMigration");
         }
 
         [Authorize(Roles = "Admin")]

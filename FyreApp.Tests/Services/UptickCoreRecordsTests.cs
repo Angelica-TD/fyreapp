@@ -436,19 +436,6 @@ public class UptickCoreRecordsTests
     }
 
     [Fact]
-    public async Task An_export_now_migrated_from_the_API_isnt_imported()
-    {
-        var service = new FyreApp.Services.Imports.UptickImportService([]);
-        using var csv = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("Ref,Name,Client ID,Address Street Address\nP-0016,Big River,2806,11 Greg Chappell Dr\n"));
-
-        var result = await service.ImportAsync(csv, "properties.csv", null, dryRun: true);
-
-        Assert.Equal("Properties come from Uptick's API now (Admin → Uptick migration), so their file import is off.", result.Error);
-        using var again = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("Label,Property Ref,Guid,Type,Variant\n"));
-        Assert.StartsWith("Assets come from", (await service.ImportAsync(again, "x.csv", FyreApp.Services.Imports.UptickExportType.Assets, true)).Error);
-    }
-
-    [Fact]
     public async Task Routine_service_types_levels_and_remark_types_are_mapped_and_claim_what_the_exports_made()
     {
         await using var db = DbContextFactory.Create();
@@ -535,7 +522,7 @@ public class UptickCoreRecordsTests
 
         // No property in Uptick: on the placeholder property, as the tasks export did
         var orphan = await db.ClientTasks.Include(t => t.Property).SingleAsync(t => t.UptickId == 46790);
-        Assert.Equal((FyreApp.Services.Imports.Uptick.TaskImporter.NoPropertySiteName, ClientTaskStatus.Open), (orphan.Property.Name, orphan.Status));
+        Assert.Equal((FyreApp.Services.Tasks.UptickTaskRules.NoPropertySiteName, ClientTaskStatus.Open), (orphan.Property.Name, orphan.Status));
 
         var lines = await db.ServiceTasks.OrderBy(s => s.UptickId).ToListAsync();
         Assert.Equal(("09 - Fire Hose Reels: Annual", "Pass", (await db.Assets.SingleAsync()).Id, 165899L),
