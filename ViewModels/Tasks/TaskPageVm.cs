@@ -41,7 +41,8 @@ public class TaskPageVm
     public IReadOnlyList<(Remark Remark, bool Resolved)> Remarks { get; set; } = [];
     public IReadOnlyDictionary<int, int> OpenRemarks { get; set; } = new Dictionary<int, int>();
 
-    // The assets serviced on this task, with the date (their last service, claimed by this task: see TaskPageService)
+    // The assets serviced on this task, with the date (their service line's, else their last service claimed by this
+    // task: see TaskPageService)
     public IReadOnlyDictionary<int, DateTime> PerformedOn { get; set; } = new Dictionary<int, DateTime>();
 
     public DateTime? Performed(Asset a) => PerformedOn.TryGetValue(a.Id, out var d) ? d : null;

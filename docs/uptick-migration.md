@@ -568,7 +568,8 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      (allocated, from a warehouse, back from a service line) or off it onto a service line (`other_content_type`:
      `servicetask`, i.e. used); used, still on the task, and every movement. The Work tab lists the task's
      `subtasks` → Subtask (each routine due or product, done, reported, billed). Each on its task, removed when
-     deleted in Uptick. (`taskstock` has no task link, so isn't mapped.)
+     deleted in Uptick. (`taskstock` has no task link, so isn't mapped.) The Work tab counts an asset done when its
+     service line on the task was performed (only a task made in FyreApp falls back to the asset's last service date).
    - 8b (done): `reportitems` → ReportItem: each asset's line on a report (label, ref, location, barcode, compliant,
      inspected / serviced / base dates; no readings or comments, which Uptick's API doesn't have), on its report and
      asset. A report page (`/Reports/Details`: the report, its PDF, its lines, its files); report refs link to it, with

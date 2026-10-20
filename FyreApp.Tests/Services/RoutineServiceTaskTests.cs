@@ -201,6 +201,34 @@ public class RoutineServiceTaskTests
         Assert.Equal(new Dictionary<int, int> { [kitchen.Id] = 1, [hall.Id] = 1 }, vm.OpenRemarks);
     }
 
+    // T-30053: serviced in November, then again in May on a later task. Its own lines in Uptick say it did all of them.
+    [Fact]
+    public async Task WorkTab_TaskWithUptickLines_CountsWhatItsLinesPerformed_EvenWhenServicedAgainSince()
+    {
+        using var db = DbContextFactory.Create();
+        var (glory, _) = await SeedAsync(db);
+        var task = new ClientTask
+        {
+            ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2025/11 Servicing", UptickId = 30053,
+            DueDateUtc = DateTime.SpecifyKind(new DateTime(2025, 11, 30), DateTimeKind.Utc), PerformedDate = new DateTime(2025, 11, 13)
+        };
+        db.ClientTasks.Add(task);
+        var kitchen = await db.Assets.SingleAsync(a => a.Name == "FE Kitchen");
+        var hall = await db.Assets.SingleAsync(a => a.Name == "FE Hall");
+        kitchen.LastServiceDate = hall.LastServiceDate = new DateTime(2026, 5, 18);
+        db.ServiceTasks.AddRange(
+            new ServiceTask { ClientTask = task, Asset = kitchen, Routine = Extinguishers + ": Annual", Result = "Pass", UptickId = 249254,
+                PerformedUtc = new DateTime(2025, 11, 13, 3, 22, 29, DateTimeKind.Utc) },
+            new ServiceTask { ClientTask = task, Asset = hall, Routine = Extinguishers + ": Annual", UptickId = 249255 });
+        await db.SaveChangesAsync();
+
+        var vm = (await new TaskPageService(db).LoadAsync(task.Id, "work"))!;
+
+        Assert.Equal(new DateTime(2025, 11, 13), vm.Performed(kitchen));
+        Assert.Null(vm.Performed(hall));
+        Assert.Equal((1, 2), (vm.WorkDone, vm.WorkTotal));
+    }
+
     // Two of the property's tasks name the extinguisher routine in their scope of works: October's, and November's
     [Theory]
     // October's still open; November's serviced it on the 5th → November's, not October's
