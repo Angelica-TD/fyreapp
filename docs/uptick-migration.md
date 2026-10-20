@@ -575,6 +575,15 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      asset. A report page (`/Reports/Details`: the report, its PDF, its lines, its files); report refs link to it, with
      the PDF beside. The asset's Service History tab: each service line on a task (result, technician, with the stock
      used on it, from `taskstocktransactions` onto that `servicetask`) and every report it was on.
+   - 8c (done): `correspondence` → Correspondence (each email Uptick sent or took in: subject, from, to, cc, bcc,
+     reply-to, sent, who sent it, the body, its attachments by name and path; a link out of Uptick is kept without
+     its expired signature), `correspondenceobjectlinks` → CorrespondenceLink (a record an email is about, by kind,
+     from `contenttypes`, and Uptick id, like UptickFile) and `dispatches` → Dispatch (a task's invoice and reports
+     sent to the customer: status, sender, invoice, each email in `email_data`). The Correspondence list
+     (`/Correspondence`, searchable, or one record's: `?record=clients&recordId=846`), an email's page (its records,
+     its attachments: a report links to its page and PDF, a document file to FyreApp's copy; the email in a sandboxed
+     frame with no scripts), and a Correspondence panel on client, property and task pages, the task's with its
+     dispatches ("Sent to the customer", sent or failed). Admins only. Invoices' and quotes' PDFs attached come in 8d.
    - 8d (done): `defectquotelineitems` → DefectQuoteLine (product, asset, remark, quantity, prices), `invoicelineitems`
      → InvoiceLine (with its account code), Uptick's three sales quote line endpoints → ServiceQuoteLine by kind
      (`product`; `fixed` and `doandcharge`, a routine service priced by the year; each endpoint's ids are its own, so
@@ -585,15 +594,6 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      whose copied lines don't add up to its subtotal says so until a Full run has filled them in. The Files run
      copies invoices', defect quotes' and sales quotes' PDFs as it does reports' (one GET of `<resource>/<id>/pdf/`
      each, ~23,800 more requests; credit notes have none).
-   - 8c (done): `correspondence` → Correspondence (each email Uptick sent or took in: subject, from, to, cc, bcc,
-     reply-to, sent, who sent it, the body, its attachments by name and path; a link out of Uptick is kept without
-     its expired signature), `correspondenceobjectlinks` → CorrespondenceLink (a record an email is about, by kind,
-     from `contenttypes`, and Uptick id, like UptickFile) and `dispatches` → Dispatch (a task's invoice and reports
-     sent to the customer: status, sender, invoice, each email in `email_data`). The Correspondence list
-     (`/Correspondence`, searchable, or one record's: `?record=clients&recordId=846`), an email's page (its records,
-     its attachments: a report links to its page and PDF, a document file to FyreApp's copy; the email in a sandboxed
-     frame with no scripts), and a Correspondence panel on client, property and task pages, the task's with its
-     dispatches ("Sent to the customer", sent or failed). Admins only. Invoices' and quotes' PDFs attached come in 8d.
 9. **Cutover:** freeze Uptick, final Full run + files refresh, reconciliation sign-off, FyreApp becomes the
    system of record.
 
