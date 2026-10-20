@@ -63,15 +63,15 @@ public class RoutineSetupService : IRoutineSetupService
             .ToDictionary(g => g.Key, g => g.Count());
 
         // Applicable assets: active assets at the property whose asset type lists the routine
-        // (Uptick asset types export "Applicable Routines", one routine name per line)
         var assets = await _db.Assets.AsNoTracking()
             .Where(a => a.PropertyId == siteId && a.IsActive)
-            .Select(a => new { a.Id, Types = a.AssetTypes.Select(t => t.UptickData).ToList() })
+            .Select(a => new { a.Id, Types = a.AssetTypes.Select(t => t.Id).ToList() })
             .ToListAsync(ct);
+        var typeRoutines = await RoutineAssets.TypeRoutinesAsync(_db, assets.SelectMany(a => a.Types), ct);
         var applicable = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var asset in assets)
         {
-            var routines = asset.Types.SelectMany(ApplicableRoutines).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var routines = asset.Types.SelectMany(t => typeRoutines[t].Applicable).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var r in routines) applicable[r] = applicable.GetValueOrDefault(r) + 1;
         }
 
@@ -98,11 +98,6 @@ public class RoutineSetupService : IRoutineSetupService
             Contractors = await _db.Contractors.AsNoTracking().Where(c => c.Active).OrderBy(c => c.Name).Select(c => c.Name).ToListAsync(ct)
         };
     }
-
-    private static IEnumerable<string> ApplicableRoutines(string? assetTypeUptickData) =>
-        UptickJson.Parse(assetTypeUptickData)
-            .Where(f => f.Header == "Applicable Routines")
-            .SelectMany(f => f.Value.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
 
     public async Task<AddRoutineServicesResult> AddAsync(int siteId, AddRoutineServicesInput input, string? author, CancellationToken ct = default)
     {

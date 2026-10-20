@@ -18,7 +18,7 @@ Status: design, not built. Findings below were measured against the live API on 
 | Format | JSON:API: `data[].id`, `attributes`, `relationships` (`{type, id}`), `included`, `meta.pagination.count`, `links.next` |
 | Auth | OAuth2 **password grant** only, at `/api/oauth2/token/` (client ID + secret + an Uptick login). Tokens last 10 h, refresh token supplied. Requesting `scope=read` returns a **read-only token**, which FyreApp always uses. Data visible = what that Uptick login can see; `403` = the login lacks permission. |
 | Paging | `page[limit]` up to at least 5,000, `page[offset]`. A 5,000-row page takes ~0.5–2.5 s (timeline events: ~3.6 MB). |
-| Sparse fields | `fields[Asset]=id,deleted` returns only those attributes. |
+| Sparse fields | `fields[Asset]=id,deleted` returns only those attributes. List responses leave **to-many relationships** out (an asset type's `applicable_routines`); naming them in `fields[...]` returns them (§4.6). |
 | Changed since | `updatedsince=<ISO time>` filters on the record's `updated`. It narrowed results on most endpoints when tested, but Airbyte only relies on it for 13 streams, so a refresh only trusts it for endpoints it has verified (§4.2). `sort` and `created__gte` are ignored; results come newest first. |
 | Schema | `OPTIONS /api/v2.15/<endpoint>/` describes every field: type, required, read-only, and for a relationship the resource it points to. |
 | Rate limit | Not published. Uptick states it can **revoke API access without notice** for applications that break its limits. A fast crawl got `429` with `Retry-After` (10–32 s) after ~200 requests. FyreApp keeps to **60 requests/minute** (§3.1). |
@@ -226,6 +226,17 @@ $298, subtotal $183), doesn't change the sum, so the invoice looks complete. The
 line items, and each date returns them in another order, so the lines plain paging skips turn up. It stops once
 nothing is missing, or past the oldest line held: ~150 requests (~3 min) if it goes all the way back.
 Completeness is lines held against Uptick's count.
+
+### 4.6 To-many relationships
+
+List responses carry only to-one relationships: an asset type's `applicable_routines` and
+`excluded_routinelevels` (OPTIONS lists them) never appear. Asking for them by name, e.g.
+`assettypes/?fields[AssetType]=applicable_routines,excluded_routinelevels`, returns them. The endpoints FyreApp
+needs them for are listed in `UptickEndpoints.WithLinks`. After the endpoint itself, every run (Refresh too: a
+link can change without the record's `updated` moving) fetches them all and keeps them as their own raw records,
+`<endpoint>.links` (same id, just those relationships), with a row of their own in the run report. One no longer
+returned is marked deleted. Asset types' links are one page, so this costs a request or two per run. Other
+endpoints are added when FyreApp needs their links (phase 8).
 
 ## 5. Data model changes
 
@@ -503,8 +514,11 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      CSV/XLSX readers. What the mappers still used moved out: `UptickTaskRules` (task status, priority,
      description, scope months, schedules rolled forward, the no-property placeholder), `RoutineRules` (routine
      frequency, occurrence status, next outstanding, durations) and `RoutineServiceLevelMapper.IntervalMonths`.
-   - 6d: `UptickData`: each page's Uptick fields from the raw copy, then the column dropped.
-   - 6e: the `ExternalId` / ref-matching columns the exports needed.
+   - 6d (done): asset types' to-many links (§4.6) → `AssetType.ApplicableRoutineTypes` and
+     `ExcludedRoutineLevels`, which say which assets a routine covers (task lines, Add routines). Until now they
+     came only from the asset types export's columns, which are still read for a type only that export brought in.
+   - 6e: `UptickData`: each page's Uptick fields from the raw copy, then the column dropped.
+   - 6f: the `ExternalId` / ref-matching columns the exports needed.
 7. **Files.**
 8. **The rest:** typed entities and screens for the endpoints still only in the raw copy, in order of need.
 9. **Cutover:** freeze Uptick, final Full run + files refresh, reconciliation sign-off, FyreApp becomes the

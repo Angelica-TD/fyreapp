@@ -57,7 +57,7 @@ public class UptickCoreRecordsTests
             new SecurityGroupMapper(db), new ContractorMapper(db), new SupplierMapper(db), new AccreditationMapper(db),
             new ExtraFieldMapper(db), new PromptQuestionMapper(db), new PropertyScheduleMapper(db),
             new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db),
-            new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db),
+            new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db), new AssetTypeRoutineLinksMapper(db),
             new ProductMapper(db), new WarehouseMapper(db), new StockMapper(db), new BillingContractMapper(db), new BillingContractLineItemMapper(db), new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db),
             new DefectQuoteMapper(db), new ServiceQuoteMapper(db), new InvoiceMapper(db), new CreditNoteMapper(db), new DynamicFormResponseMapper(db), new RemarkMapper(db),
             new ReportMapper(db), new RoutineMapper(db), new TimelineEventMapper(db)],
@@ -433,6 +433,37 @@ public class UptickCoreRecordsTests
         own.Location = "Roof";
         await db.SaveChangesAsync();
         Assert.Single(await db.LocalEdits.ToListAsync());
+    }
+
+    [Fact]
+    public async Task An_asset_types_applicable_routines_and_excluded_levels_come_from_its_links()
+    {
+        await using var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(
+            Raw("routineservicetypes", "10", """{"name":"10 - Portable and Wheeled Fire Extinguishers","is_active":true}"""),
+            Raw("routineservicetypes", "11", """{"name":"11 - Fire Blankets","is_active":true}"""),
+            Raw("routineserviceleveltypes", "15", """{"name":"Five-yearly","interval":5,"frequency":"Y","is_active":true}""",
+                "{\"routineservicetype\":" + To("RoutineServiceType", "10") + "}"),
+            RawAssetType("10", "Fire Extinguisher"),
+            Raw("assettypes.links", "10", "{}",
+                """{"applicable_routines":{"data":[{"type":"RoutineServiceType","id":"10"},{"type":"RoutineServiceType","id":"11"}]},"excluded_routinelevels":{"data":[{"type":"RoutineServiceLevelType","id":"15"}]}}"""));
+        await db.SaveChangesAsync();
+
+        await MapAllAsync(db);
+
+        var type = await db.AssetTypes.SingleAsync();
+        var routines = (await FyreApp.Services.Routines.RoutineAssets.TypeRoutinesAsync(db, [type.Id]))[type.Id];
+        Assert.Equal(new[] { "10 - Portable and Wheeled Fire Extinguishers", "11 - Fire Blankets" }, routines.Applicable.Order());
+        Assert.Equal("10 - Portable and Wheeled Fire Extinguishers: Five-yearly", Assert.Single(routines.Excluded));
+
+        // Uptick drops a routine from the type
+        var links = await db.UptickRecords.SingleAsync(r => r.Resource == "assettypes.links");
+        links.Relationships = """{"applicable_routines":{"data":[{"type":"RoutineServiceType","id":"11"}]},"excluded_routinelevels":{"data":[]}}""";
+        links.MappedUtc = null;
+        await db.SaveChangesAsync();
+        await MapAllAsync(db);
+        routines = (await FyreApp.Services.Routines.RoutineAssets.TypeRoutinesAsync(db, [type.Id]))[type.Id];
+        Assert.Equal(("11 - Fire Blankets", 0), (Assert.Single(routines.Applicable), routines.Excluded.Count));
     }
 
     [Fact]

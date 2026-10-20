@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Routines;
 
-// Which assets a routine services. Uptick's asset types export lists each type's "Applicable Routines"
-// (e.g. Fire Extinguisher → "10 - Portable and Wheeled Fire Extinguishers", one per line) and its
-// "Excluded Routine Levels"; a property's active assets of those types are the ones its routine covers.
+// Which assets a routine services. Uptick gives each asset type its applicable routines (e.g. Fire Extinguisher →
+// "10 - Portable and Wheeled Fire Extinguishers") and excluded routine levels; a property's active assets of those
+// types are the ones its routine covers.
 public static class RoutineAssets
 {
     public record AssetLine(int AssetId, string Routine);
@@ -24,24 +24,43 @@ public static class RoutineAssets
         var assets = await db.Assets.AsNoTracking()
             .Where(a => siteIds.Contains(a.PropertyId) && a.IsActive)
             .OrderBy(a => a.InspectionOrder == null).ThenBy(a => a.InspectionOrder).ThenBy(a => a.Ref).ThenBy(a => a.Name).ThenBy(a => a.Id)
-            .Select(a => new { a.Id, a.PropertyId, Types = a.AssetTypes.Select(t => new { t.Id, t.UptickData }) })
+            .Select(a => new { a.Id, a.PropertyId, Types = a.AssetTypes.Select(t => t.Id).ToList() })
             .ToListAsync(ct);
 
-        // Each asset type's routines, parsed once
-        var typeRoutines = assets.SelectMany(a => a.Types).DistinctBy(t => t.Id)
-            .ToDictionary(t => t.Id, t => (Applicable: Lines(UptickJson.Value(t.UptickData, "Applicable Routines")),
-                                           Excluded: Lines(UptickJson.Value(t.UptickData, "Excluded Routine Levels"))));
+        var typeRoutines = await TypeRoutinesAsync(db, assets.SelectMany(a => a.Types), ct);
 
         var lines = new List<(int PropertyId, string Routine, AssetLine Line)>();
         foreach (var r in routines.DistinctBy(r => (r.PropertyId, r.Routine)))
         {
             foreach (var a in assets.Where(a => a.PropertyId == r.PropertyId))
             {
-                if (a.Types.Any(t => Applies(typeRoutines[t.Id].Applicable, typeRoutines[t.Id].Excluded, r)))
+                if (a.Types.Any(t => Applies(typeRoutines[t].Applicable, typeRoutines[t].Excluded, r)))
                     lines.Add((r.PropertyId, r.Routine, new AssetLine(a.Id, r.Routine)));
             }
         }
         return lines.ToLookup(l => (l.PropertyId, l.Routine), l => l.Line);
+    }
+
+    // Each asset type's applicable routines (by name) and excluded levels ("<routine>: <level>"): Uptick's links, and
+    // for a type only the asset types export brought in, that export's columns
+    public static async Task<Dictionary<int, (IReadOnlyList<string> Applicable, IReadOnlyList<string> Excluded)>> TypeRoutinesAsync(
+        AppDbContext db, IEnumerable<int> typeIds, CancellationToken ct = default)
+    {
+        var ids = typeIds.Distinct().ToList();
+        var types = await db.AssetTypes.AsNoTracking()
+            .Where(t => ids.Contains(t.Id))
+            .Select(t => new
+            {
+                t.Id, t.UptickData,
+                Applicable = t.ApplicableRoutineTypes.Select(r => r.Name).ToList(),
+                Excluded = t.ExcludedRoutineLevels.Select(l => l.RoutineServiceType.Name + ": " + l.Name).ToList()
+            })
+            .ToListAsync(ct);
+        return types.ToDictionary(t => t.Id, t => (
+            (IReadOnlyList<string>)t.Applicable.Concat(Lines(UptickJson.Value(t.UptickData, "Applicable Routines")))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+            (IReadOnlyList<string>)t.Excluded.Concat(Lines(UptickJson.Value(t.UptickData, "Excluded Routine Levels")))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList()));
     }
 
     // The type's routines include this one, and its level isn't excluded (named as the routines export

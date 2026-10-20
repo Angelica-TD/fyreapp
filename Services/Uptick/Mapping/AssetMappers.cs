@@ -244,3 +244,94 @@ public class AssetMapper : UptickEntityMapper<Asset>
         else if (keep != null && !a.AssetTypes.Any(t => t.Id == keep) && Db.AssetTypes.Find(keep.Value) is { } type) a.AssetTypes.Add(type);
     }
 }
+
+// Uptick's assettypes' to-many links (copied as "assettypes.links") -> which routine service types an asset type is
+// serviced under and which of their levels it's left out of. Mapped after the routine service types and levels.
+public class AssetTypeRoutineLinksMapper : IUptickMapper
+{
+    private readonly AppDbContext _db;
+    private Dictionary<long, int> _routineTypes = new();
+    private Dictionary<long, int> _levels = new();
+
+    public AssetTypeRoutineLinksMapper(AppDbContext db) => _db = db;
+
+    public string Resource => "assettypes" + Migration.UptickEndpoints.LinksSuffix;
+
+    public async Task BeginAsync(CancellationToken ct)
+    {
+        _routineTypes = (await _db.RoutineServiceTypes.AsNoTracking().Where(t => t.UptickId != null)
+                .Select(t => new { UptickId = t.UptickId!.Value, t.Id }).ToListAsync(ct))
+            .ToDictionary(t => t.UptickId, t => t.Id);
+        _levels = (await _db.RoutineServiceLevels.AsNoTracking().Where(l => l.UptickId != null)
+                .Select(l => new { UptickId = l.UptickId!.Value, l.Id }).ToListAsync(ct))
+            .ToDictionary(l => l.UptickId, l => l.Id);
+    }
+
+    public async Task<IReadOnlyDictionary<string, string>> MapAsync(IReadOnlyList<UptickRecord> batch, CancellationToken ct)
+    {
+        var failures = new Dictionary<string, string>();
+        var ids = batch.Select(r => long.TryParse(r.UptickId, out var id) ? id : (long?)null).OfType<long>().ToList();
+        var types = await _db.AssetTypes.Include(t => t.ApplicableRoutineTypes).Include(t => t.ExcludedRoutineLevels)
+            .Where(t => t.UptickId != null && ids.Contains(t.UptickId.Value))
+            .ToDictionaryAsync(t => t.UptickId!.Value, ct);
+        var routineTypes = await _db.RoutineServiceTypes.Where(t => _routineTypes.Values.Contains(t.Id)).ToDictionaryAsync(t => t.Id, ct);
+        var levels = await _db.RoutineServiceLevels.Where(l => _levels.Values.Contains(l.Id)).ToDictionaryAsync(l => l.Id, ct);
+
+        foreach (var record in batch)
+        {
+            try
+            {
+                if (!long.TryParse(record.UptickId, out var id)) throw new UptickMapException("The id isn't a number.");
+                if (!types.TryGetValue(id, out var type)) throw new UptickMapException($"Its asset type ({id}) isn't in FyreApp.");
+                var raw = UptickRaw.Parse(record, id);
+                if (raw.Deleted)
+                {
+                    type.ApplicableRoutineTypes.Clear();
+                    type.ExcludedRoutineLevels.Clear();
+                    continue;
+                }
+
+                var applicable = Ids(raw.R, "applicable_routines")
+                    .Select(r => _routineTypes.TryGetValue(r, out var t) ? routineTypes[t] : throw new UptickMapException($"Its routine service type ({r}) isn't in FyreApp."))
+                    .ToList();
+                var excluded = Ids(raw.R, "excluded_routinelevels")
+                    .Select(l => _levels.TryGetValue(l, out var v) ? levels[v] : throw new UptickMapException($"Its routine level ({l}) isn't in FyreApp."))
+                    .ToList();
+                Replace(type.ApplicableRoutineTypes, applicable);
+                Replace(type.ExcludedRoutineLevels, excluded);
+            }
+            catch (Exception ex) when (ex is UptickMapException or JsonException)
+            {
+                failures[record.UptickId] = ex.Message;
+            }
+        }
+
+        _db.RecordLocalEdits = false;
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        finally
+        {
+            _db.RecordLocalEdits = true;
+        }
+        return failures;
+    }
+
+    // A to-many relationship's ids: "applicable_routines": {"data": [{"type": "RoutineServiceType", "id": "18"}]}
+    internal static IEnumerable<long> Ids(JsonElement relationships, string name) =>
+        UptickRaw.Get(relationships, name) is { ValueKind: JsonValueKind.Object } rel && rel.TryGetProperty("data", out var data)
+        && data.ValueKind == JsonValueKind.Array
+            ? data.EnumerateArray()
+                .Select(d => d.ValueKind == JsonValueKind.Object && d.TryGetProperty("id", out var i) && long.TryParse(i.ToString(), out var n) ? n : (long?)null)
+                .OfType<long>()
+                .Distinct()
+                .ToList()
+            : [];
+
+    private static void Replace<T>(ICollection<T> current, IReadOnlyCollection<T> wanted)
+    {
+        foreach (var gone in current.Where(c => !wanted.Contains(c)).ToList()) current.Remove(gone);
+        foreach (var added in wanted.Where(w => !current.Contains(w))) current.Add(added);
+    }
+}
