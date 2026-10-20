@@ -9,17 +9,64 @@ public sealed record ExtraFieldValue(string Label, string Value, string? HelpTex
 // Reading imported records with Uptick's reference data: their extra fields, and users' security groups
 public static class UptickReferenceValues
 {
-    // A record's extra field values, from the columns of its Uptick row that are extra fields of its record
-    // type, in Uptick's order. Blank ones are left out.
-    public static async Task<IReadOnlyList<ExtraFieldValue>> ExtraFieldsAsync(AppDbContext db, string contentType, string? uptickData,
-        CancellationToken ct = default)
+    // A record's extra field values, in Uptick's order, blank ones left out: from its Uptick record's
+    // "extra_fields" (by name) when it came through the API, else from the columns of its export row
+    public static async Task<IReadOnlyList<ExtraFieldValue>> ExtraFieldsAsync(AppDbContext db, string contentType, string resource,
+        long? uptickId, string? uptickData, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(uptickData)) return [];
+        var raw = uptickId == null ? null : await db.UptickRecords.AsNoTracking()
+            .Where(r => r.Resource == resource && r.UptickId == uptickId.Value.ToString())
+            .Select(r => r.Attributes)
+            .FirstOrDefaultAsync(ct);
+        if (raw == null && string.IsNullOrWhiteSpace(uptickData)) return [];
         var fields = await db.ExtraFields.AsNoTracking()
             .Where(f => f.ContentType == contentType)
             .OrderBy(f => f.Order).ThenBy(f => f.Label)
             .ToListAsync(ct);
-        return ExtraFields(fields, uptickData);
+        return raw != null ? ApiExtraFields(fields, raw) : ExtraFields(fields, uptickData);
+    }
+
+    // From a record's API attributes: "extra_fields": {"ase_connected": "Yes", ...}
+    public static IReadOnlyList<ExtraFieldValue> ApiExtraFields(IEnumerable<ExtraField> fields, string attributes)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(attributes);
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+            && doc.RootElement.TryGetProperty("extra_fields", out var extra) && extra.ValueKind == System.Text.Json.JsonValueKind.Object)
+            foreach (var p in extra.EnumerateObject())
+                values.TryAdd(p.Name, p.Value.ValueKind switch
+                {
+                    System.Text.Json.JsonValueKind.String => p.Value.GetString()!,
+                    System.Text.Json.JsonValueKind.True => "Yes",
+                    System.Text.Json.JsonValueKind.False => "No",
+                    System.Text.Json.JsonValueKind.Null or System.Text.Json.JsonValueKind.Undefined => "",
+                    _ => p.Value.GetRawText()
+                });
+
+        return fields
+            .Select(f => f.Name != null && values.TryGetValue(f.Name, out var v) && !string.IsNullOrWhiteSpace(v)
+                ? new ExtraFieldValue(f.Label, ChoiceLabel(f, v), string.IsNullOrWhiteSpace(f.HelpText) ? null : f.HelpText) : null)
+            .OfType<ExtraFieldValue>()
+            .ToList();
+    }
+
+    // A choice field stores its choice's value ("gold_coast_city_council"); shown as its label
+    private static string ChoiceLabel(ExtraField f, string value)
+    {
+        if (f.FieldSettings == null || !f.FieldSettings.Contains("choices")) return value;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(f.FieldSettings);
+            if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("choices", out var choices) && choices.ValueKind == System.Text.Json.JsonValueKind.Array)
+                foreach (var c in choices.EnumerateArray())
+                    if (c.ValueKind == System.Text.Json.JsonValueKind.Object
+                        && c.TryGetProperty("value", out var cv) && cv.ToString() == value
+                        && c.TryGetProperty("label", out var label) && label.ValueKind == System.Text.Json.JsonValueKind.String)
+                        return label.GetString()!;
+        }
+        catch (System.Text.Json.JsonException) { }
+        return value;
     }
 
     public static IReadOnlyList<ExtraFieldValue> ExtraFields(IEnumerable<ExtraField> fields, string? uptickData)

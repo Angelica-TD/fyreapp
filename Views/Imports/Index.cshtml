@@ -38,36 +38,10 @@
         <div class="card">
             <div class="card-body">
                 <h2 class="h6">Import order</h2>
-                <p class="small text-muted mb-2">
-                    Clients, properties, their contacts, users, asset types, variants, assets, routine service types and
-                    levels, remark types, tasks, remarks, reports, routines, products, warehouses, stock, quotes, sales quotes, invoices,
-                    credit notes, billing cards, billing contracts and their line items, security groups, contractors, suppliers and
-                    accreditations come from Uptick's API
-                    (<a asp-controller="UptickMigration" asp-action="Index">Uptick migration</a>): run it first. The exports
-                    below match records it brought in.
-                </p>
-                <ol class="small mb-0 ps-3">
-                    <li>Reference data: extra fields and prompt questions (any time)</li>
-                </ol>
-                <p class="small text-muted mt-2 mb-0">
-                    Schedules and form responses can be imported at any time:
-                    they're matched to properties and tasks by their Uptick refs when shown.
-                </p>
-                <p class="small text-muted mt-2 mb-0">
-                    You can export everything from Uptick and import it again to keep FyreApp in step: new records are added,
-                    records changed in Uptick since the last import are updated, and unchanged ones are skipped
-                    (matched on Uptick ID).
-                </p>
-                <ul class="small text-muted mt-1 mb-0 ps-3">
-                    <li>Uptick wins: changes made in FyreApp to imported records are overwritten when the record changes in Uptick.</li>
-                    <li>An older export never overwrites newer data (Uptick's "Updated" time is compared).</li>
-                    <li>Records deleted in Uptick are kept; the import says how many weren't in the export.</li>
-                    <li>Reference data is refreshed from the export, so fixes made in Uptick come through.</li>
-                    <li>Routines only move forward (pending → task raised → complete): completions in Uptick come through, tasks raised in FyreApp are kept.</li>
-                </ul>
-                <p class="small text-muted mt-2 mb-0">
-                    A record referring to a property FyreApp doesn't hold gets an inactive <em>placeholder</em> property,
-                    filled in by the next Uptick migration run that brings the property in.
+                <p class="small text-muted mb-0">
+                    Everything Uptick's exports held now comes from Uptick's API
+                    (<a asp-controller="UptickMigration" asp-action="Index">Uptick migration</a>), so the file imports are
+                    off: an export uploaded here says where its records come from instead.
                 </p>
             </div>
         </div>

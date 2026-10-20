@@ -89,7 +89,7 @@ public class DataResetService : IDataResetService
             ("Defect quotes (Uptick)", await _db.DefectQuotes.CountAsync(ct)),
             ("Sales quotes (Uptick)", await _db.ServiceQuotes.CountAsync(ct)),
             ("Property schedules", await _db.PropertySchedules.CountAsync(ct)),
-            ("Form responses", await _db.FormResponses.CountAsync(ct)),
+            ("Form responses", await _db.DynamicFormResponses.CountAsync(ct)),
             ("Assets", await _db.Assets.CountAsync(ct)),
             ("Properties", await _db.Properties.CountAsync(ct)),
             ("Clients", await _db.Clients.CountAsync(ct))
@@ -156,7 +156,7 @@ public class DataResetService : IDataResetService
             ("Defect quotes (Uptick)", await _db.DefectQuotes.ExecuteDeleteAsync(ct)),
             ("Sales quotes (Uptick)", await _db.ServiceQuotes.ExecuteDeleteAsync(ct)),
             ("Property schedules", await _db.PropertySchedules.ExecuteDeleteAsync(ct)),
-            ("Form responses", await _db.FormResponses.ExecuteDeleteAsync(ct)),
+            ("Form responses", await _db.DynamicFormResponses.ExecuteDeleteAsync(ct)),
             ("Assets", await _db.Assets.ExecuteDeleteAsync(ct)),
             ("Properties", await _db.Properties.ExecuteDeleteAsync(ct)),
             ("Clients", await _db.Clients.ExecuteDeleteAsync(ct))

@@ -50,6 +50,10 @@ public class UptickImportService : IUptickImportService
         (UptickExportType.Contractors, "Contractors", new[] { "Primary Contact", "Phone BH", "Service Areas" }),
         (UptickExportType.Suppliers, "Suppliers", new[] { "Business Number", "Accounts Contact Name", "Purchasing Email" }),
         (UptickExportType.Accreditations, "Accreditations", new[] { "Expiry", "Technician", "Number" }),
+        (UptickExportType.ExtraFields, "Extra fields", new[] { "content_type", "field_settings", "widget" }),
+        (UptickExportType.PromptQuestions, "Prompt questions", new[] { "Promptset Name", "Promptset Ref", "Choice Keys" }),
+        (UptickExportType.PropertySchedules, "Property schedules", new[] { "Schedule Number", "Schedule Date", "Issuer" }),
+        (UptickExportType.FormResponses, "Form responses", new[] { "target_contenttype", "target_object_id", "template_version" }),
         // Last: two columns most exports have
         (UptickExportType.SecurityGroups, "Security groups", new[] { "id", "name" }),
     };
