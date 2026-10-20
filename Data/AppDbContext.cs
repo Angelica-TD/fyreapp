@@ -110,9 +110,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<UptickFile>(entity =>
         {
             entity.HasIndex(f => new { f.Source, f.SourceId }).IsUnique();
+            entity.HasIndex(f => new { f.RecordType, f.RecordUptickId });
             entity.Property(f => f.SourceUpdatedUtc).HasColumnType("timestamptz");
             entity.Property(f => f.DownloadedUtc).HasColumnType("timestamptz");
             entity.Property(f => f.CheckedUtc).HasColumnType("timestamptz");
+            entity.Property(f => f.CreatedUtc).HasColumnType("timestamptz");
         });
 
         // Client → Properties (1:N)

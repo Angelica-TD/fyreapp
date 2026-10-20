@@ -52,8 +52,10 @@ public class UptickFileDownloader
 
     private DateTime Now => _clock.GetUtcNow().UtcDateTime;
 
-    // One raw record that may have a file: a document file (with Uptick's path, size and etag) or a report
-    private sealed record Candidate(string Id, string? Path, long? Size, string? Etag, DateTime? UpdatedUtc);
+    // One raw record that may have a file: a document file (with Uptick's path, size, etag and, for a remark photo,
+    // open / closed) or a report
+    private sealed record Candidate(string Id, string? Path, long? Size, string? Etag, DateTime? UpdatedUtc, string? PhotoType = null,
+        DateTime? CreatedUtc = null);
 
     // At most limit files of each kind when given: a trial before the full download
     public async Task DownloadAsync(List<UptickEndpointResult> results, IProgress<UptickProgress>? progress, CancellationToken ct,
@@ -98,6 +100,32 @@ public class UptickFileDownloader
         Action<int, int, long> report, CancellationToken ct)
     {
         var held = await _db.UptickFiles.Where(f => f.Source == source).ToDictionaryAsync(f => f.SourceId, ct);
+        if (source == Documents)
+        {
+            // Every document file listed, with the record it belongs to, before any is downloaded: a page can say
+            // what's still to come. Etag is Uptick's as listed; a held file's stays the one downloaded until it is again.
+            var signers = await SignersAsync(ct);
+            foreach (var raw in candidates)
+            {
+                if (!held.TryGetValue(raw.Id, out var row))
+                {
+                    row = new UptickFile { Source = source, SourceId = raw.Id, Etag = raw.Etag, Size = raw.Size, CheckedUtc = Now };
+                    _db.UptickFiles.Add(row);
+                    held[raw.Id] = row;
+                }
+                Describe(row, raw);
+                row.Caption = raw.Path != null && signers.TryGetValue(raw.Path, out var signer) ? Cap(signer, 300) : null;
+            }
+            await _db.SaveChangesAsync(ct);
+        }
+        else
+        {
+            // Reports' PDFs held from before files were linked to their records
+            foreach (var row in held.Values.Where(r => r.RecordType == null))
+                Describe(row);
+            await _db.SaveChangesAsync(ct);
+        }
+
         var work = new List<(Candidate Raw, UptickFile? Row)>();
         foreach (var raw in candidates)
         {
@@ -186,6 +214,7 @@ public class UptickFileDownloader
     {
         var pdf = await _api.PdfAsync(Reports, raw.Id, ct);
         row.SourceUpdatedUtc = raw.UpdatedUtc;
+        Describe(row);
         if (pdf == null)
         {
             row.NoFile = true;
@@ -197,9 +226,46 @@ public class UptickFileDownloader
         return await FetchAndStoreAsync(row, pdf.Url, $"uptick/reports/{raw.Id}.pdf", pdf.Size, md5: null, "application/pdf", ct);
     }
 
-    private async Task<long?> DocumentAsync(UptickFile row, Candidate raw, CancellationToken ct)
+    // Where Uptick keeps a document file, and so the record it belongs to
+    private static void Describe(UptickFile row, Candidate raw)
     {
         row.Path = Cap(raw.Path, 1000);
+        var owner = UptickFilePaths.Classify(raw.Path);
+        row.RecordType = owner?.RecordType;
+        row.RecordUptickId = owner?.RecordUptickId;
+        row.Kind = owner?.Kind ?? UptickFilePaths.Document;
+        row.PhotoType = Cap(raw.PhotoType, 20);
+        row.CreatedUtc = raw.CreatedUtc;
+    }
+
+    // A report's PDF belongs to the report
+    private static void Describe(UptickFile report)
+    {
+        report.RecordType = UptickResources.Reports;
+        report.RecordUptickId = long.TryParse(report.SourceId, out var id) ? id : null;
+        report.Kind = UptickFilePaths.Pdf;
+    }
+
+    // Customers' signatures by image path: who signed, or why there's no signature
+    private async Task<Dictionary<string, string>> SignersAsync(CancellationToken ct)
+    {
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var attributes in await _db.UptickRecords.AsNoTracking()
+                     .Where(r => r.Resource == "taskclientsignatures" && r.DeletedUtc == null)
+                     .Select(r => r.Attributes).ToListAsync(ct))
+        {
+            using var doc = JsonDocument.Parse(attributes);
+            var a = doc.RootElement;
+            string? Text(string name) => a.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(v.GetString())
+                ? v.GetString()!.Trim() : null;
+            if (Text("image_path") is { } path && (Text("signee_name") ?? (Text("no_signature_reason") is { } why ? $"Not signed: {why}" : null)) is { } who)
+                map[path] = who;
+        }
+        return map;
+    }
+
+    private async Task<long?> DocumentAsync(UptickFile row, Candidate raw, CancellationToken ct)
+    {
         row.Etag = raw.Etag;
         var url = await _api.DocumentDownloadUrlAsync(raw.Id, ct) ?? throw new FileCheckException("Uptick has no such file.");
         var extension = System.IO.Path.GetExtension(raw.Path ?? "");
@@ -276,7 +342,7 @@ public class UptickFileDownloader
         var rows = await _db.UptickRecords.AsNoTracking()
             .Where(r => r.Resource == Documents && r.DeletedUtc == null)
             .OrderByDescending(r => r.CreatedUtc)
-            .Select(r => new { r.UptickId, r.Attributes, r.UpdatedUtc })
+            .Select(r => new { r.UptickId, r.Attributes, r.UpdatedUtc, r.CreatedUtc })
             .ToListAsync(ct);
         var list = new List<Candidate>(rows.Count);
         foreach (var r in rows)
@@ -285,9 +351,10 @@ public class UptickFileDownloader
             var a = doc.RootElement;
             string? path = a.TryGetProperty("path", out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
             long? size = a.TryGetProperty("size", out var s) && s.TryGetInt64(out var n) ? n : null;
-            string? etag = a.TryGetProperty("metadata", out var m) && m.ValueKind == JsonValueKind.Object
-                && m.TryGetProperty("etag", out var e) && e.ValueKind == JsonValueKind.String ? e.GetString() : null;
-            list.Add(new Candidate(r.UptickId, path, size, etag, r.UpdatedUtc));
+            var metadata = a.TryGetProperty("metadata", out var m) && m.ValueKind == JsonValueKind.Object ? m : default;
+            string? Meta(string name) => metadata.ValueKind == JsonValueKind.Object && metadata.TryGetProperty(name, out var v)
+                && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+            list.Add(new Candidate(r.UptickId, path, size, Meta("etag"), r.UpdatedUtc, Meta("remark-photo-type"), r.CreatedUtc));
         }
         return list;
     }

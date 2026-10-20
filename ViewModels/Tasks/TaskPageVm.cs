@@ -15,6 +15,9 @@ public class TaskPageVm
 
     // Reports done on this task, remarks it repairs, and routines it was generated from
     public IReadOnlyList<Report> Reports { get; set; } = [];
+
+    // The reports' PDFs FyreApp holds, by report Uptick id: the file's id
+    public IReadOnlyDictionary<long, int> ReportPdfs { get; set; } = new Dictionary<long, int>();
     public IReadOnlyList<Remark> Repairs { get; set; } = [];
     public IReadOnlyList<string> Routines { get; set; } = [];
 

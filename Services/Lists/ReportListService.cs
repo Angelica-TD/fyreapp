@@ -1,6 +1,7 @@
 using FyreApp.Data;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
+using FyreApp.Services.Uptick.Files;
 using FyreApp.ViewModels.Lists;
 using Microsoft.EntityFrameworkCore;
 
@@ -62,9 +63,13 @@ public class ReportListService : IReportListService
                 ClientId = r.Property.ClientId,
                 ClientName = r.Property.Client.Name,
                 ClientContact = r.Property.Client.PrimaryContactName,
-                TaskRef = r.TaskRef
+                TaskRef = r.TaskRef,
+                UptickId = r.UptickId
             })
             .ToListAsync(ct);
+        var pdfs = await UptickFileLinks.PdfsAsync(_db, UptickResources.Reports, items.Select(i => i.UptickId), ct);
+        foreach (var i in items)
+            if (i.UptickId is { } id && pdfs.TryGetValue(id, out var file)) i.PdfFileId = file;
 
         return new ReportListVm { Filter = filter, Items = items, Total = total };
     }

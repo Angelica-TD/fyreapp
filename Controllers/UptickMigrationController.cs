@@ -107,6 +107,15 @@ public class UptickMigrationController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // Writes a small file to the file store and reads it back
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestStorage(CancellationToken ct)
+    {
+        var (ok, message) = await FileStores.TestAsync(_store, ct: ct);
+        TempData[ok ? "Success" : "Error"] = message;
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpPost, ValidateAntiForgeryToken]
     public IActionResult Start(UptickRunKind kind, string? resource, int? limit)
     {
@@ -136,17 +145,6 @@ public class UptickMigrationController : Controller
     [HttpGet]
     public IActionResult Status() => Json(_runner.Current);
 
-    // A downloaded file, to check the copy (pages show them from phase 7b)
-    [HttpGet]
-    public async Task<IActionResult> File(int id, CancellationToken ct)
-    {
-        var file = await _db.UptickFiles.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id && f.StorageKey != null, ct);
-        if (file == null) return NotFound();
-        var stream = await _store.OpenReadAsync(file.StorageKey!, ct);
-        if (stream == null) return NotFound();
-        return File(stream, file.ContentType ?? "application/octet-stream", System.IO.Path.GetFileName(file.Path ?? file.StorageKey!),
-            enableRangeProcessing: false);
-    }
 
     [HttpGet]
     public async Task<IActionResult> Run(int id, CancellationToken ct)

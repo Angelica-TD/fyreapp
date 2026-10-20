@@ -61,6 +61,9 @@ public class PropertyPageVm
 
     // Records tab (service reports) and Tasks tab
     public IReadOnlyList<Report> Reports { get; init; } = [];
+
+    // The reports' PDFs FyreApp holds, by report Uptick id: the file's id
+    public IReadOnlyDictionary<long, int> ReportPdfs { get; set; } = new Dictionary<long, int>();
     public IReadOnlyList<ClientTask> Tasks { get; init; } = [];
 }
 

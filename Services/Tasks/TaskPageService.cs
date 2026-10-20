@@ -1,6 +1,7 @@
 using FyreApp.Data;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
+using FyreApp.Services.Uptick.Files;
 using FyreApp.Services.Imports;
 using FyreApp.Services.Routines;
 using FyreApp.ViewModels.Tasks;
@@ -91,6 +92,7 @@ public class TaskPageService : ITaskPageService
         };
         vm.PerformedOn = await PerformedAsync(task, serviceAssets, ct);
         vm.Remarks = await RemarksAsync(vm, assetIds, ct);
+        vm.ReportPdfs = await UptickFileLinks.PdfsAsync(_db, UptickResources.Reports, vm.Reports.Select(r => r.UptickId), ct);
         return vm;
     }
 

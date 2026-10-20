@@ -1,0 +1,62 @@
+@model FyreApp.Infrastructure.UptickFilesViewComponent.Model
+@{
+    string Size(long? b) => b is { } n ? FyreApp.Services.Uptick.Files.UptickFileDownloader.Size(n) : "";
+    string When(DateTime? utc) => utc is { } d ? d.ToSydney().ToOrdinalDate() : "";
+    // A remark's photos as Uptick sorts them: as found, then once fixed
+    var groups = Model.Photos
+        .GroupBy(p => p.PhotoType?.ToLowerInvariant() switch { "open" => "As found", "closed" => "Once fixed", _ => "" })
+        .OrderBy(g => g.Key switch { "As found" => 0, "Once fixed" => 1, _ => 2 })
+        .ToList();
+}
+
+@* Photos and files Uptick stores for the record, from FyreApp's copy *@
+<div class="card property-card mt-3">
+    <div class="card-header"><span>Photos and files</span></div>
+    <div class="card-body">
+        @foreach (var g in groups)
+        {
+            @if (g.Key != "") { <div class="small text-muted mb-1">@g.Key</div> }
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                @foreach (var p in g)
+                {
+                    <a href="/Files/@p.Id" target="_blank" rel="noopener" title="@p.Name · @When(p.CreatedUtc)">
+                        <img src="/Files/@p.Id" alt="@p.Name" loading="lazy" class="rounded border"
+                             style="width: 7.5rem; height: 7.5rem; object-fit: cover" />
+                    </a>
+                }
+            </div>
+        }
+
+        @foreach (var s in Model.Signatures)
+        {
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <a href="/Files/@s.Id" target="_blank" rel="noopener">
+                    <img src="/Files/@s.Id" alt="Signature" loading="lazy" class="rounded border bg-white" style="max-width: 12rem; max-height: 5rem" />
+                </a>
+                <div class="small">
+                    <div class="fw-semibold">@(s.Caption ?? "Customer signature")</div>
+                    <div class="text-muted">Signed @When(s.CreatedUtc)</div>
+                </div>
+            </div>
+        }
+
+        @if (Model.Documents.Count > 0)
+        {
+            <ul class="list-unstyled small mb-2">
+                @foreach (var d in Model.Documents)
+                {
+                    <li class="d-flex flex-wrap gap-2 py-1 border-bottom">
+                        <a href="/Files/@d.Id" target="_blank" rel="noopener" class="text-break">@d.Name</a>
+                        <span class="text-muted">@Size(d.Size)@(d.CreatedUtc != null ? " · " + When(d.CreatedUtc) : "")</span>
+                        <a href="/Files/@d.Id?download=true" class="ms-auto text-muted" title="Download">Download</a>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (Model.Waiting > 0)
+        {
+            <div class="small text-muted">@Model.Waiting.ToString("N0") more in Uptick, not copied yet.</div>
+        }
+    </div>
+</div>

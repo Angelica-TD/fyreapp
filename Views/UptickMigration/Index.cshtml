@@ -138,6 +138,10 @@
                 {
                     <span class="text-warning-emphasis">· set <code>Storage__Provider</code> and <code>Storage__S3__…</code> in <code>/etc/fyreapp.env</code></span>
                 }
+                <form method="post" asp-action="TestStorage" class="d-inline ms-2">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-sm btn-outline-secondary py-0" disabled="@(!Model.StorageConfigured)" title="Writes a small test file and reads it back">Test storage</button>
+                </form>
             </dd>
         </dl>
         <div class="table-responsive">

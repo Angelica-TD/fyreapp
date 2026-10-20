@@ -52,6 +52,40 @@ public sealed class FileStorageOptions
 
 public static class FileStores
 {
+    // Overwritten by each test (the bucket's user may not delete)
+    public const string TestKey = "fyreapp/connection-test.txt";
+
+    // Writes a small file and reads it back: what the storage settings allow, in a sentence
+    public static async Task<(bool Ok, string Message)> TestAsync(IFileStore store, TimeProvider? clock = null, CancellationToken ct = default)
+    {
+        if (!store.IsConfigured) return (false, "File storage isn't set up (Storage:Provider).");
+        var text = $"FyreApp storage test {(clock ?? TimeProvider.System).GetUtcNow():O}";
+        try
+        {
+            await store.PutAsync(TestKey, new MemoryStream(System.Text.Encoding.UTF8.GetBytes(text)), "text/plain", ct);
+            await using var read = await store.OpenReadAsync(TestKey, ct);
+            if (read == null) return (false, $"{store.Description}: the test file was written but can't be read back.");
+            using var reader = new StreamReader(read);
+            return await reader.ReadToEndAsync(ct) == text
+                ? (true, $"{store.Description}: wrote and read back a test file ({TestKey}).")
+                : (false, $"{store.Description}: the test file read back differently.");
+        }
+        catch (AmazonS3Exception ex)
+        {
+            return (false, $"{store.Description}: {ex.ErrorCode ?? ((int)ex.StatusCode).ToString()}: {ex.Message}" + ex.ErrorCode switch
+            {
+                "NoSuchBucket" => " Check Storage__S3__Bucket and the region.",
+                "InvalidAccessKeyId" or "SignatureDoesNotMatch" => " Check Storage__S3__AccessKey and SecretKey.",
+                "AccessDenied" => " Check the user's policy allows s3:PutObject, s3:GetObject and s3:ListBucket on this bucket.",
+                _ => ""
+            });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or AmazonServiceException or HttpRequestException)
+        {
+            return (false, $"{store.Description}: {ex.Message}");
+        }
+    }
+
     public static IFileStore Create(IOptions<FileStorageOptions> options, IWebHostEnvironment env) =>
         options.Value.Provider.Trim().ToUpperInvariant() switch
         {

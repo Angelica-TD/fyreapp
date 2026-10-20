@@ -1,0 +1,11 @@
+@model (string? Text, int? PdfFileId)
+@* A report's ref, linked to its PDF when FyreApp holds a copy *@
+@if (Model.PdfFileId is { } file)
+{
+    <a href="/Files/@file" target="_blank" rel="noopener" title="Open the report PDF">@(Model.Text ?? "Report")</a>
+    <span class="small text-muted">PDF</span>
+}
+else
+{
+    @(Model.Text ?? "—")
+}
