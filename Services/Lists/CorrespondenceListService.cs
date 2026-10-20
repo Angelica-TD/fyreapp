@@ -126,62 +126,93 @@ public partial class CorrespondenceListService : ICorrespondenceListService
         return new CorrespondencePanelVm { Record = record, RecordId = uptickId, Latest = latest, Total = total, Dispatches = rows };
     }
 
-    // The records, with FyreApp's page for those FyreApp has (clients, properties, tasks)
+    // The records FyreApp has a page for, by Uptick endpoint: the page, and the folder an attachment's path names one
+    // by ("reports/<id>/…", "quotes/<id>/…": where Uptick keeps the record's PDF)
+    private sealed record Page(string Resource, string Controller, string Action, string? Folder);
+
+    private static readonly Page[] Pages =
+    [
+        new("clients", "Clients", "Details", null),
+        new("properties", "Property", "Details", null),
+        new("tasks", "Task", "Details", null),
+        new(UptickResources.Reports, "Reports", "Details", "reports"),
+        new(UptickResources.Invoices, "Billing", "Invoice", "invoices"),
+        new(UptickResources.DefectQuotes, "Billing", "Quote", "quotes"),
+        new(UptickResources.ServiceQuotes, "Billing", "SalesQuote", "servicequotes")
+    ];
+
+    // FyreApp's ids of the records of one endpoint it holds, by Uptick id
+    private Task<Dictionary<long, int>> IdsAsync(string resource, List<long> ids, CancellationToken ct) => resource switch
+    {
+        "clients" => IdsAsync(_db.Clients, ids, ct),
+        "properties" => IdsAsync(_db.Properties, ids, ct),
+        "tasks" => IdsAsync(_db.ClientTasks, ids, ct),
+        UptickResources.Reports => IdsAsync(_db.Reports, ids, ct),
+        UptickResources.Invoices => IdsAsync(_db.Invoices, ids, ct),
+        UptickResources.DefectQuotes => IdsAsync(_db.DefectQuotes, ids, ct),
+        UptickResources.ServiceQuotes => IdsAsync(_db.ServiceQuotes, ids, ct),
+        _ => Task.FromResult(new Dictionary<long, int>())
+    };
+
+    private static async Task<Dictionary<long, int>> IdsAsync<T>(IQueryable<T> rows, List<long> ids, CancellationToken ct)
+        where T : class, IUptickMapped =>
+        ids.Count == 0 ? new Dictionary<long, int>()
+        : (await rows.AsNoTracking().Where(r => r.UptickId != null && ids.Contains(r.UptickId.Value))
+            .Select(r => new { UptickId = r.UptickId!.Value, Id = EF.Property<int>(r, "Id") }).ToListAsync(ct))
+        .ToDictionary(r => r.UptickId, r => r.Id);
+
+    // The records, with FyreApp's page for those FyreApp holds
     private async Task<List<RecordLinkVm>> RecordsAsync(IEnumerable<(string Type, long UptickId, string? Name)> records, CancellationToken ct)
     {
         var list = records.DistinctBy(r => (r.Type, r.UptickId)).ToList();
-        List<long> Of(string type) => list.Where(r => r.Type == type).Select(r => r.UptickId).ToList();
-        var (clientIds, propertyIds, taskIds) = (Of("clients"), Of("properties"), Of("tasks"));
-        var clients = clientIds.Count == 0 ? new Dictionary<long, int>()
-            : (await _db.Clients.AsNoTracking().Where(c => c.UptickId != null && clientIds.Contains(c.UptickId.Value))
-                .Select(c => new { UptickId = c.UptickId!.Value, c.Id }).ToListAsync(ct)).ToDictionary(c => c.UptickId, c => c.Id);
-        var properties = propertyIds.Count == 0 ? new Dictionary<long, int>()
-            : (await _db.Properties.AsNoTracking().Where(p => p.UptickId != null && propertyIds.Contains(p.UptickId.Value))
-                .Select(p => new { UptickId = p.UptickId!.Value, p.Id }).ToListAsync(ct)).ToDictionary(p => p.UptickId, p => p.Id);
-        var tasks = taskIds.Count == 0 ? new Dictionary<long, int>()
-            : (await _db.ClientTasks.AsNoTracking().Where(t => t.UptickId != null && taskIds.Contains(t.UptickId.Value))
-                .Select(t => new { UptickId = t.UptickId!.Value, t.Id }).ToListAsync(ct)).ToDictionary(t => t.UptickId, t => t.Id);
+        var held = new Dictionary<string, Dictionary<long, int>>();
+        foreach (var page in Pages)
+            held[page.Resource] = await IdsAsync(page.Resource, list.Where(r => r.Type == page.Resource).Select(r => r.UptickId).ToList(), ct);
 
         return list.Select(r =>
         {
             var kind = Kinds.TryGetValue(r.Type, out var k) ? k : r.Type;
             var name = r.Name ?? $"{kind} {r.UptickId}";
-            var (controller, map) = r.Type switch
-            {
-                "clients" => ("Clients", clients),
-                "properties" => ("Property", properties),
-                "tasks" => ("Task", tasks),
-                _ => ((string?)null, (Dictionary<long, int>?)null)
-            };
-            return map != null && map.TryGetValue(r.UptickId, out var id)
-                ? new RecordLinkVm(kind, name, controller, id)
-                : new RecordLinkVm(kind, name, null, null);
+            return Pages.FirstOrDefault(p => p.Resource == r.Type) is { } page && held[page.Resource].TryGetValue(r.UptickId, out var id)
+                ? new RecordLinkVm(kind, name, page.Controller, page.Action, id)
+                : new RecordLinkVm(kind, name, null, null, null);
         }).ToList();
     }
 
-    [GeneratedRegex(@"^reports/(\d+)/")]
-    private static partial Regex ReportPath();
+    [GeneratedRegex(@"^(reports|invoices|quotes|servicequotes)/(\d+)/")]
+    private static partial Regex PdfPath();
 
-    // Each attachment as FyreApp holds it: a report's page and PDF ("reports/<id>/…"), or the document file at its path.
-    // Invoices' and quotes' PDFs aren't copied yet (docs/uptick-migration.md §8).
+    // An attachment that is a record's PDF: the record's endpoint and Uptick id
+    private static (Page Page, long Id)? PdfOf(string? path) =>
+        path is { } p && PdfPath().Match(p) is { Success: true } m && long.TryParse(m.Groups[2].Value, out var id)
+            && Pages.FirstOrDefault(x => x.Folder == m.Groups[1].Value) is { } page
+            ? (page, id) : null;
+
+    // Each attachment as FyreApp holds it: a report's, invoice's or quote's PDF (its page, and FyreApp's copy), or the
+    // document file at its path
     private async Task<List<AttachmentVm>> AttachmentsAsync(IEnumerable<EmailAttachment> attachments, CancellationToken ct)
     {
         var list = attachments.ToList();
-        var reportIds = list.Select(a => a.Path is { } p && ReportPath().Match(p) is { Success: true } m ? long.Parse(m.Groups[1].Value) : (long?)null)
-            .OfType<long>().Distinct().ToList();
-        var reports = reportIds.Count == 0 ? new Dictionary<long, int>()
-            : (await _db.Reports.AsNoTracking().Where(r => r.UptickId != null && reportIds.Contains(r.UptickId.Value))
-                .Select(r => new { UptickId = r.UptickId!.Value, r.Id }).ToListAsync(ct)).ToDictionary(r => r.UptickId, r => r.Id);
-        var pdfs = await UptickFileLinks.PdfsAsync(_db, UptickResources.Reports, reportIds.Select(i => (long?)i), ct);
-        var paths = list.Select(a => a.Path).OfType<string>().Where(p => !ReportPath().IsMatch(p)).Distinct().ToList();
+        var records = list.Select(a => PdfOf(a.Path)).OfType<(Page Page, long Id)>().Distinct().ToList();
+        var held = new Dictionary<string, Dictionary<long, int>>();
+        var pdfs = new Dictionary<string, Dictionary<long, int>>();
+        foreach (var group in records.GroupBy(r => r.Page.Resource))
+        {
+            var ids = group.Select(r => r.Id).ToList();
+            held[group.Key] = await IdsAsync(group.Key, ids, ct);
+            pdfs[group.Key] = await UptickFileLinks.PdfsAsync(_db, group.Key, ids.Select(i => (long?)i), ct);
+        }
+        var paths = list.Where(a => PdfOf(a.Path) == null).Select(a => a.Path).OfType<string>().Distinct().ToList();
         var files = paths.Count == 0 ? new Dictionary<string, int>()
             : (await _db.UptickFiles.AsNoTracking().Where(f => f.Path != null && paths.Contains(f.Path) && f.StorageKey != null)
                 .Select(f => new { f.Path, f.Id }).ToListAsync(ct)).GroupBy(f => f.Path!).ToDictionary(g => g.Key, g => g.First().Id);
 
         return list.Select(a =>
         {
-            if (a.Path is { } p && ReportPath().Match(p) is { Success: true } m && long.TryParse(m.Groups[1].Value, out var report))
-                return new AttachmentVm(a.Name, reports.TryGetValue(report, out var r) ? r : null, pdfs.TryGetValue(report, out var f) ? f : null);
+            if (PdfOf(a.Path) is var (page, id))
+                return new AttachmentVm(a.Name,
+                    held[page.Resource].TryGetValue(id, out var record) ? new RecordLinkVm(page.Resource, a.Name, page.Controller, page.Action, record) : null,
+                    pdfs[page.Resource].TryGetValue(id, out var pdf) ? pdf : null);
             return new AttachmentVm(a.Name, null, a.Path != null && files.TryGetValue(a.Path, out var file) ? file : null);
         }).ToList();
     }

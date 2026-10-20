@@ -40,11 +40,12 @@ public class CorrespondenceListVm
     public int Pages => ListFilters.Pages(Total);
 }
 
-// A record an email is about, with its FyreApp page (controller and id) when FyreApp has one
-public sealed record RecordLinkVm(string Kind, string Name, string? Controller, int? Id);
+// A record an email is about, with its FyreApp page (controller, action and id) when FyreApp has one
+public sealed record RecordLinkVm(string Kind, string Name, string? Controller, string? Action, int? Id);
 
-// An email's attachment: the report it is (its page), and FyreApp's copy of the file, when FyreApp holds them
-public sealed record AttachmentVm(string Name, int? ReportId, int? FileId);
+// An email's attachment: the record it's the PDF of (a report, invoice or quote: its page), and FyreApp's copy of the
+// file, when FyreApp holds them
+public sealed record AttachmentVm(string Name, RecordLinkVm? Record, int? FileId);
 
 public class CorrespondencePageVm
 {
