@@ -105,6 +105,11 @@ builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreAp
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.RemarkMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.ReportMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.RoutineMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.SubtaskMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.TaskSessionMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.AppointmentMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.AppointmentTechniciansMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.TaskStockTransactionMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.TimelineEventMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.UptickMapping>();
 builder.Services.AddSingleton<FyreApp.Services.Uptick.Migration.UptickMigrationRunner>();

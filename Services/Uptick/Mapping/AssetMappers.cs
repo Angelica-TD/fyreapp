@@ -321,7 +321,7 @@ public class AssetTypeRoutineLinksMapper : IUptickMapper
                 .ToList()
             : [];
 
-    private static void Replace<T>(ICollection<T> current, IReadOnlyCollection<T> wanted)
+    internal static void Replace<T>(ICollection<T> current, IReadOnlyCollection<T> wanted)
     {
         foreach (var gone in current.Where(c => !wanted.Contains(c)).ToList()) current.Remove(gone);
         foreach (var added in wanted.Where(w => !current.Contains(w))) current.Add(added);

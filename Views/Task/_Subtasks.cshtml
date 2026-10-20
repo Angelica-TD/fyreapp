@@ -1,0 +1,34 @@
+@model FyreApp.ViewModels.Tasks.TaskPageVm
+
+@* The task's lines in Uptick: each routine due or product, and whether it's done, reported and billed *@
+@if (Model.Subtasks.Count > 0)
+{
+    <h3 class="h5 mb-2 mt-4">Task lines</h3>
+    <div class="card property-card">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Line</th><th>Done</th><th title="Service task · on the report · billed">Covers</th></tr></thead>
+                <tbody>
+                    @foreach (var s in Model.Subtasks)
+                    {
+                        <tr>
+                            <td>
+                                @if (s.Routine != null)
+                                {
+                                    @s.Routine.Name
+                                    <span class="small text-muted">· due @s.Routine.DueDate.ToOrdinalDate()</span>
+                                }
+                                else
+                                {
+                                    @(s.Product?.Name ?? "-")
+                                }
+                            </td>
+                            <td class="text-nowrap">@(s.IsPerformed ? (s.PerformedDate.ToOrdinalDate() ?? "Yes") : "-")</td>
+                            <td class="small text-muted">@string.Join(" · ", new[] { s.IsServiceTask ? "service" : null, s.IsReportTask ? "report" : null, s.IsBillingTask ? "billing" : null }.OfType<string>())</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

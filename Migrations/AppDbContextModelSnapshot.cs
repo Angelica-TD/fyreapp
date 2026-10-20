@@ -22,6 +22,21 @@ namespace FyreApp.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("AppointmentUptickUser", b =>
+                {
+                    b.Property<int>("AppointmentId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TechniciansId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("AppointmentId", "TechniciansId");
+
+                    b.HasIndex("TechniciansId");
+
+                    b.ToTable("AppointmentTechnicians", (string)null);
+                });
+
             modelBuilder.Entity("AssetAssetType", b =>
                 {
                     b.Property<int>("AssetTypesId")
@@ -228,6 +243,55 @@ namespace FyreApp.Migrations
                         .IsUnique();
 
                     b.ToTable("AspNetUsers", (string)null);
+                });
+
+            modelBuilder.Entity("FyreApp.Models.Appointment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("ClientTaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("EndUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("StartUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientTaskId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.ToTable("Appointments");
                 });
 
             modelBuilder.Entity("FyreApp.Models.Asset", b =>
@@ -2845,6 +2909,61 @@ namespace FyreApp.Migrations
                     b.ToTable("Stocks");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.Subtask", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClientTaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("DeletedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<bool>("IsBillingTask")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPerformed")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsReportTask")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsServiceTask")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("PerformedDate")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RoutineId")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientTaskId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("RoutineId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.ToTable("Subtasks");
+                });
+
             modelBuilder.Entity("FyreApp.Models.Supplier", b =>
                 {
                     b.Property<int>("Id")
@@ -2914,6 +3033,136 @@ namespace FyreApp.Migrations
                         .IsUnique();
 
                     b.ToTable("Suppliers");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.TaskSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClientTaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Cost")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<double?>("FinishedLatitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("FinishedLongitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("FinishedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<decimal?>("Hours")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("numeric(10,4)");
+
+                    b.Property<bool>("IsApproved")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsOnsite")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsSubmitted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Rate")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<double?>("StartedLatitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("StartedLongitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("StartedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<DateTime?>("TrashedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("UptickUserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientTaskId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickUserId");
+
+                    b.ToTable("TaskSessions");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.TaskStockTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClientTaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("CostPrice")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<DateTime?>("CreatedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("OtherType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<long?>("OtherUptickId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(12, 4)
+                        .HasColumnType("numeric(12,4)");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("UptickUserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientTaskId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickUserId");
+
+                    b.ToTable("TaskStockTransactions");
                 });
 
             modelBuilder.Entity("FyreApp.Models.TimelineEvent", b =>
@@ -3525,6 +3774,21 @@ namespace FyreApp.Migrations
                     b.ToTable("PropertyRoutineServiceLevels");
                 });
 
+            modelBuilder.Entity("AppointmentUptickUser", b =>
+                {
+                    b.HasOne("FyreApp.Models.Appointment", null)
+                        .WithMany()
+                        .HasForeignKey("AppointmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.UptickUser", null)
+                        .WithMany()
+                        .HasForeignKey("TechniciansId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("AssetAssetType", b =>
                 {
                     b.HasOne("FyreApp.Models.AssetType", null)
@@ -3603,6 +3867,16 @@ namespace FyreApp.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("UptickUser");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.Appointment", b =>
+                {
+                    b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
+                        .WithMany()
+                        .HasForeignKey("ClientTaskId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("ClientTask");
                 });
 
             modelBuilder.Entity("FyreApp.Models.Asset", b =>
@@ -4154,6 +4428,74 @@ namespace FyreApp.Migrations
                     b.Navigation("ProductRecord");
 
                     b.Navigation("WarehouseRecord");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.Subtask", b =>
+                {
+                    b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
+                        .WithMany()
+                        .HasForeignKey("ClientTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.Routine", "Routine")
+                        .WithMany()
+                        .HasForeignKey("RoutineId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ClientTask");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Routine");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.TaskSession", b =>
+                {
+                    b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
+                        .WithMany()
+                        .HasForeignKey("ClientTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.UptickUser", "UptickUser")
+                        .WithMany()
+                        .HasForeignKey("UptickUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ClientTask");
+
+                    b.Navigation("UptickUser");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.TaskStockTransaction", b =>
+                {
+                    b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
+                        .WithMany()
+                        .HasForeignKey("ClientTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.UptickUser", "UptickUser")
+                        .WithMany()
+                        .HasForeignKey("UptickUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ClientTask");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("UptickUser");
                 });
 
             modelBuilder.Entity("FyreApp.Models.TimelineEvent", b =>

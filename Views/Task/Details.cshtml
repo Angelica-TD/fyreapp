@@ -263,10 +263,19 @@
                 </div>
             }
         </div>
-        <p class="small text-muted">
-            Products, quantities, costs, visit fees, actions and who serviced each asset aren't in Uptick's exports, so they
-            aren't shown here. An asset counts as performed when its last service falls while the task's work was being done.
+        <partial name="_Subtasks" model="Model" />
+        <p class="small text-muted mt-2">
+            An asset counts as performed when its last service falls while the task's work was being done. Time logged and
+            stock used are on the Time and Stock tabs.
         </p>
+    }
+    else if (Model.Tab == "time")
+    {
+        <partial name="_TimeTab" model="Model" />
+    }
+    else if (Model.Tab == "stock")
+    {
+        <partial name="_StockTab" model="Model" />
     }
     else
     {
