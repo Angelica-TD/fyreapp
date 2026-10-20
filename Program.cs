@@ -36,6 +36,7 @@ builder.Services.AddScoped<FyreApp.Services.Assets.IAssetListService, FyreApp.Se
 builder.Services.AddScoped<FyreApp.Services.Lists.IPropertyListService, FyreApp.Services.Lists.PropertyListService>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IRemarkListService, FyreApp.Services.Lists.RemarkListService>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IReportListService, FyreApp.Services.Lists.ReportListService>();
+builder.Services.AddScoped<FyreApp.Services.Lists.ICorrespondenceListService, FyreApp.Services.Lists.CorrespondenceListService>();
 builder.Services.AddScoped<FyreApp.Services.Tasks.ITaskListService, FyreApp.Services.Tasks.TaskListService>();
 builder.Services.AddScoped<FyreApp.Services.Tasks.ITaskPageService, FyreApp.Services.Tasks.TaskPageService>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IDirectoryListService, FyreApp.Services.Lists.DirectoryListService>();
@@ -111,6 +112,9 @@ builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreAp
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.AppointmentMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.AppointmentTechniciansMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.TaskStockTransactionMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.CorrespondenceMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.CorrespondenceLinkMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.DispatchMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.TimelineEventMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.UptickMapping>();
 builder.Services.AddSingleton<FyreApp.Services.Uptick.Migration.UptickMigrationRunner>();

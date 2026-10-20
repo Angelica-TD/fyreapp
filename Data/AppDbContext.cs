@@ -84,6 +84,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<Subtask> Subtasks => Set<Subtask>();
     public DbSet<TaskStockTransaction> TaskStockTransactions => Set<TaskStockTransaction>();
     public DbSet<ReportItem> ReportItems => Set<ReportItem>();
+    public DbSet<Correspondence> Correspondence => Set<Correspondence>();
+    public DbSet<CorrespondenceLink> CorrespondenceLinks => Set<CorrespondenceLink>();
+    public DbSet<Dispatch> Dispatches => Set<Dispatch>();
     public DbSet<UptickRecord> UptickRecords => Set<UptickRecord>();
     public DbSet<UptickEndpointState> UptickEndpointStates => Set<UptickEndpointState>();
     public DbSet<UptickFile> UptickFiles => Set<UptickFile>();
@@ -824,6 +827,32 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(s => s.CreatedUtc).HasColumnType("timestamptz");
             entity.Property(s => s.Quantity).HasPrecision(12, 4);
             entity.Property(s => s.CostPrice).HasPrecision(12, 2);
+        });
+
+        // Uptick's emails, the records each is about, and its dispatches (a task's invoice and reports sent)
+        modelBuilder.Entity<Correspondence>(entity =>
+        {
+            entity.HasIndex(c => c.UptickId).IsUnique();
+            entity.HasIndex(c => c.SentUtc);
+            entity.HasOne(c => c.SentBy).WithMany().HasForeignKey(c => c.SentById).OnDelete(DeleteBehavior.SetNull);
+            entity.Property(c => c.SentUtc).HasColumnType("timestamptz");
+            entity.Property(c => c.Attachments).HasJsonList();
+        });
+        modelBuilder.Entity<CorrespondenceLink>(entity =>
+        {
+            entity.HasIndex(l => l.UptickId).IsUnique();
+            entity.HasIndex(l => new { l.RecordType, l.RecordUptickId });
+            entity.HasOne(l => l.Correspondence).WithMany(c => c.Links).HasForeignKey(l => l.CorrespondenceId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Dispatch>(entity =>
+        {
+            entity.HasIndex(d => d.UptickId).IsUnique();
+            entity.HasOne(d => d.ClientTask).WithMany().HasForeignKey(d => d.ClientTaskId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.Property).WithMany().HasForeignKey(d => d.PropertyId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.Invoice).WithMany().HasForeignKey(d => d.InvoiceId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.Sender).WithMany().HasForeignKey(d => d.SenderId).OnDelete(DeleteBehavior.SetNull);
+            entity.Property(d => d.CreatedUtc).HasColumnType("timestamptz");
+            entity.Property(d => d.Emails).HasJsonList();
         });
 
         // FyreApp refs ("C-1001", "P-1001", ...) are assigned on insert by a Postgres trigger

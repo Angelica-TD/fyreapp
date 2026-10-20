@@ -100,6 +100,7 @@
         }
 
         @await Component.InvokeAsync("UptickFiles", new { resource = "clients", uptickId = c.UptickId })
+        @await Component.InvokeAsync("Correspondence", new { resource = "clients", uptickId = c.UptickId })
         @await Component.InvokeAsync("UptickRecord", new { resource = "clients", uptickId = c.UptickId })
 
         <div class="d-flex justify-content-between mt-3">

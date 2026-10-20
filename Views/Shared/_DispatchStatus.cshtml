@@ -1,0 +1,6 @@
+@model string?
+
+@* A dispatch's status as Uptick shows it *@
+@if (Model == "SENT") { <span class="badge bg-success">Sent</span> }
+else if (Model == "FAILED") { <span class="badge bg-danger">Failed</span> }
+else if (!string.IsNullOrEmpty(Model)) { <span class="badge bg-secondary">@(Model[..1] + Model[1..].ToLowerInvariant())</span> }
