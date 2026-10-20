@@ -62,6 +62,7 @@ public class UptickCoreRecordsTests
             new DefectQuoteMapper(db), new ServiceQuoteMapper(db), new InvoiceMapper(db), new CreditNoteMapper(db), new DynamicFormResponseMapper(db), new RemarkMapper(db),
             new ReportMapper(db), new ReportItemMapper(db), new RoutineMapper(db),
             new SubtaskMapper(db), new TaskSessionMapper(db), new AppointmentMapper(db), new AppointmentTechniciansMapper(db), new TaskStockTransactionMapper(db),
+            new CorrespondenceMapper(db), new CorrespondenceLinkMapper(db), new DispatchMapper(db),
             new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
@@ -657,6 +658,88 @@ public class UptickCoreRecordsTests
         Assert.Equal(("Pass", "Wes Speedon (Field Tech)"), (line.Result, line.Technician!.Name));
         Assert.Equal(("2.5kg ABE Extinguisher", 1m), Assert.Single(used));
         Assert.Equal(report.Id, Assert.Single(vm.ReportLines).ReportId);
+    }
+
+    [Fact]
+    public async Task Emails_are_mapped_with_the_records_they_are_about_and_a_tasks_dispatches()
+    {
+        await using var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"),
+            RawUser("3", "Office", "admin@fyrepower.com.au", "OFFICE"), RawTask("46781", "1491"),
+            Raw("reports", "53286", """{"ref":"R-53286","title":"Service Report","issued":"2026-10-15"}""",
+                "{\"task\":" + To("Task", "46781") + ",\"property\":" + To("Property", "1491") + "}"),
+            Raw("contenttypes", "15", """{"app_label":"clients","model":"client"}"""),
+            Raw("contenttypes", "28", """{"app_label":"tasks","model":"task"}"""),
+            Raw("contenttypes", "84", """{"app_label":"billing","model":"invoice"}"""),
+            Raw("contenttypes", "90", """{"app_label":"issuance","model":"issuance"}"""),
+            Raw("correspondence", "62559", """
+                {"subject":"Service at Big River (P-0016)","from_str":"\"Fyrepower via Uptick\" <no-reply@fyrepower.onuptick.com>",
+                 "from_name":"Fyrepower via Uptick","to_str":"anita@alliedx.com.au","cc_str":"","bcc":["office@fyrepower.com.au"],
+                 "reply_to_str":"admin@fyrepower.com.au","created":"2026-10-15T15:22:52+11:00","is_starred":false,
+                 "body_html":"<p>Dear Belinda,</p>",
+                 "attachments":{"P-0016-Service Report.pdf":"reports/53286/P-0016-Service Report.pdf","IV000032831.pdf":"invoices/52965/IV000032831.pdf",
+                                "Pumpsets_Monthly.pdf":"https://uptick-logbooks.s3.amazonaws.com/media/a.pdf?X-Amz-Signature=abc"}}
+                """, "{\"sent_by\":" + To("User", "3") + "}"),
+            Raw("correspondence", "62560", """{"subject":"RE: Service","from_str":"Belinda <anita@alliedx.com.au>","created":"2026-10-16T09:00:00+11:00","body_html":"<p>Thanks</p>","attachments":{}}""",
+                """{"sent_by":{"data":null}}"""),
+            Raw("correspondenceobjectlinks", "1", """{"name":"Allied","object_id":2806}""",
+                "{\"correspondence\":" + To("Correspondence", "62559") + ",\"object_contenttype\":" + To("ContentType", "15") + "}"),
+            Raw("correspondenceobjectlinks", "2", """{"name":"T-46781","object_id":46781}""",
+                "{\"correspondence\":" + To("Correspondence", "62559") + ",\"object_contenttype\":" + To("ContentType", "28") + "}"),
+            Raw("correspondenceobjectlinks", "3", """{"name":"IV000032831","object_id":52965}""",
+                "{\"correspondence\":" + To("Correspondence", "62559") + ",\"object_contenttype\":" + To("ContentType", "84") + "}"),
+            Raw("correspondenceobjectlinks", "4", """{"name":"DIS-52042","object_id":52042}""",
+                "{\"correspondence\":" + To("Correspondence", "62559") + ",\"object_contenttype\":" + To("ContentType", "90") + "}"),
+            Raw("correspondenceobjectlinks", "5", """{"name":"T-46781","object_id":46781}""",
+                "{\"correspondence\":" + To("Correspondence", "62560") + ",\"object_contenttype\":" + To("ContentType", "28") + "}"),
+            Raw("correspondenceobjectlinks", "6", """{"name":"Gone","object_id":1}""",
+                "{\"correspondence\":" + To("Correspondence", "99999") + ",\"object_contenttype\":" + To("ContentType", "28") + "}"),
+            Raw("dispatches", "52042", """
+                {"ref":"DIS-52042","status":"SENT","__str__":"52042: PM2026/10 Servicing","created":"2026-10-15T15:22:52+11:00","issue_invoice":true,
+                 "email_data":[{"id":0,"to":["anita@alliedx.com.au"],"cc":[],"bcc":[],"from":"Fyrepower via Uptick","reply_to":"admin@fyrepower.com.au",
+                   "subject":"Service at Big River (P-0016)","attention":"Belinda Boyd","body_html":"<p>Dear Belinda,</p>",
+                   "attachments":[{"name":"P-0016-Service Report.pdf","path":"reports/None/P-0016-Service Report.pdf","type":"application/pdf","objects":["Report:53286"]}]}]}
+                """, "{\"task\":" + To("Task", "46781") + ",\"sender\":" + To("User", "3") + ",\"invoice\":" + To("Invoice", "52965") + ",\"property\":" + To("Property", "1491") + "}"));
+        db.UptickFiles.Add(new UptickFile
+        {
+            Source = "reports", SourceId = "53286", RecordType = "reports", RecordUptickId = 53286, Kind = FyreApp.Services.Uptick.Files.UptickFilePaths.Pdf, StorageKey = "uptick/reports/53286.pdf"
+        });
+        await db.SaveChangesAsync();
+
+        var results = await MapAllAsync(db);
+        Assert.Contains("6: Its email (99999) isn't in FyreApp.", results["correspondenceobjectlinks"].MapErrors);
+
+        var email = await db.Correspondence.SingleAsync(c => c.UptickId == 62559);
+        Assert.Equal(("anita@alliedx.com.au", "office@fyrepower.com.au", "Office", new DateTime(2026, 10, 15, 4, 22, 52, DateTimeKind.Utc)),
+            (email.To, email.Bcc, (await db.UptickUsers.FindAsync(email.SentById))!.Name, email.SentUtc!.Value));
+        // A link out of Uptick is kept without its signature
+        Assert.Equal("https://uptick-logbooks.s3.amazonaws.com/media/a.pdf", email.Attachments.Single(a => a.Name == "Pumpsets_Monthly.pdf").Path);
+
+        var service = new FyreApp.Services.Lists.CorrespondenceListService(db);
+        var page = (await service.DetailsAsync(email.Id))!;
+        var task = await db.ClientTasks.SingleAsync();
+        Assert.Equal([("Client", "Allied", "Clients"), ("Task", "T-46781", "Task"), ("Invoice", "IV000032831", null), ("Dispatch", "DIS-52042", null)],
+            page.Records.Select(r => (r.Kind, r.Name, r.Controller)));
+        Assert.Equal(task.Id, page.Records[1].Id);
+        var report = await db.Reports.SingleAsync();
+        var pdf = await db.UptickFiles.SingleAsync();
+        var attached = page.Attachments.Single(a => a.Name == "P-0016-Service Report.pdf");
+        Assert.Equal((report.Id, pdf.Id), (attached.ReportId!.Value, attached.FileId!.Value));
+        Assert.Equal(("DIS-52042", "SENT"), (page.Dispatch!.Ref, page.Dispatch.Status));
+
+        var panel = await service.PanelAsync("tasks", 46781, 10);
+        Assert.Equal(2, panel.Total);
+        Assert.Equal(["RE: Service", "Service at Big River (P-0016)"], panel.Latest.Select(c => c.Subject));
+        var (dispatch, emailId, attachments) = Assert.Single(panel.Dispatches);
+        Assert.Equal((task.Id, "Office", true, email.Id), (dispatch.ClientTaskId!.Value, dispatch.Sender!.Name, dispatch.IssueInvoice, emailId!.Value));
+        Assert.Equal(["anita@alliedx.com.au"], Assert.Single(dispatch.Emails).To);
+        // The report not yet issued when the dispatch was made is found by its object
+        Assert.Equal((report.Id, pdf.Id), (Assert.Single(attachments).ReportId!.Value, attachments[0].FileId!.Value));
+
+        var list = await service.SearchAsync(new FyreApp.ViewModels.Lists.CorrespondenceFilter { Record = "clients", RecordId = 2806 });
+        Assert.Equal((1, "Allied", "Clients"), (list.Total, list.RecordLink!.Name, list.RecordLink.Controller));
+        Assert.Equal(3, list.Items[0].Attachments);
+        Assert.Equal(1, (await service.SearchAsync(new FyreApp.ViewModels.Lists.CorrespondenceFilter { Search = "re: serv" })).Total);
     }
 
     [Fact]

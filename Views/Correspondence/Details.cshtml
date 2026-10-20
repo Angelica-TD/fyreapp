@@ -1,0 +1,100 @@
+@model FyreApp.ViewModels.Lists.CorrespondencePageVm
+
+@* One email from Uptick: who it was from and to, what it's about, its attachments, then the email itself *@
+@{
+    var c = Model.Email;
+    ViewData["Title"] = c.Subject ?? "Email";
+    string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
+    // The email is shown in a sandboxed frame: no scripts, no forms, nothing from FyreApp's origin; only images and
+    // styles load, and links open in a new tab
+    const string Guard = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src https: data:; style-src 'unsafe-inline' https:; font-src https: data:\">"
+                         + "<base target=\"_blank\">";
+}
+
+<div class="property-page">
+    <h1 class="h4 mb-3">@(c.Subject ?? "(no subject)")</h1>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card property-card">
+                <div class="card-body">
+                    <dl class="row property-facts mb-0">
+                        <dt class="col-4">Sent</dt>
+                        <dd class="col-8">@(c.SentUtc?.ToSydney().ToOrdinalDateTime() ?? "-")</dd>
+                        <dt class="col-4">From</dt>
+                        <dd class="col-8 text-break">@Dash(c.From)</dd>
+                        <dt class="col-4">To</dt>
+                        <dd class="col-8 text-break">@Dash(c.To)</dd>
+                        @if (!string.IsNullOrWhiteSpace(c.Cc))
+                        {
+                            <dt class="col-4">Cc</dt>
+                            <dd class="col-8 text-break">@c.Cc</dd>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(c.Bcc))
+                        {
+                            <dt class="col-4">Bcc</dt>
+                            <dd class="col-8 text-break">@c.Bcc</dd>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(c.ReplyTo))
+                        {
+                            <dt class="col-4">Reply to</dt>
+                            <dd class="col-8 text-break">@c.ReplyTo</dd>
+                        }
+                        @if (c.SentBy != null)
+                        {
+                            <dt class="col-4">Sent by</dt>
+                            <dd class="col-8">@c.SentBy.Name</dd>
+                        }
+                        @if (Model.Dispatch is { } d)
+                        {
+                            <dt class="col-4">Dispatch</dt>
+                            <dd class="col-8">@d.Ref <partial name="_DispatchStatus" model="d.Status" /></dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+
+            @if (Model.Records.Count > 0)
+            {
+                <div class="card property-card mt-3">
+                    <div class="card-header"><span>About</span></div>
+                    <ul class="list-group list-group-flush">
+                        @foreach (var r in Model.Records)
+                        {
+                            <li class="list-group-item d-flex justify-content-between gap-2">
+                                <span class="text-muted small">@r.Kind</span>
+                                @if (r.Controller != null) { <a asp-controller="@r.Controller" asp-action="Details" asp-route-id="@r.Id">@r.Name</a> }
+                                else { <span>@r.Name</span> }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            @if (Model.Attachments.Count > 0)
+            {
+                <div class="card property-card mt-3">
+                    <div class="card-header"><span>Attachments</span></div>
+                    <div class="card-body small"><partial name="_AttachmentLinks" model="Model.Attachments" /></div>
+                </div>
+            }
+
+            @await Component.InvokeAsync("UptickRecord", new { resource = "correspondence", uptickId = c.UptickId })
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card property-card">
+                @if (string.IsNullOrWhiteSpace(c.BodyHtml))
+                {
+                    <div class="card-body text-muted">The email has no body in Uptick.</div>
+                }
+                else
+                {
+                    <iframe title="The email" class="w-100 border-0 rounded bg-white" style="height: 75vh"
+                            sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"
+                            srcdoc="@(Guard + c.BodyHtml)"></iframe>
+                }
+            </div>
+        </div>
+    </div>
+</div>

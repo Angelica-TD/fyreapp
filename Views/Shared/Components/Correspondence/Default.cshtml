@@ -1,0 +1,42 @@
+@model FyreApp.ViewModels.Lists.CorrespondencePanelVm
+
+@* A task's dispatches (its invoice and reports sent to the customer), then a record's emails in Uptick, newest first *@
+@if (Model.Dispatches.Count > 0)
+{
+    <div class="card property-card mt-3">
+        <div class="card-header"><span>Sent to the customer</span></div>
+        <ul class="list-group list-group-flush">
+            @foreach (var (d, emailId, attachments) in Model.Dispatches)
+            {
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between gap-2">
+                        <span>
+                            @if (emailId is { } e) { <a asp-controller="Correspondence" asp-action="Details" asp-route-id="@e">@d.Ref</a> }
+                            else { @d.Ref }
+                            <partial name="_DispatchStatus" model="d.Status" />
+                        </span>
+                        <span class="small text-muted text-nowrap">@(d.CreatedUtc?.ToSydney().ToOrdinalDateTime())</span>
+                    </div>
+                    <div class="small text-muted text-break">
+                        To @string.Join(", ", d.Emails.SelectMany(m => m.To).Distinct())@(d.Sender != null ? $" · by {d.Sender.Name}" : "")
+                    </div>
+                    @if (attachments.Count > 0) { <div class="small mt-1"><partial name="_AttachmentLinks" model="attachments" /></div> }
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+@if (Model.Total > 0)
+{
+    <div class="card property-card mt-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Correspondence <span class="small text-muted ms-1">@Model.Total.ToString("N0")</span></span>
+            @if (Model.Total > Model.Latest.Count)
+            {
+                <a class="small" asp-controller="Correspondence" asp-action="Index" asp-route-record="@Model.Record" asp-route-recordId="@Model.RecordId">All @Model.Total.ToString("N0") emails</a>
+            }
+        </div>
+        <partial name="~/Views/Correspondence/_Rows.cshtml" model="Model.Latest" />
+    </div>
+}
