@@ -1325,7 +1325,6 @@ namespace FyreApp.Migrations
                 });
 
             modelBuilder.Entity("FyreApp.Models.DefectQuoteLine", b =>
-            modelBuilder.Entity("FyreApp.Models.Dispatch", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1374,6 +1373,34 @@ namespace FyreApp.Migrations
                     b.Property<decimal?>("UnitPrice")
                         .HasPrecision(14, 4)
                         .HasColumnType("numeric(14,4)");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("DefectQuoteId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("RemarkId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.ToTable("DefectQuoteLines");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.Dispatch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
                     b.Property<int?>("ClientTaskId")
                         .HasColumnType("integer");
 
@@ -1413,13 +1440,6 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AssetId");
-
-                    b.HasIndex("DefectQuoteId");
-
-                    b.HasIndex("ProductId");
-
-                    b.HasIndex("RemarkId");
                     b.HasIndex("ClientTaskId");
 
                     b.HasIndex("InvoiceId");
@@ -1431,7 +1451,6 @@ namespace FyreApp.Migrations
                     b.HasIndex("UptickId")
                         .IsUnique();
 
-                    b.ToTable("DefectQuoteLines");
                     b.ToTable("Dispatches");
                 });
 
@@ -4533,6 +4552,8 @@ namespace FyreApp.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("Remark");
+                });
+
             modelBuilder.Entity("FyreApp.Models.Dispatch", b =>
                 {
                     b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
