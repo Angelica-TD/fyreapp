@@ -63,7 +63,7 @@
                         {
                             <li class="list-group-item d-flex justify-content-between gap-2">
                                 <span class="text-muted small">@r.Kind</span>
-                                @if (r.Controller != null) { <a asp-controller="@r.Controller" asp-action="Details" asp-route-id="@r.Id">@r.Name</a> }
+                                @if (r.Controller != null) { <a asp-controller="@r.Controller" asp-action="@r.Action" asp-route-id="@r.Id">@r.Name</a> }
                                 else { <span>@r.Name</span> }
                             </li>
                         }

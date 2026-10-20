@@ -583,7 +583,8 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      (`/Correspondence`, searchable, or one record's: `?record=clients&recordId=846`), an email's page (its records,
      its attachments: a report links to its page and PDF, a document file to FyreApp's copy; the email in a sandboxed
      frame with no scripts), and a Correspondence panel on client, property and task pages, the task's with its
-     dispatches ("Sent to the customer", sent or failed). Admins only. Invoices' and quotes' PDFs attached come in 8d.
+     dispatches ("Sent to the customer", sent or failed). Admins only. An attached report, invoice or quote PDF links to
+     its page and FyreApp's copy; invoice, quote and sales quote pages have the panel too.
    - 8d (done): `defectquotelineitems` → DefectQuoteLine (product, asset, remark, quantity, prices), `invoicelineitems`
      → InvoiceLine (with its account code), Uptick's three sales quote line endpoints → ServiceQuoteLine by kind
      (`product`; `fixed` and `doandcharge`, a routine service priced by the year; each endpoint's ids are its own, so

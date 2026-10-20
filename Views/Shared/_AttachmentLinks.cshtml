@@ -1,13 +1,14 @@
 @model IReadOnlyList<FyreApp.ViewModels.Lists.AttachmentVm>
 
-@* An email's attachments: a report links to its page, and to FyreApp's copy of the file when there is one *@
+@* An email's attachments: a report's, invoice's or quote's PDF links to its page, and to FyreApp's copy of the file when
+   there is one *@
 @foreach (var a in Model)
 {
     <div class="text-nowrap">
         <i class="bi bi-paperclip text-muted"></i>
-        @if (a.ReportId is { } report)
+        @if (a.Record is { } record)
         {
-            <a asp-controller="Reports" asp-action="Details" asp-route-id="@report">@a.Name</a>
+            <a asp-controller="@record.Controller" asp-action="@record.Action" asp-route-id="@record.Id">@a.Name</a>
             @if (a.FileId is { } pdf) { <a class="small ms-1" href="/Files/@pdf" target="_blank" rel="noopener">PDF</a> }
         }
         else if (a.FileId is { } file)

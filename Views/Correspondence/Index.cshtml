@@ -14,7 +14,7 @@
             {
                 <span class="fw-normal text-muted">·
                     @r.Kind
-                    @if (r.Controller != null) { <a asp-controller="@r.Controller" asp-action="Details" asp-route-id="@r.Id">@r.Name</a> }
+                    @if (r.Controller != null) { <a asp-controller="@r.Controller" asp-action="@r.Action" asp-route-id="@r.Id">@r.Name</a> }
                     else { @r.Name }
                 </span>
             }

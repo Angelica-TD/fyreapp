@@ -670,6 +670,8 @@ public class UptickCoreRecordsTests
             RawUser("3", "Office", "admin@fyrepower.com.au", "OFFICE"), RawTask("46781", "1491"),
             Raw("reports", "53286", """{"ref":"R-53286","title":"Service Report","issued":"2026-10-15"}""",
                 "{\"task\":" + To("Task", "46781") + ",\"property\":" + To("Property", "1491") + "}"),
+            Raw("invoices", "52965", """{"number":"IV000032831","status":"AUTHORISED"}""",
+                "{\"task\":" + To("Task", "46781") + ",\"property\":" + To("Property", "1491") + "}"),
             Raw("contenttypes", "15", """{"app_label":"clients","model":"client"}"""),
             Raw("contenttypes", "28", """{"app_label":"tasks","model":"task"}"""),
             Raw("contenttypes", "84", """{"app_label":"billing","model":"invoice"}"""),
@@ -720,13 +722,19 @@ public class UptickCoreRecordsTests
         var service = new FyreApp.Services.Lists.CorrespondenceListService(db);
         var page = (await service.DetailsAsync(email.Id))!;
         var task = await db.ClientTasks.SingleAsync();
-        Assert.Equal([("Client", "Allied", "Clients"), ("Task", "T-46781", "Task"), ("Invoice", "IV000032831", null), ("Dispatch", "DIS-52042", null)],
-            page.Records.Select(r => (r.Kind, r.Name, r.Controller)));
+        Assert.Equal([("Client", "Allied", "Clients", "Details"), ("Task", "T-46781", "Task", "Details"), ("Invoice", "IV000032831", "Billing", "Invoice"),
+                ("Dispatch", "DIS-52042", null, null)],
+            page.Records.Select(r => (r.Kind, r.Name, r.Controller, r.Action)));
         Assert.Equal(task.Id, page.Records[1].Id);
         var report = await db.Reports.SingleAsync();
         var pdf = await db.UptickFiles.SingleAsync();
         var attached = page.Attachments.Single(a => a.Name == "P-0016-Service Report.pdf");
-        Assert.Equal((report.Id, pdf.Id), (attached.ReportId!.Value, attached.FileId!.Value));
+        Assert.Equal((report.Id, "Reports", pdf.Id), (attached.Record!.Id!.Value, attached.Record.Controller, attached.FileId!.Value));
+        // An invoice's PDF links to the invoice's page (its file isn't copied here)
+        var invoice = await db.Invoices.SingleAsync();
+        var invoicePdf = page.Attachments.Single(a => a.Name == "IV000032831.pdf");
+        Assert.Equal((invoice.Id, "Invoice", (int?)null), (invoicePdf.Record!.Id!.Value, invoicePdf.Record.Action, invoicePdf.FileId));
+        Assert.Null(page.Attachments.Single(a => a.Name == "Pumpsets_Monthly.pdf").Record);
         Assert.Equal(("DIS-52042", "SENT"), (page.Dispatch!.Ref, page.Dispatch.Status));
 
         var panel = await service.PanelAsync("tasks", 46781, 10);
@@ -736,7 +744,7 @@ public class UptickCoreRecordsTests
         Assert.Equal((task.Id, "Office", true, email.Id), (dispatch.ClientTaskId!.Value, dispatch.Sender!.Name, dispatch.IssueInvoice, emailId!.Value));
         Assert.Equal(["anita@alliedx.com.au"], Assert.Single(dispatch.Emails).To);
         // The report not yet issued when the dispatch was made is found by its object
-        Assert.Equal((report.Id, pdf.Id), (Assert.Single(attachments).ReportId!.Value, attachments[0].FileId!.Value));
+        Assert.Equal((report.Id, pdf.Id), (Assert.Single(attachments).Record!.Id!.Value, attachments[0].FileId!.Value));
 
         var list = await service.SearchAsync(new FyreApp.ViewModels.Lists.CorrespondenceFilter { Record = "clients", RecordId = 2806 });
         Assert.Equal((1, "Allied", "Clients"), (list.Total, list.RecordLink!.Name, list.RecordLink.Controller));
