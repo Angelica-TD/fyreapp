@@ -525,6 +525,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(t => t.ExternalId).IsUnique();
             entity.HasIndex(t => t.UptickId).IsUnique();
             entity.Property(t => t.Active).HasDefaultValue(true).HasSentinel(true);
+            entity.HasMany(t => t.ApplicableRoutineTypes).WithMany().UsingEntity(j => j.ToTable("AssetTypeApplicableRoutines"));
+            entity.HasMany(t => t.ExcludedRoutineLevels).WithMany().UsingEntity(j => j.ToTable("AssetTypeExcludedRoutineLevels"));
         });
 
         modelBuilder.Entity<AssetTypeVariant>(entity =>

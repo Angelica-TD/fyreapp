@@ -40,4 +40,9 @@ public class AssetType : IUptickMapped
     public ICollection<Asset> Assets { get; set; } = new List<Asset>();
 
     public ICollection<AssetTypeVariant> Variants { get; set; } = new List<AssetTypeVariant>();
+
+    // The routines its assets are serviced under, and levels of them they're left out of (Uptick's "Applicable
+    // routines" and "Excluded routine levels")
+    public ICollection<RoutineServiceType> ApplicableRoutineTypes { get; set; } = new List<RoutineServiceType>();
+    public ICollection<RoutineServiceLevel> ExcludedRoutineLevels { get; set; } = new List<RoutineServiceLevel>();
 }

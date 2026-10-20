@@ -38,6 +38,19 @@ public static class UptickEndpoints
     // Parent endpoint, the child's filter and relationship naming it, and the amounts children add up to
     internal sealed record PerParent(string Parent, string Filter, string ParentAmount, string ChildAmount);
 
+    // To-many relationships, which Uptick's list responses leave out: fetched again asking for just those and
+    // kept as their own raw records, "<endpoint>.links", one per record (docs/uptick-migration.md §4.6). Added as FyreApp needs them.
+    internal static readonly Dictionary<string, Links> WithLinks = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Which routines an asset type is serviced under, and the levels it's left out of
+        ["assettypes"] = new("AssetType", ["applicable_routines", "excluded_routinelevels"])
+    };
+
+    // The JSON:API type and its to-many relationships
+    internal sealed record Links(string Type, string[] Names);
+
+    public const string LinksSuffix = ".links";
+
     public static bool IsExcluded(string resource) => Excluded.ContainsKey(resource);
 
     public static string? WhyExcluded(string resource) => Excluded.GetValueOrDefault(resource);

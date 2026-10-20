@@ -25,9 +25,10 @@ public interface IUptickApiClient
     Task<IReadOnlyList<string>> ListEndpointsAsync(CancellationToken ct = default);
 
     // Every record of an endpoint (changed since a time, and matching a filter such as invoice=129, when given),
-    // a page at a time
+    // a page at a time. With fields, only those of each record (fields[AssetType]=applicable_routines): the way to
+    // get to-many relationships, which list responses leave out.
     IAsyncEnumerable<UptickPage> ListAsync(string endpoint, DateTime? updatedSinceUtc = null, (string Field, string Value)? filter = null,
-        CancellationToken ct = default);
+        (string Type, string Names)? fields = null, CancellationToken ct = default);
 }
 
 public class UptickApiClient : IUptickApiClient
@@ -93,7 +94,8 @@ public class UptickApiClient : IUptickApiClient
     }
 
     public async IAsyncEnumerable<UptickPage> ListAsync(string endpoint, DateTime? updatedSinceUtc = null,
-        (string Field, string Value)? filter = null, [EnumeratorCancellation] CancellationToken ct = default)
+        (string Field, string Value)? filter = null, (string Type, string Names)? fields = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
     {
         var offset = 0;
         while (true)
@@ -104,6 +106,8 @@ public class UptickApiClient : IUptickApiClient
                 query += "&updatedsince=" + Uri.EscapeDataString(since.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"));
             if (filter is { } f)
                 query += $"&{Uri.EscapeDataString(f.Field)}={Uri.EscapeDataString(f.Value)}";
+            if (fields is { } only)
+                query += $"&fields%5B{Uri.EscapeDataString(only.Type)}%5D={Uri.EscapeDataString(only.Names)}";
 
             using var doc = JsonDocument.Parse(await GetAsync(new Uri(Root, $"{endpoint.Trim('/')}/?{query}"), ct));
             var root = doc.RootElement;

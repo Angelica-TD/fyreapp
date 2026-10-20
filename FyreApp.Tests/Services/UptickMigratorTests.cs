@@ -42,12 +42,15 @@ public class UptickMigratorTests
         public Task<IReadOnlyList<string>> ListEndpointsAsync(CancellationToken ct = default)
         {
             Requests++;
-            return Task.FromResult<IReadOnlyList<string>>(Endpoints.Keys.ToList());
+            // Links are asked for with fields on their endpoint, not listed
+            return Task.FromResult<IReadOnlyList<string>>(Endpoints.Keys.Where(k => !k.EndsWith(".links")).ToList());
         }
 
         public async IAsyncEnumerable<UptickPage> ListAsync(string endpoint, DateTime? updatedSinceUtc = null,
-            (string Field, string Value)? filter = null, [EnumeratorCancellation] CancellationToken ct = default)
+            (string Field, string Value)? filter = null, (string Type, string Names)? fields = null,
+            [EnumeratorCancellation] CancellationToken ct = default)
         {
+            if (fields != null) endpoint += FyreApp.Services.Uptick.Migration.UptickEndpoints.LinksSuffix;
             Calls.Add((endpoint, updatedSinceUtc));
             if (Fail.TryGetValue(endpoint, out var status)) throw new UptickApiException(status, $"Uptick returned {status}.");
 
@@ -297,12 +300,43 @@ public class UptickMigratorTests
     {
         await using var db = DbContextFactory.Create();
         var api = new FakeApi();
-        api.Endpoints["assettypes"] = [Asset(1, daysAgo: 300), Asset(2, daysAgo: 300)];
+        api.Endpoints["products"] = [Asset(1, daysAgo: 300), Asset(2, daysAgo: 300)];
 
         var run = await Migrator(db, api).Migrator.RunAsync(UptickRunKind.Full, null, null);
 
         Assert.Contains("Not checked", Report(run).Single().IncrementalNote);
         Assert.Single(api.Calls); // no extra request
+    }
+
+    private static UptickResource Links(int id, params int[] routines) =>
+        new("AssetType", id.ToString(), "{}",
+            JsonSerializer.Serialize(new
+            {
+                applicable_routines = new { data = routines.Select(r => new { type = "RoutineServiceType", id = r.ToString() }) },
+                excluded_routinelevels = new { data = Array.Empty<object>() }
+            }), null, null);
+
+    [Fact]
+    public async Task An_endpoints_to_many_links_are_copied_as_their_own_records_every_run()
+    {
+        await using var db = DbContextFactory.Create();
+        var api = new FakeApi();
+        api.Endpoints["assettypes"] = [Asset(1), Asset(2)];
+        api.Endpoints["assettypes.links"] = [Links(1, 18), Links(2, 26)];
+        var (migrator, clock) = Migrator(db, api);
+
+        var run = await migrator.RunAsync(UptickRunKind.Full, null, null);
+
+        var links = Report(run).Single(r => r.Resource == "assettypes.links");
+        Assert.Equal(("Ok", 2, 2), (links.Status, links.Created, links.Copied));
+        Assert.Contains("\"18\"", (await db.UptickRecords.SingleAsync(r => r.Resource == "assettypes.links" && r.UptickId == "1")).Relationships);
+
+        // A refresh asks for them all again: a link can change without the type's "updated" moving
+        api.Endpoints["assettypes.links"] = [Links(1, 18, 30)];
+        clock.Now = Now.AddHours(1);
+        var refresh = Report(await migrator.RunAsync(UptickRunKind.Refresh, null, null)).Single(r => r.Resource == "assettypes.links");
+        Assert.Equal((1, 1), (refresh.Updated, refresh.Deleted));
+        Assert.NotNull((await db.UptickRecords.SingleAsync(r => r.Resource == "assettypes.links" && r.UptickId == "2")).DeletedUtc);
     }
 
     [Fact]

@@ -177,9 +177,14 @@ public class UptickMigrator
             }
 
             var number = i + 1;
-            results.Add(await MigrateEndpointAsync(state, kind,
+            var result = await MigrateEndpointAsync(state, kind,
                 p => progress?.Report(new UptickProgress(state.Resource, number, todo.Count, p.Received, p.Total, _api.Requests, _api.Throttled)),
-                ct));
+                ct);
+            results.Add(result);
+            if (UptickEndpoints.WithLinks.TryGetValue(state.Resource, out var links) && result.Status is "Ok" or "Empty")
+                results.Add(await MigrateLinksAsync(state.Resource, links,
+                    p => progress?.Report(new UptickProgress(state.Resource + UptickEndpoints.LinksSuffix, number, todo.Count, p.Received, p.Total, _api.Requests, _api.Throttled)),
+                    ct));
         }
 
         await MapWaitingAsync(results, progress, ct);
@@ -326,6 +331,52 @@ public class UptickMigrator
         await _db.SaveChangesAsync(CancellationToken.None);
         _db.ChangeTracker.Clear();
 
+        result.Requests = _api.Requests - requestsBefore;
+        result.Seconds = Math.Round((Now - started).TotalSeconds, 1);
+        return result;
+    }
+
+    // An endpoint's to-many relationships (UptickEndpoints.WithLinks), all of them every run: a change to them
+    // needn't move the record's "updated". Kept as "<endpoint>.links"; one no longer returned is marked deleted.
+    private async Task<UptickEndpointResult> MigrateLinksAsync(string resource, UptickEndpoints.Links links,
+        Action<(int Received, int? Total)> report, CancellationToken ct)
+    {
+        var linksResource = resource + UptickEndpoints.LinksSuffix;
+        var result = new UptickEndpointResult { Resource = linksResource };
+        var requestsBefore = _api.Requests;
+        var started = Now;
+        try
+        {
+            var pull = new Pull();
+            await foreach (var page in _api.ListAsync(resource, fields: (links.Type, string.Join(',', links.Names)), ct: ct))
+            {
+                result.UptickCount ??= page.Count;
+                await StorePageAsync(linksResource, page.Records, started, result, pull, ct);
+                report((pull.Received, result.UptickCount));
+            }
+            result.Received = pull.Received;
+            result.Unchanged = Math.Max(0, pull.Received - result.Created - result.Updated - result.Restored);
+
+            var incomplete = result.UptickCount is { } count && pull.Received < count;
+            if (!incomplete)
+            {
+                var gone = await _db.UptickRecords.AsNoTracking()
+                    .Where(r => r.Resource == linksResource && r.DeletedUtc == null && r.SeenUtc < started)
+                    .Select(r => r.UptickId)
+                    .ToListAsync(ct);
+                await MarkDeletedAsync(linksResource, gone, result, ct);
+            }
+            result.Status = incomplete ? "Incomplete" : result.Received == 0 ? "Empty" : "Ok";
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not UptickRateLimitedException)
+        {
+            _logger.LogWarning(ex, "Uptick links {Resource} failed", linksResource);
+            result.Status = "Failed";
+            result.Error = ex.Message;
+        }
+
+        _db.ChangeTracker.Clear();
+        result.Copied = await _db.UptickRecords.CountAsync(r => r.Resource == linksResource && r.DeletedUtc == null, CancellationToken.None);
         result.Requests = _api.Requests - requestsBefore;
         result.Seconds = Math.Round((Now - started).TotalSeconds, 1);
         return result;

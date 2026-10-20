@@ -37,6 +37,36 @@ namespace FyreApp.Migrations
                     b.ToTable("AssetAssetTypes", (string)null);
                 });
 
+            modelBuilder.Entity("AssetTypeRoutineServiceLevel", b =>
+                {
+                    b.Property<int>("AssetTypeId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ExcludedRoutineLevelsId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("AssetTypeId", "ExcludedRoutineLevelsId");
+
+                    b.HasIndex("ExcludedRoutineLevelsId");
+
+                    b.ToTable("AssetTypeExcludedRoutineLevels", (string)null);
+                });
+
+            modelBuilder.Entity("AssetTypeRoutineServiceType", b =>
+                {
+                    b.Property<int>("ApplicableRoutineTypesId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("AssetTypeId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ApplicableRoutineTypesId", "AssetTypeId");
+
+                    b.HasIndex("AssetTypeId");
+
+                    b.ToTable("AssetTypeApplicableRoutines", (string)null);
+                });
+
             modelBuilder.Entity("ClientTaskMaintenanceSchedule", b =>
                 {
                     b.Property<int>("CoveredSchedulesId")
@@ -3757,6 +3787,36 @@ namespace FyreApp.Migrations
                     b.HasOne("FyreApp.Models.Asset", null)
                         .WithMany()
                         .HasForeignKey("AssetsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AssetTypeRoutineServiceLevel", b =>
+                {
+                    b.HasOne("FyreApp.Models.AssetType", null)
+                        .WithMany()
+                        .HasForeignKey("AssetTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.RoutineServiceLevel", null)
+                        .WithMany()
+                        .HasForeignKey("ExcludedRoutineLevelsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AssetTypeRoutineServiceType", b =>
+                {
+                    b.HasOne("FyreApp.Models.RoutineServiceType", null)
+                        .WithMany()
+                        .HasForeignKey("ApplicableRoutineTypesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.AssetType", null)
+                        .WithMany()
+                        .HasForeignKey("AssetTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
