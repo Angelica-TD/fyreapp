@@ -60,7 +60,9 @@ public class UptickCoreRecordsTests
             new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db), new AssetTypeRoutineLinksMapper(db),
             new ProductMapper(db), new WarehouseMapper(db), new StockMapper(db), new BillingContractMapper(db), new BillingContractLineItemMapper(db), new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db),
             new DefectQuoteMapper(db), new ServiceQuoteMapper(db), new InvoiceMapper(db), new CreditNoteMapper(db), new DynamicFormResponseMapper(db), new RemarkMapper(db),
-            new ReportMapper(db), new RoutineMapper(db), new TimelineEventMapper(db)],
+            new ReportMapper(db), new RoutineMapper(db),
+            new SubtaskMapper(db), new TaskSessionMapper(db), new AppointmentMapper(db), new AppointmentTechniciansMapper(db), new TaskStockTransactionMapper(db),
+            new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
     // Every mapper in order, as a run ends
@@ -563,6 +565,59 @@ public class UptickCoreRecordsTests
         Assert.Equal(("COMPLETE", "As per quote Q-2790", "Servicing - Portables & Fire Equipment", "2026-10-15"),
             (fields["Status"], fields["Invoice Note"], fields["Service Group"], fields["Performed Date"]));
         Assert.False(fields.ContainsKey("Technician Note"));
+    }
+
+    [Fact]
+    public async Task A_tasks_time_visits_lines_and_stock_are_mapped_onto_it()
+    {
+        await using var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"),
+            RawUser("371", "Wes Speedon (Field Tech)", "wes@fyrepower.com.au", "FIELD"), RawUser("9", "Dwayne Page", "d@x.au", "FIELD"),
+            RawTask("46781", "1491"),
+            Raw("products", "704", """{"name":"2.5kg ABE Extinguisher","cost_price":"40.0000"}"""),
+            Raw("tasksessiontypes", "1", """{"label":"Performing Task","is_onsite":true}"""),
+            Raw("tasksessiontypes", "2", """{"label":"Travelling","is_onsite":false}"""),
+            Raw("tasksessions", "900", """{"started":"2026-10-15T12:00:00+11:00","finished":"2026-10-15T14:49:00+11:00","hours":"2.8167","cost":"281.6700","multiplier_label":"Normal Time","is_approved":false,"is_submitted":true,"started_coord_lat":-28.1044,"started_coord_lng":153.4128,"trashed":null}""",
+                "{\"task\":" + To("Task", "46781") + ",\"type\":" + To("TaskSessionType", "1") + ",\"technician\":" + To("User", "371") + "}"),
+            Raw("tasksessions", "901", """{"started":"2026-10-15T11:30:00+11:00","finished":"2026-10-15T12:00:00+11:00","hours":"0.5000","trashed":"2026-10-16T09:00:00+11:00"}""",
+                "{\"task\":" + To("Task", "46781") + ",\"type\":" + To("TaskSessionType", "2") + ",\"technician\":" + To("User", "371") + "}"),
+            Raw("appointments", "20753", """{"status":"scheduled","scheduled_start":"2026-10-15T08:00:00+10:00","scheduled_end":"2026-10-15T10:00:00+10:00","subject":"PM2026/10 (P-0016)","notes":"Key at reception"}""",
+                "{\"task\":" + To("Task", "46781") + "}"),
+            Raw("appointments.links", "20753", "{}", """{"technicians":{"data":[{"type":"User","id":"371"},{"type":"User","id":"9"}]}}"""),
+            Raw("subtasks", "5001", """{"order":1,"is_performed":true,"performed_date":"2026-10-15","service_task":true,"report_task":true,"billing_task":false,"deleted":null}""",
+                "{\"task\":" + To("Task", "46781") + ",\"product\":" + To("Product", "704") + "}"),
+            Raw("taskstocktransactions", "7001", """{"delta":"2.0000","cost_price":"40.0000","created":"2026-10-15T13:00:00+11:00"}""",
+                "{\"task\":" + To("Task", "46781") + ",\"product\":" + To("Product", "704") + ",\"committed_by\":" + To("User", "371") + "}"),
+            Raw("contenttypes", "88", """{"app_label":"servicing","model":"servicetask"}"""),
+            Raw("taskstocktransactions", "7003", """{"delta":"-2.0000","cost_price":"40.0000","other_object_id":216800}""",
+                "{\"task\":" + To("Task", "46781") + ",\"product\":" + To("Product", "704") + ",\"other_content_type\":" + To("ContentType", "88") + "}"),
+            Raw("taskstocktransactions", "7002", """{"delta":"1.0000"}""", "{\"task\":" + To("Task", "99999") + "}"));
+        await db.SaveChangesAsync();
+
+        var results = await MapAllAsync(db);
+
+        var task = await db.ClientTasks.SingleAsync();
+        var vm = (await new FyreApp.Services.Tasks.TaskPageService(db).LoadAsync(task.Id, "time"))!;
+        // The trashed session is kept but not shown
+        var session = Assert.Single(vm.Sessions);
+        Assert.Equal(("Performing Task", true, 2.8167m, "Wes Speedon (Field Tech)", new DateTime(2026, 10, 15, 1, 0, 0, DateTimeKind.Utc)),
+            (session.Type, session.IsOnsite, session.Hours!.Value, session.UptickUser!.Name, session.StartedUtc));
+        Assert.Equal((-28.1044, true), (session.StartedLatitude!.Value, session.IsSubmitted));
+        Assert.Equal(2, await db.TaskSessions.CountAsync());
+
+        var visit = Assert.Single(vm.Appointments);
+        Assert.Equal(("Key at reception", new DateTime(2026, 10, 14, 22, 0, 0, DateTimeKind.Utc)), (visit.Notes, visit.StartUtc));
+        Assert.Equal(["Dwayne Page", "Wes Speedon (Field Tech)"], visit.Technicians.Select(u => u.Name).Order());
+
+        var line = Assert.Single(vm.Subtasks);
+        Assert.Equal(("2.5kg ABE Extinguisher", true, new DateTime(2026, 10, 15)), (line.Product!.Name, line.IsPerformed, line.PerformedDate!.Value));
+
+        Assert.Equal(2, vm.Stock.Count);
+        var used = vm.Stock.Single(s => s.Quantity < 0);
+        Assert.Equal(("servicetask", 216800L), (used.OtherType, used.OtherUptickId!.Value));
+        var stock = vm.Stock.Single(s => s.Quantity > 0);
+        Assert.Equal((2m, 40m, "Wes Speedon (Field Tech)"), (stock.Quantity, stock.CostPrice!.Value, stock.UptickUser!.Name));
+        Assert.Contains("7002: Its task (99999) isn't in FyreApp.", results["taskstocktransactions"].MapErrors);
     }
 
     [Fact]

@@ -93,6 +93,28 @@ public class TaskPageService : ITaskPageService
         vm.PerformedOn = await PerformedAsync(task, serviceAssets, ct);
         vm.Remarks = await RemarksAsync(vm, assetIds, ct);
         vm.ReportPdfs = await UptickFileLinks.PdfsAsync(_db, UptickResources.Reports, vm.Reports.Select(r => r.UptickId), ct);
+
+        // Uptick's record of the work: lines, visits, time, stock (a task has a handful of each)
+        vm.Subtasks = await _db.Subtasks.AsNoTracking()
+            .Include(s => s.Routine).Include(s => s.Product)
+            .Where(s => s.ClientTaskId == id && s.DeletedUtc == null)
+            .OrderBy(s => s.Order).ThenBy(s => s.Id)
+            .ToListAsync(ct);
+        vm.Appointments = await _db.Appointments.AsNoTracking()
+            .Include(a => a.Technicians)
+            .Where(a => a.ClientTaskId == id)
+            .OrderBy(a => a.StartUtc)
+            .ToListAsync(ct);
+        vm.Sessions = await _db.TaskSessions.AsNoTracking()
+            .Include(s => s.UptickUser)
+            .Where(s => s.ClientTaskId == id && s.TrashedUtc == null)
+            .OrderBy(s => s.StartedUtc)
+            .ToListAsync(ct);
+        vm.Stock = await _db.TaskStockTransactions.AsNoTracking()
+            .Include(s => s.Product).Include(s => s.UptickUser)
+            .Where(s => s.ClientTaskId == id)
+            .OrderBy(s => s.CreatedUtc)
+            .ToListAsync(ct);
         return vm;
     }
 

@@ -79,6 +79,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
     public DbSet<Stock> Stocks => Set<Stock>();
     public DbSet<ServiceTask> ServiceTasks => Set<ServiceTask>();
+    public DbSet<TaskSession> TaskSessions => Set<TaskSession>();
+    public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<Subtask> Subtasks => Set<Subtask>();
+    public DbSet<TaskStockTransaction> TaskStockTransactions => Set<TaskStockTransaction>();
     public DbSet<UptickRecord> UptickRecords => Set<UptickRecord>();
     public DbSet<UptickEndpointState> UptickEndpointStates => Set<UptickEndpointState>();
     public DbSet<UptickFile> UptickFiles => Set<UptickFile>();
@@ -770,6 +774,46 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(a => a.UptickId).IsUnique();
             // One line per asset and routine for the tasks FyreApp generates; Uptick's can repeat one
             entity.HasIndex(a => new { a.ClientTaskId, a.AssetId, a.Routine }).IsUnique().HasFilter("\"UptickId\" IS NULL");
+        });
+
+        // A task's work in Uptick: time logged, visits booked, its lines, stock used
+        modelBuilder.Entity<TaskSession>(entity =>
+        {
+            entity.HasIndex(s => s.UptickId).IsUnique();
+            entity.HasOne(s => s.ClientTask).WithMany().HasForeignKey(s => s.ClientTaskId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(s => s.UptickUser).WithMany().HasForeignKey(s => s.UptickUserId).OnDelete(DeleteBehavior.SetNull);
+            entity.Property(s => s.StartedUtc).HasColumnType("timestamptz");
+            entity.Property(s => s.FinishedUtc).HasColumnType("timestamptz");
+            entity.Property(s => s.TrashedUtc).HasColumnType("timestamptz");
+            entity.Property(s => s.Hours).HasPrecision(10, 4);
+            entity.Property(s => s.Cost).HasPrecision(12, 2);
+        });
+        modelBuilder.Entity<Appointment>(entity =>
+        {
+            entity.HasIndex(a => a.UptickId).IsUnique();
+            entity.HasOne(a => a.ClientTask).WithMany().HasForeignKey(a => a.ClientTaskId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(a => a.Technicians).WithMany().UsingEntity(j => j.ToTable("AppointmentTechnicians"));
+            entity.Property(a => a.StartUtc).HasColumnType("timestamptz");
+            entity.Property(a => a.EndUtc).HasColumnType("timestamptz");
+        });
+        modelBuilder.Entity<Subtask>(entity =>
+        {
+            entity.HasIndex(s => s.UptickId).IsUnique();
+            entity.HasOne(s => s.ClientTask).WithMany().HasForeignKey(s => s.ClientTaskId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(s => s.Routine).WithMany().HasForeignKey(s => s.RoutineId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(s => s.Product).WithMany().HasForeignKey(s => s.ProductId).OnDelete(DeleteBehavior.SetNull);
+            entity.Property(s => s.PerformedDate).HasColumnType("timestamptz");
+            entity.Property(s => s.DeletedUtc).HasColumnType("timestamptz");
+        });
+        modelBuilder.Entity<TaskStockTransaction>(entity =>
+        {
+            entity.HasIndex(s => s.UptickId).IsUnique();
+            entity.HasOne(s => s.ClientTask).WithMany().HasForeignKey(s => s.ClientTaskId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(s => s.Product).WithMany().HasForeignKey(s => s.ProductId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(s => s.UptickUser).WithMany().HasForeignKey(s => s.UptickUserId).OnDelete(DeleteBehavior.SetNull);
+            entity.Property(s => s.CreatedUtc).HasColumnType("timestamptz");
+            entity.Property(s => s.Quantity).HasPrecision(12, 4);
+            entity.Property(s => s.CostPrice).HasPrecision(12, 2);
         });
 
         // FyreApp refs ("C-1001", "P-1001", ...) are assigned on insert by a Postgres trigger

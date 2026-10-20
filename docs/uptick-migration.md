@@ -558,7 +558,17 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      what's listed but not copied yet is counted); report refs link to their PDFs (property Records tab, task page,
      Reports list). Files are served to signed-in staff at `/Files/<id>` (images and PDFs in the browser, anything
      else downloaded). The admin page can test the storage (writes and reads back a small file).
-8. **The rest:** typed entities and screens for the endpoints still only in the raw copy, in order of need.
+8. **The rest:** typed entities and screens for the endpoints still only in the raw copy, in order of need: task work,
+   report items, correspondence (with dispatches, the documents Uptick emails customers), then quote and invoice lines
+   (with invoices' and quotes' generated PDFs in the Files run).
+   - 8a (done): the task page's **Time** tab: `appointments` → Appointment (visits booked, with their technicians from
+     `appointments.links`, a to-many link list responses leave out) and `tasksessions` → TaskSession (time logged:
+     type from `tasksessiontypes`, on site or not, hours, cost, where it started and finished; trashed ones kept,
+     not shown). Its **Stock** tab: `taskstocktransactions` → TaskStockTransaction, a movement onto the task
+     (allocated, from a warehouse, back from a service line) or off it onto a service line (`other_content_type`:
+     `servicetask`, i.e. used); used, still on the task, and every movement. The Work tab lists the task's
+     `subtasks` → Subtask (each routine due or product, done, reported, billed). Each on its task, removed when
+     deleted in Uptick. (`taskstock` has no task link, so isn't mapped.)
 9. **Cutover:** freeze Uptick, final Full run + files refresh, reconciliation sign-off, FyreApp becomes the
    system of record.
 

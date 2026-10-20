@@ -43,7 +43,9 @@ public static class UptickEndpoints
     internal static readonly Dictionary<string, Links> WithLinks = new(StringComparer.OrdinalIgnoreCase)
     {
         // Which routines an asset type is serviced under, and the levels it's left out of
-        ["assettypes"] = new("AssetType", ["applicable_routines", "excluded_routinelevels"])
+        ["assettypes"] = new("AssetType", ["applicable_routines", "excluded_routinelevels"]),
+        // Who's booked on a visit
+        ["appointments"] = new("Appointment", ["technicians"])
     };
 
     // The JSON:API type and its to-many relationships

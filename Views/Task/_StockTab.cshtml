@@ -1,0 +1,95 @@
+@model FyreApp.ViewModels.Tasks.TaskPageVm
+@using System.Globalization
+@{
+    var aud = CultureInfo.GetCultureInfo("en-AU");
+    string Name(FyreApp.Models.TaskStockTransaction s) => s.Product?.Name ?? "Unknown product";
+    // Used: what came off the task onto its service lines. Left: what's still on the task (onto it less used).
+    var used = Model.Stock.Where(s => s.Quantity < 0 || s.OtherType == "servicetask")
+        .GroupBy(Name)
+        .Select(g => (Product: g.Key, Quantity: -g.Sum(s => s.Quantity), Cost: -g.Sum(s => s.Quantity * (s.CostPrice ?? 0))))
+        .Where(p => p.Quantity > 0)
+        .OrderBy(p => p.Product).ToList();
+    var left = Model.Stock.GroupBy(Name)
+        .Select(g => (Product: g.Key, Quantity: g.Sum(s => s.Quantity)))
+        .Where(p => p.Quantity > 0)
+        .OrderBy(p => p.Product).ToList();
+    string Movement(FyreApp.Models.TaskStockTransaction s) => (s.Quantity < 0, s.OtherType) switch
+    {
+        (true, "servicetask") => "Used on a service line",
+        (true, _) => "Taken off the task",
+        (false, "warehouse") => "Taken from a warehouse",
+        (false, "servicetask") => "Back from a service line",
+        _ => "Allocated to the task"
+    };
+}
+
+@* Stock moved onto the task in Uptick and used on its service lines *@
+<h2 class="h4 pb-2 mb-3 border-bottom">Stock</h2>
+@if (Model.Stock.Count == 0)
+{
+    <p class="text-muted">No stock on this task in Uptick.</p>
+}
+else
+{
+    <h3 class="h5 mb-2">Used <span class="small text-muted fw-normal">cost @used.Sum(p => p.Cost).ToString("C", aud)</span></h3>
+    <div class="card property-card mb-4">
+        @if (used.Count == 0)
+        {
+            <div class="card-body text-muted">None used on the task's service lines yet.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead><tr><th>Product</th><th class="text-end">Quantity</th><th class="text-end">Cost</th></tr></thead>
+                    <tbody>
+                        @foreach (var p in used)
+                        {
+                            <tr><td>@p.Product</td><td class="text-end">@p.Quantity.ToString("0.##")</td><td class="text-end">@p.Cost.ToString("C", aud)</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @if (left.Count > 0)
+    {
+        <h3 class="h5 mb-2">Still on the task</h3>
+        <div class="card property-card mb-4">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead><tr><th>Product</th><th class="text-end">Quantity</th></tr></thead>
+                    <tbody>
+                        @foreach (var p in left)
+                        {
+                            <tr><td>@p.Product</td><td class="text-end">@p.Quantity.ToString("0.##")</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <h3 class="h5 mb-2">Movements</h3>
+    <div class="card property-card">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>When</th><th>Product</th><th>Movement</th><th class="text-end">Quantity</th><th class="text-end">Unit cost</th><th>By</th></tr></thead>
+                <tbody>
+                    @foreach (var s in Model.Stock)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@(s.CreatedUtc is { } c ? c.ToSydney().ToOrdinalDateTime() : "")</td>
+                            <td>@Name(s)</td>
+                            <td class="small">@Movement(s)</td>
+                            <td class="text-end">@Math.Abs(s.Quantity).ToString("0.##")</td>
+                            <td class="text-end">@(s.CostPrice?.ToString("C", aud))</td>
+                            <td>@(s.UptickUser?.Name ?? "-")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

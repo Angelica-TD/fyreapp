@@ -1,0 +1,92 @@
+@model FyreApp.ViewModels.Tasks.TaskPageVm
+@using System.Globalization
+@{
+    string When(DateTime utc) => utc.ToSydney().ToOrdinalDateTime();
+    string Time(DateTime? utc) => utc is { } d ? d.ToSydney().ToString("h:mmtt", CultureInfo.InvariantCulture).ToLowerInvariant() : "";
+    string Hours(decimal? h) => h is { } n ? $"{n:0.##} h" : "";
+    string Map(double lat, double lng) =>
+        $"https://www.google.com/maps/search/?api=1&query={lat.ToString(CultureInfo.InvariantCulture)},{lng.ToString(CultureInfo.InvariantCulture)}";
+    var sessions = Model.Sessions;
+}
+
+@* Uptick's scheduler and timesheets for the task: visits booked, then the time each technician logged *@
+<h2 class="h4 pb-2 mb-3 border-bottom">Time</h2>
+
+<h3 class="h5 mb-2">Appointments</h3>
+<div class="card property-card mb-4">
+    @if (Model.Appointments.Count == 0)
+    {
+        <div class="card-body text-muted">No visits booked in Uptick.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>When</th><th>Technicians</th><th>Status</th><th>Notes</th></tr></thead>
+                <tbody>
+                    @foreach (var a in Model.Appointments)
+                    {
+                        <tr class="@(a.Status == "cancelled" ? "text-muted" : "")">
+                            <td class="text-nowrap">@When(a.StartUtc)@(a.EndUtc != null ? $" – {Time(a.EndUtc)}" : "")</td>
+                            <td>@(a.Technicians.Count == 0 ? "-" : string.Join(", ", a.Technicians.Select(t => t.Name).Order()))</td>
+                            <td>
+                                @(a.Status == "cancelled" ? "Cancelled" : "Scheduled")
+                                @if (a.Category != null) { <span class="small text-muted">· @a.Category</span> }
+                            </td>
+                            <td class="small" style="white-space: pre-line">@a.Notes</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<h3 class="h5 mb-2">
+    Time logged
+    @if (sessions.Count > 0)
+    {
+        <span class="small text-muted fw-normal">
+            @Hours(sessions.Sum(s => s.Hours ?? 0)) in all · @Hours(sessions.Where(s => s.IsOnsite).Sum(s => s.Hours ?? 0)) on site
+            @if (sessions.Any(s => s.Cost != null)) { <text>· cost @sessions.Sum(s => s.Cost ?? 0).ToString("C", CultureInfo.GetCultureInfo("en-AU"))</text> }
+        </span>
+    }
+</h3>
+<div class="card property-card">
+    @if (sessions.Count == 0)
+    {
+        <div class="card-body text-muted">No time logged in Uptick.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Technician</th><th>Doing</th><th>From</th><th>To</th><th class="text-end">Hours</th><th>Rate</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var s in sessions)
+                    {
+                        <tr>
+                            <td>@(s.UptickUser?.Name ?? "-")</td>
+                            <td>
+                                @(s.Type ?? "-")
+                                @if (s.Description != null) { <div class="small text-muted">@s.Description</div> }
+                            </td>
+                            <td class="text-nowrap">@When(s.StartedUtc)</td>
+                            <td class="text-nowrap">@(s.FinishedUtc is { } f ? (f.ToSydney().Date == s.StartedUtc.ToSydney().Date ? Time(f) : When(f)) : "still going")</td>
+                            <td class="text-end text-nowrap">@Hours(s.Hours)</td>
+                            <td class="small">
+                                @s.Rate
+                                @if (s.IsApproved) { <span class="text-success">· approved</span> }
+                                else if (s.IsSubmitted) { <span class="text-muted">· submitted</span> }
+                            </td>
+                            <td class="small text-nowrap">
+                                @if (s.StartedLatitude is { } lat && s.StartedLongitude is { } lng) { <a href="@Map(lat, lng)" target="_blank" rel="noopener">Start</a> }
+                                @if (s.FinishedLatitude is { } flat && s.FinishedLongitude is { } flng) { <text> · </text><a href="@Map(flat, flng)" target="_blank" rel="noopener">Finish</a> }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>

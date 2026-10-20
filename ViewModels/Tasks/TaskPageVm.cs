@@ -8,7 +8,13 @@ namespace FyreApp.ViewModels.Tasks;
 // Work tab (the asset repairs it does)
 public class TaskPageVm
 {
-    public static readonly (string Key, string Label)[] Tabs = [("task", "Task"), ("work", "Work")];
+    public static readonly (string Key, string Label)[] Tabs = [("task", "Task"), ("work", "Work"), ("time", "Time"), ("stock", "Stock")];
+
+    // From Uptick: the task's lines, visits booked, time logged and stock taken
+    public IReadOnlyList<Subtask> Subtasks { get; set; } = [];
+    public IReadOnlyList<Appointment> Appointments { get; set; } = [];
+    public IReadOnlyList<TaskSession> Sessions { get; set; } = [];
+    public IReadOnlyList<TaskStockTransaction> Stock { get; set; } = [];
 
     public ClientTask Task { get; set; } = null!;
     public string Tab { get; set; } = "task";
