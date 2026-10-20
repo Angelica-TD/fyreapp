@@ -61,8 +61,34 @@ public class AssetPageService : IAssetPageService
             LastServiceBy = tab == "asset" ? await LastServiceByAsync(asset, ct) : null,
             Timeline = tab == "asset" ? await _timeline.ForAssetAsync(asset, notesOnly, ct) : [],
             NotesOnly = notesOnly,
+            ServiceLines = tab == "service" ? await ServiceLinesAsync(id, ct) : [],
+            ReportLines = tab == "service"
+                ? await _db.ReportItems.AsNoTracking().Include(i => i.Report)
+                    .Where(i => i.AssetId == id)
+                    .OrderByDescending(i => i.InspectedDate ?? i.Report.InspectedDate).ThenByDescending(i => i.ReportId)
+                    .ToListAsync(ct)
+                : [],
             ExtraFields = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(_db, ExtraField.AssetContentType, "assets", asset.UptickId, ct)
         };
+    }
+
+    // The asset's service lines, newest first, each with the stock Uptick records as used on it
+    private async Task<IReadOnlyList<AssetServiceLine>> ServiceLinesAsync(int assetId, CancellationToken ct)
+    {
+        var lines = await _db.ServiceTasks.AsNoTracking()
+            .Include(s => s.ClientTask).Include(s => s.Technician)
+            .Where(s => s.AssetId == assetId)
+            .OrderByDescending(s => s.PerformedUtc ?? s.ClientTask.DueDateUtc).ThenByDescending(s => s.Id)
+            .ToListAsync(ct);
+        var uptickIds = lines.Select(l => l.UptickId).OfType<long>().ToList();
+        var used = uptickIds.Count == 0 ? [] : await _db.TaskStockTransactions.AsNoTracking()
+            .Where(t => t.OtherType == "servicetask" && t.OtherUptickId != null && uptickIds.Contains(t.OtherUptickId.Value))
+            .Select(t => new { Line = t.OtherUptickId!.Value, Product = t.Product != null ? t.Product.Name : "Unknown product", t.Quantity })
+            .ToListAsync(ct);
+        // Used is stock off the task onto the line (negative); put back onto the task (positive) nets off
+        var byLine = used.GroupBy(u => u.Line).ToDictionary(g => g.Key, g => (IReadOnlyList<(string, decimal)>)g
+            .GroupBy(u => u.Product).Select(p => (p.Key, -p.Sum(u => u.Quantity))).Where(p => p.Item2 > 0).OrderBy(p => p.Key).ToList());
+        return lines.Select(l => new AssetServiceLine(l, l.UptickId is { } id && byLine.TryGetValue(id, out var u) ? u : [])).ToList();
     }
 
     // Who Uptick says last serviced it; for an asset from the file export (which doesn't say), the technician on

@@ -11,6 +11,9 @@ public interface IReportListService
 {
     Task<ReportListVm> SearchAsync(ReportFilter filter, CancellationToken ct = default);
     Task<byte[]> CsvAsync(ReportFilter filter, CancellationToken ct = default);
+
+    // A report with its lines (each asset on it) and its PDF, or null
+    Task<ReportPageVm?> DetailsAsync(int id, CancellationToken ct = default);
 }
 
 // Service reports listed like Uptick's Reports page (no default filters, no Edit)
@@ -18,6 +21,27 @@ public class ReportListService : IReportListService
 {
     private readonly AppDbContext _db;
     public ReportListService(AppDbContext db) => _db = db;
+
+    public async Task<ReportPageVm?> DetailsAsync(int id, CancellationToken ct = default)
+    {
+        var report = await _db.Reports.AsNoTracking()
+            .Include(r => r.Property).ThenInclude(p => p.Client)
+            .Include(r => r.ClientTask)
+            .FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (report == null) return null;
+        var items = await _db.ReportItems.AsNoTracking()
+            .Include(i => i.Asset)
+            .Where(i => i.ReportId == id)
+            .ToListAsync(ct);
+        var pdfs = await UptickFileLinks.PdfsAsync(_db, UptickResources.Reports, [report.UptickId], ct);
+        return new ReportPageVm
+        {
+            Report = report,
+            // As the report lists them: by ref ("001", "002", …), then label
+            Items = items.OrderBy(i => i.Ref?.Length ?? int.MaxValue).ThenBy(i => i.Ref).ThenBy(i => i.Label).ToList(),
+            PdfFileId = report.UptickId is { } uid && pdfs.TryGetValue(uid, out var file) ? file : null
+        };
+    }
 
     private IQueryable<Report> Filtered(ReportFilter filter)
     {
@@ -64,6 +88,7 @@ public class ReportListService : IReportListService
                 ClientName = r.Property.Client.Name,
                 ClientContact = r.Property.Client.PrimaryContactName,
                 TaskRef = r.TaskRef,
+                Id = r.Id,
                 UptickId = r.UptickId
             })
             .ToListAsync(ct);

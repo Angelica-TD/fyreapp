@@ -47,3 +47,31 @@ public class Report : IUptickMapped
     public string? GeneralNote { get; set; }
     public string? CriticalNote { get; set; }
 }
+
+// One asset's line on a report in Uptick ("reportitems"): the asset as the report showed it, and whether it passed
+public class ReportItem : IUptickMapped
+{
+    public int Id { get; set; }
+    public long? UptickId { get; set; }
+
+    public int ReportId { get; set; }
+    public Report Report { get; set; } = null!;
+
+    public int? AssetId { get; set; }
+    public Asset? Asset { get; set; }
+
+    // As printed on the report, e.g. "019 - DCP AB(E) 4.5KG Portable Fire Extinguisher"
+    [StringLength(500)] public string? Label { get; set; }
+    [StringLength(100)] public string? Ref { get; set; }
+    [StringLength(500)] public string? Location { get; set; }
+    [StringLength(100)] public string? Barcode { get; set; }
+    [StringLength(200)] public string? Make { get; set; }
+    [StringLength(200)] public string? Model { get; set; }
+    [StringLength(200)] public string? Size { get; set; }
+    [StringLength(200)] public string? Standard { get; set; }
+
+    public bool? Compliant { get; set; }
+    public DateTime? InspectedDate { get; set; }
+    public DateTime? ServicedDate { get; set; }
+    public DateTime? BaseDate { get; set; }
+}

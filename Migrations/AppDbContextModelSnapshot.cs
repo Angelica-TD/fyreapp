@@ -2357,6 +2357,79 @@ namespace FyreApp.Migrations
                     b.ToTable("Reports");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.ReportItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AssetId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("BaseDate")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<bool?>("Compliant")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("InspectedDate")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Make")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Ref")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("ReportId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ServicedDate")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Size")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Standard")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("ReportId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.ToTable("ReportItems");
+                });
+
             modelBuilder.Entity("FyreApp.Models.Routine", b =>
                 {
                     b.Property<int>("Id")
@@ -4290,6 +4363,24 @@ namespace FyreApp.Migrations
                     b.Navigation("ClientTask");
 
                     b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.ReportItem", b =>
+                {
+                    b.HasOne("FyreApp.Models.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.Report", "Report")
+                        .WithMany()
+                        .HasForeignKey("ReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("Report");
                 });
 
             modelBuilder.Entity("FyreApp.Models.Routine", b =>

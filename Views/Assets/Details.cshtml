@@ -156,17 +156,7 @@
                     break;
 
                 case "service":
-                    <div class="card property-card">
-                        <div class="card-header"><span>Service history</span></div>
-                        <div class="card-body text-muted">
-                            Uptick's service history lists the products used on this asset on each task. Task line items
-                            aren't imported into FyreApp yet.
-                            @if (a.LastServiceDate is { } last)
-                            {
-                                <div class="mt-2 text-body">Last serviced @last.ToOrdinalDate().</div>
-                            }
-                        </div>
-                    </div>
+                    <partial name="_ServiceHistory" model="Model" />
                     break;
 
                 default:

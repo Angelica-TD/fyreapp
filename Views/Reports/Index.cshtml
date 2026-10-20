@@ -45,7 +45,7 @@
                         @foreach (var r in Model.Items)
                         {
                             <tr>
-                                <td class="text-nowrap"><partial name="_ReportRef" model="(r.Ref, r.PdfFileId)" /></td>
+                                <td class="text-nowrap"><partial name="_ReportRef" model="(r.Id, r.Ref, r.PdfFileId)" /></td>
                                 <td>@r.Title</td>
                                 <td>
                                     @if (r.Compliant == true)

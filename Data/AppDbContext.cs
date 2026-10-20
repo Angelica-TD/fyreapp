@@ -83,6 +83,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<Subtask> Subtasks => Set<Subtask>();
     public DbSet<TaskStockTransaction> TaskStockTransactions => Set<TaskStockTransaction>();
+    public DbSet<ReportItem> ReportItems => Set<ReportItem>();
     public DbSet<UptickRecord> UptickRecords => Set<UptickRecord>();
     public DbSet<UptickEndpointState> UptickEndpointStates => Set<UptickEndpointState>();
     public DbSet<UptickFile> UptickFiles => Set<UptickFile>();
@@ -804,6 +805,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasOne(s => s.Product).WithMany().HasForeignKey(s => s.ProductId).OnDelete(DeleteBehavior.SetNull);
             entity.Property(s => s.PerformedDate).HasColumnType("timestamptz");
             entity.Property(s => s.DeletedUtc).HasColumnType("timestamptz");
+        });
+        modelBuilder.Entity<ReportItem>(entity =>
+        {
+            entity.HasIndex(i => i.UptickId).IsUnique();
+            entity.HasOne(i => i.Report).WithMany().HasForeignKey(i => i.ReportId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(i => i.Asset).WithMany().HasForeignKey(i => i.AssetId).OnDelete(DeleteBehavior.SetNull);
+            entity.Property(i => i.InspectedDate).HasColumnType("timestamptz");
+            entity.Property(i => i.ServicedDate).HasColumnType("timestamptz");
+            entity.Property(i => i.BaseDate).HasColumnType("timestamptz");
         });
         modelBuilder.Entity<TaskStockTransaction>(entity =>
         {

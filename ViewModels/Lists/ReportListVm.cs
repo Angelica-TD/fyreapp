@@ -1,3 +1,5 @@
+using FyreApp.Models;
+
 namespace FyreApp.ViewModels.Lists;
 
 // Uptick's Reports list has no default filters, only search
@@ -14,6 +16,7 @@ public class ReportFilter
 
 public class ReportListItemVm
 {
+    public int Id { get; set; }
     public string? Ref { get; set; }
     public string? Title { get; set; }
     public bool? Compliant { get; set; }
@@ -29,6 +32,14 @@ public class ReportListItemVm
 
     // Its PDF, when FyreApp holds a copy
     public int? PdfFileId { get; set; }
+}
+
+// A report's page: what it is, each asset's line on it, and its PDF
+public class ReportPageVm
+{
+    public Report Report { get; init; } = null!;
+    public IReadOnlyList<ReportItem> Items { get; init; } = [];
+    public int? PdfFileId { get; init; }
 }
 
 public class ReportListVm
