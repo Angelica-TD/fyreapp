@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Uptick.Files;
 
-// Copies the files Uptick stores into FyreApp's file store (docs/uptick-migration.md §8): report PDFs and document
-// files (photos, signatures, attachments), as listed in the raw copy. One API request each (the PDF's or the
+// Copies the files Uptick stores into FyreApp's file store (docs/uptick-migration.md §8): the PDFs Uptick makes
+// (reports, invoices, defect quotes, sales quotes) and document files (photos, signatures, attachments), as listed in the raw copy. One API request each (the PDF's or the
 // file's download link, a signed link to Uptick's storage fetched without the token), so a first run takes hours;
 // it's resumable: what's held and unchanged is skipped. Each file is checked against Uptick's size and MD5 before
 // it's stored.
@@ -22,6 +22,15 @@ public class UptickFileDownloader
 
     public const string Documents = "documentfiles";
     public const string Reports = "reports";
+    public const string Invoices = UptickResources.Invoices;
+    public const string DefectQuotes = UptickResources.DefectQuotes;
+    public const string ServiceQuotes = UptickResources.ServiceQuotes;
+
+    // The records Uptick makes a PDF of (`<resource>/<id>/pdf/`), with what they're called
+    internal static readonly (string Source, string Noun)[] PdfSources =
+        [(Reports, "report"), (Invoices, "invoice"), (DefectQuotes, "quote"), (ServiceQuotes, "sales quote")];
+
+    public static bool IsPdf(string source) => PdfSources.Any(p => p.Source == source);
 
     // A file that failed this many runs isn't tried again until it changes in Uptick
     internal const int MaxFailures = 3;
@@ -53,7 +62,7 @@ public class UptickFileDownloader
     private DateTime Now => _clock.GetUtcNow().UtcDateTime;
 
     // One raw record that may have a file: a document file (with Uptick's path, size, etag and, for a remark photo,
-    // open / closed) or a report
+    // open / closed) or a record Uptick makes a PDF of
     private sealed record Candidate(string Id, string? Path, long? Size, string? Etag, DateTime? UpdatedUtc, string? PhotoType = null,
         DateTime? CreatedUtc = null);
 
@@ -63,11 +72,10 @@ public class UptickFileDownloader
     {
         if (!_store.IsConfigured) throw new InvalidOperationException("File storage isn't set up (Storage:Provider).");
 
-        var sources = new (string Source, string Label, Func<CancellationToken, Task<List<Candidate>>> Load)[]
-        {
-            (Reports, "report PDFs", ReportsAsync),
-            (Documents, "document files", DocumentsAsync),
-        };
+        var sources = PdfSources
+            .Select(p => (p.Source, Label: $"{p.Noun} PDFs", Load: (Func<CancellationToken, Task<List<Candidate>>>)(c => PdfCandidatesAsync(p.Source, c))))
+            .Append((Documents, "document files", DocumentsAsync))
+            .ToArray();
         for (var i = 0; i < sources.Length; i++)
         {
             var (source, label, load) = sources[i];
@@ -120,7 +128,7 @@ public class UptickFileDownloader
         }
         else
         {
-            // Reports' PDFs held from before files were linked to their records
+            // PDFs held from before files were linked to their records
             foreach (var row in held.Values.Where(r => r.RecordType == null))
                 Describe(row);
             await _db.SaveChangesAsync(ct);
@@ -160,7 +168,7 @@ public class UptickFileDownloader
             result.Received++;
             try
             {
-                var stored = source == Reports ? await ReportPdfAsync(row, raw, ct) : await DocumentAsync(row, raw, ct);
+                var stored = IsPdf(source) ? await PdfAsync(source, row, raw, ct) : await DocumentAsync(row, raw, ct);
                 if (stored is { } size)
                 {
                     bytes += size;
@@ -189,16 +197,16 @@ public class UptickFileDownloader
         report(work.Count, work.Count, bytes);
 
         result.Note += $"{Size(bytes)} downloaded";
-        if (source == Reports)
+        if (PdfSources.FirstOrDefault(p => p.Source == source) is { Noun: { } noun })
         {
             var none = await _db.UptickFiles.CountAsync(f => f.Source == source && f.NoFile, ct);
-            if (none > 0) result.Note += $"; {none:N0} reports have no PDF in Uptick";
+            if (none > 0) result.Note += $"; {none:N0} {noun}s have no PDF in Uptick";
         }
         if (failed > 0) result.Warning = $"{failed:N0} failed (tried again next run, up to {MaxFailures} times): {string.Join("; ", errors)}";
     }
 
-    // Uptick's copy differs from the one held: a new etag, or a report changed since its PDF was checked
-    private static bool Changed(string source, UptickFile row, Candidate raw) => source == Reports
+    // Uptick's copy differs from the one held: a new etag, or a record changed since its PDF was checked
+    private static bool Changed(string source, UptickFile row, Candidate raw) => IsPdf(source)
         ? raw.UpdatedUtc != null && raw.UpdatedUtc != row.SourceUpdatedUtc
         : raw.Etag != null && !string.Equals(raw.Etag, row.Etag, StringComparison.Ordinal);
 
@@ -209,10 +217,10 @@ public class UptickFileDownloader
         return row.Failures < MaxFailures;
     }
 
-    // A report's PDF: Uptick's pdf link, if it has made one. Returns the bytes stored, or null when it has none.
-    private async Task<long?> ReportPdfAsync(UptickFile row, Candidate raw, CancellationToken ct)
+    // A record's PDF: Uptick's pdf link, if it has made one. Returns the bytes stored, or null when it has none.
+    private async Task<long?> PdfAsync(string source, UptickFile row, Candidate raw, CancellationToken ct)
     {
-        var pdf = await _api.PdfAsync(Reports, raw.Id, ct);
+        var pdf = await _api.PdfAsync(source, raw.Id, ct);
         row.SourceUpdatedUtc = raw.UpdatedUtc;
         Describe(row);
         if (pdf == null)
@@ -221,9 +229,9 @@ public class UptickFileDownloader
             return null;
         }
         row.NoFile = false;
-        // Uptick's key starts with the account ("fyrepower/reports/…")
+        // Uptick's key starts with the account ("fyrepower/reports/…", "fyrepower/quotes/…")
         row.Path = Cap(pdf.Key is { } key && key.IndexOf('/') is var slash and > 0 ? key[(slash + 1)..] : pdf.Key, 1000);
-        return await FetchAndStoreAsync(row, pdf.Url, $"uptick/reports/{raw.Id}.pdf", pdf.Size, md5: null, "application/pdf", ct);
+        return await FetchAndStoreAsync(row, pdf.Url, $"uptick/{source}/{raw.Id}.pdf", pdf.Size, md5: null, "application/pdf", ct);
     }
 
     // Where Uptick keeps a document file, and so the record it belongs to
@@ -238,12 +246,12 @@ public class UptickFileDownloader
         row.CreatedUtc = raw.CreatedUtc;
     }
 
-    // A report's PDF belongs to the report
-    private static void Describe(UptickFile report)
+    // A PDF belongs to its record (a report, an invoice, …)
+    private static void Describe(UptickFile pdf)
     {
-        report.RecordType = UptickResources.Reports;
-        report.RecordUptickId = long.TryParse(report.SourceId, out var id) ? id : null;
-        report.Kind = UptickFilePaths.Pdf;
+        pdf.RecordType = pdf.Source;
+        pdf.RecordUptickId = long.TryParse(pdf.SourceId, out var id) ? id : null;
+        pdf.Kind = UptickFilePaths.Pdf;
     }
 
     // Customers' signatures by image path: who signed, or why there's no signature
@@ -328,9 +336,9 @@ public class UptickFileDownloader
         }
     }
 
-    private async Task<List<Candidate>> ReportsAsync(CancellationToken ct) =>
+    private async Task<List<Candidate>> PdfCandidatesAsync(string source, CancellationToken ct) =>
         (await _db.UptickRecords.AsNoTracking()
-            .Where(r => r.Resource == Reports && r.DeletedUtc == null)
+            .Where(r => r.Resource == source && r.DeletedUtc == null)
             .Select(r => new { r.UptickId, r.UpdatedUtc })
             .ToListAsync(ct))
         .OrderByDescending(r => long.TryParse(r.UptickId, out var id) ? id : 0)

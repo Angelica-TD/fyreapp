@@ -15,7 +15,7 @@ public enum UptickRunKind
     Refresh,
     // No requests to Uptick: maps every record held for the mapped endpoints again (§3.4), e.g. after a mapper changes
     Remap,
-    // Downloads the files the raw copy lists (§8) that aren't held yet or changed: report PDFs, document files
+    // Downloads the files the raw copy lists (§8) that aren't held yet or changed: report, invoice and quote PDFs, document files
     Files
 }
 

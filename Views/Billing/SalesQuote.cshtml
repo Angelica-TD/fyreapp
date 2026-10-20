@@ -1,0 +1,105 @@
+@model FyreApp.ViewModels.Billing.ServiceQuotePageVm
+
+@* One Uptick sales quote ("SQ-0361"): what it's for, its PDF, then its lines: routine services priced by the year
+   (fixed, or charged per service), then products *@
+@{
+    var q = Model.Quote;
+    ViewData["Title"] = q.Ref;
+    ViewData["Tab"] = "records";
+    string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
+    // Uptick holds only the quote's subtotal; its totals are its lines'
+    var subtotal = Model.Lines.Count > 0 ? Model.Lines.Sum(l => l.Subtotal ?? 0) : q.Subtotal;
+    var tax = Model.Lines.Count > 0 ? Model.Lines.Sum(l => l.Tax ?? 0) : (decimal?)null;
+    var total = Model.Lines.Count > 0 ? Model.Lines.Sum(l => l.Total ?? 0) : (decimal?)null;
+}
+
+<div class="property-page">
+    <partial name="_PropertyTitle" model="q.Property" />
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card property-card">
+                <div class="card-body">
+                    <h2 class="h5 mb-2"><span class="text-muted fw-normal">Sales quote</span> @q.Ref</h2>
+                    <div class="mb-3"><span class="badge @BillingBadges.Quote(q.Status)">@(q.Status ?? "-")</span></div>
+                    <partial name="_Pdf" model="Model.PdfFileId" />
+                    <dl class="row property-facts mb-0">
+                        <dt class="col-4">Created</dt>
+                        <dd class="col-8">@(q.Created?.ToOrdinalDate() ?? "-")</dd>
+                        <dt class="col-4">Expires</dt>
+                        <dd class="col-8">@(q.ExpiryDate?.ToOrdinalDate() ?? "-")</dd>
+                        <dt class="col-4">Template</dt>
+                        <dd class="col-8">@Dash(q.Template)</dd>
+                        <dt class="col-4">Client</dt>
+                        <dd class="col-8">
+                            @if (q.Property != null) { <a asp-controller="Clients" asp-action="Details" asp-route-id="@q.Property.ClientId">@q.Property.Client.Name</a> }
+                            else { @Dash(q.ClientName) }
+                        </dd>
+                        @if (q.Property == null)
+                        {
+                            <dt class="col-4">Property</dt>
+                            <dd class="col-8">@Dash(q.PropertyName)<div class="small text-muted">@q.Address</div></dd>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(q.Description))
+                        {
+                            <dt class="col-4">Description</dt>
+                            <dd class="col-8" style="white-space: pre-line">@q.Description</dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+
+            @await Component.InvokeAsync("UptickFiles", new { resource = "servicequotes", uptickId = q.UptickId })
+            @await Component.InvokeAsync("UptickRecord", new { resource = "servicequotes", uptickId = q.UptickId })
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card property-card">
+                <div class="card-header"><span>Lines</span></div>
+                @if (Model.Lines.Count == 0)
+                {
+                    <div class="card-body text-muted">No lines for this sales quote in Uptick.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">GST</th><th class="text-end">Amount</th></tr></thead>
+                            <tbody>
+                                @foreach (var l in Model.Lines)
+                                {
+                                    var routine = l.Kind != FyreApp.Models.ServiceQuoteLine.ProductKind;
+                                    <tr>
+                                        <td>
+                                            <div style="white-space: pre-line">@(string.IsNullOrWhiteSpace(l.Description) ? l.RoutineServiceType?.Name ?? l.Product?.Name ?? "-" : l.Description)</div>
+                                            <div class="small text-muted">
+                                                @if (routine)
+                                                {
+                                                    @string.Join(" · ", new[]
+                                                    {
+                                                        l.RoutineServiceType?.Name,
+                                                        l.Kind == FyreApp.Models.ServiceQuoteLine.FixedKind ? "fixed price a year" : "charged per service, a year's estimate",
+                                                        l.EstimatedDuration != null ? $"{l.EstimatedDuration} on site" : null
+                                                    }.OfType<string>())
+                                                }
+                                                else
+                                                {
+                                                    @(l.Product?.Name is { } product && l.Description?.Contains(product) != true ? product : null)
+                                                }
+                                            </div>
+                                        </td>
+                                        <td class="text-end">@BillingBadges.Quantity(l.Quantity)</td>
+                                        <td class="text-end text-nowrap">@BillingBadges.Amount(l.UnitPrice)</td>
+                                        <td class="text-end text-nowrap">@BillingBadges.Amount(l.Tax)</td>
+                                        <td class="text-end text-nowrap">@BillingBadges.Amount(l.Subtotal)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <partial name="_Totals" model="(subtotal, tax, total)" />
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

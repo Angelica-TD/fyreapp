@@ -36,7 +36,7 @@ public class UptickFilesViewComponent : ViewComponent
             .ToListAsync();
         var held = rows.Where(f => f.Held)
             .OrderBy(f => f.CreatedUtc ?? DateTime.MaxValue).ThenBy(f => f.Id)
-            .Select(f => new Item(f.Id, System.IO.Path.GetFileName(f.Path ?? "") is { Length: > 0 } name ? name : "Report PDF",
+            .Select(f => new Item(f.Id, System.IO.Path.GetFileName(f.Path ?? "") is { Length: > 0 } name ? name : "PDF",
                 f.Kind ?? UptickFilePaths.Document, f.PhotoType, f.Caption, f.Size, f.CreatedUtc))
             .ToList();
         return new Model(

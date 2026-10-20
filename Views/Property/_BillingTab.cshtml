@@ -166,7 +166,7 @@
                     {
                         var credits = Model.CreditNotes.Where(c => c.InvoiceId == i.Id).ToList();
                         <tr>
-                            <td class="text-nowrap">@i.Number</td>
+                            <td class="text-nowrap"><a asp-controller="Billing" asp-action="Invoice" asp-route-id="@i.Id">@i.Number</a></td>
                             <td class="text-nowrap">@(i.Date?.ToOrdinalDate() ?? "-")</td>
                             <td class="text-nowrap">@(i.DueDate?.ToOrdinalDate() ?? "-")</td>
                             <td>@i.Description</td>

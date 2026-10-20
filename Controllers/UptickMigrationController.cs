@@ -65,8 +65,13 @@ public class UptickMigrationController : Controller
 
     private async Task<List<UptickFileCounts>> FileCountsAsync(CancellationToken ct)
     {
+        var sources = UptickFileDownloader.PdfSources
+            .Select(p => (Source: p.Source, Label: char.ToUpperInvariant(p.Noun[0]) + p.Noun[1..] + " PDFs"))
+            .Append((Source: UptickFileDownloader.Documents, Label: "Document files (photos, signatures, attachments)"))
+            .ToList();
+        var resources = sources.Select(s => s.Source).ToList();
         var listed = await _db.UptickRecords.AsNoTracking()
-            .Where(r => (r.Resource == UptickFileDownloader.Reports || r.Resource == UptickFileDownloader.Documents) && r.DeletedUtc == null)
+            .Where(r => resources.Contains(r.Resource) && r.DeletedUtc == null)
             .GroupBy(r => r.Resource).Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(g => g.Key, g => g.Count, ct);
         var held = await _db.UptickFiles.AsNoTracking()
@@ -80,11 +85,7 @@ public class UptickMigrationController : Controller
                 Failing = g.Count(f => f.DownloadedUtc == null && f.Error != null)
             })
             .ToDictionaryAsync(g => g.Key, ct);
-        return new (string Source, string Label)[]
-            {
-                (UptickFileDownloader.Reports, "Report PDFs"),
-                (UptickFileDownloader.Documents, "Document files (photos, signatures, attachments)")
-            }
+        return sources
             .Select(s => held.TryGetValue(s.Source, out var h)
                 ? new UptickFileCounts(s.Source, s.Label, listed.GetValueOrDefault(s.Source), h.Downloaded, h.Bytes, h.NoFile, h.Failing)
                 : new UptickFileCounts(s.Source, s.Label, listed.GetValueOrDefault(s.Source), 0, 0, 0, 0))

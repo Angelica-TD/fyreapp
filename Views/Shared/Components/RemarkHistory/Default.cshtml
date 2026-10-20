@@ -1,0 +1,19 @@
+@model IReadOnlyList<FyreApp.Models.RemarkEvent>
+
+@* Each step in the remark's life, oldest first *@
+<ul class="list-group list-group-flush border-top">
+    @foreach (var e in Model)
+    {
+        <li class="list-group-item small">
+            <div class="d-flex justify-content-between gap-2">
+                <span>
+                    <span class="badge @(e.Event switch { "R" => "bg-success", "V" => "bg-info text-dark", _ => "bg-secondary" })">@(e.Label ?? e.Event)</span>
+                    @if (e.UptickUser != null) { <span>by @e.UptickUser.Name</span> }
+                    @if (e.ClientTask != null) { <span>on <a asp-controller="Task" asp-action="Details" asp-route-id="@e.ClientTaskId">@e.ClientTask.DisplayRef</a></span> }
+                </span>
+                <span class="text-muted text-nowrap">@(e.WhenUtc?.ToSydney().ToOrdinalDateTime())</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(e.Notes)) { <div class="mt-1" style="white-space: pre-line">@e.Notes</div> }
+        </li>
+    }
+</ul>

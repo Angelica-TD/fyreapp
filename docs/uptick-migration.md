@@ -368,7 +368,7 @@ at the edit, or close it (`ClosedReason` "Uptick"). Editing a field back to Upti
 
 ## 8. Files
 
-"All data" includes the files Uptick stores: report PDFs, photos, signatures, attachments. The raw copy holds their
+"All data" includes the files Uptick stores: report, invoice and quote PDFs, photos, signatures, attachments. The raw copy holds their
 metadata; the files themselves are downloaded in their own run (**Files**) and recorded as `UptickFile` (Uptick's
 path, size, etag, content type, MD5, storage key), skipping files already downloaded and unchanged.
 
@@ -575,6 +575,16 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      asset. A report page (`/Reports/Details`: the report, its PDF, its lines, its files); report refs link to it, with
      the PDF beside. The asset's Service History tab: each service line on a task (result, technician, with the stock
      used on it, from `taskstocktransactions` onto that `servicetask`) and every report it was on.
+   - 8d (done): `defectquotelineitems` → DefectQuoteLine (product, asset, remark, quantity, prices), `invoicelineitems`
+     → InvoiceLine (with its account code), Uptick's three sales quote line endpoints → ServiceQuoteLine by kind
+     (`product`; `fixed` and `doandcharge`, a routine service priced by the year; each endpoint's ids are its own, so
+     a line is known by kind and id) and `remarkevents` → RemarkEvent (added / verified / resolved, by whom, on
+     which task). A page each for a quote, an invoice and a sales quote (`/Billing/…`: the record, its PDF, its lines
+     and totals; a quote's remarks), linked from the property's Records and Billing tabs, the task page and the
+     remark page; the remark page shows its history. Invoice lines come in an unstable order (§4.5), so an invoice
+     whose copied lines don't add up to its subtotal says so until a Full run has filled them in. The Files run
+     copies invoices', defect quotes' and sales quotes' PDFs as it does reports' (one GET of `<resource>/<id>/pdf/`
+     each, ~23,800 more requests; credit notes have none).
    - 8c (done): `correspondence` → Correspondence (each email Uptick sent or took in: subject, from, to, cc, bcc,
      reply-to, sent, who sent it, the body, its attachments by name and path; a link out of Uptick is kept without
      its expired signature), `correspondenceobjectlinks` → CorrespondenceLink (a record an email is about, by kind,

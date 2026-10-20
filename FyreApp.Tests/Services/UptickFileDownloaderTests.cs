@@ -109,6 +109,34 @@ public class UptickFileDownloaderTests
     }
 
     [Fact]
+    public async Task Invoice_and_quote_pdfs_are_stored_with_their_record()
+    {
+        await using var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(
+            new UptickRecord { Resource = "invoices", UptickId = "52965", Type = "Invoice", Attributes = "{}", UpdatedUtc = Oct1 },
+            new UptickRecord { Resource = "defectquotes", UptickId = "345", Type = "DefectQuote", Attributes = "{}", UpdatedUtc = Oct1 });
+        await db.SaveChangesAsync();
+        var s = Create(db);
+        var invoicePdf = Encoding.UTF8.GetBytes("%PDF invoice");
+        s.Storage.Files["/fyrepower/invoices/52965/IV000032831.pdf"] = invoicePdf;
+        s.Api.Setup(a => a.PdfAsync("invoices", "52965", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UptickPdf("fyrepower/invoices/52965/IV000032831.pdf", invoicePdf.Length, null,
+                new Uri("https://uptick-customer-storage.s3.amazonaws.com/fyrepower/invoices/52965/IV000032831.pdf?sig=1")));
+        s.Api.Setup(a => a.PdfAsync("defectquotes", "345", It.IsAny<CancellationToken>())).ReturnsAsync((UptickPdf?)null);
+
+        var results = await RunAsync(s.Downloader);
+
+        Assert.Equal(invoicePdf, s.Store.Files["uptick/invoices/52965.pdf"].Bytes);
+        var invoice = await db.UptickFiles.SingleAsync(f => f.Source == "invoices");
+        Assert.Equal(("invoices/52965/IV000032831.pdf", "invoices", 52965L, FyreApp.Services.Uptick.Files.UptickFilePaths.Pdf),
+            (invoice.Path, invoice.RecordType, invoice.RecordUptickId!.Value, invoice.Kind));
+        Assert.True((await db.UptickFiles.SingleAsync(f => f.Source == "defectquotes")).NoFile);
+        Assert.Contains("1 quotes have no PDF", results.Single(r => r.Resource == "defectquotes.files").Note);
+        Assert.Equal(["reports.files", "invoices.files", "defectquotes.files", "servicequotes.files", "documentfiles.files"],
+            results.Select(r => r.Resource));
+    }
+
+    [Fact]
     public async Task Report_pdfs_and_document_files_are_stored_and_not_fetched_again()
     {
         await using var db = DbContextFactory.Create();
