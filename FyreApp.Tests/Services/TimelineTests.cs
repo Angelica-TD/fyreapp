@@ -1,10 +1,7 @@
-using System.Text;
 using FyreApp.Data;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.Services.Assets;
-using FyreApp.Services.Imports;
-using FyreApp.Services.Imports.Uptick;
 using FyreApp.Services.Timeline;
 using FyreApp.Tests.Helpers;
 using FyreApp.ViewModels.Assets;
@@ -16,76 +13,6 @@ namespace FyreApp.Tests.Services;
 // Property and asset Timelines, as Uptick keeps them: "Access note was changed to ...", by whom and when
 public class TimelineTests
 {
-    private static Stream Csv(string[] headers, params Dictionary<string, string>[] rows)
-    {
-        static string Esc(string v) => "\"" + v.Replace("\"", "\"\"") + "\"";
-        var sb = new StringBuilder(string.Join(",", headers.Select(Esc)) + "\r\n");
-        foreach (var r in rows)
-            sb.Append(string.Join(",", headers.Select(h => Esc(r.GetValueOrDefault(h, ""))))).Append("\r\n");
-        return new MemoryStream(Encoding.UTF8.GetBytes(sb.ToString()));
-    }
-
-    private static Task<FyreApp.ViewModels.Imports.UptickImportResultVm> Import(AppDbContext db, UptickExportType type, Stream csv) =>
-        new UptickImportService(new UptickImporter[] { new PropertyImporter(db), new AssetImporter(db) })
-            .ImportAsync(csv, "export.csv", type, dryRun: false);
-
-    private static readonly string[] PropertyHeaders =
-        { "ID", "Ref", "Name", "Created", "Updated", "Status", "Access Note", "Address", "Address Street Address", "Client ID", "Client" };
-    private static readonly string[] AssetHeaders =
-        { "ID", "Created", "Updated", "Is Active", "Ref", "Label", "Location", "Compliant", "Last Service Date", "Inspection Ref", "Quantity", "Guid", "Type", "Variant", "Property Ref", "Property" };
-
-    private static Dictionary<string, string> GoldCoastConcrete => new()
-    {
-        ["ID"] = "14484", ["Ref"] = "P-3340", ["Name"] = "Gold Coast Concrete", ["Created"] = "2026-10-13 14:21:00",
-        ["Updated"] = "2026-10-13 14:21:00", ["Status"] = "ACTIVE", ["Client ID"] = "500", ["Client"] = "Jane Clandy",
-        ["Address"] = "6/11 Coghill Dr, Currumbin Waters QLD 4223"
-    };
-
-    [Fact]
-    public async Task PropertyReimport_UpdatesTheProperty_AndLeavesTheTimelineToUptick()
-    {
-        using var db = DbContextFactory.Create();
-        db.Clients.Add(new Client { Name = "Jane Clandy", ExternalId = "500" });
-        await db.SaveChangesAsync();
-
-        await Import(db, UptickExportType.Properties, Csv(PropertyHeaders, GoldCoastConcrete));
-        var changed = GoldCoastConcrete;
-        changed["Updated"] = "2026-10-13 14:26:00";
-        changed["Access Note"] = "Please send reminder email";
-        await Import(db, UptickExportType.Properties, Csv(PropertyHeaders, changed));
-
-        // The change is on Uptick's own timeline, which the migration brings in; the import doesn't make one up
-        Assert.Equal("Please send reminder email", (await db.Properties.SingleAsync()).AccessNote);
-        Assert.Empty(db.TimelineEvents);
-        Assert.Empty(await new TimelineService(db).ForPropertyAsync(await db.Properties.SingleAsync(), notesOnly: false));
-    }
-
-    [Fact]
-    public async Task AssetReimport_UpdatesTheAsset_AndLeavesTheTimelineToUptick()
-    {
-        using var db = DbContextFactory.Create();
-        db.Properties.Add(new Property { Name = "Kamber", ExternalId = "P-3330", Client = new Client { Name = "Kamber" } });
-        await db.SaveChangesAsync();
-        var row = new Dictionary<string, string>
-        {
-            ["ID"] = "41675", ["Created"] = "2026-09-07 13:07:00", ["Updated"] = "2026-09-07 13:07:00", ["Is Active"] = "True",
-            ["Ref"] = "001", ["Label"] = "001 - DCP AB(E) 4.5KG Portable Fire Extinguisher", ["Location"] = "Right side of roller door",
-            ["Compliant"] = "N/A", ["Inspection Ref"] = "TAG-9", ["Quantity"] = "1", ["Type"] = "Fire Extinguisher",
-            ["Variant"] = "DCP AB(E) 4.5KG", ["Property Ref"] = "P-3330", ["Property"] = "Kamber"
-        };
-        await Import(db, UptickExportType.Assets, Csv(AssetHeaders, row));
-        var asset = await db.Assets.SingleAsync();
-        Assert.Equal(("TAG-9", "1"), (asset.Serial, asset.Quantity));
-
-        row["Updated"] = "2026-09-07 13:26:00";
-        row["Compliant"] = "Pass";
-        row["Last Service Date"] = "2026-09-07";
-        await Import(db, UptickExportType.Assets, Csv(AssetHeaders, row));
-
-        Assert.Equal("Pass", (await db.Assets.SingleAsync()).Compliance);
-        Assert.Empty(await new TimelineService(db).ForAssetAsync(await db.Assets.SingleAsync(), notesOnly: false));
-    }
-
     [Fact]
     public async Task AssetUpdateForm_SavesFields_AndLogsEachChangeByTheEditor()
     {

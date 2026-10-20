@@ -15,7 +15,6 @@ using FyreApp.Services.ServiceOfferings;
 using FyreApp.Services.Email;
 using FyreApp.Services.Quotes;
 using FyreApp.Services.Imports;
-using FyreApp.Services.Imports.Uptick;
 using FyreApp.Services.DataReset;
 using FyreApp.Services.MaintenanceSchedules;
 
@@ -26,16 +25,11 @@ var authEnabled = builder.Configuration.GetValue<bool>("Auth:Enabled", true);
 // Services
 // --------------------------------------------------
 
-builder.Services.AddSingleton<IImportTracker, ImportTracker>();
 builder.Services.AddControllersWithViews();
-builder.Services.AddScoped<IClientImportService, ClientImportService>();
 builder.Services.AddSignalR();
 
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IMaintenanceScheduleService, MaintenanceScheduleService>();
-builder.Services.AddScoped<IScheduleImportService, ScheduleImportService>();
-// Every Uptick export's records come from Uptick's API now (UptickImportService.FromApi), so no file importer
-// is registered; the importers themselves go in phase 6c
 builder.Services.AddScoped<FyreApp.Services.Routines.IRoutineListService, FyreApp.Services.Routines.RoutineListService>();
 builder.Services.AddScoped<FyreApp.Services.Routines.IRoutineSetupService, FyreApp.Services.Routines.RoutineSetupService>();
 builder.Services.AddScoped<FyreApp.Services.Assets.IAssetListService, FyreApp.Services.Assets.AssetListService>();
@@ -48,7 +42,6 @@ builder.Services.AddScoped<FyreApp.Services.Lists.IDirectoryListService, FyreApp
 builder.Services.AddScoped<FyreApp.Services.Lists.IProductListService, FyreApp.Services.Lists.ProductListService>();
 builder.Services.AddScoped<FyreApp.Services.Timeline.ITimelineService, FyreApp.Services.Timeline.TimelineService>();
 builder.Services.AddScoped<FyreApp.Services.Assets.IAssetPageService, FyreApp.Services.Assets.AssetPageService>();
-builder.Services.AddScoped<IUptickImportService, UptickImportService>();
 builder.Services.AddScoped<IDataResetService, DataResetService>();
 builder.Services.AddScoped<IClientTaskService, ClientTaskService>();
 builder.Services.AddScoped<ITechService, TechService>();

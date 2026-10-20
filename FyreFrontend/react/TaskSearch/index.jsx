@@ -210,8 +210,8 @@ function TaskSearch({ canEdit, techs, canFilterMine, defaultTechnician }) {
 
   const noTechs = canEdit && techs.length === 0 && (
     <p className="small text-muted mb-0">
-      No technicians yet. Technicians are Uptick's field users and contractors: import Uptick's Users
-      export on the <a href="/Imports">Import</a> page.
+      No technicians yet. Technicians are Uptick's field users and contractors, brought in by
+      the <a href="/UptickMigration">Uptick migration</a>.
     </p>
   )
 

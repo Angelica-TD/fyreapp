@@ -499,8 +499,12 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      read extra field values from the raw record's `extra_fields`. The last file imports are off. (Uptick's API
      returns no prompt questions or property schedules for this account, so those two mappers have only run on
      test data.)
-   - 6c: remove the file importers and the Imports page's Uptick exports, `UptickData` (each page's Uptick fields
-     from the raw copy) and the `ExternalId` / ref-matching columns the exports needed.
+   - 6c (done): the file importers removed, with the Imports page, the clients and routine schedules uploads and the
+     CSV/XLSX readers. What the mappers still used moved out: `UptickTaskRules` (task status, priority,
+     description, scope months, schedules rolled forward, the no-property placeholder), `RoutineRules` (routine
+     frequency, occurrence status, next outstanding, durations) and `RoutineServiceLevelMapper.IntervalMonths`.
+   - 6d: `UptickData`: each page's Uptick fields from the raw copy, then the column dropped.
+   - 6e: the `ExternalId` / ref-matching columns the exports needed.
 7. **Files.**
 8. **The rest:** typed entities and screens for the endpoints still only in the raw copy, in order of need.
 9. **Cutover:** freeze Uptick, final Full run + files refresh, reconciliation sign-off, FyreApp becomes the

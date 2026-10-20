@@ -2,7 +2,6 @@ using System.Text.Json;
 using FyreApp.Data;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
-using FyreApp.Services.Imports.Uptick;
 using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Uptick.Mapping;
@@ -133,7 +132,7 @@ public class RoutineServiceLevelMapper : UptickEntityMapper<RoutineServiceLevel>
         l.RoutineServiceTypeId = typeId;
         l.Name = raw.Text("name", 100) ?? $"Level {raw.Id}";
         l.DisplayCode = raw.Text("display_code", 20);
-        l.IntervalMonths = RoutineServiceLevelImporter.IntervalMonths(raw.Int("interval"), raw.Text("frequency")) ?? 0;
+        l.IntervalMonths = IntervalMonths(raw.Int("interval"), raw.Text("frequency")) ?? 0;
         l.OffsetMonths = raw.Int("offset");
         l.ToleranceInterval = raw.Int("tolerance_interval");
         l.ToleranceUnit = raw.Text("tolerance_unit", 10);
@@ -146,6 +145,14 @@ public class RoutineServiceLevelMapper : UptickEntityMapper<RoutineServiceLevel>
     }
 
     protected override void Deactivate(RoutineServiceLevel l) => l.Active = false;
+
+    // Uptick "interval" + "frequency" unit; every level seen so far is in months ("M")
+    public static int? IntervalMonths(int? interval, string? unit) => (interval, unit?.Trim().ToUpperInvariant()) switch
+    {
+        (> 0, "M" or null or "") => interval,
+        (> 0, "Y") => interval * 12,
+        _ => null
+    };
 }
 
 // Uptick's remarktypes -> RemarkType ("1.02 - Battery missing indication"), with its asset type. Remarks a file
@@ -198,7 +205,7 @@ public class RemarkTypeMapper : UptickEntityMapper<RemarkType>
         var idsByExt = await Db.RemarkTypes.AsNoTracking().Where(r => r.ExternalId != null)
             .ToDictionaryAsync(r => r.ExternalId!, r => r.Id, StringComparer.OrdinalIgnoreCase, ct);
         foreach (var remark in await Db.Remarks.Where(r => r.RemarkTypeId == null && r.UptickData != null).ToListAsync(ct))
-            if (RemarkTypeImporter.RemarkTypeIdIn(remark.UptickData) is { } ext && idsByExt.TryGetValue(ext, out var id))
+            if (FyreApp.Services.Imports.UptickJson.Value(remark.UptickData, "Remark Type ID")?.Trim() is { Length: > 0 } ext && idsByExt.TryGetValue(ext, out var id))
                 remark.RemarkTypeId = id;
         await Db.SaveChangesAsync(ct);
     }

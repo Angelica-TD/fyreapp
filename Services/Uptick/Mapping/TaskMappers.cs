@@ -1,6 +1,6 @@
 using FyreApp.Data;
 using FyreApp.Models;
-using FyreApp.Services.Imports.Uptick;
+using FyreApp.Services.Tasks;
 using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Uptick.Mapping;
@@ -48,7 +48,7 @@ public class TaskMapper : UptickEntityMapper<ClientTask>
                 .ToListAsync(ct))
             .ToLookup(s => (s.PropertyId!.Value, s.MaintenanceInterval.Months));
         if (_noProperty == null && batch.Any(r => !r.Deleted && r.Rel("property") == null))
-            _noProperty = await TaskImporter.GetNoPropertySiteAsync(Db, dryRun: false, ct);
+            _noProperty = await UptickTaskRules.GetNoPropertySiteAsync(Db, ct);
 
         var ids = batch.Select(r => r.Id).ToList();
         var texts = ids.Select(id => id.ToString()).ToList();
@@ -68,7 +68,7 @@ public class TaskMapper : UptickEntityMapper<ClientTask>
         else if (!_properties.TryGetValue(propertyId, out property))
             throw new UptickMapException($"Its property ({propertyId}) isn't in FyreApp.");
 
-        var status = TaskImporter.MapStatus(raw.RelText("status"));
+        var status = UptickTaskRules.MapStatus(raw.RelText("status"));
         var description = raw.Text("description");
         var scope = raw.Text("scope_of_works");
         var reference = raw.Text("ref", 20);
@@ -78,11 +78,11 @@ public class TaskMapper : UptickEntityMapper<ClientTask>
         t.Ref = reference;
         t.PropertyId = property.Id;
         t.ClientId = raw.Rel("client") is { } client && _clients.TryGetValue(client, out var clientId) ? clientId : property.ClientId;
-        t.Title = TaskImporter.Truncate(raw.Text("name") ?? TaskImporter.FirstLine(description) ?? reference ?? raw.Id.ToString(), 120);
-        t.Description = TaskImporter.BuildDescription(description, scope);
-        t.ScopeOfWorks = scope == null ? null : TaskImporter.Truncate(scope, 4000);
+        t.Title = UptickTaskRules.Truncate(raw.Text("name") ?? UptickTaskRules.FirstLine(description) ?? reference ?? raw.Id.ToString(), 120);
+        t.Description = UptickTaskRules.BuildDescription(description, scope);
+        t.ScopeOfWorks = scope == null ? null : UptickTaskRules.Truncate(scope, 4000);
         t.Status = status;
-        t.Priority = TaskImporter.MapPriority(raw.Int("priority"));
+        t.Priority = UptickTaskRules.MapPriority(raw.Int("priority"));
         t.DueDateUtc = raw.Date("due");
         t.CreatedUtc = raw.Time("created") ?? (t.CreatedUtc == default ? DateTime.UtcNow : t.CreatedUtc);
         t.CompletedUtc = status == ClientTaskStatus.Completed ? raw.Time("status_changed_complete") ?? raw.Time("inactive_date") : null;
@@ -98,7 +98,7 @@ public class TaskMapper : UptickEntityMapper<ClientTask>
         else t.UptickTechnician = null;
 
         if (t.Category == "I&T")
-            foreach (var s in TaskImporter.ScopeMonths(scope).SelectMany(m => _schedules[(property.Id, m)]).Distinct())
+            foreach (var s in UptickTaskRules.ScopeMonths(scope).SelectMany(m => _schedules[(property.Id, m)]).Distinct())
                 if (!t.CoveredSchedules.Contains(s)) t.CoveredSchedules.Add(s);
         _mapped.Add(t);
     }
@@ -108,8 +108,8 @@ public class TaskMapper : UptickEntityMapper<ClientTask>
 
     protected override async Task AfterAsync(CancellationToken ct)
     {
-        if (TaskImporter.RollSchedulesForward(Db, _mapped, dryRun: false) > 0) await Db.SaveChangesAsync(ct);
-        await TaskImporter.LinkWaitingRecordsAsync(Db, _mapped, ct);
+        if (UptickTaskRules.RollSchedulesForward(Db, _mapped) > 0) await Db.SaveChangesAsync(ct);
+        await UptickTaskRules.LinkWaitingRecordsAsync(Db, _mapped, ct);
     }
 }
 
