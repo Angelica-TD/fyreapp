@@ -142,7 +142,8 @@ public class TaskPageService : ITaskPageService
             .ToList();
     }
 
-    // Which of its assets the task serviced. Uptick's exports give only each asset's last service date, so that goes to
+    // Which of its assets the task serviced: from Uptick's service lines when it has them. Otherwise (a task made in
+    // FyreApp) only each asset's last service date is known, so that goes to
     // the property's task whose scope of works names the asset's routine and that was being worked on then: the one
     // performed that day, else the one started most recently by then. So a later task servicing the asset doesn't
     // count for an earlier one still open.
@@ -150,6 +151,16 @@ public class TaskPageService : ITaskPageService
         ClientTask task, IReadOnlyList<(string Routine, Asset Asset)> serviceAssets, CancellationToken ct)
     {
         static bool During((DateTime From, DateTime? To) w, DateTime d) => d >= w.From && (w.To is not DateTime to || d <= to);
+
+        // A task with Uptick's service lines says itself: an asset is done when its line was performed
+        var lines = await _db.ServiceTasks.AsNoTracking()
+            .Where(s => s.ClientTaskId == task.Id && s.AssetId != null)
+            .Select(s => new { AssetId = s.AssetId!.Value, s.PerformedUtc })
+            .ToListAsync(ct);
+        if (lines.Count > 0)
+            return lines.Where(l => l.PerformedUtc != null)
+                .GroupBy(l => l.AssetId)
+                .ToDictionary(g => g.Key, g => g.Max(l => l.PerformedUtc!.Value).ToSydney().Date);
 
         var window = TaskPageVm.WorkWindow(task);
         var serviced = serviceAssets
