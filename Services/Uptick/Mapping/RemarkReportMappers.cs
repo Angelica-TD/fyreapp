@@ -9,12 +9,12 @@ namespace FyreApp.Services.Uptick.Mapping;
 // Uptick's remarks -> Remark, on the asset it was raised against (and so at that asset's property: Uptick's remark
 // has no property of its own). The task it was raised on comes from its "Added" remark event; its repair task is
 // the task of a service task done for it (a Repair task first, else the latest); its quote is its most progressed
-// defect quote. A remark the remarks export placed (ExternalId = its id) is matched and updated.
+// defect quote.
 public class RemarkMapper : UptickEntityMapper<Remark>
 {
     private Dictionary<long, (int Id, int PropertyId, string? Location)> _assets = new();
     private Dictionary<long, (int Id, string Label)> _types = new();
-    private Dictionary<long, string?> _raisedOn = new();
+    private Dictionary<long, int?> _raisedOn = new();
     private Dictionary<long, (int Id, long? UptickId, string? Ref, string? Status)> _repairs = new();
     private Dictionary<long, (int Id, string Ref, string? Status, DateTime? Date)> _quotes = new();
 
@@ -30,16 +30,16 @@ public class RemarkMapper : UptickEntityMapper<Remark>
         _types = (await Db.RemarkTypes.AsNoTracking().Where(t => t.UptickId != null)
                 .Select(t => new { UptickId = t.UptickId!.Value, t.Id, t.Label }).ToListAsync(ct))
             .ToDictionary(t => t.UptickId, t => (t.Id, t.Label));
-        var taskRefs = (await Db.ClientTasks.AsNoTracking().Where(t => t.UptickId != null)
-                .Select(t => new { UptickId = t.UptickId!.Value, t.Ref }).ToListAsync(ct))
-            .ToDictionary(t => t.UptickId, t => t.Ref);
+        var taskIds = (await Db.ClientTasks.AsNoTracking().Where(t => t.UptickId != null)
+                .Select(t => new { UptickId = t.UptickId!.Value, t.Id }).ToListAsync(ct))
+            .ToDictionary(t => t.UptickId, t => t.Id);
 
         // The task each remark was added on, from the earliest "A" event
-        _raisedOn = new Dictionary<long, string?>();
+        _raisedOn = new Dictionary<long, int?>();
         foreach (var e in (await RawAsync(Db, "remarkevents", ct)).OrderBy(e => e.Id))
             if (UptickRaw.Str(e.A, "event") == "A" && Rel(e.R, "remark") is { } remark && Rel(e.R, "task") is { } task
                 && !_raisedOn.ContainsKey(remark))
-                _raisedOn[remark] = taskRefs.GetValueOrDefault(task);
+                _raisedOn[remark] = taskIds.TryGetValue(task, out var taskId) ? taskId : null;
 
         // Repair tasks: the tasks of service tasks done for a remark, with Uptick's status for them
         var statuses = new Dictionary<long, string?>();
@@ -63,11 +63,10 @@ public class RemarkMapper : UptickEntityMapper<Remark>
     protected override async Task<Dictionary<long, Remark>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.Remarks
-            .Where(r => (r.UptickId != null && ids.Contains(r.UptickId.Value)) || (r.ExternalId != null && texts.Contains(r.ExternalId)))
+            .Where(r => r.UptickId != null && ids.Contains(r.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), r => r.UptickId, r => r.ExternalId);
+        return Match(rows, r => r.UptickId);
     }
 
     protected override Remark Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -83,7 +82,6 @@ public class RemarkMapper : UptickEntityMapper<Remark>
             raw.Rel("most_progressed_defectquote") is { } q && _quotes.TryGetValue(q, out var qf) ? qf : null;
 
         r.UptickId = raw.Id;
-        r.ExternalId = raw.Id.ToString();
         r.PropertyId = asset.PropertyId;
         r.AssetId = asset.Id;
         r.RemarkTypeId = type?.Id;
@@ -98,12 +96,11 @@ public class RemarkMapper : UptickEntityMapper<Remark>
         r.Active = raw.Bool("is_active") ?? true;
         r.RaisedUtc = raw.Time("identified") ?? raw.Time("created");
         r.InactiveUtc = raw.Time("inactive_date");
-        r.RaisedOnTaskRef = _raisedOn.GetValueOrDefault(raw.Id);
+        r.RaisedOnTaskId = _raisedOn.GetValueOrDefault(raw.Id);
         r.DefectQuoteId = quote?.Id;
         r.QuoteRef = quote?.Ref;
         r.QuoteStatus = quote?.Status;
         r.QuotedDate = quote?.Date;
-        r.RepairTaskExternalId = repair?.UptickId?.ToString();
         r.RepairTaskId = repair?.Id;
         r.RepairTaskRef = repair?.Ref;
         r.RepairTaskStatus = repair?.Status;
@@ -143,8 +140,7 @@ public class RemarkMapper : UptickEntityMapper<Remark>
     }
 }
 
-// Uptick's reports -> Report, at its property and linked to the task it was done on. A report the reports export
-// placed (ExternalId = its id) is matched and updated.
+// Uptick's reports -> Report, at its property and linked to the task it was done on.
 public class ReportMapper : UptickEntityMapper<Report>
 {
     private Dictionary<long, int> _properties = new();
@@ -173,11 +169,10 @@ public class ReportMapper : UptickEntityMapper<Report>
     protected override async Task<Dictionary<long, Report>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.Reports
-            .Where(r => (r.UptickId != null && ids.Contains(r.UptickId.Value)) || (r.ExternalId != null && texts.Contains(r.ExternalId)))
+            .Where(r => r.UptickId != null && ids.Contains(r.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), r => r.UptickId, r => r.ExternalId);
+        return Match(rows, r => r.UptickId);
     }
 
     protected override Report Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -189,14 +184,12 @@ public class ReportMapper : UptickEntityMapper<Report>
         (int Id, string? Ref, string Title)? task = raw.Rel("task") is { } t && _tasks.TryGetValue(t, out var found) ? found : null;
 
         r.UptickId = raw.Id;
-        r.ExternalId = raw.Id.ToString();
         r.PropertyId = property;
         r.Ref = raw.Text("ref");
         r.ReportType = raw.Text("title") ?? (raw.Rel("type") is { } type ? _types.GetValueOrDefault(type) : null) ?? raw.Text("get_title");
         r.IssuedDate = raw.Date("issued");
         r.InspectedDate = raw.Date("inspected");
         r.Compliant = raw.Bool("compliant");
-        r.TaskExternalId = raw.Rel("task")?.ToString();
         r.ClientTaskId = task?.Id;
         r.TaskRef = task?.Ref;
         r.TaskName = task?.Title;

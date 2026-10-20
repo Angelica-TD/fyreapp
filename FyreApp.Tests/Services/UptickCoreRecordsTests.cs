@@ -90,13 +90,13 @@ public class UptickCoreRecordsTests
         Assert.Equal(1, results["properties"].Mapped);
 
         var client = await db.Clients.SingleAsync();
-        Assert.Equal((2806L, "2806", "Allied OT Pty Limited", true), (client.UptickId!.Value, client.ExternalId, client.Name, client.Active));
+        Assert.Equal((2806L, "2806", "Allied OT Pty Limited", true), (client.UptickId!.Value, client.DisplayRef, client.Name, client.Active));
         Assert.Equal(("Belinda Boyd", "anita@alliedx.com.au", null, "Retail Trade"),
             (client.PrimaryContactName, client.PrimaryContactEmail, client.PrimaryContactPhone, client.PrimarySector));
         Assert.Equal(DateTimeOffset.Parse("2026-10-15T11:37:44.374802+11:00").UtcDateTime, client.Created);
 
         var property = await db.Properties.SingleAsync();
-        Assert.Equal((1491L, "P-0016", "P-0016", client.Id), (property.UptickId!.Value, property.Ref, property.ExternalId, property.ClientId));
+        Assert.Equal((1491L, "P-0016", "P-0016", client.Id), (property.UptickId!.Value, property.Ref, property.DisplayRef, property.ClientId));
         Assert.Equal("11 Greg Chappell Dr, Burleigh Heads QLD 4220", property.AddressDisplay);
         Assert.Equal(("11 Greg Chappell Dr", "Burleigh Heads", "QLD", "4220", "ChIJz3rp"),
             (property.AddressLine1, property.Suburb, property.State, property.Postcode, property.GooglePlaceId));
@@ -113,13 +113,13 @@ public class UptickCoreRecordsTests
     }
 
     [Fact]
-    public async Task Rows_a_file_import_made_are_updated_in_place_and_placeholders_filled_in()
+    public async Task Rows_FyreApp_holds_are_updated_in_place_and_placeholders_filled_in()
     {
         await using var db = DbContextFactory.Create();
-        var placeholder = new Client { Name = "Client 2806", ExternalId = "2806", IsPlaceholder = true, Active = false, ReportAddress = "PO Box 1" };
+        var placeholder = new Client { Name = "Client 2806", UptickId = 2806, IsPlaceholder = true, Active = false, ReportAddress = "PO Box 1" };
         db.Clients.Add(placeholder);
-        db.Properties.Add(new Property { Name = "Old name", ExternalId = "P-0016", Client = placeholder });
-        db.UptickUsers.Add(new UptickUser { Name = "Wes", ExternalId = "12", SecurityGroups = "Technician" });
+        db.Properties.Add(new Property { Name = "Old name", UptickId = 1491, Ref = "P-0016", Client = placeholder });
+        db.UptickUsers.Add(new UptickUser { Name = "Wes", UptickId = 12, SecurityGroups = "Technician" });
         db.UptickRecords.AddRange(RawClient("2806", "Allied OT Pty Limited"), RawProperty("1491", "P-0016", "2806"),
             RawUser("12", "Wes Speedon (Field Tech)", "wes@fyrepower.com.au", "FIELD"));
         await db.SaveChangesAsync();
@@ -271,7 +271,7 @@ public class UptickCoreRecordsTests
 
         var asset = await db.Assets.Include(a => a.AssetTypes).Include(a => a.LastServicedBy).SingleAsync(a => a.UptickId == 42896);
         Assert.Equal(("42896", "Fire Extinguisher CO2 5.0KG", "001", "Kitchen", "2", "Pass"),
-            (asset.ExternalId, asset.Name, asset.Ref, asset.Location, asset.Quantity, asset.Compliance));
+            (asset.DisplayRef, asset.Name, asset.Ref, asset.Location, asset.Quantity, asset.Compliance));
         Assert.Equal((type.Id, variant.Id, "CO2 5.0KG", 3), (asset.AssetTypes.Single().Id, asset.AssetTypeVariantId!.Value, asset.Variant, asset.InspectionOrder!.Value));
         Assert.Equal((new DateTime(2019, 6, 1, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc)),
             (asset.InstallationDate!.Value, asset.LastServiceDate!.Value));
@@ -286,12 +286,12 @@ public class UptickCoreRecordsTests
     public async Task Types_variants_and_assets_from_the_file_imports_are_claimed_not_added_again()
     {
         await using var db = DbContextFactory.Create();
-        var client = new Client { Name = "Allied", UptickId = 2806, ExternalId = "2806" };
-        var property = new Property { Name = "Big River", UptickId = 1491, ExternalId = "P-0016", Client = client };
+        var client = new Client { Name = "Allied", UptickId = 2806 };
+        var property = new Property { Name = "Big River", UptickId = 1491, Ref = "P-0016", Client = client };
         // Made by name from the assets export, then a variant from the variants export, then the asset
         var type = new AssetType { Name = "fire extinguisher" };
         var variant = new AssetTypeVariant { Name = "CO2 5.0KG", AssetType = type };
-        var asset = new Asset { Name = "Old", ExternalId = "42896", Property = property, AssetTypes = { type }, InternalNote = "x" };
+        var asset = new Asset { Name = "Old", UptickId = 42896, Property = property, AssetTypes = { type }, InternalNote = "x" };
         db.AddRange(client, property, type, variant, asset);
         db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"),
             RawAssetType("10", "Fire Extinguisher"), RawVariant("112", "10", "CO2 5.0kg"), RawAsset("42896", "1491", "10", variantId: "112"));
@@ -474,8 +474,8 @@ public class UptickCoreRecordsTests
         var made = new RoutineServiceType { Name = "10 - Portable and Wheeled Fire Extinguishers" };
         db.RoutineServiceTypes.Add(made);
         db.RoutineServiceLevels.Add(new RoutineServiceLevel { Name = "six-monthly", RoutineServiceType = made, IntervalMonths = 6 });
-        var client = new Client { Name = "Allied", UptickId = 2806, ExternalId = "2806" };
-        var property = new Property { Name = "Big River", UptickId = 1491, ExternalId = "P-0016", Client = client };
+        var client = new Client { Name = "Allied", UptickId = 2806 };
+        var property = new Property { Name = "Big River", UptickId = 1491, Ref = "P-0016", Client = client };
         db.AddRange(client, property);
         db.UptickRecords.AddRange(
             Raw("standards", "1", """{"name":"AS1851-2012"}"""), Raw("servicegroups", "4", """{"name":"Servicing - Portables & Fire Equipment"}"""),
@@ -544,7 +544,7 @@ public class UptickCoreRecordsTests
         var property = await db.Properties.SingleAsync(p => p.UptickId == 1491);
         var task = await db.ClientTasks.Include(t => t.AssignedTo).SingleAsync(t => t.UptickId == 46781);
         Assert.Equal(("T-46781", "46781", property.Id, property.ClientId, "I&T", ClientTaskStatus.Completed, false),
-            (task.Ref, task.ExternalId, task.PropertyId, task.ClientId, task.Category, task.Status, task.IsActive));
+            (task.Ref, task.UptickId!.Value.ToString(), task.PropertyId, task.ClientId, task.Category, task.Status, task.IsActive));
         Assert.Equal(("Wes Speedon (Field Tech)", "Wes Speedon (Field Tech)", "- 09 - Fire Hose Reels (Section 9): Annual"),
             (task.AssignedTo!.Name, task.UptickTechnician, task.ScopeOfWorks));
         Assert.Equal((new DateTime(2026, 10, 31, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 10, 15, 4, 22, 53, DateTimeKind.Utc)),
@@ -566,12 +566,12 @@ public class UptickCoreRecordsTests
     }
 
     [Fact]
-    public async Task A_task_the_tasks_export_placed_is_updated_in_place()
+    public async Task A_task_FyreApp_holds_is_updated_in_place()
     {
         await using var db = DbContextFactory.Create();
-        var client = new Client { Name = "Allied", UptickId = 2806, ExternalId = "2806" };
-        var property = new Property { Name = "Big River", UptickId = 1491, ExternalId = "P-0016", Client = client };
-        var task = new ClientTask { Client = client, Property = property, Title = "Old", ExternalId = "46781" };
+        var client = new Client { Name = "Allied", UptickId = 2806 };
+        var property = new Property { Name = "Big River", UptickId = 1491, Ref = "P-0016", Client = client };
+        var task = new ClientTask { Client = client, Property = property, Title = "Old", UptickId = 46781 };
         db.AddRange(client, property, task);
         db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"), RawTask("46781", "1491"));
         await db.SaveChangesAsync();
@@ -621,8 +621,8 @@ public class UptickCoreRecordsTests
         var remark = await db.Remarks.SingleAsync();
         Assert.Equal((55218L, "D-55218", asset.PropertyId, asset.Id, "00 - Custom note", "Needs Quoting", "Critical defect"),
             (remark.UptickId!.Value, remark.DisplayRef, remark.PropertyId, remark.AssetId!.Value, remark.RemarkType, remark.Status, remark.SeverityLabel));
-        Assert.Equal(("T-46781", "Q-2790", "APPROVED", "T-46900", "READY"),
-            (remark.RaisedOnTaskRef, remark.QuoteRef, remark.QuoteStatus, remark.RepairTaskRef, remark.RepairTaskStatus));
+        Assert.Equal(((await db.ClientTasks.SingleAsync(t => t.UptickId == 46781)).Id, "Q-2790", "APPROVED", "T-46900", "READY"),
+            (remark.RaisedOnTaskId!.Value, remark.QuoteRef, remark.QuoteStatus, remark.RepairTaskRef, remark.RepairTaskStatus));
         Assert.Equal((await db.ClientTasks.SingleAsync(t => t.UptickId == 46900)).Id, remark.RepairTaskId);
         Assert.Equal(((await db.DefectQuotes.SingleAsync()).Id, new DateTime(2026, 10, 16, 0, 0, 0, DateTimeKind.Utc)),
             (remark.DefectQuoteId!.Value, remark.QuotedDate!.Value));
@@ -646,7 +646,7 @@ public class UptickCoreRecordsTests
     public async Task Defect_and_sales_quotes_are_mapped_at_their_property_with_their_task_and_totals()
     {
         await using var db = DbContextFactory.Create();
-        db.DefectQuotes.Add(new DefectQuote { Reference = "Q-0970", ExternalId = "999", PropertyRef = "P-0016", Total = 1m });
+        db.DefectQuotes.Add(new DefectQuote { Reference = "Q-0970", UptickId = 999, PropertyRef = "P-0016", Total = 1m });
         db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"), RawTask("9943", "1491"),
             Raw("servicegroups", "4", """{"name":"Plumbing & Backflow"}"""),
             Raw("defectquotes", "999", """{"ref":"Q-0970","date":"2023-09-25","status":"ACTIONED","due_date":"2023-10-25","description":"Exchange expired extinguishers","expiry_date":"2023-10-25","scope_of_works":"As per service report","authorisation_date":"2023-09-26T16:35:44.751217+10:00","status_changed_submitted":"2023-09-25T10:05:39.331441+10:00"}""",
@@ -682,7 +682,7 @@ public class UptickCoreRecordsTests
     public async Task Invoices_and_credit_notes_are_mapped_with_their_property_task_and_credits()
     {
         await using var db = DbContextFactory.Create();
-        db.Invoices.Add(new Invoice { Number = "IV000032831", ExternalId = "30761", PropertyRef = "P-0016", Status = "DRAFT" });
+        db.Invoices.Add(new Invoice { Number = "IV000032831", UptickId = 30761, PropertyRef = "P-0016", Status = "DRAFT" });
         db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"), RawTask("46781", "1491"),
             Raw("billingcards", "23384", """{"name":"Allied OT Pty Limited"}"""),
             Raw("invoices", "30761", """{"gst":"14.5000","ref":"P-0016","date":"2026-10-15","total":"159.5000","number":"IV000032831","status":"PAID","due_date":"2026-10-22","subtotal":"145.0000","description":"P-0016 Allied"}""",
@@ -715,7 +715,7 @@ public class UptickCoreRecordsTests
     public async Task Billing_cards_contracts_and_lines_are_mapped_and_linked_to_their_property()
     {
         await using var db = DbContextFactory.Create();
-        db.BillingCards.Add(new BillingCard { Name = "Old", ExternalId = "157" });
+        db.BillingCards.Add(new BillingCard { Name = "Old", UptickId = 157 });
         var client = RawClient("2806", "Allied");
         client.Relationships = "{\"billingcard\":" + To("BillingCard", "336") + "}";
         db.UptickRecords.AddRange(client, RawProperty("1491", "P-0016", "2806"),
@@ -752,7 +752,7 @@ public class UptickCoreRecordsTests
     public async Task Security_groups_contractors_suppliers_and_accreditations_are_mapped()
     {
         await using var db = DbContextFactory.Create();
-        db.Contractors.Add(new Contractor { Name = "Old", ExternalId = "6", Skills = "Sprinklers" });
+        db.Contractors.Add(new Contractor { Name = "Old", UptickId = 6, Skills = "Sprinklers" });
         db.UptickRecords.AddRange(RawUser("9", "Dwayne Page", "dwayne@fyrepower.com.au", "FIELD"),
             Raw("groups", "8", """{"name":"Technician - Higher Permissions"}"""),
             Raw("contractorcategories", "1", """{"name":"General"}"""),
@@ -785,7 +785,7 @@ public class UptickCoreRecordsTests
     public async Task Extra_fields_schedules_and_form_responses_are_mapped_and_linked()
     {
         await using var db = DbContextFactory.Create();
-        db.ExtraFields.Add(new ExtraField { ExternalId = "5", Label = "Old label", ContentType = "51" });
+        db.ExtraFields.Add(new ExtraField { UptickId = 5, Label = "Old label", ContentType = "51" });
         db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawTask("46781", "1491"),
             RawUser("6", "Shea Flanigan", "shea@fyrepower.com.au", "FIELD"),
             Raw("properties", "1491", """{"ref":"P-0016","name":"Big River Trade Centre","status":"ACTIVE","extra_fields":{"fpaa_fsa_no":"FSA 1234","blank":"","council":"gccc"}}""",
@@ -807,7 +807,7 @@ public class UptickCoreRecordsTests
         await MapAllAsync(db);
 
         var field = await db.ExtraFields.SingleAsync(f => f.UptickId == 5);
-        Assert.Equal((1, "19", "FPAA FSA No.", "fpaa_fsa_no", "{}"), (await db.ExtraFields.CountAsync(f => f.ExternalId == "5"), field.ContentType, field.Label, field.Name, field.FieldSettings));
+        Assert.Equal((1, "19", "FPAA FSA No.", "fpaa_fsa_no", "{}"), (await db.ExtraFields.CountAsync(f => f.UptickId == 5), field.ContentType, field.Label, field.Name, field.FieldSettings));
         var property = await db.Properties.SingleAsync();
         var values = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(db, ExtraField.PropertyContentType, "properties", property.UptickId);
         Assert.Equal(new[] { ("FPAA FSA No.", "FSA 1234", (string?)null), ("Local Government", "Gold Coast City Council", null) },
@@ -889,7 +889,7 @@ public class UptickCoreRecordsTests
     {
         await using var db = DbContextFactory.Create();
         db.Stocks.Add(new Stock { Warehouse = "Old", Product = "From the annotated stocks export" });
-        db.Products.Add(new Product { Name = "Old name", ExternalId = "704", LastUsedUtc = Now });
+        db.Products.Add(new Product { Name = "Old name", UptickId = 704, LastUsedUtc = Now });
         db.UptickRecords.AddRange(
             RawUser("164", "Sam Nguyen (Field Tech)", "sam@fyrepower.com.au", "FIELD"),
             Raw("suppliers", "12", """{"name":"Wormald"}"""),

@@ -19,10 +19,6 @@ public class Property : IUptickMapped
     [StringLength(64)]
     public string? Ref { get; set; }
 
-    // Used for import matching (maps from Uptick export "Property ref")
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     // FyreApp ref (e.g. "P-1001"), assigned by the database when there's no Uptick ref
     [StringLength(20)]
     public string? FyreRef { get; set; }
@@ -31,8 +27,8 @@ public class Property : IUptickMapped
     // (e.g. archived in Uptick). Inactive; filled in when the record itself is imported.
     public bool IsPlaceholder { get; set; }
 
-    // Shown to users: the Uptick ref if imported, otherwise the FyreApp ref
-    public string? DisplayRef => string.IsNullOrWhiteSpace(ExternalId) ? FyreRef : ExternalId;
+    // Shown to users: the Uptick ref if migrated, otherwise the FyreApp ref
+    public string? DisplayRef => string.IsNullOrWhiteSpace(Ref) ? FyreRef : Ref;
 
     // Address (Google + manual)
     [StringLength(300)]

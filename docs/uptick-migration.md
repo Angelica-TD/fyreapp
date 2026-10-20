@@ -523,7 +523,15 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      asset lines read only the API's data. Before the drop, the migration carried over what only export rows held:
      those task dates, remark types, and asset types' applicable routines and excluded levels. (No Uptick task has
      tags, so the export's Tags column had nothing the API lacks.)
-   - 6f: the `ExternalId` / ref-matching columns the exports needed.
+   - 6f (done): `ExternalId` dropped from every table: mappers match rows by `UptickId` alone, `DisplayRef`, lists and
+     searches use `UptickId` (a property's `Ref`), and the FyreRef trigger gives a ref to a record with no `UptickId`.
+     The links the exports made by Uptick id (`Remark.RepairTaskExternalId`, `Report` / `Invoice.TaskExternalId`,
+     `BillingContractLineItem.ContractExternalId`, `CreditNote.InvoiceExternalId`,
+     `PropertySchedule.PropertyExternalId`, `DynamicFormResponse.SubmitterExternalId`) went too, their foreign keys
+     already set; `Remark.RaisedOnTaskRef` (matched to a task by ref) is now `RaisedOnTaskId`. The migration first
+     moved an Uptick id or property ref only `ExternalId` held into `UptickId` / `Ref`, and set any foreign key
+     those columns could still fill. Copied names (`PropertyRef`, `PropertyName`, `ClientName`, `TaskRef`, …) stay
+     as display text until their records get screens (phase 8).
 7. **Files.**
 8. **The rest:** typed entities and screens for the endpoints still only in the raw copy, in order of need.
 9. **Cutover:** freeze Uptick, final Full run + files refresh, reconciliation sign-off, FyreApp becomes the

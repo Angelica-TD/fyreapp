@@ -26,10 +26,6 @@ public class ClientTask : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from Uptick task export "ID"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     // Uptick task ref, e.g. "T-46616"
     [StringLength(20)]
     public string? Ref { get; set; }
@@ -49,8 +45,7 @@ public class ClientTask : IUptickMapped
     // Shown to users: Uptick's task ref, then its ID, otherwise the FyreApp ref
     public string? DisplayRef =>
         !string.IsNullOrWhiteSpace(Ref) ? Ref
-        : !string.IsNullOrWhiteSpace(ExternalId) ? ExternalId
-        : FyreRef;
+        : UptickId?.ToString() ?? FyreRef;
 
     // Required links
     public int ClientId { get; set; }

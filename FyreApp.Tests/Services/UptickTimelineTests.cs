@@ -71,7 +71,7 @@ public class UptickTimelineTests
             Event(2, "51", 41642, "general", "C", "Gate code is 1234\nAsk at reception", "{}", "2026-10-15T15:15:20+11:00",
                 lat: -27.95, lng: 153.4),
             Event(3, "28", 31713, "tasks", "E", "Task created.", "{}", "2026-01-01T09:00:00+10:00"));
-        db.Properties.Add(new Property { Name = "Gold Coast Concrete", UptickId = 9999, ExternalId = "P-3340", Client = new Client { Name = "Jane Clandy" } });
+        db.Properties.Add(new Property { Name = "Gold Coast Concrete", UptickId = 9999, Ref = "P-3340", Client = new Client { Name = "Jane Clandy" } });
         await db.SaveChangesAsync();
         return db;
     }
@@ -135,7 +135,7 @@ public class UptickTimelineTests
         Assert.Null((await db.TimelineEvents.SingleAsync(e => e.UptickId == 2)).AssetId);
 
         // The asset comes in afterwards (a file import); the next mapping pass links its events, with nothing waiting
-        var asset = new Asset { Name = "001 - DCP", UptickId = 41642, ExternalId = "41642", PropertyId = (await db.Properties.SingleAsync()).Id };
+        var asset = new Asset { Name = "001 - DCP", UptickId = 41642, PropertyId = (await db.Properties.SingleAsync()).Id };
         db.Assets.Add(asset);
         await db.SaveChangesAsync();
         Assert.Equal(0, (await MapAsync(db)).Mapped);

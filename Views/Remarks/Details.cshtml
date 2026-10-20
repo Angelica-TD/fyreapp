@@ -98,7 +98,16 @@
                         <dt class="col-4">Identified</dt>
                         <dd class="col-8">@(d.RaisedUtc?.ToSydney().ToOrdinalDate() ?? "-")</dd>
                         <dt class="col-4">Raised on task</dt>
-                        <dd class="col-8">@Dash(d.RaisedOnTaskRef)</dd>
+                        <dd class="col-8">
+                            @if (d.RaisedOnTask != null)
+                            {
+                                <a asp-controller="Task" asp-action="Details" asp-route-id="@d.RaisedOnTaskId">@d.RaisedOnTask.DisplayRef</a>
+                            }
+                            else
+                            {
+                                @("-")
+                            }
+                        </dd>
                         <dt class="col-4">Resolved</dt>
                         <dd class="col-8">@(d.Active ? "-" : d.InactiveUtc?.ToSydney().ToOrdinalDate() ?? "-")</dd>
                     </dl>

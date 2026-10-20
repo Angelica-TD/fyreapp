@@ -20,10 +20,6 @@ public class Routine : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from Uptick routines export "ID"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     public int PropertyId { get; set; }
     public Property Property { get; set; } = null!;
 

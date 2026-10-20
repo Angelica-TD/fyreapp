@@ -12,18 +12,18 @@ public class AssetListServiceTests
     private static async Task<(AssetType Extinguisher, AssetType Panel)> SeedAsync(AppDbContext db)
     {
         var client = new Client { Name = "Urbane Body Corporate", PrimaryContactName = "Karl Prodger" };
-        var active = new Property { Name = "Cunningham Residences", ExternalId = "P-3332", Status = "ACTIVE", Client = client };
-        var setup = new Property { Name = "New Property", ExternalId = "P-3338", Status = "SETUP", Client = client };
-        var inactive = new Property { Name = "Old Property", ExternalId = "P-0010", Status = "INACTIVE", Client = client };
+        var active = new Property { Name = "Cunningham Residences", Ref = "P-3332", Status = "ACTIVE", Client = client };
+        var setup = new Property { Name = "New Property", Ref = "P-3338", Status = "SETUP", Client = client };
+        var inactive = new Property { Name = "Old Property", Ref = "P-0010", Status = "INACTIVE", Client = client };
         var ext = new AssetType { Name = "Fire Extinguisher" };
         var panel = new AssetType { Name = "Fire Indicator Panel" };
 
         db.Assets.AddRange(
-            new Asset { Name = "Ext 001", Ref = "001", ExternalId = "42476", Property = active, AssetTypes = { ext } },
-            new Asset { Name = "Ext 100", Ref = "100", ExternalId = "42488", Property = active, AssetTypes = { ext } },
-            new Asset { Name = "FIP", Ref = "1", ExternalId = "9999", Property = setup, AssetTypes = { panel } },
-            new Asset { Name = "Removed", Ref = "002", ExternalId = "42477", Property = active, IsActive = false, AssetTypes = { ext } },
-            new Asset { Name = "Old", Ref = "003", ExternalId = "100", Property = inactive, AssetTypes = { ext } },
+            new Asset { Name = "Ext 001", Ref = "001", UptickId = 42476, Property = active, AssetTypes = { ext } },
+            new Asset { Name = "Ext 100", Ref = "100", UptickId = 42488, Property = active, AssetTypes = { ext } },
+            new Asset { Name = "FIP", Ref = "1", UptickId = 9999, Property = setup, AssetTypes = { panel } },
+            new Asset { Name = "Removed", Ref = "002", UptickId = 42477, Property = active, IsActive = false, AssetTypes = { ext } },
+            new Asset { Name = "Old", Ref = "003", UptickId = 100, Property = inactive, AssetTypes = { ext } },
             new Asset { Name = "Made in FyreApp", Ref = null, Property = active, AssetTypes = { panel } });
         await db.SaveChangesAsync();
         return (ext, panel);

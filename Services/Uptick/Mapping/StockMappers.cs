@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Uptick.Mapping;
 
-// Uptick's products -> Product (what quote, invoice and stock lines are for). One the products export placed
-// (ExternalId = its id) is matched and updated.
+// Uptick's products -> Product (what quote, invoice and stock lines are for).
 public class ProductMapper : UptickEntityMapper<Product>
 {
     private Dictionary<long, string> _suppliers = new();
@@ -20,11 +19,10 @@ public class ProductMapper : UptickEntityMapper<Product>
     protected override async Task<Dictionary<long, Product>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.Products
-            .Where(p => (p.UptickId != null && ids.Contains(p.UptickId.Value)) || (p.ExternalId != null && texts.Contains(p.ExternalId)))
+            .Where(p => p.UptickId != null && ids.Contains(p.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), p => p.UptickId, p => p.ExternalId);
+        return Match(rows, p => p.UptickId);
     }
 
     protected override Product Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -32,7 +30,6 @@ public class ProductMapper : UptickEntityMapper<Product>
     protected override void Map(Product p, UptickRaw raw)
     {
         p.UptickId = raw.Id;
-        p.ExternalId = raw.Id.ToString();
         p.Name = raw.Text("name", 300) ?? $"Product {raw.Id}";
         p.Type = raw.Text("type", 20);
         p.Description = raw.Text("description");
@@ -74,11 +71,10 @@ public class WarehouseMapper : UptickEntityMapper<Warehouse>
     protected override async Task<Dictionary<long, Warehouse>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.Warehouses
-            .Where(w => (w.UptickId != null && ids.Contains(w.UptickId.Value)) || (w.ExternalId != null && texts.Contains(w.ExternalId)))
+            .Where(w => w.UptickId != null && ids.Contains(w.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), w => w.UptickId, w => w.ExternalId);
+        return Match(rows, w => w.UptickId);
     }
 
     protected override Warehouse Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -86,7 +82,6 @@ public class WarehouseMapper : UptickEntityMapper<Warehouse>
     protected override void Map(Warehouse w, UptickRaw raw)
     {
         w.UptickId = raw.Id;
-        w.ExternalId = raw.Id.ToString();
         w.Name = raw.Text("name", 200) ?? $"Warehouse {raw.Id}";
         w.Type = raw.Text("type", 30);
         w.Branch = RoutineServiceTypeMapper.Cap(raw.Rel("branch") is { } b ? _branches.GetValueOrDefault(b) : null, 200) ?? w.Branch;

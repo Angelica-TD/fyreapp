@@ -112,10 +112,9 @@ public class TaskListService : ITaskListService
 
         // Newest first, as Uptick lists them: made in FyreApp, then Uptick IDs numerically
         return q
-            .OrderBy(t => t.ExternalId != null)
-            .ThenByDescending(t => t.ExternalId == null ? t.Id : 0)
-            .ThenByDescending(t => (t.ExternalId ?? "").Length)
-            .ThenByDescending(t => t.ExternalId);
+            .OrderBy(t => t.UptickId != null)
+            .ThenByDescending(t => t.UptickId == null ? t.Id : 0)
+            .ThenByDescending(t => t.UptickId);
     }
 
     private IQueryable<ClientTask> Selected(BulkSelection selection, TaskFilter filter)
@@ -135,7 +134,7 @@ public class TaskListService : ITaskListService
             .Skip((page - 1) * ListFilters.PageSize)
             .Take(ListFilters.PageSize)
             .Select(t => new TaskListItem(
-                t.Id, t.Ref ?? t.ExternalId ?? t.FyreRef, t.Category, t.Title, t.Client.Name,
+                t.Id, t.Ref ?? (t.UptickId != null ? t.UptickId.ToString() : t.FyreRef), t.Category, t.Title, t.Client.Name,
                 t.Property.AddressDisplay ?? t.Property.Name, t.Priority.ToString(), t.Status.ToString(), t.DueDateUtc,
                 t.AssignedToUptickUserId, t.AssignedTo != null ? t.AssignedTo.Name : null, t.UptickTechnician))
             .ToListAsync(ct);
@@ -156,9 +155,9 @@ public class TaskListService : ITaskListService
         var rows = await Filtered(filter).AsNoTracking()
             .Select(t => new
             {
-                Ref = t.Ref ?? t.ExternalId ?? t.FyreRef, t.Category, t.Status, t.IsActive, t.Title, t.Priority,
+                Ref = t.Ref ?? (t.UptickId != null ? t.UptickId.ToString() : t.FyreRef), t.Category, t.Status, t.IsActive, t.Title, t.Priority,
                 t.DueDateUtc, t.CreatedUtc, t.CompletedUtc,
-                Client = t.Client.Name, PropertyRef = t.Property.ExternalId ?? t.Property.FyreRef, Property = t.Property.Name,
+                Client = t.Client.Name, PropertyRef = t.Property.Ref ?? t.Property.FyreRef, Property = t.Property.Name,
                 AssignedTo = t.AssignedTo != null ? t.AssignedTo.Name : null, t.UptickTechnician
             })
             .ToListAsync(ct);

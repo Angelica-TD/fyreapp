@@ -15,15 +15,13 @@ public class AssetTypeMapper : UptickEntityMapper<AssetType>
     protected override async Task<Dictionary<long, AssetType>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.AssetTypes
-            .Where(t => (t.UptickId != null && ids.Contains(t.UptickId.Value)) || (t.ExternalId != null && texts.Contains(t.ExternalId))
-                || (t.UptickId == null && t.ExternalId == null))
+            .Where(t => t.UptickId == null || ids.Contains(t.UptickId.Value))
             .ToListAsync(ct);
-        var map = Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), t => t.UptickId, t => t.ExternalId);
+        var map = Match(rows, t => t.UptickId);
 
         // Then by name, for types made from asset rows
-        var unlinked = rows.Where(t => t.UptickId == null && t.ExternalId == null)
+        var unlinked = rows.Where(t => t.UptickId == null)
             .GroupBy(t => t.Name.Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         foreach (var raw in batch.Where(r => !map.ContainsKey(r.Id)))
@@ -37,7 +35,6 @@ public class AssetTypeMapper : UptickEntityMapper<AssetType>
     protected override void Map(AssetType t, UptickRaw raw)
     {
         t.UptickId = raw.Id;
-        t.ExternalId = raw.Id.ToString();
         t.Name = raw.Text("name") ?? $"Asset type {raw.Id}";
         t.Category = raw.Text("category", 200);
         t.InspectionCriteria = raw.Text("inspection_criteria", 200);
@@ -84,14 +81,12 @@ public class AssetTypeVariantMapper : UptickEntityMapper<AssetTypeVariant>
     protected override async Task<Dictionary<long, AssetTypeVariant>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.AssetTypeVariants
-            .Where(v => (v.UptickId != null && ids.Contains(v.UptickId.Value)) || (v.ExternalId != null && texts.Contains(v.ExternalId))
-                || (v.UptickId == null && v.ExternalId == null))
+            .Where(v => v.UptickId == null || ids.Contains(v.UptickId.Value))
             .ToListAsync(ct);
-        var map = Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), v => v.UptickId, v => v.ExternalId);
+        var map = Match(rows, v => v.UptickId);
 
-        var unlinked = rows.Where(v => v.UptickId == null && v.ExternalId == null)
+        var unlinked = rows.Where(v => v.UptickId == null)
             .GroupBy(v => (v.AssetTypeId, v.Name.Trim().ToUpperInvariant()))
             .ToDictionary(g => g.Key, g => g.First());
         foreach (var raw in batch.Where(r => !map.ContainsKey(r.Id)))
@@ -111,7 +106,6 @@ public class AssetTypeVariantMapper : UptickEntityMapper<AssetTypeVariant>
             throw new UptickMapException($"Its asset type ({type}) isn't in FyreApp.");
 
         v.UptickId = raw.Id;
-        v.ExternalId = raw.Id.ToString();
         v.AssetTypeId = typeId;
         v.Name = raw.Text("name", 200) ?? $"Variant {raw.Id}";
         var product = raw.Rel("default_replacement_product") is { } p ? _products.GetValueOrDefault(p) : null;
@@ -123,7 +117,7 @@ public class AssetTypeVariantMapper : UptickEntityMapper<AssetTypeVariant>
 }
 
 // Uptick's assets -> Asset, at the property mapped from the asset's property, with its type, variant and who last
-// serviced it. An asset the assets export placed (ExternalId = its id) is matched and updated.
+// serviced it.
 public class AssetMapper : UptickEntityMapper<Asset>
 {
     private Dictionary<long, int> _properties = new();
@@ -155,11 +149,10 @@ public class AssetMapper : UptickEntityMapper<Asset>
         _types = (await Db.AssetTypes.Where(t => t.UptickId != null).ToListAsync(ct)).ToDictionary(t => t.UptickId!.Value);
 
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.Assets.Include(a => a.AssetTypes)
-            .Where(a => (a.UptickId != null && ids.Contains(a.UptickId.Value)) || (a.ExternalId != null && texts.Contains(a.ExternalId)))
+            .Where(a => a.UptickId != null && ids.Contains(a.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), a => a.UptickId, a => a.ExternalId);
+        return Match(rows, a => a.UptickId);
     }
 
     protected override Asset Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -177,7 +170,6 @@ public class AssetMapper : UptickEntityMapper<Asset>
         (int Id, string Name)? variant = raw.Rel("variant") is { } v && _variants.TryGetValue(v, out var found) ? found : null;
 
         a.UptickId = raw.Id;
-        a.ExternalId = raw.Id.ToString();
         a.PropertyId = propertyId;
         a.Ref = raw.Text("ref");
         a.Name = raw.Text("label")

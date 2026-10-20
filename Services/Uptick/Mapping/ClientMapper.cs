@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Uptick.Mapping;
 
-// Uptick's clients -> Client. A client the clients export placed (ExternalId = Uptick's id) is matched and
-// updated, placeholders filled in. Fields the API doesn't have (report address and organisation) are kept.
+// Uptick's clients -> Client. Fields the API doesn't have (report address and organisation) are kept.
 public class ClientMapper : UptickEntityMapper<Client>
 {
     private Dictionary<long, int> _cards = new();
@@ -19,11 +18,10 @@ public class ClientMapper : UptickEntityMapper<Client>
     protected override async Task<Dictionary<long, Client>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.Clients
-            .Where(c => (c.UptickId != null && ids.Contains(c.UptickId.Value)) || (c.ExternalId != null && texts.Contains(c.ExternalId)))
+            .Where(c => c.UptickId != null && ids.Contains(c.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), c => c.UptickId, c => c.ExternalId);
+        return Match(rows, c => c.UptickId);
     }
 
     protected override Client Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -31,7 +29,6 @@ public class ClientMapper : UptickEntityMapper<Client>
     protected override void Map(Client c, UptickRaw raw)
     {
         c.UptickId = raw.Id;
-        c.ExternalId = raw.Id.ToString();
         c.IsPlaceholder = false;
         c.Name = raw.Text("name", 200) ?? "(no name)";
         c.Created = raw.Time("created") ?? c.Created;

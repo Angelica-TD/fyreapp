@@ -10,10 +10,6 @@ public class AssetTypeVariant : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from Uptick asset type variants export "ID"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     public int AssetTypeId { get; set; }
     public AssetType AssetType { get; set; } = null!;
 

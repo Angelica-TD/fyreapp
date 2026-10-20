@@ -136,11 +136,11 @@ public class ClientServiceTests
         // Uptick allows clients to share a name; editing one of them must not be blocked
         using var db = DbContextFactory.Create();
         db.Clients.AddRange(
-            new Client { Name = "10/28 Burnside Road", ExternalId = "6219", Active = true },
-            new Client { Name = "10/28 Burnside Road", ExternalId = "6208", Active = true }
+            new Client { Name = "10/28 Burnside Road", UptickId = 6219, Active = true },
+            new Client { Name = "10/28 Burnside Road", UptickId = 6208, Active = true }
         );
         await db.SaveChangesAsync();
-        var id = db.Clients.First(c => c.ExternalId == "6208").Id;
+        var id = db.Clients.First(c => c.UptickId == 6208).Id;
 
         var result = await new ClientService(db).UpdateAsync(id, new UpdateClientRequest
         {

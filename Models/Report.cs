@@ -10,10 +10,6 @@ public class Report : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from Uptick report export "ID"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     public int PropertyId { get; set; }
     public Property Property { get; set; } = null!;
 
@@ -27,8 +23,7 @@ public class Report : IUptickMapped
     // Shown to users: Uptick's report ref (what's printed on the report), then its ID, otherwise the FyreApp ref
     public string? DisplayRef =>
         !string.IsNullOrWhiteSpace(Ref) ? Ref
-        : !string.IsNullOrWhiteSpace(ExternalId) ? ExternalId
-        : FyreRef;
+        : UptickId?.ToString() ?? FyreRef;
 
     // e.g. "Service Report"
     public string? ReportType { get; set; }
@@ -41,10 +36,6 @@ public class Report : IUptickMapped
     public string? TaskRef { get; set; }
     public string? TaskName { get; set; }
 
-    // The task the report was done on: Uptick's task ID (export "Task Id"), linked to the imported task
-    // once both are in FyreApp (whichever is imported second makes the link)
-    [StringLength(64)]
-    public string? TaskExternalId { get; set; }
     public int? ClientTaskId { get; set; }
     public ClientTask? ClientTask { get; set; }
     public string? Technician { get; set; }

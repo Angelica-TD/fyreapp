@@ -6,9 +6,8 @@ using Microsoft.EntityFrameworkCore;
 namespace FyreApp.Services.Uptick.Mapping;
 
 // Uptick's tasks -> ClientTask, at the property mapped from the task's property and assigned to the Uptick user it's
-// assigned to. A task the tasks export placed (ExternalId = its id) is matched and updated. As the export did, a
-// routine (I&T) task is linked to its property's schedules for the frequencies in its scope (a completed one rolls
-// them forward), and remarks and reports imported before it are linked to it.
+// assigned to. As the export did, a routine (I&T) task is linked to its property's schedules for the frequencies in
+// its scope (a completed one rolls them forward).
 public class TaskMapper : UptickEntityMapper<ClientTask>
 {
     private Dictionary<long, (int Id, int ClientId)> _properties = new();
@@ -51,11 +50,10 @@ public class TaskMapper : UptickEntityMapper<ClientTask>
             _noProperty = await UptickTaskRules.GetNoPropertySiteAsync(Db, ct);
 
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.ClientTasks.Include(t => t.CoveredSchedules)
-            .Where(t => (t.UptickId != null && ids.Contains(t.UptickId.Value)) || (t.ExternalId != null && texts.Contains(t.ExternalId)))
+            .Where(t => t.UptickId != null && ids.Contains(t.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), t => t.UptickId, t => t.ExternalId);
+        return Match(rows, t => t.UptickId);
     }
 
     protected override ClientTask Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -74,7 +72,6 @@ public class TaskMapper : UptickEntityMapper<ClientTask>
         var reference = raw.Text("ref", 20);
 
         t.UptickId = raw.Id;
-        t.ExternalId = raw.Id.ToString();
         t.Ref = reference;
         t.PropertyId = property.Id;
         t.ClientId = raw.Rel("client") is { } client && _clients.TryGetValue(client, out var clientId) ? clientId : property.ClientId;
@@ -116,7 +113,6 @@ public class TaskMapper : UptickEntityMapper<ClientTask>
     protected override async Task AfterAsync(CancellationToken ct)
     {
         if (UptickTaskRules.RollSchedulesForward(Db, _mapped) > 0) await Db.SaveChangesAsync(ct);
-        await UptickTaskRules.LinkWaitingRecordsAsync(Db, _mapped, ct);
     }
 }
 

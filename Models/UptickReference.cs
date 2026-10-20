@@ -11,10 +11,6 @@ public class SecurityGroup : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from the groups export "id"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     [Required, StringLength(200)]
     public string Name { get; set; } = string.Empty;
 }
@@ -28,10 +24,6 @@ public class ExtraField : IUptickMapped
 
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
-
-    // Maps from the extra fields export "id"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
 
     // Uptick's record type number ("content_type"); see RecordType
     [StringLength(20)]
@@ -84,10 +76,6 @@ public class PromptQuestion : IUptickMapped
 
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
-
-    // Maps from the prompt questions export "ID"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
 
     [StringLength(200)]
     public string? PromptsetName { get; set; }

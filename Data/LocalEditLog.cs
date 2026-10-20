@@ -15,7 +15,7 @@ public static class LocalEditLog
     // Bookkeeping, not fields anyone edits
     private static readonly HashSet<string> NotFields = new(StringComparer.Ordinal)
     {
-        "Id", "UptickId", "ExternalId", "FyreRef", "IsPlaceholder", "Created", "Updated"
+        "Id", "UptickId", "FyreRef", "IsPlaceholder", "Created", "Updated"
     };
 
     public static void Record(AppDbContext db, string? by, DateTime now)

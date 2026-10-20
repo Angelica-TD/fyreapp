@@ -53,11 +53,11 @@ public class DirectoryListTests
     public async Task UptickUsers_StaffFirst_FilterByLicenceAndLogin_AndShowLinkedLogins()
     {
         using var db = DbContextFactory.Create();
-        var dwayne = new UptickUser { ExternalId = "9", Name = "Dwayne Page", Email = "FyreTech02@gmail.com", LicenseType = "FIELD" };
+        var dwayne = new UptickUser { UptickId = 9, Name = "Dwayne Page", Email = "FyreTech02@gmail.com", LicenseType = "FIELD" };
         db.UptickUsers.AddRange(
-            new UptickUser { ExternalId = "13", Name = "Mermaid Central", Email = "graham@auadmin.com.au", LicenseType = "CUSTOMER" },
+            new UptickUser { UptickId = 13, Name = "Mermaid Central", Email = "graham@auadmin.com.au", LicenseType = "CUSTOMER" },
             dwayne,
-            new UptickUser { ExternalId = "3", Name = "FyrePower Team", Email = "admin@fyrepower.com.au", LicenseType = "DESK" });
+            new UptickUser { UptickId = 3, Name = "FyrePower Team", Email = "admin@fyrepower.com.au", LicenseType = "DESK" });
         await db.SaveChangesAsync();
         db.Users.Add(new ApplicationUser { Id = "dwayne", Email = "fyretech02@gmail.com", UserName = "fyretech02@gmail.com", UptickUserId = dwayne.Id });
         await db.SaveChangesAsync();
@@ -90,7 +90,7 @@ public class DirectoryListTests
         using var db = DbContextFactory.Create();
         var user = new UptickUser { Name = "Dwayne Page", LicenseType = "FIELD" };
         db.UptickUsers.Add(user);
-        db.Accreditations.Add(new Accreditation { ExternalId = "67", Type = "Licence No.:", Number = "QBCC 15366855 | FPA 25023", Technician = "Dwayne Page", UptickUser = user });
+        db.Accreditations.Add(new Accreditation { UptickId = 67, Type = "Licence No.:", Number = "QBCC 15366855 | FPA 25023", Technician = "Dwayne Page", UptickUser = user });
         await db.SaveChangesAsync();
 
         var list = await new DirectoryListService(db).UptickUsersAsync(new DirectoryFilter { Active = "any" });

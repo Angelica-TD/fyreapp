@@ -201,7 +201,6 @@ public class DevController : Controller
         var c = await _db.Clients.FindAsync(vm.Id);
         if (c is null) return NotFound();
         c.Name = vm.Name.Trim();
-        c.ExternalId = vm.ExternalId?.Trim();
         c.Active = vm.Active;
         c.PrimaryContactName = vm.PrimaryContactName?.Trim();
         c.PrimaryContactEmail = vm.PrimaryContactEmail?.Trim();

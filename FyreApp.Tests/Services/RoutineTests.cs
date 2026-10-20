@@ -38,9 +38,9 @@ public class RoutineTests
     {
         var active = new Client { Name = "Magidale Pty Ltd", Active = true, PrimaryContactName = "Karen Gould" };
         var inactive = new Client { Name = "Gone Pty Ltd", Active = false };
-        var site = new Property { Name = "Magidale", ExternalId = "P-0152", Status = "ACTIVE", Client = active };
-        var onHold = new Property { Name = "Paused", ExternalId = "P-0200", Status = "ONHOLD", Client = active };
-        var goneSite = new Property { Name = "Gone", ExternalId = "P-0300", Status = "ACTIVE", Client = inactive };
+        var site = new Property { Name = "Magidale", Ref = "P-0152", Status = "ACTIVE", Client = active };
+        var onHold = new Property { Name = "Paused", Ref = "P-0200", Status = "ONHOLD", Client = active };
+        var goneSite = new Property { Name = "Gone", Ref = "P-0300", Status = "ACTIVE", Client = inactive };
 
         Routine O(Property s, string routine, string due, RoutineStatus status) =>
             new() { Property = s, Name = routine, DueDate = DateTime.SpecifyKind(DateTime.Parse(due), DateTimeKind.Utc), Status = status };
@@ -95,8 +95,8 @@ public class RoutineTests
 
     private static async Task<(Property Calce, Property Glory, MaintenanceSchedule Schedule)> SeedForGenerateAsync(AppDbContext db)
     {
-        var calce = new Property { Name = "Calce Company", ExternalId = "P-0358", Status = "ACTIVE", Client = new Client { Name = "Calce Company Pty Ltd" } };
-        var glory = new Property { Name = "The Glory Well Church", ExternalId = "P-2241", Status = "ACTIVE", Client = new Client { Name = "Sails Ministry" } };
+        var calce = new Property { Name = "Calce Company", Ref = "P-0358", Status = "ACTIVE", Client = new Client { Name = "Calce Company Pty Ltd" } };
+        var glory = new Property { Name = "The Glory Well Church", Ref = "P-2241", Status = "ACTIVE", Client = new Client { Name = "Sails Ministry" } };
         var schedule = new MaintenanceSchedule
         {
             TargetType = ScheduleTargetType.Property, Property = glory, IsActive = true,

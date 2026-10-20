@@ -6,9 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Uptick.Mapping;
 
-// An endpoint mapped onto one FyreApp entity: each record upserts the row with its Uptick id (or, for rows a file
-// import made, the ExternalId it gave them), and one deleted in Uptick deactivates its row rather than removing
-// it, so what points at it survives.
+// An endpoint mapped onto one FyreApp entity: each record upserts the row with its Uptick id, and one deleted in
+// Uptick deactivates its row rather than removing it, so what points at it survives.
 public abstract class UptickEntityMapper<T> : IUptickMapper where T : class
 {
     protected UptickEntityMapper(AppDbContext db) => Db = db;
@@ -139,21 +138,12 @@ public abstract class UptickEntityMapper<T> : IUptickMapper where T : class
 
     private int IdOf(T entity) => (int)Db.Entry(entity).Property("Id").CurrentValue!;
 
-    // The rows by Uptick id: those that have it, then those a file import made, by the text it stored in
-    // ExternalId (Uptick's id, or a property's ref)
-    protected static Dictionary<long, T> Match(IReadOnlyList<T> rows, IEnumerable<(long Id, string? Text)> keys,
-        Func<T, long?> uptickId, Func<T, string?> externalId)
+    // The rows by Uptick id
+    protected static Dictionary<long, T> Match(IReadOnlyList<T> rows, Func<T, long?> uptickId)
     {
         var map = new Dictionary<long, T>();
         foreach (var row in rows)
             if (uptickId(row) is { } id) map.TryAdd(id, row);
-
-        var byText = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (id, text) in keys)
-            if (!string.IsNullOrWhiteSpace(text)) byText.TryAdd(text.Trim(), id);
-        foreach (var row in rows)
-            if (uptickId(row) == null && externalId(row) is { } text && byText.TryGetValue(text.Trim(), out var id))
-                map.TryAdd(id, row);
         return map;
     }
 }

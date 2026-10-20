@@ -21,8 +21,8 @@ public class TaskAssignFlowTests
 
     private static async Task<Property> SeedAsync(AppDbContext db)
     {
-        var site = new Property { Name = "Ezfurn", ExternalId = "P-0391", Status = "ACTIVE", Client = new Client { Name = "Ezfurn" } };
-        var other = new Property { Name = "Kamber", ExternalId = "P-3330", Status = "ACTIVE", Client = new Client { Name = "Kamber" } };
+        var site = new Property { Name = "Ezfurn", Ref = "P-0391", Status = "ACTIVE", Client = new Client { Name = "Ezfurn" } };
+        var other = new Property { Name = "Kamber", Ref = "P-3330", Status = "ACTIVE", Client = new Client { Name = "Kamber" } };
         db.Routines.AddRange(
             new Routine { Property = site, Name = "10 - Portable and Wheeled Fire Extinguishers: Six-monthly", ServiceGroup = "Servicing - Portables & Fire Equipment", DueDate = Day(2026, 11, 30) },
             new Routine { Property = other, Name = "11 - Fire Blankets: Six-monthly", ServiceGroup = "Servicing - Portables & Fire Equipment", DueDate = Day(2026, 11, 30) },

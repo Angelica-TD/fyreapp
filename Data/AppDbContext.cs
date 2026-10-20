@@ -116,10 +116,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             // Not unique: Uptick allows different clients to share a name (the Ref tells them apart)
             entity.HasIndex(c => c.Name);
 
-            entity.Property(c => c.ExternalId)
-                    .HasMaxLength(64);
-
-            entity.HasIndex(c => c.ExternalId).IsUnique();
             entity.HasIndex(c => c.UptickId).IsUnique();
 
             // Postgres-friendly UTC timestamps
@@ -182,16 +178,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             .HasSentinel(true); // so an explicit false is sent on insert instead of the DB default
 
         modelBuilder.Entity<Property>()
-            .HasIndex(s => s.ExternalId)
-            .IsUnique();
-
-        modelBuilder.Entity<Property>()
             .HasIndex(s => s.UptickId)
             .IsUnique();
 
         modelBuilder.Entity<Asset>(entity =>
         {
-            entity.HasIndex(a => a.ExternalId).IsUnique();
             entity.HasIndex(a => a.UptickId).IsUnique();
             entity.HasOne(a => a.LastServicedBy).WithMany().HasForeignKey(a => a.LastServicedById).OnDelete(DeleteBehavior.SetNull);
             entity.Property(a => a.IsActive).HasDefaultValue(true).HasSentinel(true);
@@ -219,7 +210,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .HasForeignKey(c => c.PropertyId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasIndex(c => c.ExternalId).IsUnique();
             entity.HasIndex(c => c.UptickId).IsUnique();
             entity.HasIndex(c => c.PropertyId);
         });
@@ -233,7 +223,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
             entity.Property(c => c.Active).HasDefaultValue(true).HasSentinel(true);
 
-            entity.HasIndex(c => c.ExternalId).IsUnique();
             entity.HasIndex(c => c.UptickId).IsUnique();
             entity.HasIndex(c => c.ClientId);
         });
@@ -266,11 +255,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(d => d.InactiveUtc).HasColumnType("timestamptz");
             entity.Property(d => d.QuotedDate).HasColumnType("timestamptz");
 
-            entity.HasIndex(d => d.ExternalId).IsUnique();
             entity.HasIndex(d => d.UptickId).IsUnique();
             entity.HasIndex(d => d.PropertyId);
             entity.HasIndex(d => d.AssetId);
-            entity.HasIndex(d => d.RepairTaskExternalId);
+            entity.HasOne(d => d.RaisedOnTask).WithMany().HasForeignKey(d => d.RaisedOnTaskId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Report>(entity =>
@@ -289,10 +277,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(r => r.IssuedDate).HasColumnType("timestamptz");
             entity.Property(r => r.InspectedDate).HasColumnType("timestamptz");
 
-            entity.HasIndex(r => r.ExternalId).IsUnique();
             entity.HasIndex(r => r.UptickId).IsUnique();
             entity.HasIndex(r => r.PropertyId);
-            entity.HasIndex(r => r.TaskExternalId);
         });
 
         modelBuilder.Entity<AppSetting>()
@@ -352,7 +338,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(t => t.DueDateUtc);
             entity.Property(t => t.IsActive).HasDefaultValue(true).HasSentinel(true);
             entity.HasIndex(t => t.IsActive);
-            entity.HasIndex(t => t.ExternalId).IsUnique();
             entity.HasIndex(t => t.UptickId).IsUnique();
 
             entity.HasMany(t => t.CoveredSchedules)
@@ -522,7 +507,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         // Uptick reference data
         modelBuilder.Entity<AssetType>(entity =>
         {
-            entity.HasIndex(t => t.ExternalId).IsUnique();
             entity.HasIndex(t => t.UptickId).IsUnique();
             entity.Property(t => t.Active).HasDefaultValue(true).HasSentinel(true);
             entity.HasMany(t => t.ApplicableRoutineTypes).WithMany().UsingEntity(j => j.ToTable("AssetTypeApplicableRoutines"));
@@ -535,7 +519,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .WithMany(t => t.Variants)
                 .HasForeignKey(v => v.AssetTypeId)
                 .OnDelete(DeleteBehavior.Cascade);
-            entity.HasIndex(v => v.ExternalId).IsUnique();
             entity.HasIndex(v => v.UptickId).IsUnique();
             entity.HasIndex(v => new { v.AssetTypeId, v.Name });
             entity.Property(v => v.Active).HasDefaultValue(true).HasSentinel(true);
@@ -555,14 +538,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .HasForeignKey(r => r.AssetTypeId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
-            entity.HasIndex(r => r.ExternalId).IsUnique();
             entity.HasIndex(r => r.UptickId).IsUnique();
             entity.Property(r => r.Active).HasDefaultValue(true).HasSentinel(true);
         });
 
         modelBuilder.Entity<Contractor>(entity =>
         {
-            entity.HasIndex(c => c.ExternalId).IsUnique();
             entity.HasIndex(c => c.UptickId).IsUnique();
             entity.Property(c => c.Active).HasDefaultValue(true).HasSentinel(true);
             entity.Property(c => c.CreatedUtc).HasColumnType("timestamptz");
@@ -571,7 +552,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
         modelBuilder.Entity<Supplier>(entity =>
         {
-            entity.HasIndex(s => s.ExternalId).IsUnique();
             entity.HasIndex(s => s.UptickId).IsUnique();
             entity.Property(s => s.Active).HasDefaultValue(true).HasSentinel(true);
             entity.Property(s => s.CreatedUtc).HasColumnType("timestamptz");
@@ -587,7 +567,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
         modelBuilder.Entity<UptickUser>(entity =>
         {
-            entity.HasIndex(u => u.ExternalId).IsUnique();
             entity.HasIndex(u => u.UptickId).IsUnique();
             entity.Property(u => u.CostRate).HasPrecision(12, 2);
             entity.Property(u => u.SellRate).HasPrecision(12, 2);
@@ -614,7 +593,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
 
         modelBuilder.Entity<RoutineServiceType>(entity =>
         {
-            entity.HasIndex(t => t.ExternalId).IsUnique();
             entity.HasIndex(t => t.Name);
             entity.HasIndex(t => t.UptickId).IsUnique();
             entity.Property(t => t.Active).HasDefaultValue(true).HasSentinel(true);
@@ -626,7 +604,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .WithMany(t => t.Levels)
                 .HasForeignKey(l => l.RoutineServiceTypeId)
                 .OnDelete(DeleteBehavior.Cascade);
-            entity.HasIndex(l => l.ExternalId).IsUnique();
             entity.HasIndex(l => l.UptickId).IsUnique();
             entity.Property(l => l.Active).HasDefaultValue(true).HasSentinel(true);
 
@@ -663,7 +640,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(o => o.ToleranceEnd).HasColumnType("timestamptz");
             entity.Property(o => o.CompletedDate).HasColumnType("timestamptz");
 
-            entity.HasIndex(o => o.ExternalId).IsUnique();
             entity.HasIndex(o => o.UptickId).IsUnique();
             entity.HasIndex(o => new { o.DueDate, o.Status }); // the Routines page filters on these
             entity.HasIndex(o => o.PropertyId);
@@ -676,26 +652,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                 .IsRequired(false);
         });
 
-        modelBuilder.Entity<SecurityGroup>().HasIndex(g => g.ExternalId).IsUnique();
         modelBuilder.Entity<SecurityGroup>().HasIndex(g => g.UptickId).IsUnique();
         modelBuilder.Entity<Accreditation>(entity =>
         {
             entity.HasIndex(a => a.UptickId).IsUnique();
             entity.HasOne(a => a.UptickUser).WithMany().HasForeignKey(a => a.UptickUserId).OnDelete(DeleteBehavior.SetNull);
         });
-        modelBuilder.Entity<ExtraField>().HasIndex(f => f.ExternalId).IsUnique();
         modelBuilder.Entity<ExtraField>().HasIndex(f => f.UptickId).IsUnique();
-        modelBuilder.Entity<PromptQuestion>().HasIndex(q => q.ExternalId).IsUnique();
         modelBuilder.Entity<PromptQuestion>().HasIndex(q => q.UptickId).IsUnique();
 
-        // Uptick billing, quotes, forms and stock. The exports placed them by Uptick's id (ExternalId) and named
-        // properties and tasks by their refs; mapped from the API, they link to them.
-        foreach (var type in new[]
-                 {
-                     typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem), typeof(Invoice), typeof(CreditNote),
-                     typeof(DefectQuote), typeof(ServiceQuote), typeof(DynamicFormResponse), typeof(Accreditation), typeof(Product), typeof(Warehouse)
-                 })
-            modelBuilder.Entity(type).HasIndex(nameof(IUptickRecord.ExternalId)).IsUnique();
+        // Uptick billing, quotes, forms and stock, linked to the properties and tasks they're for
         modelBuilder.Entity<BillingCard>().HasIndex(c => c.UptickId).IsUnique();
         modelBuilder.Entity<Client>().HasOne(c => c.BillingCard).WithMany().HasForeignKey(c => c.BillingCardId).OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<Property>().HasOne(p => p.BillingCard).WithMany().HasForeignKey(p => p.BillingCardId).OnDelete(DeleteBehavior.SetNull);
@@ -707,21 +673,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         });
         modelBuilder.Entity<BillingContractLineItem>(entity =>
         {
-            entity.HasIndex(l => l.ContractExternalId);
             entity.HasIndex(l => l.UptickId).IsUnique();
             entity.HasOne(l => l.BillingContract).WithMany().HasForeignKey(l => l.BillingContractId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<Invoice>(entity =>
         {
             entity.HasIndex(i => i.PropertyRef);
-            entity.HasIndex(i => i.TaskExternalId);
             entity.HasIndex(i => i.UptickId).IsUnique();
             entity.HasOne(i => i.Property).WithMany().HasForeignKey(i => i.PropertyId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(i => i.ClientTask).WithMany().HasForeignKey(i => i.ClientTaskId).OnDelete(DeleteBehavior.SetNull);
         });
         modelBuilder.Entity<CreditNote>(entity =>
         {
-            entity.HasIndex(c => c.InvoiceExternalId);
             entity.HasIndex(c => c.UptickId).IsUnique();
             entity.HasOne(c => c.Invoice).WithMany().HasForeignKey(c => c.InvoiceId).OnDelete(DeleteBehavior.SetNull);
         });

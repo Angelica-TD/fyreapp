@@ -182,7 +182,7 @@ public class MaintenanceScheduleServiceTests
         var (client, site, _, schedule) = await SeedDueScheduleAsync(db);
         var task = new ClientTask
         {
-            Client = client, Property = site, Title = "PM2026/10", Ref = "T-1", ExternalId = "1",
+            Client = client, Property = site, Title = "PM2026/10", Ref = "T-1", UptickId = 1,
             DueDateUtc = schedule.NextRunDate.AddDays(dueOffsetDays)
         };
         task.CoveredSchedules.Add(schedule);

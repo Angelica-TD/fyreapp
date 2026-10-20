@@ -115,7 +115,7 @@ public class RoutineCompletionTests
         db.RoutineServiceTypes.AddRange(new RoutineServiceType { Name = Extinguishers }, new RoutineServiceType { Name = "09 - Fire Hose Reels" });
         var task = new ClientTask
         {
-            Title = "PM2026/08 Servicing", Client = site.Client, Property = site, ExternalId = "46682", DueDateUtc = D("2026-08-31"),
+            Title = "PM2026/08 Servicing", Client = site.Client, Property = site, UptickId = 46682, DueDateUtc = D("2026-08-31"),
             ScopeOfWorks = "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Six-monthly"
         };
         var august = O(site, Extinguishers + ": Six-monthly", "2026-08-01", RoutineStatus.Generated);

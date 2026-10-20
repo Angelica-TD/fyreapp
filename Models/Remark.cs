@@ -10,17 +10,13 @@ public class Remark : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from Uptick remark export "ID"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     // FyreApp ref (e.g. "D-1001"), assigned by the database when there's no Uptick ID
     [StringLength(20)]
     public string? FyreRef { get; set; }
 
-    // Shown to users: the Uptick ID if imported, otherwise the FyreApp ref
+    // Shown to users: the Uptick ID if migrated, otherwise the FyreApp ref
     // Uptick shows remarks as "D-<ID>"
-    public string? DisplayRef => string.IsNullOrWhiteSpace(ExternalId) ? FyreRef : $"D-{ExternalId}";
+    public string? DisplayRef => UptickId is { } id ? $"D-{id}" : FyreRef;
 
     public int PropertyId { get; set; }
     public Property Property { get; set; } = null!;
@@ -58,8 +54,11 @@ public class Remark : IUptickMapped
     // When it was quoted (Uptick "Quoted Date", a calendar date)
     public DateTime? QuotedDate { get; set; }
 
-    // Uptick task / quote references
-    public string? RaisedOnTaskRef { get; set; }
+    // The task it was raised on (Uptick's "Created on Task")
+    public int? RaisedOnTaskId { get; set; }
+    public ClientTask? RaisedOnTask { get; set; }
+
+    // Uptick quote reference
     public string? QuoteRef { get; set; }
 
     // Its most progressed defect quote in Uptick
@@ -69,10 +68,6 @@ public class Remark : IUptickMapped
     public string? RepairTaskRef { get; set; }
     public string? RepairTaskStatus { get; set; }
 
-    // The task raised to repair it: Uptick's task ID (export "Repair Task ID"), linked to the imported task
-    // once both are in FyreApp (whichever is imported second makes the link)
-    [StringLength(64)]
-    public string? RepairTaskExternalId { get; set; }
     public int? RepairTaskId { get; set; }
     public ClientTask? RepairTask { get; set; }
 }

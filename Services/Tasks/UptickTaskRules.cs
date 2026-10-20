@@ -18,35 +18,6 @@ public static class UptickTaskRules
     // Guards against runaway loops if a schedule's interval is odd; far more than any real backlog
     private const int MaxRollForwards = 24;
 
-    // Reports and remarks a file import placed before their task point at it by Uptick task ID; link them now
-    public static async Task<(int Reports, int Remarks)> LinkWaitingRecordsAsync(AppDbContext db, IReadOnlyList<ClientTask> created, CancellationToken ct)
-    {
-        var idByExt = created.Where(t => t.ExternalId != null)
-            .GroupBy(t => t.ExternalId!, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
-        int reports = 0, remarks = 0;
-
-        foreach (var chunk in idByExt.Keys.Chunk(1000))
-        {
-            var exts = chunk.ToList();
-            foreach (var r in await db.Reports.Where(r => r.ClientTaskId == null && r.TaskExternalId != null && exts.Contains(r.TaskExternalId)).ToListAsync(ct))
-            {
-                r.ClientTaskId = idByExt[r.TaskExternalId!];
-                reports++;
-            }
-            foreach (var d in await db.Remarks.Where(d => d.RepairTaskId == null && d.RepairTaskExternalId != null && exts.Contains(d.RepairTaskExternalId)).ToListAsync(ct))
-            {
-                d.RepairTaskId = idByExt[d.RepairTaskExternalId!];
-                remarks++;
-            }
-        }
-
-        if (reports + remarks > 0)
-            await db.SaveChangesAsync(ct);
-        return (reports, remarks);
-    }
-
-
     // For each linked schedule, while a completed Uptick task covers its next occurrence, log it in
     // maintenance history and move to the following occurrence. Returns how many occurrences were done.
     public static int RollSchedulesForward(AppDbContext db, IReadOnlyList<ClientTask> tasks)
@@ -90,7 +61,7 @@ public static class UptickTaskRules
 
     public static async Task<(int Id, int ClientId)> GetNoPropertySiteAsync(AppDbContext db, CancellationToken ct)
     {
-        var site = await db.Properties.FirstOrDefaultAsync(s => s.IsPlaceholder && s.ExternalId == null && s.Name == NoPropertySiteName, ct);
+        var site = await db.Properties.FirstOrDefaultAsync(s => s.IsPlaceholder && s.UptickId == null && s.Name == NoPropertySiteName, ct);
         if (site != null) return (site.Id, site.ClientId);
 
         site = new Property { Name = NoPropertySiteName, IsPlaceholder = true, Active = false, Client = await UnassignedClientAsync(db, ct) };
@@ -100,7 +71,7 @@ public static class UptickTaskRules
     }
 
     public static async Task<Client> UnassignedClientAsync(AppDbContext db, CancellationToken ct) =>
-        await db.Clients.FirstOrDefaultAsync(c => c.IsPlaceholder && c.ExternalId == null && c.Name == UnassignedClientName, ct)
+        await db.Clients.FirstOrDefaultAsync(c => c.IsPlaceholder && c.UptickId == null && c.Name == UnassignedClientName, ct)
         ?? new Client { Name = UnassignedClientName, IsPlaceholder = true, Active = false, Created = DateTime.UtcNow };
 
     // "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual (1)" -> 12, one per line

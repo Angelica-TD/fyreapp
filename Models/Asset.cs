@@ -11,16 +11,12 @@ public class Asset : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Used for import matching (maps from Uptick asset export "ID")
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     // FyreApp ref (e.g. "A-1001"), assigned by the database when there's no Uptick ID
     [StringLength(20)]
     public string? FyreRef { get; set; }
 
-    // Shown to users: the Uptick ID if imported, otherwise the FyreApp ref
-    public string? DisplayRef => string.IsNullOrWhiteSpace(ExternalId) ? FyreRef : ExternalId;
+    // Shown to users: the Uptick ID if migrated, otherwise the FyreApp ref
+    public string? DisplayRef => UptickId?.ToString() ?? FyreRef;
 
     // Uptick asset ref within the property (e.g. "4")
     public string? Ref { get; set; }

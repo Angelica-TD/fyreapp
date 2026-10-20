@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Uptick.Mapping;
 
-// Uptick's groups -> SecurityGroup (their names split users' "Security Groups"). A group the groups export placed
-// (ExternalId = its id) is matched and updated.
+// Uptick's groups -> SecurityGroup (their names split users' "Security Groups").
 public class SecurityGroupMapper : UptickEntityMapper<SecurityGroup>
 {
     public SecurityGroupMapper(AppDbContext db) : base(db) { }
@@ -15,11 +14,10 @@ public class SecurityGroupMapper : UptickEntityMapper<SecurityGroup>
     protected override async Task<Dictionary<long, SecurityGroup>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.SecurityGroups
-            .Where(g => (g.UptickId != null && ids.Contains(g.UptickId.Value)) || (g.ExternalId != null && texts.Contains(g.ExternalId)))
+            .Where(g => g.UptickId != null && ids.Contains(g.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), g => g.UptickId, g => g.ExternalId);
+        return Match(rows, g => g.UptickId);
     }
 
     protected override SecurityGroup Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -27,7 +25,6 @@ public class SecurityGroupMapper : UptickEntityMapper<SecurityGroup>
     protected override void Map(SecurityGroup g, UptickRaw raw)
     {
         g.UptickId = raw.Id;
-        g.ExternalId = raw.Id.ToString();
         g.Name = raw.Text("name", 200) ?? $"Group {raw.Id}";
     }
 
@@ -36,7 +33,7 @@ public class SecurityGroupMapper : UptickEntityMapper<SecurityGroup>
 }
 
 // Uptick's contractors -> Contractor, with its category by name. Tags, skills and service areas aren't in the API,
-// so the contractors export's are kept. A contractor the export placed (ExternalId = its id) is matched and updated.
+// so the contractors export's are kept.
 public class ContractorMapper : UptickEntityMapper<Contractor>
 {
     private Dictionary<long, string> _categories = new();
@@ -51,11 +48,10 @@ public class ContractorMapper : UptickEntityMapper<Contractor>
     protected override async Task<Dictionary<long, Contractor>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.Contractors
-            .Where(c => (c.UptickId != null && ids.Contains(c.UptickId.Value)) || (c.ExternalId != null && texts.Contains(c.ExternalId)))
+            .Where(c => c.UptickId != null && ids.Contains(c.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), c => c.UptickId, c => c.ExternalId);
+        return Match(rows, c => c.UptickId);
     }
 
     protected override Contractor Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -63,7 +59,6 @@ public class ContractorMapper : UptickEntityMapper<Contractor>
     protected override void Map(Contractor c, UptickRaw raw)
     {
         c.UptickId = raw.Id;
-        c.ExternalId = raw.Id.ToString();
         c.Name = raw.Text("name", 200) ?? $"Contractor {raw.Id}";
         c.PrimaryContact = raw.Text("primary_contact", 200);
         c.Email = raw.Text("email", 200);
@@ -81,8 +76,7 @@ public class ContractorMapper : UptickEntityMapper<Contractor>
     protected override void Deactivate(Contractor c) => c.Active = false;
 }
 
-// Uptick's suppliers -> Supplier, with its accounting organisation by name. A supplier the suppliers export placed
-// (ExternalId = its id) is matched and updated.
+// Uptick's suppliers -> Supplier, with its accounting organisation by name.
 public class SupplierMapper : UptickEntityMapper<Supplier>
 {
     private Dictionary<long, string> _organisations = new();
@@ -97,11 +91,10 @@ public class SupplierMapper : UptickEntityMapper<Supplier>
     protected override async Task<Dictionary<long, Supplier>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.Suppliers
-            .Where(s => (s.UptickId != null && ids.Contains(s.UptickId.Value)) || (s.ExternalId != null && texts.Contains(s.ExternalId)))
+            .Where(s => s.UptickId != null && ids.Contains(s.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), s => s.UptickId, s => s.ExternalId);
+        return Match(rows, s => s.UptickId);
     }
 
     protected override Supplier Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -109,7 +102,6 @@ public class SupplierMapper : UptickEntityMapper<Supplier>
     protected override void Map(Supplier s, UptickRaw raw)
     {
         s.UptickId = raw.Id;
-        s.ExternalId = raw.Id.ToString();
         s.Name = raw.Text("name", 200) ?? $"Supplier {raw.Id}";
         s.Ref = raw.Text("ref", 50);
         s.BusinessNumber = raw.Text("abn", 50);
@@ -129,8 +121,7 @@ public class SupplierMapper : UptickEntityMapper<Supplier>
     protected override void Deactivate(Supplier s) => s.Active = false;
 }
 
-// Uptick's accreditations -> Accreditation, linked to the technician who holds it, its type by name. An
-// accreditation the accreditations export placed (ExternalId = its id) is matched and updated.
+// Uptick's accreditations -> Accreditation, linked to the technician who holds it, its type by name.
 public class AccreditationMapper : UptickEntityMapper<Accreditation>
 {
     private Dictionary<long, (int Id, string Name)> _users = new();
@@ -155,11 +146,10 @@ public class AccreditationMapper : UptickEntityMapper<Accreditation>
     protected override async Task<Dictionary<long, Accreditation>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.Accreditations
-            .Where(a => (a.UptickId != null && ids.Contains(a.UptickId.Value)) || (a.ExternalId != null && texts.Contains(a.ExternalId)))
+            .Where(a => a.UptickId != null && ids.Contains(a.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), a => a.UptickId, a => a.ExternalId);
+        return Match(rows, a => a.UptickId);
     }
 
     protected override Accreditation Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -170,7 +160,6 @@ public class AccreditationMapper : UptickEntityMapper<Accreditation>
         if (raw.Rel("technician") is { } missing && user == null) throw new UptickMapException($"Its technician ({missing}) isn't in FyreApp.");
 
         a.UptickId = raw.Id;
-        a.ExternalId = raw.Id.ToString();
         a.UptickUserId = user?.Id;
         a.Technician = RoutineServiceTypeMapper.Cap(user?.Name, 200);
         a.Type = RoutineServiceTypeMapper.Cap(raw.Rel("accreditationtype") is { } type ? _types.GetValueOrDefault(type) : null, 200);

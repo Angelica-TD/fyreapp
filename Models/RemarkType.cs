@@ -10,10 +10,6 @@ public class RemarkType : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from Uptick remark types export "ID" (remarks carry it as "Remark Type ID")
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     [Required, StringLength(200)]
     public string Label { get; set; } = string.Empty;
 

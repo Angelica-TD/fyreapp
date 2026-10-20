@@ -159,7 +159,7 @@ public class TaskPageService : ITaskPageService
         return performed;
     }
 
-    // The Remark registry: remarks identified on the task (Uptick's "Created on Task Ref"), and ones it resolved: remarks it
+    // The Remark registry: remarks identified on the task (Uptick's "Created on Task"), and ones it resolved: remarks it
     // was raised to repair, and remarks on the assets it serviced closed off while its work was being done
     private async Task<IReadOnlyList<(Remark Remark, bool Resolved)>> RemarksAsync(TaskPageVm vm, List<int> assetIds, CancellationToken ct)
     {
@@ -168,7 +168,7 @@ public class TaskPageService : ITaskPageService
         var remarks = await _db.Remarks.AsNoTracking()
             .Include(d => d.Asset)
             .Where(d => d.PropertyId == task.PropertyId
-                        && ((task.Ref != null && d.RaisedOnTaskRef == task.Ref)
+                        && (d.RaisedOnTaskId == task.Id
                             || d.RepairTaskId == task.Id
                             || (!d.Active && d.AssetId != null && assetIds.Contains(d.AssetId.Value) && d.InactiveUtc >= since)))
             .ToListAsync(ct);
@@ -178,7 +178,7 @@ public class TaskPageService : ITaskPageService
 
         return remarks
             .Select(d => (d, Resolved: !d.Active && (d.RepairTaskId == task.Id || ClosedDuringWork(d))))
-            .Where(r => r.Resolved || r.d.RaisedOnTaskRef == task.Ref && task.Ref != null)
+            .Where(r => r.Resolved || r.d.RaisedOnTaskId == task.Id)
             .OrderBy(r => r.d.Asset?.InspectionOrder == null).ThenBy(r => r.d.Asset?.InspectionOrder).ThenBy(r => r.d.Asset?.Name)
             .ThenBy(r => r.Resolved).ThenBy(r => r.d.Id)
             .ToList();

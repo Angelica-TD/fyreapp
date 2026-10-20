@@ -40,8 +40,8 @@ public class RoutineServiceTaskTests
 
     private static async Task<(Property Glory, Property Calce)> SeedAsync(AppDbContext db)
     {
-        var glory = new Property { Name = "The Glory Well Church", ExternalId = "P-2241", Client = new Client { Name = "Sails Ministry" } };
-        var calce = new Property { Name = "Calce Company", ExternalId = "P-0358", Client = new Client { Name = "Calce Company Pty Ltd" } };
+        var glory = new Property { Name = "The Glory Well Church", Ref = "P-2241", Client = new Client { Name = "Sails Ministry" } };
+        var calce = new Property { Name = "Calce Company", Ref = "P-0358", Client = new Client { Name = "Calce Company Pty Ltd" } };
 
         var extinguisher = Type("Fire Extinguisher", Extinguishers);
         var blanket = Type("Fire Blanket", "11 - Fire Blankets");
@@ -143,7 +143,7 @@ public class RoutineServiceTaskTests
         db.RoutineServiceTypes.Add(new RoutineServiceType { Name = Extinguishers });
         var task = new ClientTask
         {
-            ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2026/10 Servicing", ExternalId = "46682",
+            ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2026/10 Servicing", UptickId = 46682,
             ScopeOfWorks = "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"
         };
         db.ClientTasks.Add(task);
@@ -165,13 +165,13 @@ public class RoutineServiceTaskTests
         var (glory, calce) = await SeedAsync(db);
         db.RoutineServiceTypes.Add(new RoutineServiceType { Name = Extinguishers });
         DateTime Utc(int month, int day) => DateTime.SpecifyKind(new DateTime(2026, month, day), DateTimeKind.Utc);
-        var annual = new Routine { Property = glory, ExternalId = "49441", Name = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineStatus.Generated };
+        var annual = new Routine { Property = glory, UptickId = 49441, Name = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineStatus.Generated };
         db.Routines.AddRange(annual,
             new Routine { Property = glory, Name = Extinguishers + ": Annual", DueDate = Utc(11, 1), Status = RoutineStatus.Generated },
             new Routine { Property = calce, Name = Extinguishers + ": Annual", DueDate = Utc(10, 1), Status = RoutineStatus.Generated });
         var task = new ClientTask
         {
-            ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2026/10 Servicing", Ref = "T-46682", ExternalId = "46682", DueDateUtc = Utc(10, 31),
+            ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2026/10 Servicing", Ref = "T-46682", UptickId = 46682, DueDateUtc = Utc(10, 31),
             ScopeOfWorks = "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"
         };
         db.ClientTasks.Add(task);
@@ -181,16 +181,16 @@ public class RoutineServiceTaskTests
         kitchen.Compliance = "Pass";
         hall.LastServiceDate = new DateTime(2025, 10, 9);
         db.Remarks.AddRange(
-            new Remark { Property = glory, Asset = kitchen, Description = "Flow test 10 @ 1.26 L/sec", RaisedOnTaskRef = "T-46682" },
+            new Remark { Property = glory, Asset = kitchen, Description = "Flow test 10 @ 1.26 L/sec", RaisedOnTask = task },
             new Remark { Property = glory, Asset = kitchen, Description = "Flow test/ 96.6 L/m", Active = false, InactiveUtc = Utc(10, 14).AddHours(4) },
             new Remark { Property = glory, Asset = hall, Description = "Closed last month", Active = false, InactiveUtc = Utc(9, 20) },
-            new Remark { Property = glory, Asset = hall, Description = "Still open", RaisedOnTaskRef = "T-40000" });
+            new Remark { Property = glory, Asset = hall, Description = "Still open" });
         await db.SaveChangesAsync();
 
         var vm = (await new TaskPageService(db).LoadAsync(task.Id, "work"))!;
 
         // The property's routine its scope names, due nearest the task
-        Assert.Equal("49441", Assert.Single(vm.Visits).Occurrence!.ExternalId);
+        Assert.Equal(49441, Assert.Single(vm.Visits).Occurrence!.UptickId);
         // Serviced this month: the kitchen extinguisher, not the hall's (serviced last year)
         Assert.Equal(new DateTime(2026, 10, 14), vm.Performed(kitchen));
         Assert.Null(vm.Performed(hall));
@@ -217,7 +217,7 @@ public class RoutineServiceTaskTests
         db.RoutineServiceTypes.Add(new RoutineServiceType { Name = Extinguishers });
         ClientTask Task(string title, int month, string? performed) => new()
         {
-            ClientId = glory.ClientId, PropertyId = glory.Id, Title = title, ExternalId = title, Ref = "T-" + title,
+            ClientId = glory.ClientId, PropertyId = glory.Id, Title = title, UptickId = month, Ref = "T-" + title,
             DueDateUtc = DateTime.SpecifyKind(new DateTime(2026, month, 28), DateTimeKind.Utc),
             ScopeOfWorks = $"- {Extinguishers} (AS1851-2012 Section 10): {(month == 10 ? "Annual" : "Six-monthly")}",
             PerformedDate = performed == null ? null : DateTime.SpecifyKind(DateTime.Parse(performed), DateTimeKind.Utc)

@@ -25,11 +25,10 @@ public class PropertyContactMapper : UptickEntityMapper<PropertyContact>
     protected override async Task<Dictionary<long, PropertyContact>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.PropertyContacts
-            .Where(c => (c.UptickId != null && ids.Contains(c.UptickId.Value)) || (c.ExternalId != null && texts.Contains(c.ExternalId)))
+            .Where(c => c.UptickId != null && ids.Contains(c.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), c => c.UptickId, c => c.ExternalId);
+        return Match(rows, c => c.UptickId);
     }
 
     protected override PropertyContact Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -44,7 +43,6 @@ public class PropertyContactMapper : UptickEntityMapper<PropertyContact>
         var email = raw.Text("email");
         var mobile = raw.Text("mobile");
         c.UptickId = raw.Id;
-        c.ExternalId = raw.Id.ToString();
         c.PropertyId = propertyId;
         c.Name = raw.Text("name") ?? raw.Text("organisation") ?? email ?? mobile ?? "";
         c.Organisation = raw.Text("organisation");
@@ -81,11 +79,10 @@ public class ClientContactMapper : UptickEntityMapper<ClientContact>
     protected override async Task<Dictionary<long, ClientContact>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.ClientContacts
-            .Where(c => (c.UptickId != null && ids.Contains(c.UptickId.Value)) || (c.ExternalId != null && texts.Contains(c.ExternalId)))
+            .Where(c => c.UptickId != null && ids.Contains(c.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), c => c.UptickId, c => c.ExternalId);
+        return Match(rows, c => c.UptickId);
     }
 
     protected override ClientContact Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -100,7 +97,6 @@ public class ClientContactMapper : UptickEntityMapper<ClientContact>
         var email = raw.Text("email", 200);
         var mobile = raw.Text("mobile", 100);
         c.UptickId = raw.Id;
-        c.ExternalId = raw.Id.ToString();
         c.ClientId = clientId;
         c.Name = raw.Text("name", 200) ?? email ?? mobile ?? "";
         c.Email = email;

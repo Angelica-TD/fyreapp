@@ -6,8 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace FyreApp.Services.Uptick.Mapping;
 
 // Uptick's defectquotes -> DefectQuote, at its property and linked to the task it was raised on. Its totals are
-// its line items' (defectquotelineitems). A quote the quotes export placed (ExternalId = its id) is matched and
-// updated.
+// its line items' (defectquotelineitems).
 public class DefectQuoteMapper : UptickEntityMapper<DefectQuote>
 {
     private Dictionary<long, (int Id, string? Ref, string Name, string? Client)> _properties = new();
@@ -39,11 +38,10 @@ public class DefectQuoteMapper : UptickEntityMapper<DefectQuote>
     protected override async Task<Dictionary<long, DefectQuote>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.DefectQuotes
-            .Where(q => (q.UptickId != null && ids.Contains(q.UptickId.Value)) || (q.ExternalId != null && texts.Contains(q.ExternalId)))
+            .Where(q => q.UptickId != null && ids.Contains(q.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), q => q.UptickId, q => q.ExternalId);
+        return Match(rows, q => q.UptickId);
     }
 
     protected override DefectQuote Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -55,7 +53,6 @@ public class DefectQuoteMapper : UptickEntityMapper<DefectQuote>
         (decimal Subtotal, decimal Tax, decimal Total)? totals = _totals.TryGetValue(raw.Id, out var t) ? t : null;
 
         q.UptickId = raw.Id;
-        q.ExternalId = raw.Id.ToString();
         q.PropertyId = property.Id;
         q.PropertyRef = RoutineServiceTypeMapper.Cap(property.Ref, 64);
         q.PropertyName = RoutineServiceTypeMapper.Cap(property.Name, 300);
@@ -83,8 +80,7 @@ public class DefectQuoteMapper : UptickEntityMapper<DefectQuote>
         UptickRaw.Double(a, name) is { } d ? Math.Round((decimal)d, 2) : 0;
 }
 
-// Uptick's servicequotes ("Sales quotes" in Uptick) -> ServiceQuote, at its property. A sales quote the sales quotes
-// export placed (ExternalId = its id) is matched and updated.
+// Uptick's servicequotes ("Sales quotes" in Uptick) -> ServiceQuote, at its property.
 public class ServiceQuoteMapper : UptickEntityMapper<ServiceQuote>
 {
     private Dictionary<long, (int Id, string? Ref, string Name, string? Client)> _properties = new();
@@ -103,11 +99,10 @@ public class ServiceQuoteMapper : UptickEntityMapper<ServiceQuote>
     protected override async Task<Dictionary<long, ServiceQuote>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.ServiceQuotes
-            .Where(q => (q.UptickId != null && ids.Contains(q.UptickId.Value)) || (q.ExternalId != null && texts.Contains(q.ExternalId)))
+            .Where(q => q.UptickId != null && ids.Contains(q.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), q => q.UptickId, q => q.ExternalId);
+        return Match(rows, q => q.UptickId);
     }
 
     protected override ServiceQuote Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -120,7 +115,6 @@ public class ServiceQuoteMapper : UptickEntityMapper<ServiceQuote>
             throw new UptickMapException($"Its property ({missing}) isn't in FyreApp.");
 
         q.UptickId = raw.Id;
-        q.ExternalId = raw.Id.ToString();
         q.PropertyId = property?.Id;
         q.PropertyName = RoutineServiceTypeMapper.Cap(property?.Name ?? raw.Text("property_name"), 300);
         q.Address = Address(raw) ?? q.Address;
@@ -148,8 +142,8 @@ internal static class QuoteProperties
     // Mapped properties by Uptick id, with their ref, name and client
     public static async Task<Dictionary<long, (int Id, string? Ref, string Name, string? Client)>> LoadAsync(AppDbContext db, CancellationToken ct) =>
         (await db.Properties.AsNoTracking().Where(p => p.UptickId != null)
-            .Select(p => new { UptickId = p.UptickId!.Value, p.Id, p.ExternalId, p.Name, Client = p.Client.Name }).ToListAsync(ct))
-        .ToDictionary(p => p.UptickId, p => (p.Id, p.ExternalId, p.Name, (string?)p.Client));
+            .Select(p => new { UptickId = p.UptickId!.Value, p.Id, p.Ref, p.Name, Client = p.Client.Name }).ToListAsync(ct))
+        .ToDictionary(p => p.UptickId, p => (p.Id, p.Ref, p.Name, (string?)p.Client));
 
     // A moment as its calendar day in Sydney (midnight UTC, as the exports' dates are kept)
     public static DateTime? SydneyDate(DateTime? utc) =>
