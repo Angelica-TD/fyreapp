@@ -198,15 +198,4 @@ public class RemarkTypeMapper : UptickEntityMapper<RemarkType>
     }
 
     protected override void Deactivate(RemarkType t) => t.Active = false;
-
-    // Remarks from the remarks export carry their type's Uptick id in their row
-    protected override async Task AfterAsync(CancellationToken ct)
-    {
-        var idsByExt = await Db.RemarkTypes.AsNoTracking().Where(r => r.ExternalId != null)
-            .ToDictionaryAsync(r => r.ExternalId!, r => r.Id, StringComparer.OrdinalIgnoreCase, ct);
-        foreach (var remark in await Db.Remarks.Where(r => r.RemarkTypeId == null && r.UptickData != null).ToListAsync(ct))
-            if (FyreApp.Services.Imports.UptickJson.Value(remark.UptickData, "Remark Type ID")?.Trim() is { Length: > 0 } ext && idsByExt.TryGetValue(ext, out var id))
-                remark.RemarkTypeId = id;
-        await Db.SaveChangesAsync(ct);
-    }
 }

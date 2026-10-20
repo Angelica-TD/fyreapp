@@ -450,7 +450,7 @@
                     </div>
                 </div>
 
-                @await Html.PartialAsync("_UptickData", t.UptickData)
+                @await Component.InvokeAsync("UptickRecord", new { resource = "tasks", uptickId = t.UptickId })
             </div>
 
             @* Schedule and access *@

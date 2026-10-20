@@ -10,20 +10,20 @@ public sealed record ExtraFieldValue(string Label, string Value, string? HelpTex
 public static class UptickReferenceValues
 {
     // A record's extra field values, in Uptick's order, blank ones left out: from its Uptick record's
-    // "extra_fields" (by name) when it came through the API, else from the columns of its export row
+    // "extra_fields" (by name)
     public static async Task<IReadOnlyList<ExtraFieldValue>> ExtraFieldsAsync(AppDbContext db, string contentType, string resource,
-        long? uptickId, string? uptickData, CancellationToken ct = default)
+        long? uptickId, CancellationToken ct = default)
     {
         var raw = uptickId == null ? null : await db.UptickRecords.AsNoTracking()
             .Where(r => r.Resource == resource && r.UptickId == uptickId.Value.ToString())
             .Select(r => r.Attributes)
             .FirstOrDefaultAsync(ct);
-        if (raw == null && string.IsNullOrWhiteSpace(uptickData)) return [];
+        if (raw == null) return [];
         var fields = await db.ExtraFields.AsNoTracking()
             .Where(f => f.ContentType == contentType)
             .OrderBy(f => f.Order).ThenBy(f => f.Label)
             .ToListAsync(ct);
-        return raw != null ? ApiExtraFields(fields, raw) : ExtraFields(fields, uptickData);
+        return ApiExtraFields(fields, raw);
     }
 
     // From a record's API attributes: "extra_fields": {"ase_connected": "Yes", ...}
@@ -67,17 +67,6 @@ public static class UptickReferenceValues
         }
         catch (System.Text.Json.JsonException) { }
         return value;
-    }
-
-    public static IReadOnlyList<ExtraFieldValue> ExtraFields(IEnumerable<ExtraField> fields, string? uptickData)
-    {
-        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (header, value) in UptickJson.Parse(uptickData)) values.TryAdd(header, value);
-
-        return fields
-            .Select(f => values.TryGetValue(f.Label, out var v) && !string.IsNullOrWhiteSpace(v) ? new ExtraFieldValue(f.Label, v, f.HelpText) : null)
-            .OfType<ExtraFieldValue>()
-            .ToList();
     }
 
     // Uptick's users export joins a user's groups with " - ", and group names can contain " - " too

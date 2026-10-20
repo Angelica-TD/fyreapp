@@ -273,7 +273,7 @@
             }
         </div>
 
-        @await Html.PartialAsync("_UptickData", site.UptickData)
+        @await Component.InvokeAsync("UptickRecord", new { resource = "properties", uptickId = site.UptickId })
     </div>
 
     @* Timeline *@

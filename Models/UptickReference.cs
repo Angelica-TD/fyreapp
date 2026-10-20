@@ -20,8 +20,7 @@ public class SecurityGroup : IUptickMapped
 }
 
 // A custom field set up in Uptick (Uptick "extrafields"), e.g. "ASE Connected" on assets. A record's values are
-// in its Uptick record's "extra_fields" (by Name), or, for one only a file export brought in, the columns of
-// that export (kept in its UptickData, by Label); these say which are extra fields, in what order, and how
+// in its Uptick record's "extra_fields" (by Name); these say which are extra fields, in what order, and how
 // they're entered.
 public class ExtraField : IUptickMapped
 {
@@ -61,9 +60,6 @@ public class ExtraField : IUptickMapped
     public string? HelpText { get; set; }
 
     public string? FieldSettings { get; set; }
-
-    // Every column of the Uptick export row as JSON (key order kept)
-    public string? UptickData { get; set; }
 
     // Uptick's record type numbers, worked out from which export has the field as a column
     public const string AssetContentType = "51";
@@ -117,7 +113,4 @@ public class PromptQuestion : IUptickMapped
     public bool Active { get; set; } = true;
     public bool Required { get; set; }
     public int? Order { get; set; }
-
-    // Every column of the Uptick export row as JSON (key order kept)
-    public string? UptickData { get; set; }
 }

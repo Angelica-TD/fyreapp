@@ -51,9 +51,6 @@ public class UptickUser : IUptickMapped
     public DateTime? JoinedUtc { get; set; }
     public DateTime? LastLoginUtc { get; set; }
 
-    // Every column of the Uptick export row as JSON (key order kept)
-    public string? UptickData { get; set; }
-
     public static string LicenseLabel(string? licenseType) => licenseType?.ToUpperInvariant() switch
     {
         "DESK" => "Desk",

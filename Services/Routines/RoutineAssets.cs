@@ -41,8 +41,7 @@ public static class RoutineAssets
         return lines.ToLookup(l => (l.PropertyId, l.Routine), l => l.Line);
     }
 
-    // Each asset type's applicable routines (by name) and excluded levels ("<routine>: <level>"): Uptick's links, and
-    // for a type only the asset types export brought in, that export's columns
+    // Each asset type's applicable routines (by name) and excluded levels ("<routine>: <level>"), from Uptick's links
     public static async Task<Dictionary<int, (IReadOnlyList<string> Applicable, IReadOnlyList<string> Excluded)>> TypeRoutinesAsync(
         AppDbContext db, IEnumerable<int> typeIds, CancellationToken ct = default)
     {
@@ -51,16 +50,12 @@ public static class RoutineAssets
             .Where(t => ids.Contains(t.Id))
             .Select(t => new
             {
-                t.Id, t.UptickData,
+                t.Id,
                 Applicable = t.ApplicableRoutineTypes.Select(r => r.Name).ToList(),
                 Excluded = t.ExcludedRoutineLevels.Select(l => l.RoutineServiceType.Name + ": " + l.Name).ToList()
             })
             .ToListAsync(ct);
-        return types.ToDictionary(t => t.Id, t => (
-            (IReadOnlyList<string>)t.Applicable.Concat(Lines(UptickJson.Value(t.UptickData, "Applicable Routines")))
-                .Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-            (IReadOnlyList<string>)t.Excluded.Concat(Lines(UptickJson.Value(t.UptickData, "Excluded Routine Levels")))
-                .Distinct(StringComparer.OrdinalIgnoreCase).ToList()));
+        return types.ToDictionary(t => t.Id, t => ((IReadOnlyList<string>)t.Applicable, (IReadOnlyList<string>)t.Excluded));
     }
 
     // The type's routines include this one, and its level isn't excluded (named as the routines export

@@ -39,8 +39,6 @@ public class DefectQuote : IUptickRecord, IUptickMapped
     public decimal? Subtotal { get; set; }
     public decimal? Tax { get; set; }
     public decimal? Total { get; set; }
-
-    public string? UptickData { get; set; }
 }
 
 // An Uptick sales quote (Uptick "servicequotes"; "Sales quotes" in Uptick), linked to its property. The sales
@@ -72,8 +70,6 @@ public class ServiceQuote : IUptickRecord, IUptickMapped
     public DateTime? Created { get; set; }
     public DateTime? ExpiryDate { get; set; }
     public decimal? Subtotal { get; set; }
-
-    public string? UptickData { get; set; }
 }
 
 // A fire safety schedule held for a property (Uptick "propertyschedules"), e.g. an occupancy permit
@@ -94,8 +90,6 @@ public class PropertySchedule : IUptickMapped
     [StringLength(100)] public string? Type { get; set; }
     [StringLength(300)] public string? Issuer { get; set; }
     [StringLength(300)] public string? Location { get; set; }
-
-    public string? UptickData { get; set; }
 }
 
 // A form submitted in Uptick (Uptick "dynamicformresponses"), e.g. a "Queensland Form 72" on a task: which form
@@ -127,8 +121,6 @@ public class DynamicFormResponse : IUptickRecord, IUptickMapped
     [StringLength(64)] public string? TargetObjectId { get; set; }
     public bool IsComplete { get; set; }
 
-    public string? UptickData { get; set; }
-
     public const string TaskContentType = "28";
 }
 
@@ -151,8 +143,6 @@ public class Accreditation : IUptickRecord, IUptickMapped
     // As Uptick names the user, e.g. "Wes Speedon (Field Tech)"
     [StringLength(200)] public string? Technician { get; set; }
     [StringLength(64)] public string? PropertyRef { get; set; }
-
-    public string? UptickData { get; set; }
 }
 
 // Something Uptick sells or uses (Uptick "products" export)
@@ -181,8 +171,6 @@ public class Product : IUptickRecord, IUptickMapped
     public bool Starred { get; set; }
     public DateTime? LastUsedUtc { get; set; }
 
-    public string? UptickData { get; set; }
-
     public string TypeLabel => Type?.ToUpperInvariant() switch
     {
         "M" => "Materials",
@@ -207,8 +195,6 @@ public class Warehouse : IUptickRecord, IUptickMapped
     [StringLength(200)] public string? Branch { get; set; }
     [StringLength(200)] public string? Manager { get; set; }
     public decimal? StockValue { get; set; }
-
-    public string? UptickData { get; set; }
 }
 
 // How much of a product a warehouse holds (Uptick's stock). The annotated stocks export had no IDs, so each import
@@ -238,6 +224,4 @@ public class Stock : IUptickMapped
     public decimal? Required { get; set; }
     [StringLength(100)] public string? BinLocation { get; set; }
     public decimal? StockValue { get; set; }
-
-    public string? UptickData { get; set; }
 }

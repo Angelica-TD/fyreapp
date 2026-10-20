@@ -17,15 +17,20 @@ public class RoutineServiceTaskTests
 
     private static RoutineFilter AnyFilter => new() { ClientActive = null, PropertyStatus = new(), Status = new() };
 
-    // An asset type as Uptick's asset types export gives it: one applicable routine per line
-    private static AssetType Type(string name, string applicable, string? excluded = null) => new()
+    // An asset type with Uptick's applicable routines (one per line) and excluded levels ("<routine>: <level>")
+    private static AssetType Type(string name, string applicable, string? excluded = null)
     {
-        Name = name,
-        UptickData = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string?>
-        {
-            ["Name"] = name, ["Applicable Routines"] = applicable, ["Excluded Routine Levels"] = excluded
-        }.Where(kv => kv.Value != null).ToDictionary())
-    };
+        var type = new AssetType { Name = name };
+        foreach (var routine in applicable.Split('\n'))
+            type.ApplicableRoutineTypes.Add(new RoutineServiceType { Name = routine });
+        if (excluded != null)
+            foreach (var level in excluded.Split('\n'))
+            {
+                var at = level.LastIndexOf(": ", StringComparison.Ordinal);
+                type.ExcludedRoutineLevels.Add(new RoutineServiceLevel { Name = level[(at + 2)..], RoutineServiceType = new RoutineServiceType { Name = level[..at] } });
+            }
+        return type;
+    }
 
     private static Routine Due(Property site, string routine, string group = "Servicing") => new()
     {
@@ -139,8 +144,7 @@ public class RoutineServiceTaskTests
         var task = new ClientTask
         {
             ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2026/10 Servicing", ExternalId = "46682",
-            ScopeOfWorks = "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual",
-            UptickData = """{"Scope of works":"- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"}"""
+            ScopeOfWorks = "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"
         };
         db.ClientTasks.Add(task);
         await db.SaveChangesAsync();
@@ -168,8 +172,7 @@ public class RoutineServiceTaskTests
         var task = new ClientTask
         {
             ClientId = glory.ClientId, PropertyId = glory.Id, Title = "PM2026/10 Servicing", Ref = "T-46682", ExternalId = "46682", DueDateUtc = Utc(10, 31),
-            ScopeOfWorks = "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual",
-            UptickData = """{"Scope of works":"- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"}"""
+            ScopeOfWorks = "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Annual"
         };
         db.ClientTasks.Add(task);
         var kitchen = await db.Assets.SingleAsync(a => a.Name == "FE Kitchen");
@@ -217,11 +220,7 @@ public class RoutineServiceTaskTests
             ClientId = glory.ClientId, PropertyId = glory.Id, Title = title, ExternalId = title, Ref = "T-" + title,
             DueDateUtc = DateTime.SpecifyKind(new DateTime(2026, month, 28), DateTimeKind.Utc),
             ScopeOfWorks = $"- {Extinguishers} (AS1851-2012 Section 10): {(month == 10 ? "Annual" : "Six-monthly")}",
-            UptickData = System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, string?>
-            {
-                ["Scope of works"] = $"- {Extinguishers} (AS1851-2012 Section 10): {(month == 10 ? "Annual" : "Six-monthly")}",
-                ["Performed Date"] = performed == null ? null : performed + " 15:09:00"
-            }.Where(kv => kv.Value != null).ToDictionary())
+            PerformedDate = performed == null ? null : DateTime.SpecifyKind(DateTime.Parse(performed), DateTimeKind.Utc)
         };
         var oct = Task("46682", 10, octoberPerformed);
         var nov = Task("46900", 11, novemberPerformed);

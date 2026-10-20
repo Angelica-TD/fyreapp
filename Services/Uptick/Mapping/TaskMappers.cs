@@ -85,6 +85,8 @@ public class TaskMapper : UptickEntityMapper<ClientTask>
         t.Priority = UptickTaskRules.MapPriority(raw.Int("priority"));
         t.DueDateUtc = raw.Date("due");
         t.CreatedUtc = raw.Time("created") ?? (t.CreatedUtc == default ? DateTime.UtcNow : t.CreatedUtc);
+        t.ScheduledDate = raw.Date("scheduled_date") ?? LocalDay(raw.Text("scheduled_at"));
+        t.PerformedDate = LocalDay(raw.Text("status_changed_inspected"));
         t.CompletedUtc = status == ClientTaskStatus.Completed ? raw.Time("status_changed_complete") ?? raw.Time("inactive_date") : null;
         t.Category = raw.Rel("category") is { } category ? _categories.GetValueOrDefault(category) : null;
         t.IsActive = raw.Bool("is_active") ?? status is not (ClientTaskStatus.Completed or ClientTaskStatus.Cancelled);
@@ -102,6 +104,11 @@ public class TaskMapper : UptickEntityMapper<ClientTask>
                 if (!t.CoveredSchedules.Contains(s)) t.CoveredSchedules.Add(s);
         _mapped.Add(t);
     }
+
+    // A date-time as the date it was where it happened (its own offset), midnight UTC as dates are kept
+    private static DateTime? LocalDay(string? s) =>
+        s != null && DateTimeOffset.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var t)
+            ? DateTime.SpecifyKind(t.Date, DateTimeKind.Utc) : null;
 
     // A task deleted in Uptick: no longer open work
     protected override void Deactivate(ClientTask t) => t.IsActive = false;

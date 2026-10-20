@@ -37,8 +37,5 @@ public class RemarkType : IUptickMapped
 
     public bool Active { get; set; } = true;
 
-    // Every column of the Uptick export row as JSON (key order kept)
-    public string? UptickData { get; set; }
-
     public ICollection<Remark> Remarks { get; set; } = new List<Remark>();
 }

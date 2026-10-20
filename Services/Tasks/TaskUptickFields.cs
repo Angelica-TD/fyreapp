@@ -7,15 +7,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Tasks;
 
-// What only Uptick has about a task (notes, authorisation, service group, ...), keyed by the Tasks export's column
-// headers that the task page reads. A task migrated through the API takes them from its raw copy, over any export
-// row it was first imported with (which keeps the columns the API doesn't have, e.g. tags).
+// What only Uptick has about a task (notes, authorisation, service group, ...), from its raw copy, keyed by the
+// labels the task page reads (the Tasks export's column headers)
 public static class TaskUptickFields
 {
     public static async Task<Dictionary<string, string>> ForAsync(AppDbContext db, ClientTask task, CancellationToken ct)
     {
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (header, value) in Imports.UptickJson.Parse(task.UptickData)) values.TryAdd(header, value);
         if (task.UptickId is not { } id) return values;
 
         var text = id.ToString(CultureInfo.InvariantCulture);

@@ -20,10 +20,15 @@ public class TaskPageTests
         {
             Property = site, Client = site.Client, Title = "Q-2790 Works", Ref = "T-46748", ExternalId = "46748", Category = "Repair",
             Description = "Prepare\n\nQuote to replace failed items as per service report.", AssignedTo = dwayne,
-            ScopeOfWorks = "Quote to replace failed items as per service report.",
-            UptickData = """{"Description":"Prepare","Scope of works":"Quote to replace failed items as per service report.","Status":"READY","Tags":"Parts Required, Urgent","Invoice Note":"As per accepted defect quote Q-2790."}"""
+            ScopeOfWorks = "Quote to replace failed items as per service report.", UptickId = 46748
         };
         db.AddRange(task, customer);
+        db.UptickRecords.Add(new UptickRecord
+        {
+            Resource = "tasks", UptickId = "46748", Hash = "h",
+            Attributes = """{"description":"Prepare","scope_of_works":"Quote to replace failed items as per service report.","invoice_note":"As per accepted defect quote Q-2790."}""",
+            Relationships = """{"status":{"data":{"type":"TaskStatus","id":"READY"}}}"""
+        });
         db.Remarks.Add(new Remark { Property = site, Asset = new Asset { Name = "1 - HYD Pillar Landing Valve", Property = site }, RepairTask = task, Description = "Hydrant valve" });
         await db.SaveChangesAsync();
 
@@ -32,7 +37,6 @@ public class TaskPageTests
         Assert.Equal("work", vm.Tab);
         Assert.Equal(("READY", "Prepare"), (vm.StatusLabel, vm.Subtitle));
         Assert.Equal("Quote to replace failed items as per service report.", vm.ScopeOfWorks);
-        Assert.Equal(new[] { "Parts Required", "Urgent" }, vm.Tags);
         Assert.Equal("As per accepted defect quote Q-2790.", vm.U("Invoice Note"));
         Assert.Null(vm.U("Technician Note"));
         Assert.Equal("1 - HYD Pillar Landing Valve", Assert.Single(vm.Repairs).Asset!.Name);

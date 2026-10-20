@@ -6,7 +6,6 @@ namespace FyreApp.Models;
 public interface IUptickRecord
 {
     string? ExternalId { get; set; }
-    string? UptickData { get; set; }
 }
 
 // Who Uptick bills (Uptick "billingcards"). Clients and properties link to theirs.
@@ -32,8 +31,6 @@ public class BillingCard : IUptickRecord, IUptickMapped
     [StringLength(200)] public string? AccountingOrganisation { get; set; }
     [StringLength(50)] public string? DefaultTaxCode { get; set; }
     public decimal? CreditLimit { get; set; }
-
-    public string? UptickData { get; set; }
 }
 
 // A recurring billing arrangement for a property (Uptick "billingcontracts")
@@ -67,8 +64,6 @@ public class BillingContract : IUptickRecord, IUptickMapped
     public DateTime? ReviewDate { get; set; }
     public decimal? AnnualValue { get; set; }
     public string? Notes { get; set; }
-
-    public string? UptickData { get; set; }
 }
 
 // One line of a billing contract (Uptick "billingcontractlineitems")
@@ -93,8 +88,6 @@ public class BillingContractLineItem : IUptickRecord, IUptickMapped
     [StringLength(300)] public string? RoutineType { get; set; }
     [StringLength(100)] public string? LevelType { get; set; }
     public bool Visible { get; set; }
-
-    public string? UptickData { get; set; }
 }
 
 // An Uptick invoice (Uptick "invoices"), for a client, usually at a property and for a task
@@ -132,8 +125,6 @@ public class Invoice : IUptickRecord, IUptickMapped
 
     // DRAFT, SUBMITTED, AUTHORISED, PAID, VOIDED, ...
     [StringLength(30)] public string? Status { get; set; }
-
-    public string? UptickData { get; set; }
 }
 
 // A credit against an invoice (Uptick "creditnotes")
@@ -156,6 +147,4 @@ public class CreditNote : IUptickRecord, IUptickMapped
     [StringLength(64)] public string? InvoiceExternalId { get; set; }
     [StringLength(50)] public string? InvoiceNumber { get; set; }
     [StringLength(64)] public string? PropertyRef { get; set; }
-
-    public string? UptickData { get; set; }
 }

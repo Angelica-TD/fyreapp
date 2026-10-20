@@ -60,7 +60,7 @@
                 </div>
             </div>
 
-            @await Html.PartialAsync("_UptickData", d.UptickData)
+            @await Component.InvokeAsync("UptickRecord", new { resource = "remarks", uptickId = d.UptickId })
         </div>
 
         <div class="col-lg-6">

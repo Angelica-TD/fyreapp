@@ -44,13 +44,9 @@ public class TaskPageVm
     // completed (open-ended until then)
     public static (DateTime From, DateTime? To) WorkWindow(ClientTask t)
     {
-        DateTime? UDate(string header) =>
-            UptickJson.Value(t.UptickData, header) is { } s
-            && DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d) ? d.Date : null;
-
         var from = t.DueDateUtc is DateTime due ? new DateTime(due.Year, due.Month, 1) : t.CreatedUtc.ToSydney().Date;
-        if (UDate("Scheduled Date") is DateTime scheduled && scheduled < from) from = scheduled;
-        return (from, t.CompletedUtc?.ToSydney().Date ?? UDate("Performed Date"));
+        if (t.ScheduledDate?.Date is DateTime scheduled && scheduled < from) from = scheduled;
+        return (from, t.CompletedUtc?.ToSydney().Date ?? t.PerformedDate?.Date);
     }
 
     // Work tab: assets serviced and repairs resolved, of all of them
@@ -68,13 +64,6 @@ public class TaskPageVm
     public IReadOnlyDictionary<string, string> Uptick { get; set; } = new Dictionary<string, string>();
 
     public string? U(string header) => Uptick.TryGetValue(header, out var v) && !string.IsNullOrWhiteSpace(v) ? v : null;
-
-    public static IReadOnlyDictionary<string, string> ParseUptick(string? json)
-    {
-        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (header, value) in UptickJson.Parse(json)) values.TryAdd(header, value);
-        return values;
-    }
 
     // Uptick's status (READY, SCHEDULED, ...) for imported tasks, else FyreApp's
     public string StatusLabel => U("Status")?.ToUpperInvariant() ?? Task.Status switch

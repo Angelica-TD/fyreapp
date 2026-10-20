@@ -61,7 +61,7 @@ public class AssetPageService : IAssetPageService
             LastServiceBy = tab == "asset" ? await LastServiceByAsync(asset, ct) : null,
             Timeline = tab == "asset" ? await _timeline.ForAssetAsync(asset, notesOnly, ct) : [],
             NotesOnly = notesOnly,
-            ExtraFields = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(_db, ExtraField.AssetContentType, "assets", asset.UptickId, asset.UptickData, ct)
+            ExtraFields = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(_db, ExtraField.AssetContentType, "assets", asset.UptickId, ct)
         };
     }
 
