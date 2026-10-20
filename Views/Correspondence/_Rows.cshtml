@@ -1,0 +1,18 @@
+@model IReadOnlyList<FyreApp.ViewModels.Lists.CorrespondenceListItemVm>
+
+@* Emails, one a row: when, subject (to its page), from and to *@
+<div class="list-group list-group-flush">
+    @foreach (var c in Model)
+    {
+        <a class="list-group-item list-group-item-action" asp-controller="Correspondence" asp-action="Details" asp-route-id="@c.Id">
+            <div class="d-flex justify-content-between gap-2">
+                <span class="fw-semibold text-truncate">@(c.Subject ?? "(no subject)")</span>
+                <span class="small text-muted text-nowrap">
+                    @if (c.Attachments > 0) { <i class="bi bi-paperclip"></i>@c.Attachments }
+                    @(c.SentUtc?.ToSydney().ToOrdinalDateTime())
+                </span>
+            </div>
+            <div class="small text-muted text-truncate">@c.From → @c.To</div>
+        </a>
+    }
+</div>

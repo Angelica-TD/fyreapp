@@ -461,6 +461,7 @@
                 </div>
 
                 @await Component.InvokeAsync("UptickFiles", new { resource = "tasks", uptickId = t.UptickId })
+                @await Component.InvokeAsync("Correspondence", new { resource = "tasks", uptickId = t.UptickId })
                 @await Component.InvokeAsync("UptickRecord", new { resource = "tasks", uptickId = t.UptickId })
             </div>
 

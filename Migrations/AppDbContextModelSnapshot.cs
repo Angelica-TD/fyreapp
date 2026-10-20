@@ -1080,6 +1080,108 @@ namespace FyreApp.Migrations
                     b.ToTable("Contractors");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.Correspondence", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Attachments")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Bcc")
+                        .HasColumnType("text");
+
+                    b.Property<string>("BodyHtml")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Cc")
+                        .HasColumnType("text");
+
+                    b.Property<string>("From")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("FromName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<bool>("IsStarred")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ReplyTo")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int?>("SentById")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SentUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("To")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SentById");
+
+                    b.HasIndex("SentUtc");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.ToTable("Correspondence");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.CorrespondenceLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CorrespondenceId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("RecordType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<long>("RecordUptickId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CorrespondenceId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.HasIndex("RecordType", "RecordUptickId");
+
+                    b.ToTable("CorrespondenceLinks");
+                });
+
             modelBuilder.Entity("FyreApp.Models.CreditNote", b =>
                 {
                     b.Property<int>("Id")
@@ -1223,6 +1325,7 @@ namespace FyreApp.Migrations
                 });
 
             modelBuilder.Entity("FyreApp.Models.DefectQuoteLine", b =>
+            modelBuilder.Entity("FyreApp.Models.Dispatch", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -1271,6 +1374,39 @@ namespace FyreApp.Migrations
                     b.Property<decimal?>("UnitPrice")
                         .HasPrecision(14, 4)
                         .HasColumnType("numeric(14,4)");
+                    b.Property<int?>("ClientTaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("CreatedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Emails")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<int?>("InvoiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IssueInvoice")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("PropertyId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Ref")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int?>("SenderId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -1284,11 +1420,19 @@ namespace FyreApp.Migrations
                     b.HasIndex("ProductId");
 
                     b.HasIndex("RemarkId");
+                    b.HasIndex("ClientTaskId");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.HasIndex("SenderId");
 
                     b.HasIndex("UptickId")
                         .IsUnique();
 
                     b.ToTable("DefectQuoteLines");
+                    b.ToTable("Dispatches");
                 });
 
             modelBuilder.Entity("FyreApp.Models.DynamicFormResponse", b =>
@@ -4311,6 +4455,27 @@ namespace FyreApp.Migrations
                     b.Navigation("Property");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.Correspondence", b =>
+                {
+                    b.HasOne("FyreApp.Models.UptickUser", "SentBy")
+                        .WithMany()
+                        .HasForeignKey("SentById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("SentBy");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.CorrespondenceLink", b =>
+                {
+                    b.HasOne("FyreApp.Models.Correspondence", "Correspondence")
+                        .WithMany("Links")
+                        .HasForeignKey("CorrespondenceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Correspondence");
+                });
+
             modelBuilder.Entity("FyreApp.Models.CreditNote", b =>
                 {
                     b.HasOne("FyreApp.Models.Invoice", "Invoice")
@@ -4368,6 +4533,35 @@ namespace FyreApp.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("Remark");
+            modelBuilder.Entity("FyreApp.Models.Dispatch", b =>
+                {
+                    b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
+                        .WithMany()
+                        .HasForeignKey("ClientTaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.Invoice", "Invoice")
+                        .WithMany()
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.UptickUser", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ClientTask");
+
+                    b.Navigation("Invoice");
+
+                    b.Navigation("Property");
+
+                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("FyreApp.Models.DynamicFormResponse", b =>
@@ -5078,6 +5272,11 @@ namespace FyreApp.Migrations
             modelBuilder.Entity("FyreApp.Models.ClientTask", b =>
                 {
                     b.Navigation("Assets");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.Correspondence", b =>
+                {
+                    b.Navigation("Links");
                 });
 
             modelBuilder.Entity("FyreApp.Models.MaintenanceInterval", b =>
