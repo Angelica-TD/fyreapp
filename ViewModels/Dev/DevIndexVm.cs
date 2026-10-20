@@ -25,7 +25,6 @@ public sealed class DevClientUpdateVm
 {
     public int Id { get; set; }
     [Required] public string Name { get; set; } = "";
-    public string? ExternalId { get; set; }
     public bool Active { get; set; }
     public string? PrimaryContactName { get; set; }
     public string? PrimaryContactEmail { get; set; }

@@ -87,7 +87,7 @@ public class TaskPageVm
     // Scope of works: Uptick's column, else the FyreApp description
     public string? ScopeOfWorks => Scope(Task);
 
-    public static string? Scope(ClientTask t) => t.ExternalId != null ? t.ScopeOfWorks : t.Description;
+    public static string? Scope(ClientTask t) => t.UptickId != null ? t.ScopeOfWorks : t.Description;
 
     public IReadOnlyList<string> Tags =>
         (U("Tags") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

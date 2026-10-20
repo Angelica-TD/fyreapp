@@ -13,14 +13,14 @@ public class TaskPageTests
     public async Task ImportedTask_ShowsUpticksNotesTagsAndRepairs()
     {
         using var db = DbContextFactory.Create();
-        var site = new Property { Name = "Gemvale Glades CTS 38276", ExternalId = "P-1512", Client = new Client { Name = "Gemvale glades CTS 38276" } };
+        var site = new Property { Name = "Gemvale Glades CTS 38276", Ref = "P-1512", Client = new Client { Name = "Gemvale glades CTS 38276" } };
         var dwayne = new UptickUser { Name = "Dwayne Page", LicenseType = "FIELD" };
         var customer = new UptickUser { Name = "Mermaid Central", LicenseType = "CUSTOMER" };
         var task = new ClientTask
         {
-            Property = site, Client = site.Client, Title = "Q-2790 Works", Ref = "T-46748", ExternalId = "46748", Category = "Repair",
+            Property = site, Client = site.Client, Title = "Q-2790 Works", Ref = "T-46748", UptickId = 46748, Category = "Repair",
             Description = "Prepare\n\nQuote to replace failed items as per service report.", AssignedTo = dwayne,
-            ScopeOfWorks = "Quote to replace failed items as per service report.", UptickId = 46748
+            ScopeOfWorks = "Quote to replace failed items as per service report."
         };
         db.AddRange(task, customer);
         db.UptickRecords.Add(new UptickRecord

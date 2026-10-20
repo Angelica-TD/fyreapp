@@ -34,6 +34,7 @@ public class RemarkListService : IRemarkListService
             .Include(d => d.Asset).ThenInclude(a => a!.AssetTypes)
             .Include(d => d.RemarkTypeRef)
             .Include(d => d.RepairTask)
+            .Include(d => d.RaisedOnTask)
             .Include(d => d.DefectQuote)
             .AsSplitQuery()
             .FirstOrDefaultAsync(d => d.Id == id, ct);
@@ -69,20 +70,19 @@ public class RemarkListService : IRemarkListService
             var term = filter.Search.Trim().ToLower();
             var refTerm = term.StartsWith("d-") ? term[2..] : term;
             q = q.Where(d =>
-                (d.ExternalId != null && d.ExternalId.Contains(refTerm)) ||
+                (d.UptickId != null && d.UptickId.ToString().Contains(refTerm)) ||
                 (d.RemarkType != null && d.RemarkType.ToLower().Contains(term)) ||
                 (d.Description != null && d.Description.ToLower().Contains(term)) ||
                 (d.Asset != null && d.Asset.Name.ToLower().Contains(term)) ||
                 d.Property.Name.ToLower().Contains(term) ||
-                (d.Property.ExternalId != null && d.Property.ExternalId.ToLower().Contains(term)));
+                (d.Property.Ref != null && d.Property.Ref.ToLower().Contains(term)));
         }
 
         // Newest first: made in FyreApp, then Uptick IDs numerically
         return q
-            .OrderBy(d => d.ExternalId != null)
-            .ThenByDescending(d => d.ExternalId == null ? d.Id : 0)
-            .ThenByDescending(d => (d.ExternalId ?? "").Length)
-            .ThenByDescending(d => d.ExternalId);
+            .OrderBy(d => d.UptickId != null)
+            .ThenByDescending(d => d.UptickId == null ? d.Id : 0)
+            .ThenByDescending(d => d.UptickId);
     }
 
     private IQueryable<Remark> Selected(BulkSelection selection, RemarkFilter filter)
@@ -92,8 +92,8 @@ public class RemarkListService : IRemarkListService
         return _db.Remarks.Where(d => ids.Contains(d.Id));
     }
 
-    private static string? RefOf(string? externalId, string? fyreRef) =>
-        string.IsNullOrWhiteSpace(externalId) ? fyreRef : $"D-{externalId}";
+    private static string? RefOf(long? uptickId, string? fyreRef) =>
+        uptickId is { } id ? $"D-{id}" : fyreRef;
 
     public async Task<RemarkListVm> SearchAsync(RemarkFilter filter, CancellationToken ct = default)
     {
@@ -106,9 +106,9 @@ public class RemarkListService : IRemarkListService
             .Take(ListFilters.PageSize)
             .Select(d => new
             {
-                d.Id, d.ExternalId, d.FyreRef, d.SeverityLabel, d.RemarkType, d.AssetId,
+                d.Id, d.UptickId, d.FyreRef, d.SeverityLabel, d.RemarkType, d.AssetId,
                 AssetName = d.Asset != null ? d.Asset.Name : null,
-                d.PropertyId, PropertyRef = d.Property.ExternalId ?? d.Property.FyreRef, PropertyName = d.Property.Name,
+                d.PropertyId, PropertyRef = d.Property.Ref ?? d.Property.FyreRef, PropertyName = d.Property.Name,
                 d.QuoteStatus, d.QuoteRef
             })
             .ToListAsync(ct);
@@ -128,7 +128,7 @@ public class RemarkListService : IRemarkListService
             Items = page.Select(d => new RemarkListItemVm
             {
                 Id = d.Id,
-                Ref = RefOf(d.ExternalId, d.FyreRef),
+                Ref = RefOf(d.UptickId, d.FyreRef),
                 Severity = d.SeverityLabel,
                 RemarkType = d.RemarkType,
                 AssetId = d.AssetId,
@@ -147,9 +147,9 @@ public class RemarkListService : IRemarkListService
         var rows = await Filtered(filter).AsNoTracking()
             .Select(d => new
             {
-                d.ExternalId, d.FyreRef, d.SeverityLabel, d.RemarkType, d.Status, d.Active, d.Description, d.Resolution, d.Location,
+                d.UptickId, d.FyreRef, d.SeverityLabel, d.RemarkType, d.Status, d.Active, d.Description, d.Resolution, d.Location,
                 Asset = d.Asset != null ? d.Asset.Name : null,
-                PropertyRef = d.Property.ExternalId ?? d.Property.FyreRef, Property = d.Property.Name, Client = d.Property.Client.Name,
+                PropertyRef = d.Property.Ref ?? d.Property.FyreRef, Property = d.Property.Name, Client = d.Property.Client.Name,
                 d.RaisedUtc, d.QuoteRef, d.QuoteStatus, d.RepairTaskRef
             })
             .ToListAsync(ct);
@@ -159,7 +159,7 @@ public class RemarkListService : IRemarkListService
                     "Property ref", "Property", "Client", "Raised", "Quote ref", "Quote status", "Repair task" },
             rows.Select(r => new[]
             {
-                RefOf(r.ExternalId, r.FyreRef), r.SeverityLabel, r.RemarkType, r.Status, r.Active ? "Open" : "Resolved",
+                RefOf(r.UptickId, r.FyreRef), r.SeverityLabel, r.RemarkType, r.Status, r.Active ? "Open" : "Resolved",
                 r.Description, r.Resolution, r.Location, r.Asset, r.PropertyRef, r.Property, r.Client,
                 CsvExport.Date(r.RaisedUtc?.ToSydney()), r.QuoteRef, r.QuoteStatus, r.RepairTaskRef
             }));
@@ -188,7 +188,7 @@ public class RemarkListService : IRemarkListService
         input.Category ??= "Repair";
         var tasks = BulkTaskBuilder.PerProperty(
             defects, d => d.Property,
-            d => $"{RefOf(d.ExternalId, d.FyreRef)} {d.RemarkType}{(d.Asset != null ? $" ({d.Asset.Name})" : "")}{(string.IsNullOrWhiteSpace(d.Description) ? "" : $": {d.Description}")}",
+            d => $"{RefOf(d.UptickId, d.FyreRef)} {d.RemarkType}{(d.Asset != null ? $" ({d.Asset.Name})" : "")}{(string.IsNullOrWhiteSpace(d.Description) ? "" : $": {d.Description}")}",
             input, "Defect repairs", userId);
 
         _db.ClientTasks.AddRange(tasks);

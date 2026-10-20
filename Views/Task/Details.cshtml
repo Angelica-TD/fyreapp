@@ -100,7 +100,7 @@
                                     var assets = Model.ServiceAssets.Where(a => string.Equals(a.Routine, name, StringComparison.OrdinalIgnoreCase)).ToList();
                                     var done = assets.Count(a => Model.Performed(a.Asset) != null);
                                     <tr>
-                                        <td class="text-nowrap">@(v == null ? "-" : v.ExternalId ?? v.Id.ToString())</td>
+                                        <td class="text-nowrap">@(v == null ? "-" : v.UptickId?.ToString() ?? v.Id.ToString())</td>
                                         <td>@name@(v == null ? "" : $" ({v.DueDate.ToOrdinalDate()})")</td>
                                         <td class="text-nowrap text-muted">-</td>
                                         <td class="work-progress text-nowrap">

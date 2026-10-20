@@ -93,10 +93,6 @@ namespace FyreApp.Migrations
                     b.Property<DateTime?>("Expiry")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("Number")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -124,9 +120,6 @@ namespace FyreApp.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -257,10 +250,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Compliance")
                         .HasColumnType("text");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("FyreRef")
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
@@ -329,9 +318,6 @@ namespace FyreApp.Migrations
 
                     b.HasIndex("AssetTypeVariantId");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("FyreRef")
                         .IsUnique();
 
@@ -386,10 +372,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("InspectionCriteria")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -406,9 +388,6 @@ namespace FyreApp.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -436,10 +415,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -449,9 +424,6 @@ namespace FyreApp.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -486,10 +458,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("DefaultTaxCode")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -530,9 +498,6 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("UptickId")
                         .IsUnique();
 
@@ -560,10 +525,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("ClientName")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<DateTime?>("FinishDate")
                         .HasColumnType("timestamp with time zone");
@@ -619,9 +580,6 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("PropertyId");
 
                     b.HasIndex("PropertyRef");
@@ -643,16 +601,8 @@ namespace FyreApp.Migrations
                     b.Property<int?>("BillingContractId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("ContractExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("Description")
                         .HasColumnType("text");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("LevelType")
                         .HasMaxLength(100)
@@ -682,11 +632,6 @@ namespace FyreApp.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BillingContractId");
-
-                    b.HasIndex("ContractExternalId");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -737,10 +682,6 @@ namespace FyreApp.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamptz")
                         .HasDefaultValueSql("now()");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("FyreRef")
                         .ValueGeneratedOnAdd()
@@ -819,9 +760,6 @@ namespace FyreApp.Migrations
 
                     b.HasIndex("BillingEmail");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("FyreRef")
                         .IsUnique();
 
@@ -855,10 +793,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("FyreRef")
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
@@ -887,9 +821,6 @@ namespace FyreApp.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ClientId");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("FyreRef")
                         .IsUnique();
@@ -933,10 +864,6 @@ namespace FyreApp.Migrations
 
                     b.Property<DateTime?>("DueDateUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("FyreRef")
                         .ValueGeneratedOnAdd()
@@ -994,9 +921,6 @@ namespace FyreApp.Migrations
 
                     b.HasIndex("DueDateUtc");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("FyreRef")
                         .IsUnique();
 
@@ -1046,10 +970,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("Mobile")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -1090,9 +1010,6 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("UptickId")
                         .IsUnique();
 
@@ -1112,14 +1029,6 @@ namespace FyreApp.Migrations
 
                     b.Property<string>("Description")
                         .HasColumnType("text");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("InvoiceExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<int?>("InvoiceId")
                         .HasColumnType("integer");
@@ -1148,11 +1057,6 @@ namespace FyreApp.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
-                    b.HasIndex("InvoiceExternalId");
 
                     b.HasIndex("InvoiceId");
 
@@ -1191,10 +1095,6 @@ namespace FyreApp.Migrations
 
                     b.Property<DateTime?>("ExpiryDate")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<int?>("PropertyId")
                         .HasColumnType("integer");
@@ -1246,9 +1146,6 @@ namespace FyreApp.Migrations
 
                     b.HasIndex("ClientTaskId");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("PropertyId");
 
                     b.HasIndex("PropertyRef");
@@ -1272,10 +1169,6 @@ namespace FyreApp.Migrations
                     b.Property<int?>("ClientTaskId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<bool>("IsComplete")
                         .HasColumnType("boolean");
 
@@ -1285,10 +1178,6 @@ namespace FyreApp.Migrations
 
                     b.Property<DateTime?>("SubmittedUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SubmitterExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("TargetContentType")
                         .HasMaxLength(20)
@@ -1316,9 +1205,6 @@ namespace FyreApp.Migrations
 
                     b.HasIndex("ClientTaskId");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("UptickId")
                         .IsUnique();
 
@@ -1344,10 +1230,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Default")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("FieldSettings")
                         .HasColumnType("text");
@@ -1379,9 +1261,6 @@ namespace FyreApp.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -1420,10 +1299,6 @@ namespace FyreApp.Migrations
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("InvoiceRef")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -1451,10 +1326,6 @@ namespace FyreApp.Migrations
                     b.Property<decimal?>("Subtotal")
                         .HasColumnType("numeric");
 
-                    b.Property<string>("TaskExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("TaskRef")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
@@ -1472,14 +1343,9 @@ namespace FyreApp.Migrations
 
                     b.HasIndex("ClientTaskId");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("PropertyId");
 
                     b.HasIndex("PropertyRef");
-
-                    b.HasIndex("TaskExternalId");
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -1670,10 +1536,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<DateTime?>("LastUsedUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1713,9 +1575,6 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("UptickId")
                         .IsUnique();
 
@@ -1732,10 +1591,6 @@ namespace FyreApp.Migrations
 
                     b.Property<bool>("Active")
                         .HasColumnType("boolean");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("HelpText")
                         .HasColumnType("text");
@@ -1775,9 +1630,6 @@ namespace FyreApp.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -1836,10 +1688,6 @@ namespace FyreApp.Migrations
 
                     b.Property<DateTime?>("Created")
                         .HasColumnType("timestamptz");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("FyreRef")
                         .ValueGeneratedOnAdd()
@@ -1904,9 +1752,6 @@ namespace FyreApp.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("FyreRef")
                         .IsUnique();
 
@@ -1932,10 +1777,6 @@ namespace FyreApp.Migrations
 
                     b.Property<string>("Email")
                         .HasColumnType("text");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("FyreRef")
                         .ValueGeneratedOnAdd()
@@ -1975,9 +1816,6 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("FyreRef")
                         .IsUnique();
 
@@ -2011,10 +1849,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Number")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<string>("PropertyExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<int?>("PropertyId")
                         .HasColumnType("integer");
@@ -2247,10 +2081,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("FyreRef")
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
@@ -2277,8 +2107,8 @@ namespace FyreApp.Migrations
                     b.Property<DateTime?>("QuotedDate")
                         .HasColumnType("timestamptz");
 
-                    b.Property<string>("RaisedOnTaskRef")
-                        .HasColumnType("text");
+                    b.Property<int?>("RaisedOnTaskId")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("RaisedUtc")
                         .HasColumnType("timestamptz");
@@ -2288,10 +2118,6 @@ namespace FyreApp.Migrations
 
                     b.Property<int?>("RemarkTypeId")
                         .HasColumnType("integer");
-
-                    b.Property<string>("RepairTaskExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<int?>("RepairTaskId")
                         .HasColumnType("integer");
@@ -2323,17 +2149,14 @@ namespace FyreApp.Migrations
 
                     b.HasIndex("DefectQuoteId");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("FyreRef")
                         .IsUnique();
 
                     b.HasIndex("PropertyId");
 
-                    b.HasIndex("RemarkTypeId");
+                    b.HasIndex("RaisedOnTaskId");
 
-                    b.HasIndex("RepairTaskExternalId");
+                    b.HasIndex("RemarkTypeId");
 
                     b.HasIndex("RepairTaskId");
 
@@ -2366,10 +2189,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("Label")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -2391,9 +2210,6 @@ namespace FyreApp.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AssetTypeId");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -2424,10 +2240,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("CriticalNote")
                         .HasColumnType("text");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("FyreRef")
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
@@ -2454,10 +2266,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("ReportType")
                         .HasColumnType("text");
 
-                    b.Property<string>("TaskExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("TaskName")
                         .HasColumnType("text");
 
@@ -2474,15 +2282,10 @@ namespace FyreApp.Migrations
 
                     b.HasIndex("ClientTaskId");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("FyreRef")
                         .IsUnique();
 
                     b.HasIndex("PropertyId");
-
-                    b.HasIndex("TaskExternalId");
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -2513,10 +2316,6 @@ namespace FyreApp.Migrations
 
                     b.Property<int?>("EstimatedMinutes")
                         .HasColumnType("integer");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<int?>("MaintenanceScheduleId")
                         .HasColumnType("integer");
@@ -2558,9 +2357,6 @@ namespace FyreApp.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ClientTaskId");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("MaintenanceScheduleId");
 
@@ -2653,10 +2449,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<int>("IntervalMonths")
                         .HasColumnType("integer");
 
@@ -2689,9 +2481,6 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("RoutineServiceTypeId");
 
                     b.HasIndex("UptickId")
@@ -2720,10 +2509,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -2749,9 +2534,6 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("Name");
 
                     b.HasIndex("UptickId")
@@ -2768,10 +2550,6 @@ namespace FyreApp.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -2781,9 +2559,6 @@ namespace FyreApp.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -2845,10 +2620,6 @@ namespace FyreApp.Migrations
                     b.Property<DateTime?>("ExpiryDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<int?>("PropertyId")
                         .HasColumnType("integer");
 
@@ -2879,9 +2650,6 @@ namespace FyreApp.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("PropertyId");
 
@@ -3109,10 +2877,6 @@ namespace FyreApp.Migrations
                     b.Property<DateTime?>("CreatedUtc")
                         .HasColumnType("timestamptz");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -3145,9 +2909,6 @@ namespace FyreApp.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -3410,10 +3171,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<string>("HomeBranch")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
@@ -3454,9 +3211,6 @@ namespace FyreApp.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
-
                     b.HasIndex("UptickId")
                         .IsUnique();
 
@@ -3474,10 +3228,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Branch")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
-
-                    b.Property<string>("ExternalId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("Manager")
                         .HasMaxLength(200)
@@ -3499,9 +3249,6 @@ namespace FyreApp.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExternalId")
-                        .IsUnique();
 
                     b.HasIndex("UptickId")
                         .IsUnique();
@@ -4123,6 +3870,11 @@ namespace FyreApp.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("FyreApp.Models.ClientTask", "RaisedOnTask")
+                        .WithMany()
+                        .HasForeignKey("RaisedOnTaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FyreApp.Models.RemarkType", "RemarkTypeRef")
                         .WithMany("Remarks")
                         .HasForeignKey("RemarkTypeId")
@@ -4138,6 +3890,8 @@ namespace FyreApp.Migrations
                     b.Navigation("DefectQuote");
 
                     b.Navigation("Property");
+
+                    b.Navigation("RaisedOnTask");
 
                     b.Navigation("RemarkTypeRef");
 

@@ -4,11 +4,10 @@ namespace FyreApp.Models;
 
 // An Uptick quote to fix defects at a property (Uptick "defectquotes"; "Defect quotes" in Uptick). Separate from
 // FyreApp's own quotes. Linked to its property and the task it was raised on; remarks link to theirs.
-public class DefectQuote : IUptickRecord, IUptickMapped
+public class DefectQuote : IUptickMapped
 {
     public int Id { get; set; }
     public long? UptickId { get; set; }
-    [StringLength(64)] public string? ExternalId { get; set; }
 
     public int? PropertyId { get; set; }
     public Property? Property { get; set; }
@@ -43,11 +42,10 @@ public class DefectQuote : IUptickRecord, IUptickMapped
 
 // An Uptick sales quote (Uptick "servicequotes"; "Sales quotes" in Uptick), linked to its property. The sales
 // quotes export named the property but not its ref, so those were matched to a property by name.
-public class ServiceQuote : IUptickRecord, IUptickMapped
+public class ServiceQuote : IUptickMapped
 {
     public int Id { get; set; }
     public long? UptickId { get; set; }
-    [StringLength(64)] public string? ExternalId { get; set; }
 
     public int? PropertyId { get; set; }
     public Property? Property { get; set; }
@@ -81,7 +79,6 @@ public class PropertySchedule : IUptickMapped
     public int? PropertyId { get; set; }
     public Property? Property { get; set; }
 
-    [StringLength(64)] public string? PropertyExternalId { get; set; }
     [StringLength(64)] public string? PropertyRef { get; set; }
     [StringLength(300)] public string? PropertyName { get; set; }
 
@@ -95,11 +92,10 @@ public class PropertySchedule : IUptickMapped
 // A form submitted in Uptick (Uptick "dynamicformresponses"), e.g. a "Queensland Form 72" on a task: which form
 // was submitted on what, by whom and when (its answers stay in the raw copy). Uptick record type 28 is a task
 // (target = the task's Uptick ID).
-public class DynamicFormResponse : IUptickRecord, IUptickMapped
+public class DynamicFormResponse : IUptickMapped
 {
     public int Id { get; set; }
     public long? UptickId { get; set; }
-    [StringLength(64)] public string? ExternalId { get; set; }
 
     // e.g. "F-00116"
     [StringLength(30)] public string? Ref { get; set; }
@@ -113,8 +109,6 @@ public class DynamicFormResponse : IUptickRecord, IUptickMapped
     // e.g. "Queensland Form 72"
     [StringLength(200)] public string? TemplateName { get; set; }
 
-    // The submitter's Uptick user ID
-    [StringLength(64)] public string? SubmitterExternalId { get; set; }
     [StringLength(64)] public string? TemplateVersion { get; set; }
 
     [StringLength(20)] public string? TargetContentType { get; set; }
@@ -126,11 +120,10 @@ public class DynamicFormResponse : IUptickRecord, IUptickMapped
 
 // A technician's licence or accreditation held in Uptick (Uptick "accreditations"), e.g.
 // "Licence No.: QBCC 15366855 | FPA 25023", linked to the Uptick user who holds it (the export named them).
-public class Accreditation : IUptickRecord, IUptickMapped
+public class Accreditation : IUptickMapped
 {
     public int Id { get; set; }
     public long? UptickId { get; set; }
-    [StringLength(64)] public string? ExternalId { get; set; }
 
     public int? UptickUserId { get; set; }
     public UptickUser? UptickUser { get; set; }
@@ -146,11 +139,10 @@ public class Accreditation : IUptickRecord, IUptickMapped
 }
 
 // Something Uptick sells or uses (Uptick "products" export)
-public class Product : IUptickRecord, IUptickMapped
+public class Product : IUptickMapped
 {
     public int Id { get; set; }
     public long? UptickId { get; set; }
-    [StringLength(64)] public string? ExternalId { get; set; }
 
     [Required, StringLength(300)] public string Name { get; set; } = string.Empty;
 
@@ -182,11 +174,10 @@ public class Product : IUptickRecord, IUptickMapped
 }
 
 // A stock location (Uptick "warehouses" export): the warehouse or a technician's van
-public class Warehouse : IUptickRecord, IUptickMapped
+public class Warehouse : IUptickMapped
 {
     public int Id { get; set; }
     public long? UptickId { get; set; }
-    [StringLength(64)] public string? ExternalId { get; set; }
 
     [Required, StringLength(200)] public string Name { get; set; } = string.Empty;
 

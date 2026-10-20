@@ -30,16 +30,15 @@ public class ReportListService : IReportListService
                 (r.ReportType != null && r.ReportType.ToLower().Contains(term)) ||
                 (r.TaskRef != null && r.TaskRef.ToLower().Contains(term)) ||
                 r.Property.Name.ToLower().Contains(term) ||
-                (r.Property.ExternalId != null && r.Property.ExternalId.ToLower().Contains(term)) ||
+                (r.Property.Ref != null && r.Property.Ref.ToLower().Contains(term)) ||
                 r.Property.Client.Name.ToLower().Contains(term));
         }
 
         // Newest first: made in FyreApp, then Uptick IDs numerically
         return q
-            .OrderBy(r => r.ExternalId != null)
-            .ThenByDescending(r => r.ExternalId == null ? r.Id : 0)
-            .ThenByDescending(r => (r.ExternalId ?? "").Length)
-            .ThenByDescending(r => r.ExternalId);
+            .OrderBy(r => r.UptickId != null)
+            .ThenByDescending(r => r.UptickId == null ? r.Id : 0)
+            .ThenByDescending(r => r.UptickId);
     }
 
     public async Task<ReportListVm> SearchAsync(ReportFilter filter, CancellationToken ct = default)
@@ -53,12 +52,12 @@ public class ReportListService : IReportListService
             .Take(ListFilters.PageSize)
             .Select(r => new ReportListItemVm
             {
-                Ref = r.Ref ?? r.ExternalId ?? r.FyreRef,
+                Ref = r.Ref ?? (r.UptickId != null ? r.UptickId.ToString() : r.FyreRef),
                 Title = r.ReportType,
                 Compliant = r.Compliant,
                 Issued = r.IssuedDate,
                 PropertyId = r.PropertyId,
-                PropertyRef = r.Property.ExternalId ?? r.Property.FyreRef,
+                PropertyRef = r.Property.Ref ?? r.Property.FyreRef,
                 PropertyName = r.Property.Name,
                 ClientId = r.Property.ClientId,
                 ClientName = r.Property.Client.Name,
@@ -75,8 +74,8 @@ public class ReportListService : IReportListService
         var rows = await Filtered(filter).AsNoTracking()
             .Select(r => new
             {
-                Ref = r.Ref ?? r.ExternalId ?? r.FyreRef, r.ReportType, r.Compliant, r.IssuedDate, r.InspectedDate,
-                PropertyRef = r.Property.ExternalId ?? r.Property.FyreRef, Property = r.Property.Name, Client = r.Property.Client.Name,
+                Ref = r.Ref ?? (r.UptickId != null ? r.UptickId.ToString() : r.FyreRef), r.ReportType, r.Compliant, r.IssuedDate, r.InspectedDate,
+                PropertyRef = r.Property.Ref ?? r.Property.FyreRef, Property = r.Property.Name, Client = r.Property.Client.Name,
                 r.TaskRef, r.TaskName, r.Technician, r.Published
             })
             .ToListAsync(ct);

@@ -12,10 +12,6 @@ public class UptickUser : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from Uptick users export "ID"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     // As tasks, reports and routines name them, e.g. "Wes Speedon (Field Tech)"
     [Required, StringLength(200)]
     public string Name { get; set; } = string.Empty;

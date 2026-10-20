@@ -26,14 +26,12 @@ public class RoutineServiceTypeMapper : UptickEntityMapper<RoutineServiceType>
     protected override async Task<Dictionary<long, RoutineServiceType>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.RoutineServiceTypes
-            .Where(t => (t.UptickId != null && ids.Contains(t.UptickId.Value)) || (t.ExternalId != null && texts.Contains(t.ExternalId))
-                || (t.UptickId == null && t.ExternalId == null))
+            .Where(t => t.UptickId == null || ids.Contains(t.UptickId.Value))
             .ToListAsync(ct);
-        var map = Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), t => t.UptickId, t => t.ExternalId);
+        var map = Match(rows, t => t.UptickId);
 
-        var unlinked = rows.Where(t => t.UptickId == null && t.ExternalId == null)
+        var unlinked = rows.Where(t => t.UptickId == null)
             .GroupBy(t => t.Name.Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         foreach (var raw in batch.Where(r => !map.ContainsKey(r.Id)))
@@ -47,7 +45,6 @@ public class RoutineServiceTypeMapper : UptickEntityMapper<RoutineServiceType>
     protected override void Map(RoutineServiceType t, UptickRaw raw)
     {
         t.UptickId = raw.Id;
-        t.ExternalId = raw.Id.ToString();
         t.Name = raw.Text("name", 200) ?? $"Routine {raw.Id}";
         t.Standard = Cap(raw.Rel("standard") is { } s ? _standards.GetValueOrDefault(s) : null, 100);
         t.StandardReference = raw.Text("standard_reference", 100);
@@ -100,15 +97,13 @@ public class RoutineServiceLevelMapper : UptickEntityMapper<RoutineServiceLevel>
     protected override async Task<Dictionary<long, RoutineServiceLevel>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.RoutineServiceLevels
-            .Where(l => (l.UptickId != null && ids.Contains(l.UptickId.Value)) || (l.ExternalId != null && texts.Contains(l.ExternalId))
-                || (l.UptickId == null && l.ExternalId == null))
+            .Where(l => l.UptickId == null || ids.Contains(l.UptickId.Value))
             .ToListAsync(ct);
-        var map = Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), l => l.UptickId, l => l.ExternalId);
+        var map = Match(rows, l => l.UptickId);
 
         // Then by type + name, for levels made from routine rows
-        var unlinked = rows.Where(l => l.UptickId == null && l.ExternalId == null)
+        var unlinked = rows.Where(l => l.UptickId == null)
             .GroupBy(l => (l.RoutineServiceTypeId, l.Name.Trim().ToUpperInvariant()))
             .ToDictionary(g => g.Key, g => g.First());
         foreach (var raw in batch.Where(r => !map.ContainsKey(r.Id)))
@@ -128,7 +123,6 @@ public class RoutineServiceLevelMapper : UptickEntityMapper<RoutineServiceLevel>
             throw new UptickMapException($"Its routine service type ({type}) isn't in FyreApp.");
 
         l.UptickId = raw.Id;
-        l.ExternalId = raw.Id.ToString();
         l.RoutineServiceTypeId = typeId;
         l.Name = raw.Text("name", 100) ?? $"Level {raw.Id}";
         l.DisplayCode = raw.Text("display_code", 20);
@@ -175,11 +169,10 @@ public class RemarkTypeMapper : UptickEntityMapper<RemarkType>
     protected override async Task<Dictionary<long, RemarkType>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.RemarkTypes
-            .Where(t => (t.UptickId != null && ids.Contains(t.UptickId.Value)) || (t.ExternalId != null && texts.Contains(t.ExternalId)))
+            .Where(t => t.UptickId != null && ids.Contains(t.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), t => t.UptickId, t => t.ExternalId);
+        return Match(rows, t => t.UptickId);
     }
 
     protected override RemarkType Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -187,7 +180,6 @@ public class RemarkTypeMapper : UptickEntityMapper<RemarkType>
     protected override void Map(RemarkType t, UptickRaw raw)
     {
         t.UptickId = raw.Id;
-        t.ExternalId = raw.Id.ToString();
         t.Label = raw.Text("label", 200) ?? $"Remark type {raw.Id}";
         t.Description = raw.Text("description");
         t.AssetTypeId = raw.Rel("type") is { } type && _assetTypes.TryGetValue(type, out var assetTypeId) ? assetTypeId : null;

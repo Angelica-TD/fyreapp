@@ -11,10 +11,6 @@ public class RoutineServiceLevel : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from Uptick routine service level types export "ID"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     public int RoutineServiceTypeId { get; set; }
     public RoutineServiceType RoutineServiceType { get; set; } = null!;
 

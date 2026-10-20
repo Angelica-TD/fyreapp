@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace FyreApp.Services.Uptick.Mapping;
 
 // Uptick's extrafields -> ExtraField: the custom fields set up on assets, properties and users, with the record
-// type they're on. A field the extra fields export placed (ExternalId = its id) is matched and updated.
+// type they're on.
 public class ExtraFieldMapper : UptickEntityMapper<ExtraField>
 {
     public ExtraFieldMapper(AppDbContext db) : base(db) { }
@@ -16,11 +16,10 @@ public class ExtraFieldMapper : UptickEntityMapper<ExtraField>
     protected override async Task<Dictionary<long, ExtraField>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.ExtraFields
-            .Where(f => (f.UptickId != null && ids.Contains(f.UptickId.Value)) || (f.ExternalId != null && texts.Contains(f.ExternalId)))
+            .Where(f => f.UptickId != null && ids.Contains(f.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), f => f.UptickId, f => f.ExternalId);
+        return Match(rows, f => f.UptickId);
     }
 
     protected override ExtraField Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -28,7 +27,6 @@ public class ExtraFieldMapper : UptickEntityMapper<ExtraField>
     protected override void Map(ExtraField f, UptickRaw raw)
     {
         f.UptickId = raw.Id;
-        f.ExternalId = raw.Id.ToString();
         f.ContentType = raw.Rel("content_type")?.ToString();
         f.Order = raw.Int("order") ?? 0;
         f.Name = raw.Text("name", 200);
@@ -45,8 +43,7 @@ public class ExtraFieldMapper : UptickEntityMapper<ExtraField>
     protected override void Deactivate(ExtraField f) => Db.ExtraFields.Remove(f);
 }
 
-// Uptick's promptquestions -> PromptQuestion, with its promptset's name, ref and type. A question the prompt
-// questions export placed (ExternalId = its id) is matched and updated.
+// Uptick's promptquestions -> PromptQuestion, with its promptset's name, ref and type.
 public class PromptQuestionMapper : UptickEntityMapper<PromptQuestion>
 {
     private Dictionary<long, (string? Name, string? Ref, string? Type)> _promptsets = new();
@@ -62,11 +59,10 @@ public class PromptQuestionMapper : UptickEntityMapper<PromptQuestion>
     protected override async Task<Dictionary<long, PromptQuestion>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.PromptQuestions
-            .Where(q => (q.UptickId != null && ids.Contains(q.UptickId.Value)) || (q.ExternalId != null && texts.Contains(q.ExternalId)))
+            .Where(q => q.UptickId != null && ids.Contains(q.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), q => q.UptickId, q => q.ExternalId);
+        return Match(rows, q => q.UptickId);
     }
 
     protected override PromptQuestion Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -76,7 +72,6 @@ public class PromptQuestionMapper : UptickEntityMapper<PromptQuestion>
         (string? Name, string? Ref, string? Type)? set = raw.Rel("promptset") is { } s && _promptsets.TryGetValue(s, out var found) ? found : null;
 
         q.UptickId = raw.Id;
-        q.ExternalId = raw.Id.ToString();
         q.PromptsetName = RoutineServiceTypeMapper.Cap(set?.Name, 200);
         q.PromptsetRef = RoutineServiceTypeMapper.Cap(set?.Ref, 100);
         q.PromptsetType = RoutineServiceTypeMapper.Cap(set?.Type, 100);
@@ -130,7 +125,6 @@ public class PropertyScheduleMapper : UptickEntityMapper<PropertySchedule>
 
         s.UptickId = raw.Id;
         s.PropertyId = property.Id;
-        s.PropertyExternalId = propertyId.ToString();
         s.PropertyRef = RoutineServiceTypeMapper.Cap(property.Ref, 64);
         s.PropertyName = RoutineServiceTypeMapper.Cap(property.Name, 300);
         s.Number = raw.Text("number", 100);
@@ -145,8 +139,7 @@ public class PropertyScheduleMapper : UptickEntityMapper<PropertySchedule>
 }
 
 // Uptick's dynamicformresponses -> DynamicFormResponse, on the task it was submitted on, by its submitter, with
-// its form's name (template version -> template). A response the form responses export placed (ExternalId = its
-// id) is matched and updated.
+// its form's name (template version -> template).
 public class DynamicFormResponseMapper : UptickEntityMapper<DynamicFormResponse>
 {
     private Dictionary<long, int> _tasks = new();
@@ -176,11 +169,10 @@ public class DynamicFormResponseMapper : UptickEntityMapper<DynamicFormResponse>
     protected override async Task<Dictionary<long, DynamicFormResponse>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.DynamicFormResponses
-            .Where(f => (f.UptickId != null && ids.Contains(f.UptickId.Value)) || (f.ExternalId != null && texts.Contains(f.ExternalId)))
+            .Where(f => f.UptickId != null && ids.Contains(f.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), f => f.UptickId, f => f.ExternalId);
+        return Match(rows, f => f.UptickId);
     }
 
     protected override DynamicFormResponse Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -197,12 +189,10 @@ public class DynamicFormResponseMapper : UptickEntityMapper<DynamicFormResponse>
             submitter = _users.TryGetValue(userId, out var u) ? u : throw new UptickMapException($"Its submitter ({userId}) isn't in FyreApp.");
 
         f.UptickId = raw.Id;
-        f.ExternalId = raw.Id.ToString();
         f.Ref = raw.Text("ref", 30);
         f.SubmittedUtc = raw.Time("submitted");
         f.ClientTaskId = task;
         f.UptickUserId = submitter;
-        f.SubmitterExternalId = raw.Rel("submitter")?.ToString();
         f.TemplateVersion = raw.Rel("template_version")?.ToString();
         f.TemplateName = RoutineServiceTypeMapper.Cap(raw.Rel("template_version") is { } v ? _templates.GetValueOrDefault(v) : null, 200);
         f.TargetContentType = contentType;

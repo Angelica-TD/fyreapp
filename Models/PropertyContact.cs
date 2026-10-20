@@ -9,16 +9,12 @@ public class PropertyContact : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from Uptick property contact export "ID"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     // FyreApp ref (e.g. "PC-1001"), assigned by the database when there's no Uptick ID
     [StringLength(20)]
     public string? FyreRef { get; set; }
 
-    // Shown to users: the Uptick ID if imported, otherwise the FyreApp ref
-    public string? DisplayRef => string.IsNullOrWhiteSpace(ExternalId) ? FyreRef : ExternalId;
+    // Shown to users: the Uptick ID if migrated, otherwise the FyreApp ref
+    public string? DisplayRef => UptickId?.ToString() ?? FyreRef;
 
     public int PropertyId { get; set; }
     public Property Property { get; set; } = null!;

@@ -154,7 +154,7 @@ public class RoutineServiceLevelLinkMapper : IUptickMapper
 // Uptick's routines -> Routine: one due occurrence of a routine service's level, e.g. "10 - Portable and Wheeled Fire
 // Extinguishers: Six-monthly" due 31 Oct 2026, with its status and the task done for it (from the service tasks done
 // for it). As the routines export did, each is linked to its property's maintenance schedule for that interval,
-// created from the routines when the property has none. A routine the routines export placed is matched by its id.
+// created from the routines when the property has none.
 public class RoutineMapper : UptickEntityMapper<Routine>
 {
     private RoutinePlaces _places = null!;
@@ -182,11 +182,10 @@ public class RoutineMapper : UptickEntityMapper<Routine>
     protected override async Task<Dictionary<long, Routine>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.Routines
-            .Where(r => (r.UptickId != null && ids.Contains(r.UptickId.Value)) || (r.ExternalId != null && texts.Contains(r.ExternalId)))
+            .Where(r => r.UptickId != null && ids.Contains(r.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), r => r.UptickId, r => r.ExternalId);
+        return Match(rows, r => r.UptickId);
     }
 
     protected override Routine Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -199,7 +198,6 @@ public class RoutineMapper : UptickEntityMapper<Routine>
 
         var name = raw.Text("display_name") ?? "";
         r.UptickId = raw.Id;
-        r.ExternalId = raw.Id.ToString();
         r.PropertyId = place.PropertyId;
         r.Name = name.Length > 300 ? name[..300] : name;
         r.RoutineServiceLevelId = place.Level?.Id;

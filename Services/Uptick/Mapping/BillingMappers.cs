@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace FyreApp.Services.Uptick.Mapping;
 
 // Uptick's billingcards -> BillingCard: who Uptick bills. Mapped first, so clients and properties can link to
-// theirs. A card the billing cards export placed (ExternalId = its id) is matched and updated.
+// theirs.
 public class BillingCardMapper : UptickEntityMapper<BillingCard>
 {
     private Dictionary<long, string> _organisations = new();
@@ -35,11 +35,10 @@ public class BillingCardMapper : UptickEntityMapper<BillingCard>
     protected override async Task<Dictionary<long, BillingCard>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.BillingCards
-            .Where(c => (c.UptickId != null && ids.Contains(c.UptickId.Value)) || (c.ExternalId != null && texts.Contains(c.ExternalId)))
+            .Where(c => c.UptickId != null && ids.Contains(c.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), c => c.UptickId, c => c.ExternalId);
+        return Match(rows, c => c.UptickId);
     }
 
     protected override BillingCard Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -47,7 +46,6 @@ public class BillingCardMapper : UptickEntityMapper<BillingCard>
     protected override void Map(BillingCard c, UptickRaw raw)
     {
         c.UptickId = raw.Id;
-        c.ExternalId = raw.Id.ToString();
         c.Name = raw.Text("name", 300) ?? $"Billing card {raw.Id}";
         c.Active = raw.Bool("is_active") ?? true;
         c.Ref = raw.Text("ref", 100);
@@ -78,8 +76,7 @@ public class BillingCardMapper : UptickEntityMapper<BillingCard>
     }
 }
 
-// Uptick's billingcontracts -> BillingContract, at its property, with its billing card by name. A contract the
-// billing contracts export placed (ExternalId = its id) is matched and updated.
+// Uptick's billingcontracts -> BillingContract, at its property, with its billing card by name.
 public class BillingContractMapper : UptickEntityMapper<BillingContract>
 {
     private Dictionary<long, (int Id, string? Ref, string Name, string? Client)> _properties = new();
@@ -100,11 +97,10 @@ public class BillingContractMapper : UptickEntityMapper<BillingContract>
     protected override async Task<Dictionary<long, BillingContract>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.BillingContracts
-            .Where(c => (c.UptickId != null && ids.Contains(c.UptickId.Value)) || (c.ExternalId != null && texts.Contains(c.ExternalId)))
+            .Where(c => c.UptickId != null && ids.Contains(c.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), c => c.UptickId, c => c.ExternalId);
+        return Match(rows, c => c.UptickId);
     }
 
     protected override BillingContract Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -115,7 +111,6 @@ public class BillingContractMapper : UptickEntityMapper<BillingContract>
         if (!_properties.TryGetValue(propertyId, out var property)) throw new UptickMapException($"Its property ({propertyId}) isn't in FyreApp.");
 
         c.UptickId = raw.Id;
-        c.ExternalId = raw.Id.ToString();
         c.PropertyId = property.Id;
         c.PropertyRef = RoutineServiceTypeMapper.Cap(property.Ref, 64);
         c.PropertyName = RoutineServiceTypeMapper.Cap(property.Name, 300);
@@ -150,8 +145,7 @@ public class BillingContractMapper : UptickEntityMapper<BillingContract>
         code == null ? null : RoutineServiceTypeMapper.Cap(labels.GetValueOrDefault(code.ToUpperInvariant()) ?? code, 50);
 }
 
-// Uptick's billingcontractlineitems -> BillingContractLineItem, on its contract, with its product by name. A line
-// the line items export placed (ExternalId = its id) is matched and updated.
+// Uptick's billingcontractlineitems -> BillingContractLineItem, on its contract, with its product by name.
 public class BillingContractLineItemMapper : UptickEntityMapper<BillingContractLineItem>
 {
     private Dictionary<long, int> _contracts = new();
@@ -174,11 +168,10 @@ public class BillingContractLineItemMapper : UptickEntityMapper<BillingContractL
     protected override async Task<Dictionary<long, BillingContractLineItem>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var texts = ids.Select(id => id.ToString()).ToList();
         var rows = await Db.BillingContractLineItems
-            .Where(l => (l.UptickId != null && ids.Contains(l.UptickId.Value)) || (l.ExternalId != null && texts.Contains(l.ExternalId)))
+            .Where(l => l.UptickId != null && ids.Contains(l.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, (string?)r.Id.ToString())), l => l.UptickId, l => l.ExternalId);
+        return Match(rows, l => l.UptickId);
     }
 
     protected override BillingContractLineItem Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -189,9 +182,7 @@ public class BillingContractLineItemMapper : UptickEntityMapper<BillingContractL
         if (!_contracts.TryGetValue(contractId, out var contract)) throw new UptickMapException($"Its billing contract ({contractId}) isn't in FyreApp.");
 
         l.UptickId = raw.Id;
-        l.ExternalId = raw.Id.ToString();
         l.BillingContractId = contract;
-        l.ContractExternalId = contractId.ToString();
         l.Product = RoutineServiceTypeMapper.Cap(raw.Rel("product") is { } p ? _products.GetValueOrDefault(p) : null, 300);
         l.Description = raw.Text("description");
         l.UnitPrice = raw.Decimal("unit_price");

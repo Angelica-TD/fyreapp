@@ -41,7 +41,7 @@ public class PropertyListService : IPropertyListService
             var term = filter.Search.Trim().ToLower();
             q = q.Where(s =>
                 s.Name.ToLower().Contains(term) ||
-                (s.ExternalId != null && s.ExternalId.ToLower().Contains(term)) ||
+                (s.Ref != null && s.Ref.ToLower().Contains(term)) ||
                 (s.AddressDisplay != null && s.AddressDisplay.ToLower().Contains(term)) ||
                 s.Client.Name.ToLower().Contains(term));
         }
@@ -69,7 +69,7 @@ public class PropertyListService : IPropertyListService
             .Select(s => new PropertyListItemVm
             {
                 Id = s.Id,
-                Ref = s.ExternalId ?? s.FyreRef,
+                Ref = s.Ref ?? s.FyreRef,
                 Status = s.Status,
                 Created = s.Created,
                 Name = s.Name,
@@ -88,7 +88,7 @@ public class PropertyListService : IPropertyListService
         var rows = await Filtered(filter).AsNoTracking()
             .Select(s => new
             {
-                Ref = s.ExternalId ?? s.FyreRef, s.Status, s.Created, s.Name, s.AddressDisplay, s.Suburb, s.State, s.Postcode,
+                Ref = s.Ref ?? s.FyreRef, s.Status, s.Created, s.Name, s.AddressDisplay, s.Suburb, s.State, s.Postcode,
                 Client = s.Client.Name, Contact = s.Client.PrimaryContactName, s.IsPlaceholder
             })
             .ToListAsync(ct);

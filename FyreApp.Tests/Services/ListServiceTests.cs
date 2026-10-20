@@ -16,10 +16,10 @@ public class ListServiceTests
     private static async Task<(Property Active, Property Inactive)> SeedAsync(AppDbContext db)
     {
         var client = new Client { Name = "Apex Mezzanines", PrimaryContactName = "Naomi" };
-        var active = new Property { Name = "3/10 Expo Ct", ExternalId = "P-3338", Status = "ACTIVE", State = "QLD", Created = Utc("2026-10-01T02:31:24"), Client = client };
-        var onHold = new Property { Name = "Paused", ExternalId = "P-3000", Status = "ONHOLD", Created = Utc("2025-01-01"), Client = client };
-        var setup = new Property { Name = "1/8 Expansion St", ExternalId = "P-3337", Status = "SETUP", Created = Utc("2026-10-01T02:18:20"), Client = client };
-        var inactive = new Property { Name = "Old", ExternalId = "P-0010", Status = "INACTIVE", Created = Utc("2021-01-01"), Client = client };
+        var active = new Property { Name = "3/10 Expo Ct", Ref = "P-3338", Status = "ACTIVE", State = "QLD", Created = Utc("2026-10-01T02:31:24"), Client = client };
+        var onHold = new Property { Name = "Paused", Ref = "P-3000", Status = "ONHOLD", Created = Utc("2025-01-01"), Client = client };
+        var setup = new Property { Name = "1/8 Expansion St", Ref = "P-3337", Status = "SETUP", Created = Utc("2026-10-01T02:18:20"), Client = client };
+        var inactive = new Property { Name = "Old", Ref = "P-0010", Status = "INACTIVE", Created = Utc("2021-01-01"), Client = client };
         db.Properties.AddRange(active, onHold, setup, inactive);
         await db.SaveChangesAsync();
         return (active, inactive);
@@ -46,18 +46,18 @@ public class ListServiceTests
         var asset = new Asset { Name = "4 - DCP AB(E) 4.5KG", Property = active };
         var retired = new Asset { Name = "Retired", Property = active, IsActive = false };
 
-        Remark D(string id, Property site, Asset? a, string severity, bool open = true) =>
-            new() { ExternalId = id, Property = site, Asset = a, SeverityLabel = severity, Active = open, RemarkType = "00 - Asset Failed" };
+        Remark D(long id, Property site, Asset? a, string severity, bool open = true) =>
+            new() { UptickId = id, Property = site, Asset = a, SeverityLabel = severity, Active = open, RemarkType = "00 - Asset Failed" };
 
         db.Remarks.AddRange(
-            D("54214", active, asset, "Non-conformance"),                 // shown
-            D("54280", active, asset, "Critical defect"),                 // shown (newest)
-            D("9999", active, asset, "Non-critical defect"),              // shown (numerically lowest)
-            D("54300", active, asset, "Informational"),                   // severity not in default
-            D("54301", active, asset, "Non-conformance", open: false),    // resolved
-            D("54302", active, retired, "Non-conformance"),               // asset inactive
-            D("54303", active, null, "Non-conformance"),                  // no asset
-            D("54304", inactive, asset, "Non-conformance"));              // property inactive
+            D(54214, active, asset, "Non-conformance"),                 // shown
+            D(54280, active, asset, "Critical defect"),                 // shown (newest)
+            D(9999, active, asset, "Non-critical defect"),              // shown (numerically lowest)
+            D(54300, active, asset, "Informational"),                   // severity not in default
+            D(54301, active, asset, "Non-conformance", open: false),    // resolved
+            D(54302, active, retired, "Non-conformance"),               // asset inactive
+            D(54303, active, null, "Non-conformance"),                  // no asset
+            D(54304, inactive, asset, "Non-conformance"));              // property inactive
         await db.SaveChangesAsync();
 
         var result = await new RemarkListService(db).SearchAsync(new RemarkFilter());
@@ -73,9 +73,9 @@ public class ListServiceTests
         using var db = DbContextFactory.Create();
         var (active, _) = await SeedAsync(db);
         db.Reports.AddRange(
-            new Report { ExternalId = "52331", Ref = "R-52331", Property = active, ReportType = "Service Report", Compliant = false },
-            new Report { ExternalId = "9000", Ref = "R-09000", Property = active, ReportType = "Service Report", Compliant = true },
-            new Report { ExternalId = "52362", Ref = "R-52362", Property = active, ReportType = "Service Report", Compliant = true });
+            new Report { UptickId = 52331, Ref = "R-52331", Property = active, ReportType = "Service Report", Compliant = false },
+            new Report { UptickId = 9000, Ref = "R-09000", Property = active, ReportType = "Service Report", Compliant = true },
+            new Report { UptickId = 52362, Ref = "R-52362", Property = active, ReportType = "Service Report", Compliant = true });
         await db.SaveChangesAsync();
 
         var result = await new ReportListService(db).SearchAsync(new ReportFilter());
@@ -105,7 +105,7 @@ public class ListServiceTests
     [Fact]
     public void Remark_DisplayRef_IsUptickStyle()
     {
-        Assert.Equal("D-54214", new Remark { ExternalId = "54214" }.DisplayRef);
+        Assert.Equal("D-54214", new Remark { UptickId = 54214 }.DisplayRef);
         Assert.Equal("FD-1001", new Remark { FyreRef = "FD-1001" }.DisplayRef);
     }
 }

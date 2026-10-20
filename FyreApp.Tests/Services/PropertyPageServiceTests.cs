@@ -15,7 +15,7 @@ public class PropertyPageServiceTests
 
     private static async Task<Property> SeedAsync(AppDbContext db)
     {
-        var site = new Property { Name = "Ezfurn", ExternalId = "P-0391", Created = Utc("2022-02-01 09:18"), Client = new Client { Name = "Ezfurn" } };
+        var site = new Property { Name = "Ezfurn", Ref = "P-0391", Created = Utc("2022-02-01 09:18"), Client = new Client { Name = "Ezfurn" } };
         var hoseReel = new AssetType { Name = "Fire Hose Reel" };
         var extinguisher = new AssetType { Name = "Fire Extinguisher" };
         db.Assets.AddRange(

@@ -13,10 +13,6 @@ public class AssetType : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from Uptick asset types export "ID"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     // e.g. "AS1851 Sec 06 - Fire Detection and Alarm Systems"
     [StringLength(200)]
     public string? Category { get; set; }

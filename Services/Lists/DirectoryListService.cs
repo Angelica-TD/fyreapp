@@ -60,7 +60,7 @@ public class DirectoryListService : IDirectoryListService
             new[] { "ID", "Name", "Category", "Primary contact", "Email", "Email CC", "Phone", "Mobile", "Address", "Skills", "Service areas", "Tags", "Starred", "Active" },
             (await Contractors(filter).ToListAsync(ct)).Select(c => new[]
             {
-                c.ExternalId, c.Name, c.Category, c.PrimaryContact, c.Email, c.EmailCc, c.Phone, c.Mobile, c.Address,
+                c.UptickId?.ToString(), c.Name, c.Category, c.PrimaryContact, c.Email, c.EmailCc, c.Phone, c.Mobile, c.Address,
                 c.Skills, c.ServiceAreas, c.Tags, c.Starred ? "Yes" : "No", c.Active ? "Yes" : "No"
             }));
 
@@ -87,7 +87,7 @@ public class DirectoryListService : IDirectoryListService
             new[] { "ID", "Name", "Ref", "ABN", "Accounts contact", "Accounts email", "Purchasing contact", "Purchasing email", "Payment terms", "Accounting organisation", "Active" },
             (await Suppliers(filter).ToListAsync(ct)).Select(s => new[]
             {
-                s.ExternalId, s.Name, s.Ref, s.BusinessNumber, s.AccountsContactName, s.AccountsEmail, s.PurchasingContactName,
+                s.UptickId?.ToString(), s.Name, s.Ref, s.BusinessNumber, s.AccountsContactName, s.AccountsEmail, s.PurchasingContactName,
                 s.PurchasingEmail, s.PaymentTermsLabel, s.AccountingOrganisation, s.Active ? "Yes" : "No"
             }));
 
@@ -164,7 +164,7 @@ public class DirectoryListService : IDirectoryListService
             new[] { "ID", "Name", "Email", "Licence type", "Licence", "Security groups", "Service group", "Joined", "Last login", "FyreApp login" },
             (await UptickUsers(filter).ToListAsync(ct)).Select(u => new[]
             {
-                u.ExternalId, u.Name, u.Email, UptickUser.LicenseLabel(u.LicenseType), u.Licence,
+                u.UptickId?.ToString(), u.Name, u.Email, UptickUser.LicenseLabel(u.LicenseType), u.Licence,
                 string.Join("; ", UptickReferenceValues.SplitSecurityGroups(u.SecurityGroups, groupNames)), u.ServiceGroup,
                 Date(u.JoinedUtc), Date(u.LastLoginUtc), logins.GetValueOrDefault(u.Id)?.Label ?? "No"
             }));

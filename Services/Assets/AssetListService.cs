@@ -59,17 +59,15 @@ public class AssetListService : IAssetListService
                 (a.Ref != null && a.Ref.ToLower().Contains(term)) ||
                 (a.Location != null && a.Location.ToLower().Contains(term)) ||
                 a.Property.Name.ToLower().Contains(term) ||
-                (a.Property.ExternalId != null && a.Property.ExternalId.ToLower().Contains(term)) ||
+                (a.Property.Ref != null && a.Property.Ref.ToLower().Contains(term)) ||
                 a.Property.Client.Name.ToLower().Contains(term));
         }
 
-        // Newest first, as Uptick lists them: assets made in FyreApp (no Uptick ID) by Id, then Uptick IDs
-        // numerically (longer number = larger ID)
+        // Newest first, as Uptick lists them: assets made in FyreApp (no Uptick ID) by Id, then by Uptick ID
         return q
-            .OrderBy(a => a.ExternalId != null)
-            .ThenByDescending(a => a.ExternalId == null ? a.Id : 0)
-            .ThenByDescending(a => (a.ExternalId ?? "").Length)
-            .ThenByDescending(a => a.ExternalId);
+            .OrderBy(a => a.UptickId != null)
+            .ThenByDescending(a => a.UptickId == null ? a.Id : 0)
+            .ThenByDescending(a => a.UptickId);
     }
 
     private IQueryable<Asset> Selected(BulkSelection selection, AssetFilter filter)
@@ -95,7 +93,7 @@ public class AssetListService : IAssetListService
                 Ref = a.Ref,
                 Name = a.Name,
                 PropertyId = a.PropertyId,
-                PropertyRef = a.Property.ExternalId ?? a.Property.FyreRef,
+                PropertyRef = a.Property.Ref ?? a.Property.FyreRef,
                 PropertyName = a.Property.Name,
                 ClientId = a.Property.ClientId,
                 ClientName = a.Property.Client.Name,
@@ -122,10 +120,10 @@ public class AssetListService : IAssetListService
         var rows = await Filtered(filter).AsNoTracking()
             .Select(a => new
             {
-                Uptick = a.ExternalId ?? a.FyreRef, a.Ref, a.Name, Types = a.AssetTypes.Select(t => t.Name).ToList(),
+                Uptick = (a.UptickId != null ? a.UptickId.ToString() : a.FyreRef), a.Ref, a.Name, Types = a.AssetTypes.Select(t => t.Name).ToList(),
                 a.Variant, a.Location, a.Make, a.Model, a.Size, a.Barcode, a.Compliance, a.IsActive,
                 a.InstallationDate, a.LastServiceDate,
-                PropertyRef = a.Property.ExternalId ?? a.Property.FyreRef, Property = a.Property.Name, Client = a.Property.Client.Name
+                PropertyRef = a.Property.Ref ?? a.Property.FyreRef, Property = a.Property.Name, Client = a.Property.Client.Name
             })
             .ToListAsync(ct);
 

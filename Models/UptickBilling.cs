@@ -2,18 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Models;
 
-// A record imported from an Uptick export: its Uptick ID, and every column of its row as JSON (key order kept)
-public interface IUptickRecord
-{
-    string? ExternalId { get; set; }
-}
-
 // Who Uptick bills (Uptick "billingcards"). Clients and properties link to theirs.
-public class BillingCard : IUptickRecord, IUptickMapped
+public class BillingCard : IUptickMapped
 {
     public int Id { get; set; }
     public long? UptickId { get; set; }
-    [StringLength(64)] public string? ExternalId { get; set; }
 
     [Required, StringLength(300)] public string Name { get; set; } = string.Empty;
     public bool Active { get; set; } = true;
@@ -34,11 +27,10 @@ public class BillingCard : IUptickRecord, IUptickMapped
 }
 
 // A recurring billing arrangement for a property (Uptick "billingcontracts")
-public class BillingContract : IUptickRecord, IUptickMapped
+public class BillingContract : IUptickMapped
 {
     public int Id { get; set; }
     public long? UptickId { get; set; }
-    [StringLength(64)] public string? ExternalId { get; set; }
 
     public int? PropertyId { get; set; }
     public Property? Property { get; set; }
@@ -67,17 +59,13 @@ public class BillingContract : IUptickRecord, IUptickMapped
 }
 
 // One line of a billing contract (Uptick "billingcontractlineitems")
-public class BillingContractLineItem : IUptickRecord, IUptickMapped
+public class BillingContractLineItem : IUptickMapped
 {
     public int Id { get; set; }
     public long? UptickId { get; set; }
-    [StringLength(64)] public string? ExternalId { get; set; }
 
     public int? BillingContractId { get; set; }
     public BillingContract? BillingContract { get; set; }
-
-    // The contract's Uptick ID ("Billing Contract ID")
-    [StringLength(64)] public string? ContractExternalId { get; set; }
 
     [StringLength(300)] public string? Product { get; set; }
     public string? Description { get; set; }
@@ -91,11 +79,10 @@ public class BillingContractLineItem : IUptickRecord, IUptickMapped
 }
 
 // An Uptick invoice (Uptick "invoices"), for a client, usually at a property and for a task
-public class Invoice : IUptickRecord, IUptickMapped
+public class Invoice : IUptickMapped
 {
     public int Id { get; set; }
     public long? UptickId { get; set; }
-    [StringLength(64)] public string? ExternalId { get; set; }
 
     public int? PropertyId { get; set; }
     public Property? Property { get; set; }
@@ -112,8 +99,7 @@ public class Invoice : IUptickRecord, IUptickMapped
     [StringLength(300)] public string? ClientName { get; set; }
     [StringLength(300)] public string? BillingCardName { get; set; }
 
-    // The task's Uptick ID ("Task ID"), and its ref
-    [StringLength(64)] public string? TaskExternalId { get; set; }
+    // The task's ref
     [StringLength(20)] public string? TaskRef { get; set; }
 
     public DateTime? Date { get; set; }
@@ -128,11 +114,10 @@ public class Invoice : IUptickRecord, IUptickMapped
 }
 
 // A credit against an invoice (Uptick "creditnotes")
-public class CreditNote : IUptickRecord, IUptickMapped
+public class CreditNote : IUptickMapped
 {
     public int Id { get; set; }
     public long? UptickId { get; set; }
-    [StringLength(64)] public string? ExternalId { get; set; }
 
     public int? InvoiceId { get; set; }
     public Invoice? Invoice { get; set; }
@@ -143,8 +128,7 @@ public class CreditNote : IUptickRecord, IUptickMapped
     public DateTime? Date { get; set; }
     public string? Description { get; set; }
 
-    // The invoice's Uptick ID ("invoice_id"), its number and property
-    [StringLength(64)] public string? InvoiceExternalId { get; set; }
+    // The invoice's number and property
     [StringLength(50)] public string? InvoiceNumber { get; set; }
     [StringLength(64)] public string? PropertyRef { get; set; }
 }

@@ -14,17 +14,17 @@ public class UptickRecordPageTests
     public async Task TaskPage_ShowsItsInvoices_AndFormsWithWhoSubmittedThem()
     {
         using var db = DbContextFactory.Create();
-        var site = new Property { Name = "Ezfurn", ExternalId = "P-0391", Client = new Client { Name = "Ezfurn" } };
-        var task = new ClientTask { Property = site, Client = site.Client, Title = "PM2026/10", ExternalId = "46502" };
+        var site = new Property { Name = "Ezfurn", Ref = "P-0391", Client = new Client { Name = "Ezfurn" } };
+        var task = new ClientTask { Property = site, Client = site.Client, Title = "PM2026/10", UptickId = 46502 };
         db.ClientTasks.Add(task);
-        var wes = new UptickUser { ExternalId = "305", Name = "Wes Speedon (Field Tech)", LicenseType = "FIELD" };
+        var wes = new UptickUser { UptickId = 305, Name = "Wes Speedon (Field Tech)", LicenseType = "FIELD" };
         db.UptickUsers.Add(wes);
         db.Invoices.AddRange(
-            new Invoice { ExternalId = "1", Number = "IV1", TaskExternalId = "46502", ClientTask = task, Total = 716.65m },
-            new Invoice { ExternalId = "2", Number = "IV2", TaskExternalId = "99999" });
+            new Invoice { UptickId = 1, Number = "IV1", ClientTask = task, Total = 716.65m },
+            new Invoice { UptickId = 2, Number = "IV2" });
         db.DynamicFormResponses.AddRange(
-            new DynamicFormResponse { ExternalId = "248", Ref = "F-00248", ClientTask = task, UptickUser = wes },
-            new DynamicFormResponse { ExternalId = "249", Ref = "F-00249", TargetContentType = "51", TargetObjectId = "46502" });
+            new DynamicFormResponse { UptickId = 248, Ref = "F-00248", ClientTask = task, UptickUser = wes },
+            new DynamicFormResponse { UptickId = 249, Ref = "F-00249", TargetContentType = "51", TargetObjectId = "46502" });
         await db.SaveChangesAsync();
 
         var vm = (await new TaskPageService(db).LoadAsync(task.Id, null))!;
@@ -38,12 +38,12 @@ public class UptickRecordPageTests
     {
         using var db = DbContextFactory.Create();
         db.Products.AddRange(
-            new Product { ExternalId = "1", Name = "Exit sign", Code = "EXIT", Stocked = true },
-            new Product { ExternalId = "2", Name = "Old blanket", Active = false });
+            new Product { UptickId = 1, Name = "Exit sign", Code = "EXIT", Stocked = true },
+            new Product { UptickId = 2, Name = "Old blanket", Active = false });
         db.Stocks.AddRange(
             new Stock { Warehouse = "Fyrepower Warehouse", Product = "Exit sign", OnHand = 4 },
             new Stock { Warehouse = "Dwayne Van", Product = "Exit sign", OnHand = 1 });
-        db.Warehouses.Add(new Warehouse { ExternalId = "1", Name = "Fyrepower Warehouse", Type = "FACILITY" });
+        db.Warehouses.Add(new Warehouse { UptickId = 1, Name = "Fyrepower Warehouse", Type = "FACILITY" });
         await db.SaveChangesAsync();
         var svc = new ProductListService(db);
 

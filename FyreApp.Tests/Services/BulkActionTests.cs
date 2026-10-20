@@ -21,8 +21,8 @@ public class BulkActionTests
     private static async Task<(Property A, Property B)> SeedAsync(AppDbContext db)
     {
         var client = new Client { Name = "Sails Ministry", PrimaryContactName = "Russell McClue" };
-        var a = new Property { Name = "The Glory Well Church", ExternalId = "P-2241", Status = "ACTIVE", Client = client };
-        var b = new Property { Name = "Cold Front Air Conditioning", ExternalId = "P-1690", Status = "ACTIVE", Client = client };
+        var a = new Property { Name = "The Glory Well Church", Ref = "P-2241", Status = "ACTIVE", Client = client };
+        var b = new Property { Name = "Cold Front Air Conditioning", Ref = "P-1690", Status = "ACTIVE", Client = client };
         db.Assets.AddRange(
             new Asset { Name = "DCP AB(E) 4.5KG", Ref = "1", Location = "Kitchen", Property = a },
             new Asset { Name = "Fire Blanket", Ref = "2", Property = a },
@@ -30,9 +30,9 @@ public class BulkActionTests
         await db.SaveChangesAsync();
 
         db.Remarks.AddRange(
-            new Remark { ExternalId = "54214", Property = a, Asset = db.Assets.Local.First(x => x.Name == "DCP AB(E) 4.5KG"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true, Description = "Expired" },
-            new Remark { ExternalId = "54212", Property = a, Asset = db.Assets.Local.First(x => x.Name == "Fire Blanket"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true },
-            new Remark { ExternalId = "54179", Property = b, Asset = db.Assets.Local.First(x => x.Name == "Fire Hose Reel"), RemarkType = "00 - Asset Failed", SeverityLabel = "Critical defect", Active = true });
+            new Remark { UptickId = 54214, Property = a, Asset = db.Assets.Local.First(x => x.Name == "DCP AB(E) 4.5KG"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true, Description = "Expired" },
+            new Remark { UptickId = 54212, Property = a, Asset = db.Assets.Local.First(x => x.Name == "Fire Blanket"), RemarkType = "00 - Asset Failed", SeverityLabel = "Non-conformance", Active = true },
+            new Remark { UptickId = 54179, Property = b, Asset = db.Assets.Local.First(x => x.Name == "Fire Hose Reel"), RemarkType = "00 - Asset Failed", SeverityLabel = "Critical defect", Active = true });
         await db.SaveChangesAsync();
         return (a, b);
     }

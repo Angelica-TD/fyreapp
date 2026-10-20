@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Uptick.Mapping;
 
-// Uptick's properties -> Property, under the client mapped from the property's client. A property the
-// properties export placed (ExternalId = its ref) is matched and updated, placeholders filled in.
+// Uptick's properties -> Property, under the client mapped from the property's client.
 public class PropertyMapper : UptickEntityMapper<Property>
 {
     private Dictionary<long, int> _clients = new();
@@ -26,11 +25,10 @@ public class PropertyMapper : UptickEntityMapper<Property>
     protected override async Task<Dictionary<long, Property>> ExistingAsync(IReadOnlyList<UptickRaw> batch, CancellationToken ct)
     {
         var ids = batch.Select(r => r.Id).ToList();
-        var refs = batch.Select(r => r.Text("ref")).Where(r => r != null).ToList();
         var rows = await Db.Properties
-            .Where(p => (p.UptickId != null && ids.Contains(p.UptickId.Value)) || (p.ExternalId != null && refs.Contains(p.ExternalId)))
+            .Where(p => p.UptickId != null && ids.Contains(p.UptickId.Value))
             .ToListAsync(ct);
-        return Match(rows, batch.Select(r => (r.Id, r.Text("ref"))), p => p.UptickId, p => p.ExternalId);
+        return Match(rows, p => p.UptickId);
     }
 
     protected override Property Create(UptickRaw raw) => new() { UptickId = raw.Id };
@@ -45,7 +43,6 @@ public class PropertyMapper : UptickEntityMapper<Property>
         var reference = raw.Text("ref", 64);
         p.UptickId = raw.Id;
         p.Ref = reference;
-        p.ExternalId = reference;
         p.IsPlaceholder = false;
         p.ClientId = clientId;
         p.Name = raw.Text("name") ?? reference ?? $"Property {raw.Id}";

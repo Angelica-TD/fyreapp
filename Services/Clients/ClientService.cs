@@ -98,7 +98,7 @@ public sealed class ClientService : IClientService
             q = q.Where(c =>
                 c.Name.ToLower().Contains(term) ||
                 (c.PrimaryContactName != null && c.PrimaryContactName.ToLower().Contains(term)) ||
-                (c.ExternalId != null && c.ExternalId.ToLower() == term) ||
+                (c.UptickId != null && c.UptickId.ToString() == term) ||
                 (c.FyreRef != null && c.FyreRef.ToLower() == term));
         }
 
@@ -114,7 +114,7 @@ public sealed class ClientService : IClientService
             .Skip((Math.Max(page, 1) - 1) * pageSize)
             .Take(pageSize)
             .Select(c => new ClientListItem(
-                c.Id, c.ExternalId ?? c.FyreRef, c.Name, c.PrimaryContactName, c.PrimaryContactMobile, c.Properties.Count, c.Active))
+                c.Id, (c.UptickId != null ? c.UptickId.ToString() : c.FyreRef), c.Name, c.PrimaryContactName, c.PrimaryContactMobile, c.Properties.Count, c.Active))
             .ToListAsync(ct);
 
         return (total, items);
@@ -125,7 +125,7 @@ public sealed class ClientService : IClientService
         var rows = await Filtered(search, active).AsNoTracking()
             .Select(c => new
             {
-                Ref = c.ExternalId ?? c.FyreRef, c.Name, c.Active, c.PrimaryContactName, c.PrimaryContactEmail, c.PrimaryContactMobile,
+                Ref = (c.UptickId != null ? c.UptickId.ToString() : c.FyreRef), c.Name, c.Active, c.PrimaryContactName, c.PrimaryContactEmail, c.PrimaryContactMobile,
                 c.PrimaryContactAddress, c.BillingName, c.BillingEmail, c.BillingAddress, Properties = c.Properties.Count, c.IsPlaceholder
             })
             .ToListAsync(ct);

@@ -10,10 +10,6 @@ public class Supplier : IUptickMapped
     // Uptick's id, for records migrated through its API
     public long? UptickId { get; set; }
 
-    // Maps from Uptick suppliers export "ID"
-    [StringLength(64)]
-    public string? ExternalId { get; set; }
-
     [Required, StringLength(200)]
     public string Name { get; set; } = string.Empty;
 

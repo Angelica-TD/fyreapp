@@ -71,12 +71,12 @@ public class RoutineListService : IRoutineListService
             q = q.Where(o =>
                 o.Name.ToLower().Contains(term) ||
                 o.Property.Name.ToLower().Contains(term) ||
-                (o.Property.ExternalId != null && o.Property.ExternalId.ToLower().Contains(term)) ||
+                (o.Property.Ref != null && o.Property.Ref.ToLower().Contains(term)) ||
                 o.Property.Client.Name.ToLower().Contains(term));
         }
 
         // As Uptick lists them
-        return q.OrderBy(o => o.Name).ThenBy(o => o.DueDate).ThenBy(o => o.Property.ExternalId).ThenBy(o => o.Id);
+        return q.OrderBy(o => o.Name).ThenBy(o => o.DueDate).ThenBy(o => o.Property.Ref).ThenBy(o => o.Id);
     }
 
     public async Task<RoutineListVm> SearchAsync(RoutineFilter filter, CancellationToken ct = default)
@@ -95,7 +95,7 @@ public class RoutineListService : IRoutineListService
                 Id = o.Id,
                 Routine = o.Name,
                 PropertyId = o.PropertyId,
-                PropertyRef = o.Property.ExternalId ?? o.Property.FyreRef,
+                PropertyRef = o.Property.Ref ?? o.Property.FyreRef,
                 PropertyName = o.Property.Name,
                 ClientId = o.Property.ClientId,
                 ClientName = o.Property.Client.Name,
@@ -116,7 +116,7 @@ public class RoutineListService : IRoutineListService
             .Select(o => new
             {
                 Routine = o.Name,
-                PropertyRef = o.Property.ExternalId ?? o.Property.FyreRef,
+                PropertyRef = o.Property.Ref ?? o.Property.FyreRef,
                 Property = o.Property.Name,
                 Address = o.Property.AddressDisplay,
                 PropertyStatus = o.Property.Status,
