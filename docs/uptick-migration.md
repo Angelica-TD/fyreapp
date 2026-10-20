@@ -492,8 +492,13 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
      areas aren't in the API, so the export's are kept), `suppliers` → Supplier (accounting organisation by name),
      `accreditations` → Accreditation (linked to its Uptick user by `UptickUserId`, type by name, status). Each
      `UptickId`; their file imports are off. (`contractorcontacts`, one row, stays in the raw copy.)
-   - 6b: `extrafields`, `promptquestions`, `dynamicformresponses` (FormResponse → DynamicFormResponse),
-     `propertyschedules`; the last file imports off.
+   - 6b (done): `extrafields` → ExtraField, `promptquestions` → PromptQuestion, `propertyschedules` →
+     PropertySchedule (at its property; the export's snapshot rows are cleared on the first pass) and
+     `dynamicformresponses` → DynamicFormResponse (was FormResponse; on its task, by its submitter, with its form's
+     name from `dynamicformtemplateversions` → `dynamicformtemplates`), with `UptickId`. Asset and property pages
+     read extra field values from the raw record's `extra_fields`. The last file imports are off. (Uptick's API
+     returns no prompt questions or property schedules for this account, so those two mappers have only run on
+     test data.)
    - 6c: remove the file importers and the Imports page's Uptick exports, `UptickData` (each page's Uptick fields
      from the raw copy) and the `ExternalId` / ref-matching columns the exports needed.
 7. **Files.**

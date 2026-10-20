@@ -76,10 +76,14 @@ public class ServiceQuote : IUptickRecord, IUptickMapped
     public string? UptickData { get; set; }
 }
 
-// A fire safety schedule held for a property (Uptick "schedules" export)
-public class PropertySchedule
+// A fire safety schedule held for a property (Uptick "propertyschedules"), e.g. an occupancy permit
+public class PropertySchedule : IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
+
+    public int? PropertyId { get; set; }
+    public Property? Property { get; set; }
 
     [StringLength(64)] public string? PropertyExternalId { get; set; }
     [StringLength(64)] public string? PropertyRef { get; set; }
@@ -89,20 +93,31 @@ public class PropertySchedule
     public DateTime? Date { get; set; }
     [StringLength(100)] public string? Type { get; set; }
     [StringLength(300)] public string? Issuer { get; set; }
+    [StringLength(300)] public string? Location { get; set; }
 
     public string? UptickData { get; set; }
 }
 
-// A form submitted in Uptick (Uptick "form responses" export). The export has no answers, just which form was
-// submitted on what, by whom and when. Uptick record type 28 is a task (target = the task's Uptick ID).
-public class FormResponse : IUptickRecord
+// A form submitted in Uptick (Uptick "dynamicformresponses"), e.g. a "Queensland Form 72" on a task: which form
+// was submitted on what, by whom and when (its answers stay in the raw copy). Uptick record type 28 is a task
+// (target = the task's Uptick ID).
+public class DynamicFormResponse : IUptickRecord, IUptickMapped
 {
     public int Id { get; set; }
+    public long? UptickId { get; set; }
     [StringLength(64)] public string? ExternalId { get; set; }
 
     // e.g. "F-00116"
     [StringLength(30)] public string? Ref { get; set; }
     public DateTime? SubmittedUtc { get; set; }
+
+    public int? ClientTaskId { get; set; }
+    public ClientTask? ClientTask { get; set; }
+    public int? UptickUserId { get; set; }
+    public UptickUser? UptickUser { get; set; }
+
+    // e.g. "Queensland Form 72"
+    [StringLength(200)] public string? TemplateName { get; set; }
 
     // The submitter's Uptick user ID
     [StringLength(64)] public string? SubmitterExternalId { get; set; }

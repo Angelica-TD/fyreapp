@@ -405,7 +405,7 @@
                                 {
                                     <div class="task-process-row">
                                         <i class="bi bi-arrow-return-right text-muted"></i>
-                                        <span>@(form.Ref ?? "Form")</span>
+                                        <span>@(form.TemplateName ?? "Form")@(form.Ref != null ? $" {form.Ref}" : "")</span>
                                         <span class="text-muted">@(form.SubmittedUtc?.ToSydney().ToOrdinalDate() ?? "")@(submitter != null ? $" by {submitter}" : "")</span>
                                         @if (!form.IsComplete) { <span class="badge bg-warning text-dark">Incomplete</span> }
                                     </div>

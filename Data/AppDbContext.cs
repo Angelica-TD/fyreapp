@@ -73,7 +73,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<DefectQuote> DefectQuotes => Set<DefectQuote>();
     public DbSet<ServiceQuote> ServiceQuotes => Set<ServiceQuote>();
     public DbSet<PropertySchedule> PropertySchedules => Set<PropertySchedule>();
-    public DbSet<FormResponse> FormResponses => Set<FormResponse>();
+    public DbSet<DynamicFormResponse> DynamicFormResponses => Set<DynamicFormResponse>();
     public DbSet<Accreditation> Accreditations => Set<Accreditation>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
@@ -682,14 +682,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasOne(a => a.UptickUser).WithMany().HasForeignKey(a => a.UptickUserId).OnDelete(DeleteBehavior.SetNull);
         });
         modelBuilder.Entity<ExtraField>().HasIndex(f => f.ExternalId).IsUnique();
+        modelBuilder.Entity<ExtraField>().HasIndex(f => f.UptickId).IsUnique();
         modelBuilder.Entity<PromptQuestion>().HasIndex(q => q.ExternalId).IsUnique();
+        modelBuilder.Entity<PromptQuestion>().HasIndex(q => q.UptickId).IsUnique();
 
         // Uptick billing, quotes, forms and stock. The exports placed them by Uptick's id (ExternalId) and named
         // properties and tasks by their refs; mapped from the API, they link to them.
         foreach (var type in new[]
                  {
                      typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem), typeof(Invoice), typeof(CreditNote),
-                     typeof(DefectQuote), typeof(ServiceQuote), typeof(FormResponse), typeof(Accreditation), typeof(Product), typeof(Warehouse)
+                     typeof(DefectQuote), typeof(ServiceQuote), typeof(DynamicFormResponse), typeof(Accreditation), typeof(Product), typeof(Warehouse)
                  })
             modelBuilder.Entity(type).HasIndex(nameof(IUptickRecord.ExternalId)).IsUnique();
         modelBuilder.Entity<BillingCard>().HasIndex(c => c.UptickId).IsUnique();
@@ -735,8 +737,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(q => q.UptickId).IsUnique();
             entity.HasOne(q => q.Property).WithMany().HasForeignKey(q => q.PropertyId).OnDelete(DeleteBehavior.SetNull);
         });
-        modelBuilder.Entity<PropertySchedule>().HasIndex(s => s.PropertyRef);
-        modelBuilder.Entity<FormResponse>().HasIndex(f => new { f.TargetContentType, f.TargetObjectId });
+        modelBuilder.Entity<PropertySchedule>(entity =>
+        {
+            entity.HasIndex(s => s.PropertyRef);
+            entity.HasIndex(s => s.UptickId).IsUnique();
+            entity.HasOne(s => s.Property).WithMany().HasForeignKey(s => s.PropertyId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<DynamicFormResponse>(entity =>
+        {
+            entity.HasIndex(f => new { f.TargetContentType, f.TargetObjectId });
+            entity.HasIndex(f => f.UptickId).IsUnique();
+            entity.HasOne(f => f.ClientTask).WithMany().HasForeignKey(f => f.ClientTaskId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(f => f.UptickUser).WithMany().HasForeignKey(f => f.UptickUserId).OnDelete(DeleteBehavior.SetNull);
+        });
         modelBuilder.Entity<Stock>(entity =>
         {
             entity.HasIndex(s => s.Product);
@@ -802,7 +815,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
                      typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(Routine),
                      typeof(Contractor), typeof(Supplier), typeof(UptickUser), typeof(ExtraField), typeof(PromptQuestion),
                      typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem), typeof(Invoice), typeof(CreditNote),
-                     typeof(DefectQuote), typeof(ServiceQuote), typeof(PropertySchedule), typeof(FormResponse), typeof(Accreditation),
+                     typeof(DefectQuote), typeof(ServiceQuote), typeof(PropertySchedule), typeof(DynamicFormResponse), typeof(Accreditation),
                      typeof(Product), typeof(Warehouse), typeof(Stock)
                  })
         {

@@ -84,8 +84,8 @@ public class PropertyPageService : IPropertyPageService
                     .Where(q => q.PropertyId == id)
                     .OrderByDescending(q => q.Created)
                     .ToListAsync(ct),
-                Schedules = site.ExternalId == null ? [] : await _db.PropertySchedules.AsNoTracking()
-                    .Where(s => s.PropertyRef == site.ExternalId)
+                Schedules = await _db.PropertySchedules.AsNoTracking()
+                    .Where(s => s.PropertyId == id)
                     .OrderByDescending(s => s.Date)
                     .ToListAsync(ct)
             },
@@ -106,7 +106,7 @@ public class PropertyPageService : IPropertyPageService
                 Property = site, Tab = tab, OpenRemarks = openCount, MostSevereRemark = mostSevere,
                 Timeline = await _timeline.ForPropertyAsync(site, query.NotesOnly, ct),
                 NotesOnly = query.NotesOnly,
-                ExtraFields = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(_db, ExtraField.PropertyContentType, site.UptickData, ct)
+                ExtraFields = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(_db, ExtraField.PropertyContentType, "properties", site.UptickId, site.UptickData, ct)
             }
         };
     }

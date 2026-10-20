@@ -55,10 +55,11 @@ public class UptickCoreRecordsTests
     private static UptickMapping Mapping(AppDbContext db) => new(db,
         [new BillingCardMapper(db), new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
             new SecurityGroupMapper(db), new ContractorMapper(db), new SupplierMapper(db), new AccreditationMapper(db),
+            new ExtraFieldMapper(db), new PromptQuestionMapper(db), new PropertyScheduleMapper(db),
             new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db),
             new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db),
             new ProductMapper(db), new WarehouseMapper(db), new StockMapper(db), new BillingContractMapper(db), new BillingContractLineItemMapper(db), new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db),
-            new DefectQuoteMapper(db), new ServiceQuoteMapper(db), new InvoiceMapper(db), new CreditNoteMapper(db), new RemarkMapper(db),
+            new DefectQuoteMapper(db), new ServiceQuoteMapper(db), new InvoiceMapper(db), new CreditNoteMapper(db), new DynamicFormResponseMapper(db), new RemarkMapper(db),
             new ReportMapper(db), new RoutineMapper(db), new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
@@ -760,6 +761,49 @@ public class UptickCoreRecordsTests
         var accreditation = await db.Accreditations.SingleAsync();
         Assert.Equal((user.Id, "Dwayne Page", "Licence No.:", "ACTIVE", new DateTime(2027, 6, 30, 0, 0, 0, DateTimeKind.Utc)),
             (accreditation.UptickUserId!.Value, accreditation.Technician, accreditation.Type, accreditation.Status, accreditation.Expiry!.Value));
+    }
+
+    [Fact]
+    public async Task Extra_fields_schedules_and_form_responses_are_mapped_and_linked()
+    {
+        await using var db = DbContextFactory.Create();
+        db.ExtraFields.Add(new ExtraField { ExternalId = "5", Label = "Old label", ContentType = "51" });
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawTask("46781", "1491"),
+            RawUser("6", "Shea Flanigan", "shea@fyrepower.com.au", "FIELD"),
+            Raw("properties", "1491", """{"ref":"P-0016","name":"Big River Trade Centre","status":"ACTIVE","extra_fields":{"fpaa_fsa_no":"FSA 1234","blank":"","council":"gccc"}}""",
+                "{\"client\":" + To("Client", "2806") + "}"),
+            Raw("extrafields", "5", """{"name":"fpaa_fsa_no","label":"FPAA FSA No.","order":3,"widget":"text","default":"","help_text":"","is_required":false,"field_settings":{}}""",
+                "{\"content_type\":" + To("ContentType", "19") + "}"),
+            Raw("extrafields", "6", """{"name":"blank","label":"Blank","order":4,"widget":"text"}""", "{\"content_type\":" + To("ContentType", "19") + "}"),
+            Raw("extrafields", "7", """{"name":"council","label":"Local Government","order":5,"widget":"choice","field_settings":{"choices":[{"label":"Gold Coast City Council","value":"gccc"}]}}""",
+                "{\"content_type\":" + To("ContentType", "19") + "}"),
+            Raw("propertyschedules", "3", """{"number":"OP-77","date":"2019-05-01","type":"OP","type_display":"Occupancy Permit or Certificate of Occupancy","issuer":"GCCC","location":"Fire panel"}""",
+                "{\"property\":" + To("Property", "1491") + "}"),
+            Raw("dynamicformtemplates", "1001", """{"name":"Queensland Form 72","is_editable":true}"""),
+            Raw("dynamicformtemplateversions", "1004", """{"created":"2021-04-15T10:32:59.322476+10:00"}""", "{\"template\":" + To("FormTemplate", "1001") + "}"),
+            Raw("dynamicformresponses", "59", """{"ref":"F-00059","submitted":"2022-01-12T14:09:08.547246+11:00","is_complete":false,"target_object_id":"46781","values":{}}""",
+                "{\"submitter\":" + To("User", "6") + ",\"template_version\":" + To("FormTemplateVersion", "1004") +
+                ",\"target_contenttype\":" + To("ContentType", "28") + "}"));
+        await db.SaveChangesAsync();
+
+        await MapAllAsync(db);
+
+        var field = await db.ExtraFields.SingleAsync(f => f.UptickId == 5);
+        Assert.Equal((1, "19", "FPAA FSA No.", "fpaa_fsa_no", "{}"), (await db.ExtraFields.CountAsync(f => f.ExternalId == "5"), field.ContentType, field.Label, field.Name, field.FieldSettings));
+        var property = await db.Properties.SingleAsync();
+        var values = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(db, ExtraField.PropertyContentType, "properties", property.UptickId, null);
+        Assert.Equal(new[] { ("FPAA FSA No.", "FSA 1234", (string?)null), ("Local Government", "Gold Coast City Council", null) },
+            values.Select(v => (v.Label, v.Value, v.HelpText)));
+
+        var schedule = await db.PropertySchedules.SingleAsync();
+        Assert.Equal((property.Id, "OP-77", "Occupancy Permit or Certificate of Occupancy", "GCCC", "Fire panel"),
+            (schedule.PropertyId!.Value, schedule.Number, schedule.Type, schedule.Issuer, schedule.Location));
+
+        var form = await db.DynamicFormResponses.SingleAsync();
+        var task = await db.ClientTasks.SingleAsync();
+        var user = await db.UptickUsers.SingleAsync();
+        Assert.Equal((59L, "F-00059", task.Id, user.Id, "Queensland Form 72", false),
+            (form.UptickId!.Value, form.Ref, form.ClientTaskId!.Value, form.UptickUserId!.Value, form.TemplateName, form.IsComplete));
     }
 
     [Theory]

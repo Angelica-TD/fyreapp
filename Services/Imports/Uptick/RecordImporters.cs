@@ -62,7 +62,7 @@ public class ServiceQuoteImporter : RecordImporter<ServiceQuote>
 }
 
 // Uptick "form responses" export, shown on the task they were submitted on
-public class FormResponseImporter : RecordImporter<FormResponse>
+public class FormResponseImporter : RecordImporter<DynamicFormResponse>
 {
     public FormResponseImporter(AppDbContext db) : base(db) { }
     public override UptickExportType Type => UptickExportType.FormResponses;
@@ -71,7 +71,7 @@ public class FormResponseImporter : RecordImporter<FormResponse>
     protected override string IdHeader => "id";
     protected override string Noun => "form responses";
 
-    protected override void Map(FormResponse f, ImportRow row)
+    protected override void Map(DynamicFormResponse f, ImportRow row)
     {
         f.Ref = Cap(row.Get("ref"), 30);
         f.SubmittedUtc = row.GetTimestampUtc("submitted");

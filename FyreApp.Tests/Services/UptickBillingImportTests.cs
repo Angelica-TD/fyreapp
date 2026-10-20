@@ -118,13 +118,14 @@ public class UptickBillingImportTests
         var site = new Property { Name = "Ezfurn", ExternalId = "P-0391", Client = new Client { Name = "Ezfurn" } };
         var task = new ClientTask { Property = site, Client = site.Client, Title = "PM2026/10", ExternalId = "46502" };
         db.ClientTasks.Add(task);
-        db.UptickUsers.Add(new UptickUser { ExternalId = "305", Name = "Wes Speedon (Field Tech)", LicenseType = "FIELD" });
+        var wes = new UptickUser { ExternalId = "305", Name = "Wes Speedon (Field Tech)", LicenseType = "FIELD" };
+        db.UptickUsers.Add(wes);
         db.Invoices.AddRange(
             new Invoice { ExternalId = "1", Number = "IV1", TaskExternalId = "46502", ClientTask = task, Total = 716.65m },
             new Invoice { ExternalId = "2", Number = "IV2", TaskExternalId = "99999" });
-        db.FormResponses.AddRange(
-            new FormResponse { ExternalId = "248", Ref = "F-00248", TargetContentType = FormResponse.TaskContentType, TargetObjectId = "46502", SubmitterExternalId = "305" },
-            new FormResponse { ExternalId = "249", Ref = "F-00249", TargetContentType = "51", TargetObjectId = "46502" });
+        db.DynamicFormResponses.AddRange(
+            new DynamicFormResponse { ExternalId = "248", Ref = "F-00248", ClientTask = task, UptickUser = wes },
+            new DynamicFormResponse { ExternalId = "249", Ref = "F-00249", TargetContentType = "51", TargetObjectId = "46502" });
         await db.SaveChangesAsync();
 
         var vm = (await new TaskPageService(db).LoadAsync(task.Id, null))!;

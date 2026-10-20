@@ -19,12 +19,16 @@ public class SecurityGroup : IUptickMapped
     public string Name { get; set; } = string.Empty;
 }
 
-// A custom field set up in Uptick (Uptick "extra fields" export), e.g. "ASE Connected" on assets. The values
-// come in as columns of that record type's export (kept in its UptickData); these say which columns are
-// extra fields, in what order, and how they're entered.
-public class ExtraField
+// A custom field set up in Uptick (Uptick "extrafields"), e.g. "ASE Connected" on assets. A record's values are
+// in its Uptick record's "extra_fields" (by Name), or, for one only a file export brought in, the columns of
+// that export (kept in its UptickData, by Label); these say which are extra fields, in what order, and how
+// they're entered.
+public class ExtraField : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from the extra fields export "id"
     [StringLength(64)]
@@ -76,11 +80,14 @@ public class ExtraField
     };
 }
 
-// An Uptick inspection prompt question (Uptick "prompt questions" export): a question in a promptset that
-// technicians answer on site
-public class PromptQuestion
+// An Uptick inspection prompt question (Uptick "promptquestions"): a question in a promptset that technicians
+// answer on site
+public class PromptQuestion : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from the prompt questions export "ID"
     [StringLength(64)]
