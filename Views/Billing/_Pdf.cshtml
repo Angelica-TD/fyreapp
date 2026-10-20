@@ -1,0 +1,10 @@
+@model int?
+
+@* Open / download FyreApp's copy of the PDF Uptick made *@
+@if (Model is { } pdf)
+{
+    <p class="mb-3">
+        <a class="btn btn-sm btn-outline-primary" href="/Files/@pdf" target="_blank" rel="noopener">Open the PDF</a>
+        <a class="btn btn-sm btn-link" href="/Files/@pdf?download=true">Download</a>
+    </p>
+}

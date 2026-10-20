@@ -1222,6 +1222,75 @@ namespace FyreApp.Migrations
                     b.ToTable("DefectQuotes");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.DefectQuoteLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AssetId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("CostPrice")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<int>("DefectQuoteId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Index")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<int?>("RemarkId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Subtotal")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<decimal?>("Tax")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<decimal?>("Total")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("DefectQuoteId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("RemarkId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.ToTable("DefectQuoteLines");
+                });
+
             modelBuilder.Entity("FyreApp.Models.DynamicFormResponse", b =>
                 {
                     b.Property<int>("Id")
@@ -1415,6 +1484,65 @@ namespace FyreApp.Migrations
                         .IsUnique();
 
                     b.ToTable("Invoices");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.InvoiceLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Index")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("InvoiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<decimal?>("Subtotal")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<decimal?>("Tax")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<decimal?>("Total")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.ToTable("InvoiceLines");
                 });
 
             modelBuilder.Entity("FyreApp.Models.LocalEdit", b =>
@@ -2230,6 +2358,54 @@ namespace FyreApp.Migrations
                     b.ToTable("Remarks");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.RemarkEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ClientTaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Event")
+                        .HasMaxLength(5)
+                        .HasColumnType("character varying(5)");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("RemarkId")
+                        .HasColumnType("integer");
+
+                    b.Property<long?>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("UptickUserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("WhenUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientTaskId");
+
+                    b.HasIndex("RemarkId");
+
+                    b.HasIndex("UptickId")
+                        .IsUnique();
+
+                    b.HasIndex("UptickUserId");
+
+                    b.ToTable("RemarkEvents");
+                });
+
             modelBuilder.Entity("FyreApp.Models.RemarkType", b =>
                 {
                     b.Property<int>("Id")
@@ -2796,6 +2972,79 @@ namespace FyreApp.Migrations
                         .IsUnique();
 
                     b.ToTable("ServiceQuotes");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.ServiceQuoteLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("CostPrice")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EstimatedDuration")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("Index")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int?>("ProductId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<int?>("RoutineServiceTypeId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ServiceQuoteId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("Subtotal")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<decimal?>("Tax")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<decimal?>("Total")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<decimal?>("UnitPrice")
+                        .HasPrecision(14, 4)
+                        .HasColumnType("numeric(14,4)");
+
+                    b.Property<long>("UptickId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("RoutineServiceTypeId");
+
+                    b.HasIndex("ServiceQuoteId");
+
+                    b.HasIndex("Kind", "UptickId")
+                        .IsUnique();
+
+                    b.ToTable("ServiceQuoteLines");
                 });
 
             modelBuilder.Entity("FyreApp.Models.ServiceTask", b =>
@@ -4089,6 +4338,38 @@ namespace FyreApp.Migrations
                     b.Navigation("Property");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.DefectQuoteLine", b =>
+                {
+                    b.HasOne("FyreApp.Models.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.DefectQuote", "DefectQuote")
+                        .WithMany()
+                        .HasForeignKey("DefectQuoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.Remark", "Remark")
+                        .WithMany()
+                        .HasForeignKey("RemarkId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("DefectQuote");
+
+                    b.Navigation("Product");
+
+                    b.Navigation("Remark");
+                });
+
             modelBuilder.Entity("FyreApp.Models.DynamicFormResponse", b =>
                 {
                     b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
@@ -4121,6 +4402,24 @@ namespace FyreApp.Migrations
                     b.Navigation("ClientTask");
 
                     b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.InvoiceLine", b =>
+                {
+                    b.HasOne("FyreApp.Models.Invoice", "Invoice")
+                        .WithMany()
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Invoice");
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("FyreApp.Models.MaintenanceHistory", b =>
@@ -4337,6 +4636,31 @@ namespace FyreApp.Migrations
                     b.Navigation("RepairTask");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.RemarkEvent", b =>
+                {
+                    b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
+                        .WithMany()
+                        .HasForeignKey("ClientTaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.Remark", "Remark")
+                        .WithMany()
+                        .HasForeignKey("RemarkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.UptickUser", "UptickUser")
+                        .WithMany()
+                        .HasForeignKey("UptickUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ClientTask");
+
+                    b.Navigation("Remark");
+
+                    b.Navigation("UptickUser");
+                });
+
             modelBuilder.Entity("FyreApp.Models.RemarkType", b =>
                 {
                     b.HasOne("FyreApp.Models.AssetType", "AssetType")
@@ -4460,6 +4784,31 @@ namespace FyreApp.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.ServiceQuoteLine", b =>
+                {
+                    b.HasOne("FyreApp.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.RoutineServiceType", "RoutineServiceType")
+                        .WithMany()
+                        .HasForeignKey("RoutineServiceTypeId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.ServiceQuote", "ServiceQuote")
+                        .WithMany()
+                        .HasForeignKey("ServiceQuoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
+
+                    b.Navigation("RoutineServiceType");
+
+                    b.Navigation("ServiceQuote");
                 });
 
             modelBuilder.Entity("FyreApp.Models.ServiceTask", b =>

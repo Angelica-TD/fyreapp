@@ -113,6 +113,7 @@
                         <dd class="col-8">@(d.Active ? "-" : d.InactiveUtc?.ToSydney().ToOrdinalDate() ?? "-")</dd>
                     </dl>
                 </div>
+                @await Component.InvokeAsync("RemarkHistory", new { remarkId = d.Id })
             </div>
 
             <div class="card property-card">
@@ -121,10 +122,9 @@
                     <dl class="row property-facts mb-0">
                         <dt class="col-4">Quote</dt>
                         <dd class="col-8">
-                            @if (d.DefectQuote is { PropertyId: { } quotePropertyId })
+                            @if (d.DefectQuoteId is { } quoteId)
                             {
-                                <a asp-controller="Property" asp-action="Details" asp-route-id="@quotePropertyId" asp-route-tab="records"
-                                   asp-fragment="quote-@d.DefectQuoteId">@d.QuoteRef</a>
+                                <a asp-controller="Billing" asp-action="Quote" asp-route-id="@quoteId">@(d.QuoteRef ?? d.DefectQuote?.Reference ?? "Quote")</a>
                                 @if (d.QuoteStatus != null) { <span class="badge bg-light text-dark border ms-1">@d.QuoteStatus.ToUpperInvariant()</span> }
                                 @if (d.QuotedDate is { } quoted) { <div class="small text-muted">Quoted @quoted.ToOrdinalDate()</div> }
                             }

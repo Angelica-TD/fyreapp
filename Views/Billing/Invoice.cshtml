@@ -1,0 +1,106 @@
+@model FyreApp.ViewModels.Billing.InvoicePageVm
+
+@* One Uptick invoice ("IV000032831"): what it's for, its PDF, then its lines *@
+@{
+    var i = Model.Invoice;
+    ViewData["Title"] = i.Number;
+    ViewData["Tab"] = "billing";
+    string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
+    // Uptick lists invoice lines in an unstable order, so a Full run fills in what its pages skip invoice by invoice
+    // (UptickEndpoints.FilledPerParent); until it has, an invoice can be short of lines
+    var linesSubtotal = Model.Lines.Sum(l => l.Subtotal ?? 0);
+    var short_ = i.Subtotal is { } subtotal && Math.Abs(subtotal - linesSubtotal) >= 0.01m;
+}
+
+<div class="property-page">
+    <partial name="_PropertyTitle" model="i.Property" />
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card property-card">
+                <div class="card-body">
+                    <h2 class="h5 mb-2"><span class="text-muted fw-normal">Invoice</span> @i.Number</h2>
+                    <div class="mb-3"><span class="badge @BillingBadges.Invoice(i.Status)">@(i.Status ?? "-")</span></div>
+                    <partial name="_Pdf" model="Model.PdfFileId" />
+                    <dl class="row property-facts mb-0">
+                        <dt class="col-4">Date</dt>
+                        <dd class="col-8">@(i.Date?.ToOrdinalDate() ?? "-")</dd>
+                        <dt class="col-4">Due</dt>
+                        <dd class="col-8">@(i.DueDate?.ToOrdinalDate() ?? "-")</dd>
+                        <dt class="col-4">Reference</dt>
+                        <dd class="col-8">@Dash(i.InvoiceRef)</dd>
+                        <dt class="col-4">Task</dt>
+                        <dd class="col-8">
+                            @if (i.ClientTask != null) { <a asp-controller="Task" asp-action="Details" asp-route-id="@i.ClientTaskId">@i.ClientTask.DisplayRef</a> }
+                            else { @Dash(i.TaskRef) }
+                        </dd>
+                        <dt class="col-4">Client</dt>
+                        <dd class="col-8">
+                            @if (i.Property != null) { <a asp-controller="Clients" asp-action="Details" asp-route-id="@i.Property.ClientId">@i.Property.Client.Name</a> }
+                            else { @Dash(i.ClientName) }
+                        </dd>
+                        <dt class="col-4">Billing card</dt>
+                        <dd class="col-8">@Dash(i.BillingCardName)</dd>
+                        @if (!string.IsNullOrWhiteSpace(i.Description))
+                        {
+                            <dt class="col-4">Description</dt>
+                            <dd class="col-8" style="white-space: pre-line">@i.Description</dd>
+                        }
+                        @foreach (var c in Model.CreditNotes)
+                        {
+                            <dt class="col-4">Credit note</dt>
+                            <dd class="col-8">@c.Number · @BillingBadges.Amount(c.Total) <span class="small text-muted">@c.Date?.ToOrdinalDate()</span></dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+
+            @await Component.InvokeAsync("UptickFiles", new { resource = "invoices", uptickId = i.UptickId })
+            @await Component.InvokeAsync("UptickRecord", new { resource = "invoices", uptickId = i.UptickId })
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card property-card">
+                <div class="card-header"><span>Lines</span></div>
+                @if (short_)
+                {
+                    <div class="alert alert-warning small m-2 mb-0">
+                        The lines copied from Uptick add up to @BillingBadges.Amount(linesSubtotal) of the invoice's @BillingBadges.Amount(i.Subtotal).
+                        The rest come with the next Full run; the PDF has them all.
+                    </div>
+                }
+                @if (Model.Lines.Count == 0)
+                {
+                    <div class="card-body text-muted">No lines for this invoice copied from Uptick.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">GST</th><th class="text-end">Amount</th></tr></thead>
+                            <tbody>
+                                @foreach (var l in Model.Lines)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div style="white-space: pre-line">@Dash(l.Description)</div>
+                                            @if (l.Product != null || l.AccountCode != null)
+                                            {
+                                                <div class="small text-muted">@string.Join(" · ", new[] { l.Product?.Name is { } product && product != l.Description ? product : null, l.AccountCode != null ? $"account {l.AccountCode}" : null }.OfType<string>())</div>
+                                            }
+                                        </td>
+                                        <td class="text-end">@BillingBadges.Quantity(l.Quantity)</td>
+                                        <td class="text-end text-nowrap">@BillingBadges.Amount(l.UnitPrice)</td>
+                                        <td class="text-end text-nowrap">@BillingBadges.Amount(l.Tax)</td>
+                                        <td class="text-end text-nowrap">@BillingBadges.Amount(l.Subtotal)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <partial name="_Totals" model="(i.Subtotal, i.Tax, i.Total)" />
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

@@ -74,7 +74,7 @@
                     @foreach (var q in Model.DefectQuotes)
                     {
                         <tr id="quote-@q.Id">
-                            <td class="text-nowrap">@q.Reference</td>
+                            <td class="text-nowrap"><a asp-controller="Billing" asp-action="Quote" asp-route-id="@q.Id">@q.Reference</a></td>
                             <td class="text-nowrap">@(q.Date?.ToOrdinalDate() ?? "-")</td>
                             <td class="text-nowrap">@(q.ExpiryDate?.ToOrdinalDate() ?? "-")</td>
                             <td class="text-nowrap">
@@ -112,7 +112,7 @@
                     @foreach (var q in Model.ServiceQuotes)
                     {
                         <tr>
-                            <td class="text-nowrap">@q.Ref</td>
+                            <td class="text-nowrap"><a asp-controller="Billing" asp-action="SalesQuote" asp-route-id="@q.Id">@q.Ref</a></td>
                             <td class="text-nowrap">@(q.Created?.ToOrdinalDate() ?? "-")</td>
                             <td class="text-nowrap">@(q.ExpiryDate?.ToOrdinalDate() ?? "-")</td>
                             <td>@(q.Template ?? "-")</td>

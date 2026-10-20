@@ -1,0 +1,114 @@
+@model FyreApp.ViewModels.Billing.DefectQuotePageVm
+
+@* One Uptick defect quote ("Q-2785"): what it's for, its PDF, its lines (each for a remark on an asset) and the
+   remarks it quotes *@
+@{
+    var q = Model.Quote;
+    ViewData["Title"] = q.Reference;
+    ViewData["Tab"] = "records";
+    string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
+}
+
+<div class="property-page">
+    <partial name="_PropertyTitle" model="q.Property" />
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card property-card">
+                <div class="card-body">
+                    <h2 class="h5 mb-2"><span class="text-muted fw-normal">Quote</span> @q.Reference</h2>
+                    <div class="mb-3"><span class="badge @BillingBadges.Quote(q.Status)">@(q.Status ?? "-")</span></div>
+                    <partial name="_Pdf" model="Model.PdfFileId" />
+                    <dl class="row property-facts mb-0">
+                        <dt class="col-4">Date</dt>
+                        <dd class="col-8">@(q.Date?.ToOrdinalDate() ?? "-")</dd>
+                        <dt class="col-4">Expires</dt>
+                        <dd class="col-8">@(q.ExpiryDate?.ToOrdinalDate() ?? "-")</dd>
+                        <dt class="col-4">Submitted</dt>
+                        <dd class="col-8">@(q.SubmittedUtc?.ToSydney().ToOrdinalDate() ?? "-")</dd>
+                        <dt class="col-4">Authorised</dt>
+                        <dd class="col-8">@(q.AuthorisedDate?.ToOrdinalDate() ?? "-")</dd>
+                        <dt class="col-4">Task</dt>
+                        <dd class="col-8">
+                            @if (q.ClientTask != null) { <a asp-controller="Task" asp-action="Details" asp-route-id="@q.ClientTaskId">@q.ClientTask.DisplayRef</a> }
+                            else { <text>-</text> }
+                        </dd>
+                        <dt class="col-4">Client</dt>
+                        <dd class="col-8">
+                            @if (q.Property != null) { <a asp-controller="Clients" asp-action="Details" asp-route-id="@q.Property.ClientId">@q.Property.Client.Name</a> }
+                            else { @Dash(q.ClientName) }
+                        </dd>
+                        <dt class="col-4">Severity</dt>
+                        <dd class="col-8">@Dash(q.Severity)</dd>
+                        <dt class="col-4">Service group</dt>
+                        <dd class="col-8">@Dash(q.ServiceGroup)</dd>
+                        @if (!string.IsNullOrWhiteSpace(q.ScopeOfWorks ?? q.Description))
+                        {
+                            <dt class="col-4">Scope of works</dt>
+                            <dd class="col-8" style="white-space: pre-line">@(q.ScopeOfWorks ?? q.Description)</dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+
+            @await Component.InvokeAsync("UptickFiles", new { resource = "defectquotes", uptickId = q.UptickId })
+            @await Component.InvokeAsync("UptickRecord", new { resource = "defectquotes", uptickId = q.UptickId })
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card property-card">
+                <div class="card-header"><span>Lines</span></div>
+                @if (Model.Lines.Count == 0)
+                {
+                    <div class="card-body text-muted">No lines for this quote in Uptick.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead><tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Unit price</th><th class="text-end">GST</th><th class="text-end">Amount</th></tr></thead>
+                            <tbody>
+                                @foreach (var l in Model.Lines)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div style="white-space: pre-line">@Dash(l.Description)</div>
+                                            <div class="small text-muted">
+                                                @(l.Product?.Name is { } product && l.Description?.Contains(product) != true ? product : null)
+                                                @if (l.Asset != null) { <text>· </text><a asp-controller="Assets" asp-action="Details" asp-route-id="@l.AssetId">@l.Asset.Name</a> }
+                                                @if (l.Remark != null) { <text>· </text><partial name="_RemarkRef" model="l.Remark" /> }
+                                            </div>
+                                        </td>
+                                        <td class="text-end">@BillingBadges.Quantity(l.Quantity)</td>
+                                        <td class="text-end text-nowrap">@BillingBadges.Amount(l.UnitPrice)</td>
+                                        <td class="text-end text-nowrap">@BillingBadges.Amount(l.Tax)</td>
+                                        <td class="text-end text-nowrap">@BillingBadges.Amount(l.Subtotal)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <partial name="_Totals" model="(q.Subtotal, q.Tax, q.Total)" />
+                        </table>
+                    </div>
+                }
+            </div>
+
+            @if (Model.Remarks.Count > 0)
+            {
+                <div class="card property-card mt-3">
+                    <div class="card-header"><span>Remarks quoted</span></div>
+                    <ul class="list-group list-group-flush">
+                        @foreach (var r in Model.Remarks)
+                        {
+                            <li class="list-group-item">
+                                <partial name="_RemarkRef" model="r" />
+                                <span class="badge @(r.Active ? "bg-warning text-dark" : "bg-success") ms-1">@(r.Active ? "OPEN" : "RESOLVED")</span>
+                                <span class="small">@r.Description</span>
+                                @if (r.Asset != null) { <div class="small text-muted">@r.Asset.Name</div> }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+</div>

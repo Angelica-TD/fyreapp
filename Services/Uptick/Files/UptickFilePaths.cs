@@ -60,4 +60,7 @@ public static class UptickResources
     public const string Tasks = "tasks";
     public const string Clients = "clients";
     public const string Reports = "reports";
+    public const string Invoices = "invoices";
+    public const string DefectQuotes = "defectquotes";
+    public const string ServiceQuotes = "servicequotes";
 }

@@ -84,6 +84,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<Subtask> Subtasks => Set<Subtask>();
     public DbSet<TaskStockTransaction> TaskStockTransactions => Set<TaskStockTransaction>();
     public DbSet<ReportItem> ReportItems => Set<ReportItem>();
+    public DbSet<DefectQuoteLine> DefectQuoteLines => Set<DefectQuoteLine>();
+    public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
+    public DbSet<ServiceQuoteLine> ServiceQuoteLines => Set<ServiceQuoteLine>();
+    public DbSet<RemarkEvent> RemarkEvents => Set<RemarkEvent>();
     public DbSet<UptickRecord> UptickRecords => Set<UptickRecord>();
     public DbSet<UptickEndpointState> UptickEndpointStates => Set<UptickEndpointState>();
     public DbSet<UptickFile> UptickFiles => Set<UptickFile>();
@@ -826,6 +830,43 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.Property(s => s.CostPrice).HasPrecision(12, 2);
         });
 
+        // Uptick's quote and invoice lines, and remarks' histories
+        modelBuilder.Entity<DefectQuoteLine>(entity =>
+        {
+            entity.HasIndex(l => l.UptickId).IsUnique();
+            entity.HasOne(l => l.DefectQuote).WithMany().HasForeignKey(l => l.DefectQuoteId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(l => l.Product).WithMany().HasForeignKey(l => l.ProductId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(l => l.Asset).WithMany().HasForeignKey(l => l.AssetId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(l => l.Remark).WithMany().HasForeignKey(l => l.RemarkId).OnDelete(DeleteBehavior.SetNull);
+            Money(entity.Property(l => l.Quantity), entity.Property(l => l.UnitPrice), entity.Property(l => l.CostPrice),
+                entity.Property(l => l.Subtotal), entity.Property(l => l.Tax), entity.Property(l => l.Total));
+        });
+        modelBuilder.Entity<InvoiceLine>(entity =>
+        {
+            entity.HasIndex(l => l.UptickId).IsUnique();
+            entity.HasOne(l => l.Invoice).WithMany().HasForeignKey(l => l.InvoiceId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(l => l.Product).WithMany().HasForeignKey(l => l.ProductId).OnDelete(DeleteBehavior.SetNull);
+            Money(entity.Property(l => l.Quantity), entity.Property(l => l.UnitPrice),
+                entity.Property(l => l.Subtotal), entity.Property(l => l.Tax), entity.Property(l => l.Total));
+        });
+        modelBuilder.Entity<ServiceQuoteLine>(entity =>
+        {
+            entity.HasIndex(l => new { l.Kind, l.UptickId }).IsUnique();
+            entity.HasOne(l => l.ServiceQuote).WithMany().HasForeignKey(l => l.ServiceQuoteId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(l => l.Product).WithMany().HasForeignKey(l => l.ProductId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(l => l.RoutineServiceType).WithMany().HasForeignKey(l => l.RoutineServiceTypeId).OnDelete(DeleteBehavior.SetNull);
+            Money(entity.Property(l => l.Quantity), entity.Property(l => l.UnitPrice), entity.Property(l => l.CostPrice),
+                entity.Property(l => l.Subtotal), entity.Property(l => l.Tax), entity.Property(l => l.Total));
+        });
+        modelBuilder.Entity<RemarkEvent>(entity =>
+        {
+            entity.HasIndex(e => e.UptickId).IsUnique();
+            entity.HasOne(e => e.Remark).WithMany().HasForeignKey(e => e.RemarkId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.UptickUser).WithMany().HasForeignKey(e => e.UptickUserId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.ClientTask).WithMany().HasForeignKey(e => e.ClientTaskId).OnDelete(DeleteBehavior.SetNull);
+            entity.Property(e => e.WhenUtc).HasColumnType("timestamptz");
+        });
+
         // FyreApp refs ("C-1001", "P-1001", ...) are assigned on insert by a Postgres trigger
         // (see migration AddFyreRefs), so EF reads them back instead of sending them
         foreach (var type in new[]
@@ -837,6 +878,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             modelBuilder.Entity(type).Property<string?>("FyreRef").ValueGeneratedOnAdd();
             modelBuilder.Entity(type).HasIndex("FyreRef").IsUnique();
         }
+    }
+
+    // Quantities and prices as Uptick holds them (four places)
+    private static void Money(params Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder[] properties)
+    {
+        foreach (var p in properties) p.HasPrecision(14, 4);
     }
 
 }

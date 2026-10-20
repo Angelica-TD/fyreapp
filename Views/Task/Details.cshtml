@@ -396,7 +396,7 @@
                                 <div class="task-process-row">
                                     <i class="bi bi-arrow-return-right text-muted"></i>
                                     <span class="badge bg-light text-muted border">@(i.Status ?? "INVOICE")</span>
-                                    <span>@i.Number</span>
+                                    <a asp-controller="Billing" asp-action="Invoice" asp-route-id="@i.Id">@i.Number</a>
                                     <span class="text-muted">@(i.Date?.ToOrdinalDate() ?? "")</span>
                                     <span class="ms-auto">@(i.Total?.ToString("C", System.Globalization.CultureInfo.GetCultureInfo("en-AU")) ?? "")</span>
                                 </div>

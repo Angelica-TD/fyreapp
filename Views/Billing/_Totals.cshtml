@@ -1,0 +1,9 @@
+@model (decimal? Subtotal, decimal? Tax, decimal? Total)
+
+@* A quote's or invoice's totals under its lines *@
+<tfoot>
+    <tr><td colspan="99" class="p-0"></td></tr>
+    <tr class="text-end"><td colspan="3" class="border-0"></td><th class="border-0">Subtotal</th><td class="border-0 text-nowrap">@BillingBadges.Amount(Model.Subtotal)</td></tr>
+    <tr class="text-end"><td colspan="3" class="border-0"></td><th class="border-0">GST</th><td class="border-0 text-nowrap">@BillingBadges.Amount(Model.Tax)</td></tr>
+    <tr class="text-end"><td colspan="3" class="border-0"></td><th class="border-0">Total</th><td class="border-0 text-nowrap fw-semibold">@BillingBadges.Amount(Model.Total)</td></tr>
+</tfoot>

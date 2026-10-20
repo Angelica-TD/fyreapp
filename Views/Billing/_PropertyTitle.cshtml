@@ -1,0 +1,12 @@
+@model FyreApp.Models.Property?
+
+@* The property a quote or invoice is for, as its pages head them, linking to its Records or Billing tab *@
+@if (Model != null)
+{
+    <h1 class="property-title">
+        <a class="text-reset text-decoration-none" asp-controller="Property" asp-action="Details" asp-route-id="@Model.Id" asp-route-tab="@ViewData["Tab"]">
+            @if (Model.DisplayRef != null) { <span class="property-title-ref">@Model.DisplayRef</span> }
+            <span class="property-title-name">@Model.Name</span>
+        </a>
+    </h1>
+}

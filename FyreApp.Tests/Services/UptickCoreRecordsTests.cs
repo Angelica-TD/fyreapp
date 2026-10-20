@@ -62,6 +62,8 @@ public class UptickCoreRecordsTests
             new DefectQuoteMapper(db), new ServiceQuoteMapper(db), new InvoiceMapper(db), new CreditNoteMapper(db), new DynamicFormResponseMapper(db), new RemarkMapper(db),
             new ReportMapper(db), new ReportItemMapper(db), new RoutineMapper(db),
             new SubtaskMapper(db), new TaskSessionMapper(db), new AppointmentMapper(db), new AppointmentTechniciansMapper(db), new TaskStockTransactionMapper(db),
+            new DefectQuoteLineMapper(db), new InvoiceLineMapper(db), new ServiceQuoteProductLineMapper(db), new ServiceQuoteFixedLineMapper(db),
+            new ServiceQuoteDoAndChargeLineMapper(db), new RemarkEventMapper(db),
             new TimelineEventMapper(db)],
         NullLogger<UptickMapping>.Instance);
 
@@ -657,6 +659,63 @@ public class UptickCoreRecordsTests
         Assert.Equal(("Pass", "Wes Speedon (Field Tech)"), (line.Result, line.Technician!.Name));
         Assert.Equal(("2.5kg ABE Extinguisher", 1m), Assert.Single(used));
         Assert.Equal(report.Id, Assert.Single(vm.ReportLines).ReportId);
+    }
+
+    [Fact]
+    public async Task Quote_and_invoice_lines_and_a_remarks_history_show_on_their_pages()
+    {
+        await using var db = DbContextFactory.Create();
+        db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"),
+            RawUser("371", "Wes Speedon (Field Tech)", "wes@fyrepower.com.au", "FIELD"),
+            RawAssetType("10", "Fire Hydrant"), RawAsset("42896", "1491", "10"), RawTask("46781", "1491"), RawTask("46900", "1491"),
+            Raw("products", "767", """{"name":"Hydrant Valve"}"""),
+            Raw("routineservicetypes", "5", """{"name":"05 - Fire Hydrants","is_active":true}"""),
+            Raw("remarks", "55218", """{"ref":"D-55218","status":"RESOLVED","description":"Valve leaking","is_active":false}""",
+                "{\"asset\":" + To("Asset", "42896") + ",\"most_progressed_defectquote\":" + To("DefectQuote", "345") + "}"),
+            Raw("remarkevents", "2", """{"event":"R","event_display":"Resolved","notes":"Valve replaced","created":"2026-10-20T10:00:00+11:00"}""",
+                "{\"remark\":" + To("Remark", "55218") + ",\"account\":" + To("User", "371") + ",\"task\":" + To("Task", "46900") + "}"),
+            Raw("remarkevents", "1", """{"event":"A","event_display":"Added","notes":"","created":"2026-10-15T15:14:49+11:00"}""",
+                "{\"remark\":" + To("Remark", "55218") + ",\"account\":" + To("User", "371") + ",\"task\":" + To("Task", "46781") + "}"),
+            Raw("defectquotes", "345", """{"ref":"Q-0333","status":"ACTIONED"}""", "{\"property\":" + To("Property", "1491") + "}"),
+            Raw("defectquotelineitems", "11", """{"index":2,"description":"Labour","quantity":"1.0000","unit_price":"100.0000","subtotal":100.0,"gst":10.0,"total":110.0}""",
+                "{\"quote\":" + To("DefectQuote", "345") + "}"),
+            Raw("defectquotelineitems", "10", """{"index":1,"description":"Hydrant Valve 65mm","quantity":"2.0000","unit_price":"220.0000","cost_price":"90.0000","subtotal":440.0,"gst":44.0,"total":484.0}""",
+                "{\"quote\":" + To("DefectQuote", "345") + ",\"product\":" + To("Product", "767") + ",\"asset\":" + To("Asset", "42896") + ",\"remark\":" + To("Remark", "55218") + "}"),
+            Raw("invoices", "52965", """{"number":"IV000032831","status":"AUTHORISED","subtotal":"145.0000","gst":"14.5000","total":"159.5000"}""",
+                "{\"task\":" + To("Task", "46781") + ",\"property\":" + To("Property", "1491") + "}"),
+            Raw("invoicelineitems", "50834", """{"index":0,"description":"Minimum service fee","quantity":"1.0000","unit_price":"95.0000","subtotal":"95.0000","gst":"9.5000","total":"104.5000","account_code":"4-1080"}""",
+                "{\"invoice\":" + To("Invoice", "52965") + "}"),
+            Raw("invoicelineitems", "1", """{"index":0}""", "{\"invoice\":" + To("Invoice", "99999") + "}"),
+            Raw("servicequotes", "43", """{"ref":"SQ-0043","status":"APPROVED","product_subtotal":280.0}""", "{\"property_object\":" + To("Property", "1491") + "}"),
+            Raw("servicequoteproductlineitems", "1", """{"index":1,"description":"2.5Ab Extinguisher (NEW)","quantity":"2.0000","unit_price":"140.0000","subtotal":"280.0000","tax":"28.0000","total":"308.0000"}""",
+                "{\"servicequote\":" + To("ServiceQuote", "43") + "}"),
+            // Its own endpoint's id 1 as well: a different line
+            Raw("servicequotefixedlineitems", "1", """{"index":1,"description":"Service 6x Hydrants","quantity":"1.0000","unit_price":"120.0000","annual_subtotal":"120.0000","annual_tax":"12.0000"}""",
+                "{\"servicequote\":" + To("ServiceQuote", "43") + ",\"routineservicetype\":" + To("RoutineServiceType", "5") + "}"));
+        await db.SaveChangesAsync();
+
+        var results = await MapAllAsync(db);
+        Assert.Contains("1: Its invoice (99999) isn't in FyreApp.", results["invoicelineitems"].MapErrors);
+
+        var pages = new FyreApp.Services.Billing.BillingPageService(db);
+        var quote = (await pages.QuoteAsync((await db.DefectQuotes.SingleAsync()).Id))!;
+        Assert.Equal(["Hydrant Valve 65mm", "Labour"], quote.Lines.Select(l => l.Description));
+        var line = quote.Lines[0];
+        Assert.Equal((2m, 220m, 90m, 44m, "Hydrant Valve", "D-55218"), (line.Quantity, line.UnitPrice!.Value, line.CostPrice!.Value, line.Tax!.Value,
+            line.Product!.Name, line.Remark!.DisplayRef));
+        Assert.Equal("D-55218", Assert.Single(quote.Remarks).DisplayRef);
+
+        var invoice = (await pages.InvoiceAsync((await db.Invoices.SingleAsync()).Id))!;
+        Assert.Equal(("Minimum service fee", "4-1080", 95m), (Assert.Single(invoice.Lines).Description, invoice.Lines[0].AccountCode, invoice.Lines[0].Subtotal!.Value));
+
+        var sales = (await pages.SalesQuoteAsync((await db.ServiceQuotes.SingleAsync()).Id))!;
+        // The routine service first, priced by the year
+        Assert.Equal([("fixed", "05 - Fire Hydrants", 132m), ("product", null, 308m)],
+            sales.Lines.Select(l => (l.Kind, l.RoutineServiceType?.Name, l.Total!.Value)));
+
+        var history = await db.RemarkEvents.Include(e => e.ClientTask).OrderBy(e => e.WhenUtc).ToListAsync();
+        Assert.Equal([("Added", "46781"), ("Resolved", "46900")], history.Select(e => (e.Label!, e.ClientTask!.UptickId!.Value.ToString())));
+        Assert.Equal(("Valve replaced", "Wes Speedon (Field Tech)"), (history[1].Notes, (await db.UptickUsers.FindAsync(history[1].UptickUserId))!.Name));
     }
 
     [Fact]
