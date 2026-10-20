@@ -266,4 +266,46 @@ public class UptickApiClientTests
         var ex = await Assert.ThrowsAsync<UptickApiException>(() => All(client.ListAsync("logins")));
         Assert.Equal(403, ex.StatusCode);
     }
+
+    [Fact]
+    public async Task A_document_download_gives_the_link_it_redirects_to_without_following_it()
+    {
+        var (client, uptick, _, _) = Create();
+        uptick.Api = (req, _) => req.RequestUri!.AbsolutePath switch
+        {
+            "/api/v2.15/documents/b717/download/" => new HttpResponseMessage(HttpStatusCode.Found)
+            {
+                Headers = { Location = new Uri("https://uptick-customer-storage.s3.amazonaws.com/fyrepower/tasks/1/a.png?X-Amz-Signature=x") }
+            },
+            _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+        };
+
+        Assert.Equal("https://uptick-customer-storage.s3.amazonaws.com/fyrepower/tasks/1/a.png?X-Amz-Signature=x",
+            (await client.DocumentDownloadUrlAsync("b717"))!.ToString());
+        Assert.Null(await client.DocumentDownloadUrlAsync("gone"));
+        // Only the API was asked: the storage link is the caller's to fetch, without the token
+        Assert.DoesNotContain(uptick.Requests, r => r.Url.Contains("amazonaws"));
+        Assert.All(uptick.Requests, r => Assert.Contains(r.Method, new[] { HttpMethod.Get, HttpMethod.Post }));
+    }
+
+    [Fact]
+    public async Task A_records_pdf_is_read_with_its_link_or_none_when_uptick_has_not_made_one()
+    {
+        var (client, uptick, _, _) = Create();
+        uptick.Api = (req, _) => req.RequestUri!.AbsolutePath switch
+        {
+            "/api/v2.15/reports/9999/pdf/" => Json("""{"key":"fyrepower/reports/9999/R-09999 P-0209 Service Report.pdf","size":88796,"modified":"2024-01-17T04:06:33+00:00","metadata":{},"url":"https://uptick-customer-storage.s3.amazonaws.com/fyrepower/reports/9999/R.pdf?sig=x"}"""),
+            "/api/v2.15/reports/10/pdf/" => Json(""),
+            _ => new HttpResponseMessage(HttpStatusCode.NotFound)
+        };
+
+        var pdf = await client.PdfAsync("reports", "9999");
+        Assert.Equal(("fyrepower/reports/9999/R-09999 P-0209 Service Report.pdf", 88796L, new DateTime(2024, 1, 17, 4, 6, 33, DateTimeKind.Utc)),
+            (pdf!.Key, pdf.Size!.Value, pdf.ModifiedUtc!.Value));
+        Assert.Equal("uptick-customer-storage.s3.amazonaws.com", pdf.Url.Host);
+        Assert.Null(await client.PdfAsync("reports", "10"));
+        Assert.Null(await client.PdfAsync("reports", "11"));
+        // Read only: never the POST that would make Uptick generate one
+        Assert.DoesNotContain(uptick.Requests, r => r.Method == HttpMethod.Post && r.Url.Contains("/pdf/"));
+    }
 }

@@ -1,5 +1,7 @@
 using System.Text.Json;
 using FyreApp.Data;
+using FyreApp.Services.Files;
+using FyreApp.Services.Uptick.Files;
 using FyreApp.Services.Uptick.Api;
 using FyreApp.Services.Uptick.Mapping;
 using FyreApp.Services.Uptick.Migration;
@@ -20,10 +22,12 @@ public class UptickMigrationController : Controller
     private readonly IUptickMigrationRunner _runner;
     private readonly UptickApiOptions _options;
     private readonly UptickMapping _mapping;
+    private readonly IFileStore _store;
 
     public UptickMigrationController(AppDbContext db, IUptickApiClient api, IUptickMigrationRunner runner, IOptions<UptickApiOptions> options,
-        UptickMapping mapping)
+        UptickMapping mapping, IFileStore store)
     {
+        _store = store;
         _mapping = mapping;
         _db = db;
         _api = api;
@@ -43,6 +47,9 @@ public class UptickMigrationController : Controller
             PageSize = _options.PageSize,
             Current = _runner.Current,
             Mapped = _mapping.Resources,
+            StorageConfigured = _store.IsConfigured,
+            Storage = _store.Description,
+            Files = await FileCountsAsync(ct),
             Endpoints = await _db.UptickEndpointStates.AsNoTracking().OrderBy(s => s.Resource).ToListAsync(ct),
             Runs = await _db.UptickMigrationRuns.AsNoTracking()
                 .OrderByDescending(r => r.StartedUtc).Take(15)
@@ -54,6 +61,34 @@ public class UptickMigrationController : Controller
                 .ToListAsync(ct)
         };
         return View(vm);
+    }
+
+    private async Task<List<UptickFileCounts>> FileCountsAsync(CancellationToken ct)
+    {
+        var listed = await _db.UptickRecords.AsNoTracking()
+            .Where(r => (r.Resource == UptickFileDownloader.Reports || r.Resource == UptickFileDownloader.Documents) && r.DeletedUtc == null)
+            .GroupBy(r => r.Resource).Select(g => new { g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Key, g => g.Count, ct);
+        var held = await _db.UptickFiles.AsNoTracking()
+            .GroupBy(f => f.Source)
+            .Select(g => new
+            {
+                g.Key,
+                Downloaded = g.Count(f => f.DownloadedUtc != null),
+                Bytes = g.Where(f => f.DownloadedUtc != null).Sum(f => f.Size ?? 0),
+                NoFile = g.Count(f => f.NoFile),
+                Failing = g.Count(f => f.DownloadedUtc == null && f.Error != null)
+            })
+            .ToDictionaryAsync(g => g.Key, ct);
+        return new (string Source, string Label)[]
+            {
+                (UptickFileDownloader.Reports, "Report PDFs"),
+                (UptickFileDownloader.Documents, "Document files (photos, signatures, attachments)")
+            }
+            .Select(s => held.TryGetValue(s.Source, out var h)
+                ? new UptickFileCounts(s.Source, s.Label, listed.GetValueOrDefault(s.Source), h.Downloaded, h.Bytes, h.NoFile, h.Failing)
+                : new UptickFileCounts(s.Source, s.Label, listed.GetValueOrDefault(s.Source), 0, 0, 0, 0))
+            .ToList();
     }
 
     // Signs in and reads the endpoint list: one token request and one API request
@@ -73,15 +108,20 @@ public class UptickMigrationController : Controller
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public IActionResult Start(UptickRunKind kind, string? resource)
+    public IActionResult Start(UptickRunKind kind, string? resource, int? limit)
     {
+        if (limit is <= 0) limit = null;
         // A Re-map only reads what's held
         if (!_api.IsConfigured && kind != UptickRunKind.Remap)
             TempData["Error"] = "The Uptick API isn't configured.";
-        else if (!_runner.TryStart(kind, string.IsNullOrWhiteSpace(resource) ? null : resource, User.Identity?.Name))
+        else if (kind == UptickRunKind.Files && !_store.IsConfigured)
+            TempData["Error"] = "File storage isn't set up (Storage:Provider).";
+        else if (!_runner.TryStart(kind, string.IsNullOrWhiteSpace(resource) ? null : resource, User.Identity?.Name,
+                     kind == UptickRunKind.Files ? limit : null))
             TempData["Error"] = "A run is already in progress.";
         else
-            TempData["Success"] = $"{kind} run started{(string.IsNullOrWhiteSpace(resource) ? "" : $" for {resource}")}.";
+            TempData["Success"] = $"{kind} run started{(string.IsNullOrWhiteSpace(resource) ? "" : $" for {resource}")}" +
+                                  $"{(kind == UptickRunKind.Files && limit is { } n ? $": the first {n} of each kind" : "")}.";
         return RedirectToAction(nameof(Index));
     }
 
@@ -95,6 +135,18 @@ public class UptickMigrationController : Controller
 
     [HttpGet]
     public IActionResult Status() => Json(_runner.Current);
+
+    // A downloaded file, to check the copy (pages show them from phase 7b)
+    [HttpGet]
+    public async Task<IActionResult> File(int id, CancellationToken ct)
+    {
+        var file = await _db.UptickFiles.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id && f.StorageKey != null, ct);
+        if (file == null) return NotFound();
+        var stream = await _store.OpenReadAsync(file.StorageKey!, ct);
+        if (stream == null) return NotFound();
+        return File(stream, file.ContentType ?? "application/octet-stream", System.IO.Path.GetFileName(file.Path ?? file.StorageKey!),
+            enableRangeProcessing: false);
+    }
 
     [HttpGet]
     public async Task<IActionResult> Run(int id, CancellationToken ct)

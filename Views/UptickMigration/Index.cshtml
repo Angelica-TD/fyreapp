@@ -121,6 +121,62 @@
     </div>
 </div>
 
+<h2 class="h5">Files</h2>
+<div class="card mb-4">
+    <div class="card-body">
+        <p class="small text-muted mb-2">
+            The files Uptick stores, copied into FyreApp's file store: the PDF of each report, and each document file (photos,
+            customers' signatures, attachments) the raw copy lists. One request per file at the pace above, so the first
+            download takes most of a night; it can be cancelled and carries on where it left off, and later runs only fetch
+            what's new or changed. Each file is checked against Uptick's size and MD5.
+        </p>
+        <dl class="row small mb-2">
+            <dt class="col-sm-2">Storage</dt>
+            <dd class="col-sm-10 text-break">
+                @Model.Storage
+                @if (!Model.StorageConfigured)
+                {
+                    <span class="text-warning-emphasis">· set <code>Storage__Provider</code> and <code>Storage__S3__…</code> in <code>/etc/fyreapp.env</code></span>
+                }
+            </dd>
+        </dl>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-2">
+                <thead>
+                    <tr>
+                        <th>Kind</th><th class="text-end">Listed</th><th class="text-end">Downloaded</th><th class="text-end">Size</th>
+                        <th class="text-end" title="Reports Uptick has no PDF for">No file</th><th class="text-end">Failing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var f in Model.Files)
+                    {
+                        <tr>
+                            <td>@f.Label</td>
+                            <td class="text-end">@f.Listed.ToString("N0")</td>
+                            <td class="text-end">@f.Downloaded.ToString("N0")</td>
+                            <td class="text-end text-nowrap">@FyreApp.Services.Uptick.Files.UptickFileDownloader.Size(f.Bytes)</td>
+                            <td class="text-end">@(f.NoFile > 0 ? f.NoFile.ToString("N0") : "")</td>
+                            <td class="text-end @(f.Failing > 0 ? "text-warning-emphasis fw-semibold" : "")">@(f.Failing > 0 ? f.Failing.ToString("N0") : "")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (!running)
+        {
+            <form method="post" asp-action="Start" class="d-flex flex-wrap align-items-center gap-2">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="kind" value="@UptickRunKind.Files" />
+                <button class="btn btn-outline-primary" disabled="@(!Model.Configured || !Model.StorageConfigured)">Download files</button>
+                <label class="small text-muted" for="files-limit">at most</label>
+                <input id="files-limit" name="limit" type="number" min="1" class="form-control form-control-sm" style="width: 7rem" placeholder="all" />
+                <span class="small text-muted">of each kind (leave empty for all; a small number is a quick trial)</span>
+            </form>
+        }
+    </div>
+</div>
+
 <h2 class="h5">Endpoints <span class="text-muted small fw-normal">@Model.Copied.ToString("N0") records held</span></h2>
 @if (Model.Endpoints.Count == 0)
 {

@@ -19,7 +19,15 @@ public sealed class UptickMigrationPageVm
     public IReadOnlyList<string> Mapped { get; init; } = [];
 
     public int Copied => Endpoints.Sum(e => e.CopiedCount);
+
+    // Uptick's files (§8): where they're kept, and how far the copy is per kind
+    public bool StorageConfigured { get; init; }
+    public string Storage { get; init; } = string.Empty;
+    public IReadOnlyList<UptickFileCounts> Files { get; init; } = [];
 }
+
+// One kind of file: listed in the raw copy, downloaded (and their size), without a file in Uptick, failing
+public sealed record UptickFileCounts(string Source, string Label, int Listed, int Downloaded, long Bytes, int NoFile, int Failing);
 
 public sealed class UptickRunReportVm
 {

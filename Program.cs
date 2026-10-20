@@ -55,9 +55,18 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email
 // Uptick API migration (docs/uptick-migration.md): one client for the whole app, so every run shares its
 // request budget and token
 builder.Services.Configure<FyreApp.Services.Uptick.Api.UptickApiOptions>(builder.Configuration.GetSection("Uptick:Api"));
-builder.Services.AddHttpClient(FyreApp.Services.Uptick.Api.UptickApiClient.HttpClientName);
+// Redirects aren't followed: a file download's is a signed link to Uptick's storage, fetched without the API token
+builder.Services.AddHttpClient(FyreApp.Services.Uptick.Api.UptickApiClient.HttpClientName)
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddHttpClient(FyreApp.Services.Uptick.Files.UptickFileDownloader.HttpClientName);
+// Where files are kept (docs/uptick-migration.md §8): Storage:Provider S3 (production) or Local (development)
+builder.Services.Configure<FyreApp.Services.Files.FileStorageOptions>(builder.Configuration.GetSection("Storage"));
+builder.Services.AddSingleton<FyreApp.Services.Files.IFileStore>(sp => FyreApp.Services.Files.FileStores.Create(
+    sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<FyreApp.Services.Files.FileStorageOptions>>(),
+    sp.GetRequiredService<IWebHostEnvironment>()));
 builder.Services.AddSingleton<FyreApp.Services.Uptick.Api.IUptickApiClient, FyreApp.Services.Uptick.Api.UptickApiClient>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Migration.UptickMigrator>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Files.UptickFileDownloader>();
 // Mappers from the raw copy into FyreApp's tables, in the order they run (docs/uptick-migration.md §3.4)
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.BillingCardMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.ClientMapper>();

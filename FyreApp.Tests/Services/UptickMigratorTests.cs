@@ -39,6 +39,10 @@ public class UptickMigratorTests
         public int Throttled => 0;
         public void ResetForRun() => Requests = 0;
 
+        // Files have their own tests (UptickFileDownloaderTests)
+        public Task<Uri?> DocumentDownloadUrlAsync(string documentFileId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<UptickPdf?> PdfAsync(string resource, string id, CancellationToken ct = default) => throw new NotSupportedException();
+
         public Task<IReadOnlyList<string>> ListEndpointsAsync(CancellationToken ct = default)
         {
             Requests++;

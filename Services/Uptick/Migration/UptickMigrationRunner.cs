@@ -13,8 +13,8 @@ public interface IUptickMigrationRunner
     // The run in progress, or null
     UptickRunStatus? Current { get; }
 
-    // False when a run is already going
-    bool TryStart(UptickRunKind kind, string? resource, string? startedBy);
+    // False when a run is already going. A limit caps a Files run at that many files of each kind (a trial).
+    bool TryStart(UptickRunKind kind, string? resource, string? startedBy, int? limit = null);
 
     void Cancel();
 }
@@ -25,7 +25,7 @@ public class UptickMigrationRunner : BackgroundService, IUptickMigrationRunner
 {
     public const string ProgressGroup = "uptick-migration";
 
-    private sealed record Request(UptickRunKind Kind, string? Resource, string? StartedBy);
+    private sealed record Request(UptickRunKind Kind, string? Resource, string? StartedBy, int? Limit);
 
     private readonly Channel<Request> _queue = Channel.CreateBounded<Request>(1);
     private readonly IServiceScopeFactory _scopes;
@@ -47,12 +47,12 @@ public class UptickMigrationRunner : BackgroundService, IUptickMigrationRunner
         get { lock (_lock) return _current; }
     }
 
-    public bool TryStart(UptickRunKind kind, string? resource, string? startedBy)
+    public bool TryStart(UptickRunKind kind, string? resource, string? startedBy, int? limit = null)
     {
         lock (_lock)
         {
             if (_current != null) return false;
-            if (!_queue.Writer.TryWrite(new Request(kind, resource, startedBy))) return false;
+            if (!_queue.Writer.TryWrite(new Request(kind, resource, startedBy, limit))) return false;
             _current = new UptickRunStatus(kind, resource, DateTime.UtcNow, null, false);
             return true;
         }
@@ -92,7 +92,7 @@ public class UptickMigrationRunner : BackgroundService, IUptickMigrationRunner
                     _ = _hub.Clients.Group(ProgressGroup).SendAsync("uptickProgress", p, CancellationToken.None);
                 });
 
-                var run = await migrator.RunAsync(request.Kind, request.Resource, request.StartedBy, progress, cancel.Token);
+                var run = await migrator.RunAsync(request.Kind, request.Resource, request.StartedBy, progress, cancel.Token, request.Limit);
                 _logger.LogInformation("Uptick migration run {RunId} {Status}: {Requests} requests", run.Id, run.Status, run.Requests);
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !stoppingToken.IsCancellationRequested)

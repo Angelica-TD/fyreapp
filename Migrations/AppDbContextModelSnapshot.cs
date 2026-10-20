@@ -3035,6 +3035,74 @@ namespace FyreApp.Migrations
                     b.ToTable("UptickEndpointStates");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.UptickFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CheckedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("DownloadedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Etag")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Failures")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Md5")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("NoFile")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Path")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<long?>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("SourceId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime?>("SourceUpdatedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("StorageKey")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Source", "SourceId")
+                        .IsUnique();
+
+                    b.ToTable("UptickFiles");
+                });
+
             modelBuilder.Entity("FyreApp.Models.UptickMigrationRun", b =>
                 {
                     b.Property<int>("Id")

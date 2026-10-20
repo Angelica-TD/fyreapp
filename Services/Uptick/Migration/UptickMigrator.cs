@@ -14,7 +14,9 @@ public enum UptickRunKind
     // Only what changed since the last run, where Uptick can say what changed (§4.1)
     Refresh,
     // No requests to Uptick: maps every record held for the mapped endpoints again (§3.4), e.g. after a mapper changes
-    Remap
+    Remap,
+    // Downloads the files the raw copy lists (§8) that aren't held yet or changed: report PDFs, document files
+    Files
 }
 
 // What a run did with one endpoint: the reconciliation report (§4.4)
@@ -90,10 +92,12 @@ public class UptickMigrator
     private readonly ILogger<UptickMigrator> _logger;
     private readonly TimeProvider _clock;
     private readonly UptickMapping? _mapping;
+    private readonly Files.UptickFileDownloader? _files;
 
     public UptickMigrator(AppDbContext db, IUptickApiClient api, ILogger<UptickMigrator> logger, TimeProvider? clock = null,
-        UptickMapping? mapping = null)
+        UptickMapping? mapping = null, Files.UptickFileDownloader? files = null)
     {
+        _files = files;
         _db = db;
         _api = api;
         _logger = logger;
@@ -113,12 +117,13 @@ public class UptickMigrator
     }
 
     public async Task<UptickMigrationRun> RunAsync(UptickRunKind kind, string? onlyResource, string? startedBy,
-        IProgress<UptickProgress>? progress = null, CancellationToken ct = default)
+        IProgress<UptickProgress>? progress = null, CancellationToken ct = default, int? limit = null)
     {
         _api.ResetForRun();
         var run = new UptickMigrationRun
         {
-            Kind = kind.ToString(), Resource = onlyResource, StartedBy = startedBy, StartedUtc = Now, Status = "Running"
+            Kind = kind.ToString(), Resource = limit is { } n ? $"first {n} of each" : onlyResource, StartedBy = startedBy,
+            StartedUtc = Now, Status = "Running"
         };
         _db.UptickMigrationRuns.Add(run);
         await _db.SaveChangesAsync(ct);
@@ -128,6 +133,8 @@ public class UptickMigrator
         {
             if (kind == UptickRunKind.Remap)
                 await RemapAsync(onlyResource, results, progress, ct);
+            else if (kind == UptickRunKind.Files)
+                await (_files ?? throw new InvalidOperationException("File downloads aren't set up.")).DownloadAsync(results, progress, ct, limit);
             else
                 await CopyAsync(kind, onlyResource, results, progress, ct);
             run.Status = "Completed";
