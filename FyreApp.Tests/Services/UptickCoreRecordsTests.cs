@@ -54,6 +54,7 @@ public class UptickCoreRecordsTests
 
     private static UptickMapping Mapping(AppDbContext db) => new(db,
         [new BillingCardMapper(db), new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
+            new SecurityGroupMapper(db), new ContractorMapper(db), new SupplierMapper(db), new AccreditationMapper(db),
             new AssetTypeMapper(db), new AssetTypeVariantMapper(db), new AssetMapper(db),
             new RoutineServiceTypeMapper(db), new RoutineServiceLevelMapper(db), new RemarkTypeMapper(db),
             new ProductMapper(db), new WarehouseMapper(db), new StockMapper(db), new BillingContractMapper(db), new BillingContractLineItemMapper(db), new RoutineServiceMapper(db), new RoutineServiceLevelLinkMapper(db), new TaskMapper(db), new ServiceTaskMapper(db),
@@ -726,6 +727,39 @@ public class UptickCoreRecordsTests
                 contract.BillingCardName, contract.Active));
         var line = await db.BillingContractLineItems.SingleAsync();
         Assert.Equal((contract.Id, "FIP Monthly", 75m, "Per visit"), (line.BillingContractId!.Value, line.Product, line.UnitPrice!.Value, line.Type));
+    }
+
+    [Fact]
+    public async Task Security_groups_contractors_suppliers_and_accreditations_are_mapped()
+    {
+        await using var db = DbContextFactory.Create();
+        db.Contractors.Add(new Contractor { Name = "Old", ExternalId = "6", Skills = "Sprinklers" });
+        db.UptickRecords.AddRange(RawUser("9", "Dwayne Page", "dwayne@fyrepower.com.au", "FIELD"),
+            Raw("groups", "8", """{"name":"Technician - Higher Permissions"}"""),
+            Raw("contractorcategories", "1", """{"name":"General"}"""),
+            Raw("contractors", "6", """{"name":"Kennedy Fire","email":"fyrepowernotifications@gmail.com","email_cc":"office@fyrepower.com.au","is_active":false,"contact_bh":"07 5555 0000","is_starred":true}""",
+                "{\"category\":" + To("ContractorCategory", "1") + "}"),
+            Raw("accountingorganisations", "1", """{"name":"Fyrepower Fire Protection"}"""),
+            Raw("suppliers", "99", """{"abn":"","name":"IFYS Ltd","is_active":true,"payment_day":14,"accounts_name":"Accounts","payment_terms":"DAYSAFTERDATE","accounts_email":"propertyadmin@ifys.com.au"}""",
+                "{\"accounting_organisation\":" + To("AccountingOrganisation", "1") + "}"),
+            Raw("accreditationtypes", "4", """{"name":"Licence No.:"}"""),
+            Raw("accreditations", "67", """{"expiry":"2027-06-30","number":"QBCC 15366855 | FPA 25023","status":"ACTIVE"}""",
+                "{\"property\":{\"data\":null},\"technician\":" + To("User", "9") + ",\"accreditationtype\":" + To("AccreditationType", "4") + "}"));
+        await db.SaveChangesAsync();
+
+        await MapAllAsync(db);
+
+        Assert.Equal((8L, "Technician - Higher Permissions"), (await db.SecurityGroups.SingleAsync()) is var g ? (g.UptickId!.Value, g.Name) : default);
+        var contractor = await db.Contractors.SingleAsync();
+        Assert.Equal((6L, "Kennedy Fire", "General", "07 5555 0000", false, true, "Sprinklers"),
+            (contractor.UptickId!.Value, contractor.Name, contractor.Category, contractor.Phone, contractor.Active, contractor.Starred, contractor.Skills));
+        var supplier = await db.Suppliers.SingleAsync();
+        Assert.Equal(("IFYS Ltd", null, "14 days after invoice date", "Fyrepower Fire Protection"),
+            (supplier.Name, supplier.BusinessNumber, supplier.PaymentTermsLabel, supplier.AccountingOrganisation));
+        var user = await db.UptickUsers.SingleAsync();
+        var accreditation = await db.Accreditations.SingleAsync();
+        Assert.Equal((user.Id, "Dwayne Page", "Licence No.:", "ACTIVE", new DateTime(2027, 6, 30, 0, 0, 0, DateTimeKind.Utc)),
+            (accreditation.UptickUserId!.Value, accreditation.Technician, accreditation.Type, accreditation.Status, accreditation.Expiry!.Value));
     }
 
     [Theory]

@@ -160,8 +160,9 @@ public class UptickBillingImportTests
     public async Task UsersList_ShowsTechniciansAccreditations()
     {
         using var db = DbContextFactory.Create();
-        db.UptickUsers.Add(new UptickUser { Name = "Dwayne Page", LicenseType = "FIELD" });
-        db.Accreditations.Add(new Accreditation { ExternalId = "67", Type = "Licence No.:", Number = "QBCC 15366855 | FPA 25023", Technician = "Dwayne Page" });
+        var user = new UptickUser { Name = "Dwayne Page", LicenseType = "FIELD" };
+        db.UptickUsers.Add(user);
+        db.Accreditations.Add(new Accreditation { ExternalId = "67", Type = "Licence No.:", Number = "QBCC 15366855 | FPA 25023", Technician = "Dwayne Page", UptickUser = user });
         await db.SaveChangesAsync();
 
         var list = await new DirectoryListService(db).UptickUsersAsync(new DirectoryFilter { Active = "any" });

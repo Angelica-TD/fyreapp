@@ -2,10 +2,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Models;
 
-// A subcontracting business (Uptick "Contractors" export). Tasks and routines name them as "Contractor" / "Subcontractor".
-public class Contractor
+// A subcontracting business (Uptick "contractors"). Tasks and routines name them as "Contractor" / "Subcontractor".
+public class Contractor : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from Uptick contractors export "ID"
     [StringLength(64)]

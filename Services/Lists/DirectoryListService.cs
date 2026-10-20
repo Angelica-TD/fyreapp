@@ -133,12 +133,12 @@ public class DirectoryListService : IDirectoryListService
         var page = await PageAsync(UptickUsers(filter), filter, ct);
         var logins = await LoginsAsync(page.Items.Select(u => u.Id).ToList(), ct);
         var groupNames = await GroupNamesAsync(ct);
-        var names = page.Items.Select(u => u.Name).ToList();
+        var ids = page.Items.Select(u => (int?)u.Id).ToList();
         var accreditations = (await _db.Accreditations.AsNoTracking()
-                .Where(a => a.Technician != null && names.Contains(a.Technician))
+                .Where(a => ids.Contains(a.UptickUserId))
                 .OrderBy(a => a.Type)
                 .ToListAsync(ct))
-            .ToLookup(a => a.Technician!);
+            .ToLookup(a => a.UptickUserId!.Value);
         return new DirectoryListVm<UptickUserListItemVm>
         {
             Filter = page.Filter,
@@ -147,7 +147,7 @@ public class DirectoryListService : IDirectoryListService
             {
                 User = u, Login = logins.GetValueOrDefault(u.Id),
                 Groups = UptickReferenceValues.SplitSecurityGroups(u.SecurityGroups, groupNames),
-                Accreditations = accreditations[u.Name].ToList()
+                Accreditations = accreditations[u.Id].ToList()
             }).ToList()
         };
     }

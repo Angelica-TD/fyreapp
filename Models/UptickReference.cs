@@ -2,11 +2,14 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FyreApp.Models;
 
-// An Uptick security group (Uptick "groups" export), e.g. "Technician - Higher Permissions". Users export
+// An Uptick security group (Uptick "groups"), e.g. "Technician - Higher Permissions". Users export
 // "Security Groups" joins a user's group names with " - ", which these names let FyreApp split again.
-public class SecurityGroup
+public class SecurityGroup : IUptickMapped
 {
     public int Id { get; set; }
+
+    // Uptick's id, for records migrated through its API
+    public long? UptickId { get; set; }
 
     // Maps from the groups export "id"
     [StringLength(64)]

@@ -561,6 +561,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<Contractor>(entity =>
         {
             entity.HasIndex(c => c.ExternalId).IsUnique();
+            entity.HasIndex(c => c.UptickId).IsUnique();
             entity.Property(c => c.Active).HasDefaultValue(true).HasSentinel(true);
             entity.Property(c => c.CreatedUtc).HasColumnType("timestamptz");
             entity.Property(c => c.UpdatedUtc).HasColumnType("timestamptz");
@@ -569,6 +570,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         modelBuilder.Entity<Supplier>(entity =>
         {
             entity.HasIndex(s => s.ExternalId).IsUnique();
+            entity.HasIndex(s => s.UptickId).IsUnique();
             entity.Property(s => s.Active).HasDefaultValue(true).HasSentinel(true);
             entity.Property(s => s.CreatedUtc).HasColumnType("timestamptz");
             entity.Property(s => s.UpdatedUtc).HasColumnType("timestamptz");
@@ -673,6 +675,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         });
 
         modelBuilder.Entity<SecurityGroup>().HasIndex(g => g.ExternalId).IsUnique();
+        modelBuilder.Entity<SecurityGroup>().HasIndex(g => g.UptickId).IsUnique();
+        modelBuilder.Entity<Accreditation>(entity =>
+        {
+            entity.HasIndex(a => a.UptickId).IsUnique();
+            entity.HasOne(a => a.UptickUser).WithMany().HasForeignKey(a => a.UptickUserId).OnDelete(DeleteBehavior.SetNull);
+        });
         modelBuilder.Entity<ExtraField>().HasIndex(f => f.ExternalId).IsUnique();
         modelBuilder.Entity<PromptQuestion>().HasIndex(q => q.ExternalId).IsUnique();
 

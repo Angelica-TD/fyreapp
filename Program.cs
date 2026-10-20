@@ -36,7 +36,8 @@ builder.Services.AddScoped<IMaintenanceScheduleService, MaintenanceScheduleServi
 builder.Services.AddScoped<IScheduleImportService, ScheduleImportService>();
 // Clients, properties, contacts, users, asset types, variants, assets, routine service types and levels,
 // remark types, tasks, remarks, reports, routines, products, warehouses, stock, defect quotes, sales quotes, invoices,
-// credit notes, billing cards, billing contracts and their line items come from Uptick's API now
+// credit notes, billing cards, billing contracts and their line items, security groups, contractors, suppliers and
+// accreditations come from Uptick's API now
 // (UptickImportService.FromApi); their importers stay until phase 6 removes the file imports
 builder.Services.AddScoped<FyreApp.Services.Routines.IRoutineListService, FyreApp.Services.Routines.RoutineListService>();
 builder.Services.AddScoped<FyreApp.Services.Routines.IRoutineSetupService, FyreApp.Services.Routines.RoutineSetupService>();
@@ -46,12 +47,8 @@ builder.Services.AddScoped<FyreApp.Services.Lists.IRemarkListService, FyreApp.Se
 builder.Services.AddScoped<FyreApp.Services.Lists.IReportListService, FyreApp.Services.Lists.ReportListService>();
 builder.Services.AddScoped<FyreApp.Services.Tasks.ITaskListService, FyreApp.Services.Tasks.TaskListService>();
 builder.Services.AddScoped<FyreApp.Services.Tasks.ITaskPageService, FyreApp.Services.Tasks.TaskPageService>();
-builder.Services.AddScoped<UptickImporter, ContractorImporter>();
-builder.Services.AddScoped<UptickImporter, SupplierImporter>();
-builder.Services.AddScoped<UptickImporter, SecurityGroupImporter>();
 builder.Services.AddScoped<UptickImporter, ExtraFieldImporter>();
 builder.Services.AddScoped<UptickImporter, PromptQuestionImporter>();
-builder.Services.AddScoped<UptickImporter, AccreditationImporter>();
 builder.Services.AddScoped<UptickImporter, PropertyScheduleImporter>();
 builder.Services.AddScoped<UptickImporter, FormResponseImporter>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IDirectoryListService, FyreApp.Services.Lists.DirectoryListService>();
@@ -82,6 +79,10 @@ builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreAp
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.ClientContactMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.PropertyContactMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.UserMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.SecurityGroupMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.ContractorMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.SupplierMapper>();
+builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.AccreditationMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.AssetTypeMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.AssetTypeVariantMapper>();
 builder.Services.AddScoped<FyreApp.Services.Uptick.Mapping.IUptickMapper, FyreApp.Services.Uptick.Mapping.AssetMapper>();

@@ -17,7 +17,8 @@ public class LocalEditsController : Controller
         typeof(RemarkType), typeof(ClientTask), typeof(ServiceTask), typeof(Remark), typeof(Report),
         typeof(Routine), typeof(RoutineService), typeof(Product), typeof(Warehouse), typeof(Stock),
         typeof(DefectQuote), typeof(ServiceQuote), typeof(Invoice), typeof(CreditNote),
-        typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem)
+        typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem),
+        typeof(SecurityGroup), typeof(Contractor), typeof(Supplier), typeof(Accreditation)
     }.ToDictionary(t => t.Name);
 
     private readonly AppDbContext _db;
