@@ -40,8 +40,5 @@ public class RoutineServiceType : IUptickMapped
 
     public bool Active { get; set; } = true;
 
-    // Every column of the Uptick export row as JSON (key order kept)
-    public string? UptickData { get; set; }
-
     public ICollection<RoutineServiceLevel> Levels { get; set; } = new List<RoutineServiceLevel>();
 }

@@ -66,7 +66,4 @@ public class Routine : IUptickMapped
     public string? Subcontractor { get; set; }
 
     public int? EstimatedMinutes { get; set; }
-
-    // Every column of the Uptick export row as JSON (key order kept)
-    public string? UptickData { get; set; }
 }

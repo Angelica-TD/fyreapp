@@ -99,7 +99,7 @@
                 }
             </div>
 
-            @await Html.PartialAsync("_UptickData", a.UptickData)
+            @await Component.InvokeAsync("UptickRecord", new { resource = "assets", uptickId = a.UptickId })
         </div>
 
         @* Tabs *@

@@ -60,7 +60,7 @@ public class RoutineSetupTests
         type.Levels.Add(new RoutineServiceLevel { Name = "Six-monthly", IntervalMonths = 6, ServiceRank = 1, DefaultEnabled = true, ToleranceInterval = 1, ToleranceUnit = "M" });
         type.Levels.Add(new RoutineServiceLevel { Name = "Annual", IntervalMonths = 12, ServiceRank = 2, SupersedesLowerRank = true, DefaultEnabled = true, ToleranceInterval = 2, ToleranceUnit = "M" });
         type.Levels.Add(new RoutineServiceLevel { Name = "Retired", IntervalMonths = 3, Active = false });
-        var plans = new AssetType { Name = "Evacuation Diagram", UptickData = """{"Applicable Routines":"14 - Emergency planning in facilities\n15 - Emergency Escape Lighting and Exit Signs"}""" };
+        var plans = new AssetType { Name = "Evacuation Diagram", ApplicableRoutineTypes = { type } };
         db.AddRange(site, type, new Contractor { Name = "Rays Advantage Electrical" });
         db.Assets.AddRange(
             new Asset { Name = "Diagram level 1", Property = site, AssetTypes = { plans } },

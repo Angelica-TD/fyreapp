@@ -38,9 +38,6 @@ public class ClientTask : IUptickMapped
     [StringLength(20)]
     public string? FyreRef { get; set; }
 
-    // Every column of the Uptick export row as JSON (key order kept), so nothing is lost on import
-    public string? UptickData { get; set; }
-
     // Uptick task category: I&T (routine inspection & testing), Repair, Callout, Billing
     [StringLength(50)]
     public string? Category { get; set; }
@@ -78,6 +75,10 @@ public class ClientTask : IUptickMapped
     public DateTime? DueDateUtc { get; set; }
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedUtc { get; set; }
+
+    // Uptick's scheduled date and the day it was performed (inspected), each as the date where it happened
+    public DateTime? ScheduledDate { get; set; }
+    public DateTime? PerformedDate { get; set; }
 
     // The technician doing it: an Uptick user (Uptick is the source of truth for who's who). They see it
     // under "My tasks" when they sign in with the FyreApp login linked to that Uptick user.

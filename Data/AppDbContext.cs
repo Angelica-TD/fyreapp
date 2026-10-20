@@ -809,20 +809,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             modelBuilder.Entity(type).Property<string?>("FyreRef").ValueGeneratedOnAdd();
             modelBuilder.Entity(type).HasIndex("FyreRef").IsUnique();
         }
-
-        // Raw Uptick rows: "json" rather than "jsonb" so the export's column order is kept for display
-        foreach (var type in new[]
-                 {
-                     typeof(Client), typeof(Property), typeof(Asset), typeof(PropertyContact), typeof(ClientContact), typeof(Remark), typeof(Report), typeof(ClientTask),
-                     typeof(AssetType), typeof(AssetTypeVariant), typeof(RemarkType), typeof(RoutineServiceType), typeof(RoutineServiceLevel), typeof(Routine),
-                     typeof(Contractor), typeof(Supplier), typeof(UptickUser), typeof(ExtraField), typeof(PromptQuestion),
-                     typeof(BillingCard), typeof(BillingContract), typeof(BillingContractLineItem), typeof(Invoice), typeof(CreditNote),
-                     typeof(DefectQuote), typeof(ServiceQuote), typeof(PropertySchedule), typeof(DynamicFormResponse), typeof(Accreditation),
-                     typeof(Product), typeof(Warehouse), typeof(Stock)
-                 })
-        {
-            modelBuilder.Entity(type).Property<string?>("UptickData").HasColumnType("json");
-        }
     }
 
 }

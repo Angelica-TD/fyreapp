@@ -44,9 +44,6 @@ public class RoutineServiceLevel : IUptickMapped
     public bool Custom { get; set; }
     public bool Active { get; set; } = true;
 
-    // Every column of the Uptick export row as JSON (key order kept)
-    public string? UptickData { get; set; }
-
     // Schedules (property + interval) that include this routine level
     public ICollection<MaintenanceSchedule> Schedules { get; set; } = new List<MaintenanceSchedule>();
 }

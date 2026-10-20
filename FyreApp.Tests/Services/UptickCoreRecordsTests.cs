@@ -470,13 +470,13 @@ public class UptickCoreRecordsTests
     public async Task Routine_service_types_levels_and_remark_types_are_mapped_and_claim_what_the_exports_made()
     {
         await using var db = DbContextFactory.Create();
-        // From the routines export (by name) and a remarks export (its row names the remark type's id)
+        // From the routines export (by name)
         var made = new RoutineServiceType { Name = "10 - Portable and Wheeled Fire Extinguishers" };
         db.RoutineServiceTypes.Add(made);
         db.RoutineServiceLevels.Add(new RoutineServiceLevel { Name = "six-monthly", RoutineServiceType = made, IntervalMonths = 6 });
         var client = new Client { Name = "Allied", UptickId = 2806, ExternalId = "2806" };
         var property = new Property { Name = "Big River", UptickId = 1491, ExternalId = "P-0016", Client = client };
-        db.AddRange(client, property, new Remark { Property = property, ExternalId = "500", UptickData = "{\"ID\":\"500\",\"Remark Type ID\":\"723\"}" });
+        db.AddRange(client, property);
         db.UptickRecords.AddRange(
             Raw("standards", "1", """{"name":"AS1851-2012"}"""), Raw("servicegroups", "4", """{"name":"Servicing - Portables & Fire Equipment"}"""),
             Raw("routineservicetypes", "10", """{"name":"10 - Portable and Wheeled Fire Extinguishers","standard_reference":"AS1851-2012 Section 10","is_active":true,"is_custom":false}""",
@@ -503,7 +503,6 @@ public class UptickCoreRecordsTests
         var remarkType = await db.RemarkTypes.SingleAsync();
         Assert.Equal(("1.02 - Battery missing", "Critical defect", true, (await db.AssetTypes.SingleAsync()).Id),
             (remarkType.Label, remarkType.SeverityLabel, remarkType.OwnerResponsible, remarkType.AssetTypeId!.Value));
-        Assert.Equal(remarkType.Id, (await db.Remarks.SingleAsync()).RemarkTypeId);
     }
 
     private static UptickRecord RawTask(string id, string? propertyId, string status = "COMPLETE", string? assignedTo = null) => Raw("tasks", id,
@@ -567,12 +566,12 @@ public class UptickCoreRecordsTests
     }
 
     [Fact]
-    public async Task A_task_the_tasks_export_placed_is_updated_and_keeps_its_export_only_columns()
+    public async Task A_task_the_tasks_export_placed_is_updated_in_place()
     {
         await using var db = DbContextFactory.Create();
         var client = new Client { Name = "Allied", UptickId = 2806, ExternalId = "2806" };
         var property = new Property { Name = "Big River", UptickId = 1491, ExternalId = "P-0016", Client = client };
-        var task = new ClientTask { Client = client, Property = property, Title = "Old", ExternalId = "46781", UptickData = """{"Tags":"Urgent","Status":"READY"}""" };
+        var task = new ClientTask { Client = client, Property = property, Title = "Old", ExternalId = "46781" };
         db.AddRange(client, property, task);
         db.UptickRecords.AddRange(RawClient("2806", "Allied"), RawProperty("1491", "P-0016", "2806"), RawTask("46781", "1491"));
         await db.SaveChangesAsync();
@@ -582,7 +581,8 @@ public class UptickCoreRecordsTests
         var mapped = await db.ClientTasks.SingleAsync();
         Assert.Equal((task.Id, 46781L, "PM2026/10 Servicing - Portables & Fire Equipment"), (mapped.Id, mapped.UptickId!.Value, mapped.Title));
         var fields = await FyreApp.Services.Tasks.TaskUptickFields.ForAsync(db, mapped, CancellationToken.None);
-        Assert.Equal(("Urgent", "COMPLETE"), (fields["Tags"], fields["Status"]));
+        Assert.Equal(("COMPLETE", false), (fields["Status"], fields.ContainsKey("Tags")));
+        Assert.Equal((new DateTime(2026, 10, 15), (DateTime?)null), (mapped.PerformedDate!.Value, mapped.ScheduledDate));
     }
 
     [Fact]
@@ -809,7 +809,7 @@ public class UptickCoreRecordsTests
         var field = await db.ExtraFields.SingleAsync(f => f.UptickId == 5);
         Assert.Equal((1, "19", "FPAA FSA No.", "fpaa_fsa_no", "{}"), (await db.ExtraFields.CountAsync(f => f.ExternalId == "5"), field.ContentType, field.Label, field.Name, field.FieldSettings));
         var property = await db.Properties.SingleAsync();
-        var values = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(db, ExtraField.PropertyContentType, "properties", property.UptickId, null);
+        var values = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(db, ExtraField.PropertyContentType, "properties", property.UptickId);
         Assert.Equal(new[] { ("FPAA FSA No.", "FSA 1234", (string?)null), ("Local Government", "Gold Coast City Council", null) },
             values.Select(v => (v.Label, v.Value, v.HelpText)));
 

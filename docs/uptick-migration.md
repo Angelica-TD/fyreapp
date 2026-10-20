@@ -291,8 +291,8 @@ endpoints are added when FyreApp needs their links (phase 8).
    - FyreApp-native entities with no Uptick counterpart (MaintenanceSchedule, MaintenanceInterval,
      MaintenanceHistory, AssetCatalogue, ServiceOffering, ServiceType, Quote, QuoteLineItem).
 
-FyreApp-native rows (created in FyreApp, `UptickId` null) are left as they are. The `UptickData` jsonb columns on
-typed entities are dropped once their entity is mapped from the raw copy.
+FyreApp-native rows (created in FyreApp, `UptickId` null) are left as they are. The `UptickData` columns the file
+exports filled were dropped in phase 6e: a page's "Uptick data" panel shows the record's raw copy instead.
 
 ## 6. Resource map
 
@@ -517,7 +517,12 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
    - 6d (done): asset types' to-many links (§4.6) → `AssetType.ApplicableRoutineTypes` and
      `ExcludedRoutineLevels`, which say which assets a routine covers (task lines, Add routines). Until now they
      came only from the asset types export's columns, which are still read for a type only that export brought in.
-   - 6e: `UptickData`: each page's Uptick fields from the raw copy, then the column dropped.
+   - 6e (done): `UptickData` dropped from every table. The asset, client, property, remark and task pages' "Uptick
+     data" panel shows the raw copy's fields (`UptickRecordViewComponent`); a task's scheduled and performed dates
+     (its work window) are mapped into `ClientTask.ScheduledDate` / `PerformedDate`; extra fields and routine
+     asset lines read only the API's data. Before the drop, the migration carried over what only export rows held:
+     those task dates, remark types, and asset types' applicable routines and excluded levels. (No Uptick task has
+     tags, so the export's Tags column had nothing the API lacks.)
    - 6f: the `ExternalId` / ref-matching columns the exports needed.
 7. **Files.**
 8. **The rest:** typed entities and screens for the endpoints still only in the raw copy, in order of need.

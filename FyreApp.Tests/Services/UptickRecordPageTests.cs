@@ -56,19 +56,4 @@ public class UptickRecordPageTests
         Assert.Equal("Old blanket", Assert.Single((await svc.SearchAsync("blanket", "any", 1)).Items).Product.Name);
     }
 
-    [Fact]
-    public void ExtraFields_ValuesFromTheRecordsUptickRow_InUpticksOrder_BlanksLeftOut()
-    {
-        var fields = new[]
-        {
-            new ExtraField { Label = "TAG No.", Order = 2 },
-            new ExtraField { Label = "ASE Connected", Order = 1, HelpText = "Connected to alarm monitoring devise?" },
-            new ExtraField { Label = "Actuator type", Order = 3 }
-        }.OrderBy(f => f.Order);
-
-        var values = UptickReferenceValues.ExtraFields(fields, """{"Label":"Pump 1","ASE Connected":"Yes","TAG No.":"T-17","Actuator type":""}""");
-
-        Assert.Equal(new[] { ("ASE Connected", "Yes"), ("TAG No.", "T-17") }, values.Select(v => (v.Label, v.Value)));
-        Assert.Equal("Connected to alarm monitoring devise?", values[0].HelpText);
-    }
 }

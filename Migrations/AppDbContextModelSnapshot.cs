@@ -117,9 +117,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -322,9 +319,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Size")
                         .HasColumnType("text");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -408,9 +402,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -453,9 +444,6 @@ namespace FyreApp.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -536,9 +524,6 @@ namespace FyreApp.Migrations
 
                     b.Property<string>("SiteAddress")
                         .HasColumnType("text");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -629,9 +614,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -690,9 +672,6 @@ namespace FyreApp.Migrations
 
                     b.Property<decimal?>("UnitPrice")
                         .HasColumnType("numeric");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -829,9 +808,6 @@ namespace FyreApp.Migrations
                     b.Property<DateTime?>("Updated")
                         .HasColumnType("timestamptz");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -905,9 +881,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -978,6 +951,9 @@ namespace FyreApp.Migrations
                     b.Property<int?>("MaintenanceScheduleId")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("PerformedDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("Priority")
                         .HasColumnType("integer");
 
@@ -987,6 +963,9 @@ namespace FyreApp.Migrations
                     b.Property<string>("Ref")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("ScheduledDate")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ScopeOfWorks")
                         .HasMaxLength(4000)
@@ -999,9 +978,6 @@ namespace FyreApp.Migrations
                         .IsRequired()
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -1109,9 +1085,6 @@ namespace FyreApp.Migrations
                     b.Property<DateTime?>("UpdatedUtc")
                         .HasColumnType("timestamptz");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -1170,9 +1143,6 @@ namespace FyreApp.Migrations
 
                     b.Property<decimal?>("Total")
                         .HasColumnType("numeric");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -1269,9 +1239,6 @@ namespace FyreApp.Migrations
                     b.Property<decimal?>("Total")
                         .HasColumnType("numeric");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -1339,9 +1306,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -1406,9 +1370,6 @@ namespace FyreApp.Migrations
 
                     b.Property<int>("Order")
                         .HasColumnType("integer");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -1503,9 +1464,6 @@ namespace FyreApp.Migrations
 
                     b.Property<decimal?>("Total")
                         .HasColumnType("numeric");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -1750,9 +1708,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -1815,9 +1770,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Type")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -1943,9 +1895,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -2021,9 +1970,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Role")
                         .HasColumnType("text");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -2084,9 +2030,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Type")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -2371,9 +2314,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Status")
                         .HasColumnType("text");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -2444,9 +2384,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("SeverityLabel")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -2529,9 +2466,6 @@ namespace FyreApp.Migrations
 
                     b.Property<string>("Technician")
                         .HasColumnType("text");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -2617,9 +2551,6 @@ namespace FyreApp.Migrations
 
                     b.Property<DateTime?>("ToleranceStart")
                         .HasColumnType("timestamptz");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -2753,9 +2684,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -2815,9 +2743,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("StandardReference")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -2949,9 +2874,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Template")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -3130,9 +3052,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -3221,9 +3140,6 @@ namespace FyreApp.Migrations
 
                     b.Property<DateTime?>("UpdatedUtc")
                         .HasColumnType("timestamptz");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
@@ -3533,9 +3449,6 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
-
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");
 
@@ -3581,9 +3494,6 @@ namespace FyreApp.Migrations
                     b.Property<string>("Type")
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
-
-                    b.Property<string>("UptickData")
-                        .HasColumnType("json");
 
                     b.Property<long?>("UptickId")
                         .HasColumnType("bigint");

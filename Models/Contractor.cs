@@ -55,7 +55,4 @@ public class Contractor : IUptickMapped
 
     public DateTime? CreatedUtc { get; set; }
     public DateTime? UpdatedUtc { get; set; }
-
-    // Every column of the Uptick export row as JSON (key order kept)
-    public string? UptickData { get; set; }
 }

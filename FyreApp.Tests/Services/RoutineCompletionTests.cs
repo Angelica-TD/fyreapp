@@ -116,8 +116,7 @@ public class RoutineCompletionTests
         var task = new ClientTask
         {
             Title = "PM2026/08 Servicing", Client = site.Client, Property = site, ExternalId = "46682", DueDateUtc = D("2026-08-31"),
-            ScopeOfWorks = "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Six-monthly",
-            UptickData = """{"Scope of works":"- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Six-monthly"}"""
+            ScopeOfWorks = "- 10 - Portable and Wheeled Fire Extinguishers (AS1851-2012 Section 10): Six-monthly"
         };
         var august = O(site, Extinguishers + ": Six-monthly", "2026-08-01", RoutineStatus.Generated);
         var hoseReelsRaised = O(site, "09 - Fire Hose Reels: Annual", "2026-08-01", RoutineStatus.Generated); // not in its scope

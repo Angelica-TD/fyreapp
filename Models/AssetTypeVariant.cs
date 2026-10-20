@@ -25,8 +25,5 @@ public class AssetTypeVariant : IUptickMapped
 
     public bool Active { get; set; } = true;
 
-    // Every column of the Uptick export row as JSON (key order kept)
-    public string? UptickData { get; set; }
-
     public ICollection<Asset> Assets { get; set; } = new List<Asset>();
 }
