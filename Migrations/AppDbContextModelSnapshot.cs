@@ -3043,12 +3043,19 @@ namespace FyreApp.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Caption")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<DateTime>("CheckedUtc")
                         .HasColumnType("timestamptz");
 
                     b.Property<string>("ContentType")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("CreatedUtc")
+                        .HasColumnType("timestamptz");
 
                     b.Property<DateTime?>("DownloadedUtc")
                         .HasColumnType("timestamptz");
@@ -3064,6 +3071,10 @@ namespace FyreApp.Migrations
                     b.Property<int>("Failures")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Kind")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<string>("Md5")
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
@@ -3074,6 +3085,17 @@ namespace FyreApp.Migrations
                     b.Property<string>("Path")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("PhotoType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("RecordType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<long?>("RecordUptickId")
+                        .HasColumnType("bigint");
 
                     b.Property<long?>("Size")
                         .HasColumnType("bigint");
@@ -3096,6 +3118,8 @@ namespace FyreApp.Migrations
                         .HasColumnType("character varying(300)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RecordType", "RecordUptickId");
 
                     b.HasIndex("Source", "SourceId")
                         .IsUnique();

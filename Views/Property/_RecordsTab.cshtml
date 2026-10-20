@@ -28,7 +28,7 @@
                     @foreach (var r in Model.Reports)
                     {
                         <tr>
-                            <td class="text-nowrap">@r.DisplayRef</td>
+                            <td class="text-nowrap"><partial name="_ReportRef" model="(r.DisplayRef, r.UptickId is { } rid && Model.ReportPdfs.TryGetValue(rid, out var pdf) ? pdf : (int?)null)" /></td>
                             <td>@r.ReportType</td>
                             <td class="text-nowrap">@r.InspectedDate.ToDisplayDate()</td>
                             <td class="text-nowrap">@r.IssuedDate.ToDisplayDate()</td>

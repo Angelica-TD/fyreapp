@@ -227,4 +227,70 @@ public class UptickFileDownloaderTests
             if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
         }
     }
+
+    [Theory]
+    [InlineData("properties/5508/photos/items/24794/remarks/55400/2794a389.jpg", "remarks", 55400L, "photo")]
+    [InlineData("properties/1008/photos/items/1216/20260130/b2569615.jpg", "assets", 1216L, "photo")]
+    [InlineData("properties/1/photos/logbooks/logbook_1/entry_1/fb54c93a.jpg", "properties", 1L, "photo")]
+    [InlineData("properties/1002/Dispatch/2021/Combined/P-2002-2021-07-19-0.pdf", "properties", 1002L, "document")]
+    [InlineData("tasks/46515/InspectionReceipts/2026_10_20_134159_many.png", "tasks", 46515L, "signature")]
+    [InlineData("tasks/10048/Work Order.pdf", "tasks", 10048L, "document")]
+    [InlineData("clients/10164/Client Information Form NEW 2024.pdf", "clients", 10164L, "document")]
+    [InlineData("reports/2456/R-02456 P-2327 Service Report.pdf", "reports", 2456L, "document")]
+    [InlineData("quoting/defectquotes/1503/UploadedAuthorisation.pdf", "defectquotes", 1503L, "document")]
+    [InlineData("dynamicforms/56/Queensland-Form-72_10-01-22_56.pdf", "dynamicformresponses", 56L, "document")]
+    public void A_file_belongs_to_the_record_its_path_names(string path, string type, long id, string kind) =>
+        Assert.Equal(new UptickFilePaths.Owner(type, id, kind), UptickFilePaths.Classify(path));
+
+    [Fact]
+    public void Account_level_files_belong_to_no_record() =>
+        Assert.Null(UptickFilePaths.Classify("contract/Fyrepower - V2 SIGNED Uptick Software Agreement.pdf"));
+
+    [Fact]
+    public async Task Every_listed_file_is_recorded_with_its_record_and_pages_show_what_is_held()
+    {
+        await using var db = DbContextFactory.Create();
+        var photo = Document("photo-1", "properties/1/photos/items/2/remarks/3/a.jpg", Photo);
+        photo.Attributes = photo.Attributes.Replace("\"metadata\":{", "\"metadata\":{\"remark-photo-type\":\"open\",");
+        db.UptickRecords.AddRange(photo, Document("photo-2", "properties/1/photos/items/2/remarks/3/b.jpg", Photo),
+            Document("sig-1", "tasks/46515/InspectionReceipts/Rudi.png", Signature), Report("9999", Oct1),
+            new UptickRecord { Resource = "taskclientsignatures", UptickId = "40724",
+                Attributes = """{"image_path":"tasks/46515/InspectionReceipts/Rudi.png","signee_name":"Rudi","no_signature_reason":""}""" });
+        await db.SaveChangesAsync();
+        var s = Create(db);
+
+        // A trial of one of each: every document file is still recorded, with the record it belongs to
+        var results = new List<UptickEndpointResult>();
+        await s.Downloader.DownloadAsync(results, null, CancellationToken.None, limit: 1);
+
+        Assert.Equal(3, await db.UptickFiles.CountAsync(f => f.Source == "documentfiles"));
+        var first = await db.UptickFiles.SingleAsync(f => f.SourceId == "photo-1");
+        Assert.Equal(("remarks", 3L, "photo", "open"), (first.RecordType, first.RecordUptickId!.Value, first.Kind, first.PhotoType));
+        Assert.Equal("Rudi", (await db.UptickFiles.SingleAsync(f => f.SourceId == "sig-1")).Caption);
+
+        var remark = await FyreApp.Infrastructure.UptickFilesViewComponent.LoadAsync(db, "remarks", 3);
+        Assert.Equal((1, 1), (remark.Photos.Count, remark.Waiting));
+        Assert.Equal(("a.jpg", "open"), (remark.Photos[0].Name, remark.Photos[0].PhotoType));
+        var task = await FyreApp.Infrastructure.UptickFilesViewComponent.LoadAsync(db, "tasks", 46515);
+        Assert.Equal((0, 1), (task.Signatures.Count, task.Waiting));
+
+        // The rest, then the report's PDF link
+        await RunAsync(s.Downloader);
+        task = await FyreApp.Infrastructure.UptickFilesViewComponent.LoadAsync(db, "tasks", 46515);
+        Assert.Equal(("Rudi", 0), (Assert.Single(task.Signatures).Caption, task.Waiting));
+        var pdfs = await UptickFileLinks.PdfsAsync(db, "reports", [9999L, 10L]);
+        Assert.Equal((await db.UptickFiles.SingleAsync(f => f.Source == "reports")).Id, Assert.Single(pdfs).Value);
+    }
+
+    [Fact]
+    public async Task The_storage_test_writes_a_file_and_reads_it_back()
+    {
+        var store = new MemoryStore();
+        var (ok, message) = await FileStores.TestAsync(store);
+        Assert.True(ok, message);
+        Assert.True(store.Files.ContainsKey(FileStores.TestKey));
+
+        store.IsConfigured = false;
+        Assert.False((await FileStores.TestAsync(store)).Ok);
+    }
 }

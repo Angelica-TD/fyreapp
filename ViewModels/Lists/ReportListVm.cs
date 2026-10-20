@@ -25,6 +25,10 @@ public class ReportListItemVm
     public string ClientName { get; set; } = string.Empty;
     public string? ClientContact { get; set; }
     public string? TaskRef { get; set; }
+    public long? UptickId { get; set; }
+
+    // Its PDF, when FyreApp holds a copy
+    public int? PdfFileId { get; set; }
 }
 
 public class ReportListVm

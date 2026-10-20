@@ -120,6 +120,23 @@ public class UptickFile
     // "reports/9999/R-09999 P-0209 Service Report.pdf"; the last part is the file's name
     [StringLength(1000)] public string? Path { get; set; }
 
+    // The record it belongs to, by Uptick resource and id, from where Uptick keeps it (UptickFilePaths): e.g. a
+    // remark's photo is ("remarks", 55400). Null for account-level files (contracts, exports).
+    [StringLength(50)] public string? RecordType { get; set; }
+    public long? RecordUptickId { get; set; }
+
+    // photo, signature, document or pdf (a report's generated PDF)
+    [StringLength(20)] public string? Kind { get; set; }
+
+    // A remark photo's "open" or "closed" (as found / once fixed)
+    [StringLength(20)] public string? PhotoType { get; set; }
+
+    // Who signed, for a customer's signature (Uptick's taskclientsignatures)
+    [StringLength(300)] public string? Caption { get; set; }
+
+    // When it was added in Uptick
+    public DateTime? CreatedUtc { get; set; }
+
     public long? Size { get; set; }
 
     // Uptick's etag (an MD5 of the file for most), as last downloaded or checked

@@ -1,6 +1,7 @@
 using FyreApp.Data;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
+using FyreApp.Services.Uptick.Files;
 using FyreApp.Services.Routines;
 using FyreApp.Services.Timeline;
 using FyreApp.ViewModels.Properties;
@@ -49,7 +50,7 @@ public class PropertyPageService : IPropertyPageService
         var openCount = await openRemarks.CountAsync(ct);
         var mostSevere = await openRemarks.OrderByDescending(d => d.Severity ?? -1).FirstOrDefaultAsync(ct);
 
-        return tab switch
+        var vm = tab switch
         {
             "assets" => await AssetsAsync(site, query, openCount, mostSevere, ct),
             "remarks" => new PropertyPageVm
@@ -109,6 +110,9 @@ public class PropertyPageService : IPropertyPageService
                 ExtraFields = await FyreApp.Services.Imports.UptickReferenceValues.ExtraFieldsAsync(_db, ExtraField.PropertyContentType, "properties", site.UptickId, ct)
             }
         };
+        if (vm.Reports.Count > 0)
+            vm.ReportPdfs = await UptickFileLinks.PdfsAsync(_db, UptickResources.Reports, vm.Reports.Select(r => r.UptickId), ct);
+        return vm;
     }
 
     // Billing tab: the property's and client's billing cards (named by ID in their Uptick rows), the property's

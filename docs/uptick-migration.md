@@ -551,7 +551,13 @@ Renames (§5.6) go in the phase that maps the entity: `TimelineEvent` in 2; `Pro
 7. **Files.** In two PRs:
    - 7a (done): the file store (S3 / local folder), `UptickFile`, and the Files run on the admin page (§8), with a
      trial limit. An admin can open a downloaded file from there.
-   - 7b: pages show the files: photos on remarks and assets, signatures and attachments on tasks, report PDFs.
+   - 7b (done): each file is linked to its record by where Uptick keeps it (`UptickFilePaths`: the ids in the path are
+     Uptick's, e.g. `properties/5508/photos/items/24794/remarks/55400/` is remark 55400's photo), every listed file
+     recorded at the start of a Files run (no requests), signatures with who signed (`taskclientsignatures`). Remark,
+     asset, task, property and client pages have a "Photos and files" panel (a remark's photos as found / once fixed;
+     what's listed but not copied yet is counted); report refs link to their PDFs (property Records tab, task page,
+     Reports list). Files are served to signed-in staff at `/Files/<id>` (images and PDFs in the browser, anything
+     else downloaded). The admin page can test the storage (writes and reads back a small file).
 8. **The rest:** typed entities and screens for the endpoints still only in the raw copy, in order of need.
 9. **Cutover:** freeze Uptick, final Full run + files refresh, reconciliation sign-off, FyreApp becomes the
    system of record.
