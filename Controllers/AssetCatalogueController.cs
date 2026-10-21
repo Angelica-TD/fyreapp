@@ -77,7 +77,7 @@ public class AssetCatalogueController : Controller
         await _db.SaveChangesAsync(ct);
 
         TempData["Success"] = $"Updated to '{name}'.";
-        return RedirectToAction("Index", "Dev");
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]

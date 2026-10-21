@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 namespace FyreApp.Auth;
 
 // A Developer can do everything an Admin can, plus the Developer-only pages (Uptick migration, the catalogue,
-// Dev Tools, Data Reset). Rather than every [Authorize(Roles = "Admin")] and IsInRole("Admin") also naming
+// Data Reset). Rather than every [Authorize(Roles = "Admin")] and IsInRole("Admin") also naming
 // Developer, a Developer's sign-in carries the Admin role too, so any Admin check (including new ones) lets them in.
 // DevAuthHandler signs in with both for the same reason.
 public sealed class DeveloperRoles : IClaimsTransformation
