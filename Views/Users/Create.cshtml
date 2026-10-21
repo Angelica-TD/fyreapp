@@ -19,7 +19,7 @@
             <dt class="col-sm-4">Licence type</dt>
             <dd class="col-sm-8">@UptickUser.LicenseLabel(uptick.LicenseType)</dd>
         </dl>
-        <p class="small text-muted">Name and email come from Uptick and update when the Users export is imported.</p>
+        <p class="small text-muted">Name and email come from Uptick and update with each Uptick migration run.</p>
 
         <form asp-action="Create" method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>

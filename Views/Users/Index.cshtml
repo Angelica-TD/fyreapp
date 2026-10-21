@@ -25,7 +25,7 @@
             <div class="small text-muted">
                 These logins aren't linked to an Uptick user, so their name and email are FyreApp's own. Link each to its
                 Uptick user and it takes its name and email from Uptick. Logins whose email matches an Uptick user are linked
-                automatically when the Users export is imported, or with "Update from Uptick".
+                automatically by each Uptick migration run, or with "Update from Uptick".
             </div>
         </div>
         <div class="table-responsive">
@@ -86,7 +86,7 @@
         <div>
             <h1 class="h4 m-0">Users</h1>
             <div class="small text-muted">
-                Everyone with an Uptick login, from Uptick's Users export (Import page). Uptick is the source of truth: a
+                Everyone with an Uptick login, brought in by the Uptick migration. Uptick is the source of truth: a
                 FyreApp login takes its name and email from its Uptick user. Give a login to anyone who needs to sign in to FyreApp.
             </div>
         </div>
@@ -127,7 +127,7 @@
 
         @if (list.Items.Count == 0)
         {
-            <p class="text-muted">No users match. Users come from Uptick's Users export (Import page).</p>
+            <p class="text-muted">No users match. Users come from Uptick, brought in by the Uptick migration.</p>
         }
         else
         {

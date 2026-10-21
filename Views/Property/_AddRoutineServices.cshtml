@@ -57,7 +57,7 @@
                     <tbody>
                         @if (!Model.Types.Any())
                         {
-                            <tr><td colspan="4" class="text-muted ps-3">No routine types. Import Uptick's routine service types and levels on the Import page.</td></tr>
+                            <tr><td colspan="4" class="text-muted ps-3">No routine types. They come from Uptick, brought in by the Uptick migration.</td></tr>
                         }
                         @foreach (var t in Model.Types)
                         {
