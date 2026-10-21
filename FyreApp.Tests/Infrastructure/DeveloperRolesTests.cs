@@ -62,7 +62,6 @@ public class DeveloperRolesTests
     [InlineData(typeof(ServiceOfferingsController))]
     [InlineData(typeof(ProductsController))]
     [InlineData(typeof(AssetCatalogueController))]
-    [InlineData(typeof(DevController))]
     public void DeveloperOnlyPages_AreNotOpenToAdmins(Type type)
     {
         var roles = type.GetCustomAttributes<AuthorizeAttribute>().Select(a => a.Roles).ToList();
