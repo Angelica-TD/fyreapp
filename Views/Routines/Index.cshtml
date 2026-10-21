@@ -4,7 +4,7 @@
 @using FyreApp.ViewModels.Lists
 
 @{
-    ViewData["Title"] = "Routines";
+    ViewData["Title"] = "Routine Servicing";
     var f = Model.Filter;
 
     string StatusLabel(RoutineStatus s) => FyreApp.Services.Routines.RoutineListService.StatusLabel(s);
@@ -22,7 +22,7 @@
 
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h1 class="h4 m-0">Routines</h1>
+        <h1 class="h4 m-0">Routine Servicing</h1>
     </div>
 
     <div class="card-body">
