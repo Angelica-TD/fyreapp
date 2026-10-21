@@ -14,7 +14,7 @@ using Microsoft.Extensions.Options;
 namespace FyreApp.Controllers;
 
 // Copies Uptick's data into FyreApp through Uptick's API (docs/uptick-migration.md §9)
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Developer")]
 public class UptickMigrationController : Controller
 {
     private readonly AppDbContext _db;

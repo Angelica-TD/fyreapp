@@ -177,6 +177,9 @@ if (!authEnabled)
         DevAuthHandler.SchemeName, _ => { });
 }
 
+// A Developer's sign-in carries the Admin role too, so every Admin check lets them in (Auth/DeveloperRoles.cs)
+builder.Services.AddTransient<IClaimsTransformation, DeveloperRoles>();
+
 // Every page needs a login unless it says otherwise ([AllowAnonymous]: the login page, client quote links),
 // so a controller without [Authorize] is never public by mistake
 builder.Services.AddAuthorization(options =>

@@ -3,7 +3,7 @@
    remember being opened (site.js). In the icon-only sidebar the group headings hide and every link shows. *@
 @{
     var isAdmin = User.IsInRole("Admin");
-    var isDev = User.IsInRole("Developer");
+    var isDev = User.IsInRole("Developer");   // a Developer is an Admin too (Auth/DeveloperRoles.cs)
     var current = ViewContext.RouteData.Values["controller"]?.ToString();
 
     // (controller, label, icon, shown)
@@ -27,12 +27,12 @@
         }),
         ("catalogue", "Catalogue", "bi-grid-fill", new[]
         {
-            ("ServiceOfferings", "Services", "bi-tools", isAdmin || isDev),
-            ("Products", "Products", "bi-box-seam", isAdmin)
+            ("ServiceOfferings", "Services", "bi-tools", isDev),
+            ("Products", "Products", "bi-box-seam", isDev)
         }),
         ("admin", "Admin", "bi-gear-fill", new[]
         {
-            ("UptickMigration", "Uptick migration", "bi-cloud-download-fill", isAdmin),
+            ("UptickMigration", "Uptick migration", "bi-cloud-download-fill", isDev),
             ("Dev", "Dev Tools", "bi-bug-fill", isDev),
             ("DataReset", "Data Reset", "bi-exclamation-octagon-fill", isDev)
         })

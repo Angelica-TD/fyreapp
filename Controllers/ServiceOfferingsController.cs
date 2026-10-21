@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Controllers;
 
-[Authorize(Roles = "Admin,Developer")]
+[Authorize(Roles = "Developer")]
 public class ServiceOfferingsController : Controller
 {
     private readonly IServiceOfferingService _service;
