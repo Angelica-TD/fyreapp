@@ -76,20 +76,6 @@
                 <span class="sidebar-label">Tasks</span>
             </a>
             <ul class="nav flex-column sub-nav ps-4 mt-1">
-                @if (isAdmin)
-                {
-                    <!-- Routines: Uptick routine occurrences, under Tasks as in Uptick (Admin only) -->
-                    <li class="nav-item">
-                        <a class="nav-link sidebar-link sidebar-sublink"
-                           asp-controller="Routines"
-                           asp-action="Index"
-                           nav-active
-                           nav-active-controller-only>
-                            <i class="bi bi-arrow-repeat sidebar-icon"></i>
-                            <span class="sidebar-label">Routines</span>
-                        </a>
-                    </li>
-                }
                 <li class="nav-item">
                     <a class="nav-link sidebar-link sidebar-sublink"
                        asp-controller="Task"
@@ -100,6 +86,21 @@
                 </li>
             </ul>
         </li>
+
+        @if (isAdmin)
+        {
+            <!-- Routine Servicing: Uptick routine occurrences (Admin only) -->
+            <li class="nav-item">
+                <a class="nav-link sidebar-link"
+                   asp-controller="Routines"
+                   asp-action="Index"
+                   nav-active
+                   nav-active-controller-only>
+                    <i class="bi bi-arrow-repeat sidebar-icon"></i>
+                    <span class="sidebar-label">Routine Servicing</span>
+                </a>
+            </li>
+        }
 
         <!-- Quotes -->
         <li class="nav-item">
