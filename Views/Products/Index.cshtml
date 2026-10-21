@@ -32,7 +32,7 @@
 <div class="card">
     <div class="card-header">
         <h1 class="h4 m-0">Products</h1>
-        <div class="small text-muted">From Uptick's products export (Import page); stock from its annotated stocks export. Edited in Uptick.</div>
+        <div class="small text-muted">From Uptick, with their stock, brought in by the Uptick migration. Edited in Uptick.</div>
     </div>
     <div class="card-body">
         <form method="get" asp-action="Index" class="row g-2 mb-3">
@@ -52,7 +52,7 @@
 
         @if (!Model.Items.Any())
         {
-            <p class="text-muted">No products match. Products come from Uptick's products export (Import page).</p>
+            <p class="text-muted">No products match. Products come from Uptick, brought in by the Uptick migration.</p>
         }
         else
         {

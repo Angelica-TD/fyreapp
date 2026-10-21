@@ -101,7 +101,7 @@ public class UsersController : Controller
                 return NotFound();
 
             case UserCreateStatus.NoEmail:
-                ModelState.AddModelError(string.Empty, "This user has no email in Uptick. Add one in Uptick and import the Users export again.");
+                ModelState.AddModelError(string.Empty, "This user has no email in Uptick. Add one in Uptick, then try again after the next Uptick migration run.");
                 return Form();
 
             case UserCreateStatus.AlreadyHasLogin:
@@ -223,7 +223,7 @@ public class UsersController : Controller
         var parts = new List<string>
         {
             $"Logins: {result.Linked} linked by email, {result.Updated} updated from Uptick. " +
-            $"Imported tasks: {result.TasksAssigned} assigned to the technician Uptick names."
+            $"Tasks from Uptick: {result.TasksAssigned} assigned to the technician Uptick names."
         };
         parts.AddRange(result.Problems);
         TempData["Success"] = string.Join(" ", parts);
