@@ -1,3 +1,4 @@
+using FyreApp.Auth;
 using FyreApp.Infrastructure;
 using FyreApp.Services.Lists;
 using FyreApp.Services.UserManagement;
@@ -39,6 +40,16 @@ public class UsersController : Controller
     public async Task<IActionResult> Download(string? search, string? license, string? login, CancellationToken ct = default) =>
         File(await _directory.UptickUsersCsvAsync(UsersFilter(search, license, login, 1), ct), "text/csv", CsvExport.FileName("users"));
 
+    // Only a Developer can make someone a Developer, or change a Developer's login (its role, password, active flag,
+    // link): otherwise an Admin could make themselves one, or sign in as one, and reach the Developer-only pages
+    private bool IsDeveloper => User.IsInRole(DeveloperRoles.Developer);
+
+    private IReadOnlyList<string> AssignableRoles() =>
+        _userService.GetAvailableRoles().Where(r => r != DeveloperRoles.Developer || IsDeveloper).ToList();
+
+    private async Task<bool> MayManageAsync(string id) =>
+        IsDeveloper || (await _userService.GetByIdAsync(id))?.Role != DeveloperRoles.Developer;
+
     private static DirectoryFilter UsersFilter(string? search, string? license, string? login, int page) => new()
     {
         Search = search, License = license, Active = "any", Page = page,
@@ -53,7 +64,7 @@ public class UsersController : Controller
         if (uptick == null) return NotFound();
 
         ViewBag.Uptick = uptick;
-        ViewBag.Roles = _userService.GetAvailableRoles();
+        ViewBag.Roles = AssignableRoles();
         return View(new UserCreateDto
         {
             UptickUserId = uptickUserId,
@@ -71,10 +82,11 @@ public class UsersController : Controller
         IActionResult Form()
         {
             ViewBag.Uptick = uptick;
-            ViewBag.Roles = _userService.GetAvailableRoles();
+            ViewBag.Roles = AssignableRoles();
             return View(dto);
         }
 
+        if (dto.Role == DeveloperRoles.Developer && !IsDeveloper) return Forbid();
         if (!ModelState.IsValid) return Form();
 
         var result = await _userService.CreateAsync(dto);
@@ -117,6 +129,7 @@ public class UsersController : Controller
     {
         var user = await _userService.GetByIdAsync(id);
         if (user == null) return NotFound();
+        if (!await MayManageAsync(id)) return Forbid();
 
         var dto = new UserEditDto
         {
@@ -128,7 +141,7 @@ public class UsersController : Controller
         };
 
         ViewBag.User = user;
-        ViewBag.Roles = _userService.GetAvailableRoles();
+        ViewBag.Roles = AssignableRoles();
         return View(dto);
     }
 
@@ -138,11 +151,12 @@ public class UsersController : Controller
     {
         var user = await _userService.GetByIdAsync(id);
         if (user == null) return NotFound();
+        if (!await MayManageAsync(id) || (dto.Role == DeveloperRoles.Developer && !IsDeveloper)) return Forbid();
 
         IActionResult Form()
         {
             ViewBag.User = user;
-            ViewBag.Roles = _userService.GetAvailableRoles();
+            ViewBag.Roles = AssignableRoles();
             return View(dto);
         }
 
@@ -184,6 +198,7 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Link(string id, int uptickUserId)
     {
+        if (!await MayManageAsync(id)) return Forbid();
         var result = await _userService.LinkAsync(id, uptickUserId);
         switch (result.Status)
         {
@@ -219,6 +234,7 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Deactivate(string id)
     {
+        if (!await MayManageAsync(id)) return Forbid();
         await _userService.DeactivateAsync(id);
         TempData["Success"] = "User deactivated.";
         return RedirectToAction(nameof(Index));
@@ -228,6 +244,7 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Activate(string id)
     {
+        if (!await MayManageAsync(id)) return Forbid();
         await _userService.ActivateAsync(id);
         TempData["Success"] = "User activated.";
         return RedirectToAction(nameof(Index));
@@ -237,6 +254,7 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(string id)
     {
+        if (!await MayManageAsync(id)) return Forbid();
         await _userService.DeleteAsync(id);
         TempData["Success"] = "User deleted.";
         return RedirectToAction(nameof(Index));
@@ -247,6 +265,7 @@ public class UsersController : Controller
     {
         var user = await _userService.GetByIdAsync(id);
         if (user == null) return NotFound();
+        if (!await MayManageAsync(id)) return Forbid();
 
         ViewBag.UserId = id;
         ViewBag.UserName = user.FullName;
@@ -257,6 +276,7 @@ public class UsersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ResetPassword(string id, UserResetPasswordDto dto)
     {
+        if (!await MayManageAsync(id)) return Forbid();
         if (!ModelState.IsValid)
         {
             var user = await _userService.GetByIdAsync(id);

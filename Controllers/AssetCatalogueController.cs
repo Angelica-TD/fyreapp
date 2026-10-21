@@ -6,7 +6,7 @@ using FyreApp.Models;
 
 namespace FyreApp.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Developer")]
 public class AssetCatalogueController : Controller
 {
     private readonly AppDbContext _db;

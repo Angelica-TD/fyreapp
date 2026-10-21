@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace FyreApp.Controllers;
 
 // Uptick's products and stock (imported; a record only, edited in Uptick)
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Developer")]
 public class ProductsController : Controller
 {
     private readonly IProductListService _products;

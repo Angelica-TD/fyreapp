@@ -108,7 +108,7 @@ function filterBody(query, filters) {
   }
 }
 
-function TaskSearch({ canEdit, techs, canFilterMine, defaultTechnician }) {
+function TaskSearch({ canEdit, canMigrate, techs, canFilterMine, defaultTechnician }) {
   const [DEFAULTS] = useState(() => defaultsFor(defaultTechnician))
   const [initial] = useState(() => filtersFromUrl(DEFAULTS))
   const [query, setQuery]     = useState(initial.query)
@@ -211,7 +211,7 @@ function TaskSearch({ canEdit, techs, canFilterMine, defaultTechnician }) {
   const noTechs = canEdit && techs.length === 0 && (
     <p className="small text-muted mb-0">
       No technicians yet. Technicians are Uptick's field users and contractors, brought in by
-      the <a href="/UptickMigration">Uptick migration</a>.
+      the {canMigrate ? <a href="/UptickMigration">Uptick migration</a> : 'Uptick migration'}.
     </p>
   )
 
@@ -311,6 +311,6 @@ function TaskSearch({ canEdit, techs, canFilterMine, defaultTechnician }) {
 
 const el = document.getElementById('task-search-root')
 if (el) createRoot(el).render(
-  <TaskSearch canEdit={el.dataset.canEdit === 'true'} techs={JSON.parse(el.dataset.techs || '[]')}
+  <TaskSearch canEdit={el.dataset.canEdit === 'true'} canMigrate={el.dataset.canMigrate === 'true'} techs={JSON.parse(el.dataset.techs || '[]')}
               canFilterMine={el.dataset.canFilterMine === 'true'} defaultTechnician={el.dataset.defaultTechnician || ''} />
 )
