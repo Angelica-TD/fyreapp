@@ -16,6 +16,12 @@ public sealed class EmailService : IEmailService
         _logger = logger;
     }
 
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(_opts.SmtpHost);
+
+    public string Description => IsConfigured
+        ? $"{_opts.SmtpHost}:{_opts.SmtpPort}, from {_opts.FromName} <{_opts.FromAddress}>"
+        : "Not set up";
+
     public async Task SendAsync(string toAddress, string toName, string subject, string htmlBody, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(_opts.SmtpHost))

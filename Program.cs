@@ -5,6 +5,7 @@ using FyreApp.Hubs;
 using FyreApp.Services.Clients;
 using FyreApp.Infrastructure;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using FyreApp.Services;
@@ -129,6 +130,7 @@ builder.Services.AddSingleton<FyreApp.Services.Uptick.Migration.IUptickMigration
     sp.GetRequiredService<FyreApp.Services.Uptick.Migration.UptickMigrationRunner>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FyreApp.Services.Uptick.Migration.UptickMigrationRunner>());
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<FyreApp.Services.UserManagement.ILoginEmailService, FyreApp.Services.UserManagement.LoginEmailService>();
 
 builder.Services.AddControllersWithViews(options =>
 {
@@ -154,6 +156,15 @@ builder.Services
     })
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
+
+// Sign-in cookies and emailed password links are signed with these keys. Kept in the database, so a restart or deploy
+// doesn't sign everyone out or break a link already sent
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<AppDbContext>()
+    .SetApplicationName("FyreApp");
+
+// An emailed password link (a new login's welcome email, or one sent from the Users page) works for 3 days, once
+builder.Services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = TimeSpan.FromDays(3));
 
 builder.Services.Configure<FyreApp.Services.Properties.GoogleMapsOptions>(
     builder.Configuration.GetSection("GoogleMaps"));

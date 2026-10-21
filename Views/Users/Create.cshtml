@@ -5,6 +5,7 @@
     ViewData["Title"] = "Give FyreApp login";
     var roles = (IReadOnlyList<string>)ViewBag.Roles;
     var uptick = (UptickUser)ViewBag.Uptick;
+    var emailConfigured = ViewBag.EmailConfigured is true;
 }
 
 <h1>Give FyreApp login</h1>
@@ -30,12 +31,35 @@
                 <input asp-for="PhoneNumber" class="form-control" />
                 <span asp-validation-for="PhoneNumber" class="text-danger"></span>
             </div>
-            <div class="mb-3">
-                <label asp-for="Password" class="form-label"></label>
-                <input asp-for="Password" type="password" class="form-control" />
-                <span asp-validation-for="Password" class="text-danger"></span>
-                <div class="form-text">Must be at least 8 characters with uppercase, number, and special character.</div>
-            </div>
+            <fieldset class="mb-3">
+                <legend class="form-label fs-6">Password</legend>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="EmailPasswordLink" id="password-email" value="true"
+                           checked="@Model.EmailPasswordLink" disabled="@(!emailConfigured)" />
+                    <label class="form-check-label" for="password-email">Email them a link to choose their own</label>
+                    <div class="form-text mt-0">
+                        @if (emailConfigured)
+                        {
+                            @:A welcome email goes to @(uptick.Email ?? "their email"). The link works once, for 3 days.
+                        }
+                        else
+                        {
+                            @:Not available until FyreApp is set up to send email.
+                        }
+                    </div>
+                </div>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="radio" name="EmailPasswordLink" id="password-set" value="false"
+                           checked="@(!Model.EmailPasswordLink)" />
+                    <label class="form-check-label" for="password-set">Set a password now and tell them it</label>
+                </div>
+                <span asp-validation-for="EmailPasswordLink" class="text-danger"></span>
+                <div id="password-now" class="mt-2 ms-4" hidden="@Model.EmailPasswordLink">
+                    <input asp-for="Password" type="password" class="form-control" aria-label="Password" autocomplete="new-password" />
+                    <span asp-validation-for="Password" class="text-danger"></span>
+                    <div class="form-text">At least 8 characters, with an uppercase letter, a number and a special character.</div>
+                </div>
+            </fieldset>
             <div class="mb-3">
                 <label asp-for="Role" class="form-label"></label>
                 <select asp-for="Role" class="form-select">
@@ -52,3 +76,14 @@
         </form>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        // The password box only when setting one now
+        document.querySelectorAll('input[name="EmailPasswordLink"]').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                document.getElementById('password-now').hidden = document.getElementById('password-email').checked;
+            });
+        });
+    </script>
+}

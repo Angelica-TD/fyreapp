@@ -12,9 +12,11 @@ public class UserCreateDto
     [Display(Name = "Phone Number")]
     public string PhoneNumber { get; set; } = string.Empty;
 
-    [Required]
+    // Email them a link to choose their own password (the welcome email); otherwise the admin sets Password now
+    public bool EmailPasswordLink { get; set; } = true;
+
     [DataType(DataType.Password)]
-    public string Password { get; set; } = string.Empty;
+    public string? Password { get; set; }
 
     [Required]
     public string Role { get; set; } = "Tech";

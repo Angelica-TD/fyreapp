@@ -79,7 +79,8 @@ public class DeveloperRolesTests
             .ReturnsAsync(new UserResetPasswordResult(UserResetPasswordStatus.Success));
         service.Setup(s => s.DeleteAsync(It.IsAny<string>())).ReturnsAsync(new UserDeleteResult(UserDeleteStatus.Success));
 
-        var controller = new UsersController(service.Object, Mock.Of<IDirectoryListService>())
+        var controller = new UsersController(service.Object, Mock.Of<IDirectoryListService>(), Mock.Of<ILoginEmailService>(),
+            Mock.Of<FyreApp.Services.Email.IEmailService>(), Microsoft.Extensions.Options.Options.Create(new FyreApp.Services.Email.EmailOptions()))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = Principal(actorRoles) } },
             TempData = new Microsoft.AspNetCore.Mvc.ViewFeatures.TempDataDictionary(new DefaultHttpContext(), Mock.Of<Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataProvider>())

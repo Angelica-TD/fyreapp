@@ -1,10 +1,12 @@
 using FyreApp.Auth;
 using FyreApp.Infrastructure;
+using FyreApp.Services.Email;
 using FyreApp.Services.Lists;
 using FyreApp.Services.UserManagement;
 using FyreApp.ViewModels.Lists;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace FyreApp.Controllers;
 
@@ -13,9 +15,16 @@ public class UsersController : Controller
 {
     private readonly IUserManagementService _userService;
     private readonly IDirectoryListService _directory;
+    private readonly ILoginEmailService _loginEmails;
+    private readonly IEmailService _email;
+    private readonly EmailOptions _emailOptions;
 
-    public UsersController(IUserManagementService userService, IDirectoryListService directory)
+    public UsersController(IUserManagementService userService, IDirectoryListService directory, ILoginEmailService loginEmails,
+        IEmailService email, IOptions<EmailOptions> emailOptions)
     {
+        _loginEmails = loginEmails;
+        _email = email;
+        _emailOptions = emailOptions.Value;
         _userService = userService;
         _directory = directory;
     }
@@ -50,6 +59,42 @@ public class UsersController : Controller
     private async Task<bool> MayManageAsync(string id) =>
         IsDeveloper || (await _userService.GetByIdAsync(id))?.Role != DeveloperRoles.Developer;
 
+    // The page an emailed password link opens, at FyreApp's public address (Email:SiteUrl) or else the one this
+    // request came in on
+    private string SetPasswordUrl()
+    {
+        var site = _emailOptions.SiteUrl.Trim().TrimEnd('/');
+        return site.Length > 0
+            ? site + Url.Action("SetPassword", "Auth")
+            : Url.Action("SetPassword", "Auth", null, Request.Scheme, Request.Host.ToString())!;
+    }
+
+    private static string PasswordLinkProblem(PasswordLinkResult r) => r.Status switch
+    {
+        PasswordLinkStatus.Inactive => "the login is deactivated",
+        PasswordLinkStatus.NoEmail => "the login has no email",
+        PasswordLinkStatus.EmailNotSetUp => "email isn't set up",
+        PasswordLinkStatus.NotFound => "the login wasn't found",
+        _ => r.Error ?? "the email server refused it"
+    };
+
+    // Emails a login a new link to choose its password: a welcome email that didn't arrive or expired, or a forgotten password
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SendPasswordLink(string id, CancellationToken ct)
+    {
+        if (!await MayManageAsync(id)) return Forbid();
+        var user = await _userService.GetByIdAsync(id);
+        if (user == null) return NotFound();
+
+        var sent = await _loginEmails.SendPasswordLinkAsync(id, SetPasswordUrl(), welcome: false, ct);
+        if (sent.Status == PasswordLinkStatus.Sent)
+            TempData["Success"] = $"A link to choose a password went to {user.Email}. It works once, for 3 days.";
+        else
+            TempData["Error"] = $"Couldn't email {user.FullName} a password link: {PasswordLinkProblem(sent)}.";
+        return RedirectToAction(nameof(Index));
+    }
+
     private static DirectoryFilter UsersFilter(string? search, string? license, string? login, int page) => new()
     {
         Search = search, License = license, Active = "any", Page = page,
@@ -63,11 +108,13 @@ public class UsersController : Controller
         var uptick = await _userService.GetUptickUserAsync(uptickUserId);
         if (uptick == null) return NotFound();
 
+        ViewBag.EmailConfigured = _email.IsConfigured;
         ViewBag.Uptick = uptick;
         ViewBag.Roles = AssignableRoles();
         return View(new UserCreateDto
         {
             UptickUserId = uptickUserId,
+            EmailPasswordLink = _email.IsConfigured,
             Role = uptick.LicenseType == "DESK" ? "Admin" : "Tech"
         });
     }
@@ -83,16 +130,34 @@ public class UsersController : Controller
         {
             ViewBag.Uptick = uptick;
             ViewBag.Roles = AssignableRoles();
+            ViewBag.EmailConfigured = _email.IsConfigured;
             return View(dto);
         }
 
         if (dto.Role == DeveloperRoles.Developer && !IsDeveloper) return Forbid();
+        if (dto.EmailPasswordLink)
+        {
+            dto.Password = null;
+            if (!_email.IsConfigured)
+                ModelState.AddModelError(nameof(dto.EmailPasswordLink), "Email isn't set up yet, so set a password for them instead.");
+        }
+        else if (string.IsNullOrEmpty(dto.Password))
+            ModelState.AddModelError(nameof(dto.Password), "Enter a password, or email them a link to choose their own.");
         if (!ModelState.IsValid) return Form();
 
         var result = await _userService.CreateAsync(dto);
 
         switch (result.Status)
         {
+            case UserCreateStatus.Success when dto.EmailPasswordLink:
+                var sent = await _loginEmails.SendPasswordLinkAsync(result.UserId!, SetPasswordUrl(), welcome: true, HttpContext.RequestAborted);
+                if (sent.Status == PasswordLinkStatus.Sent)
+                    TempData["Success"] = $"{uptick.Name} has a FyreApp login. A welcome email with a link to choose their password went to {uptick.Email}.";
+                else
+                    TempData["Error"] = $"{uptick.Name} has a FyreApp login, but the welcome email couldn't be sent ({PasswordLinkProblem(sent)}). " +
+                                        "Use \"Email a password link\" on their row to try again.";
+                return RedirectToAction(nameof(Index));
+
             case UserCreateStatus.Success:
                 TempData["Success"] = $"{uptick.Name} can now sign in to FyreApp.";
                 return RedirectToAction(nameof(Index));

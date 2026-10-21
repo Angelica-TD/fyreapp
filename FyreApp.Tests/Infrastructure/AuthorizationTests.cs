@@ -13,6 +13,7 @@ public class AuthorizationTests
     private static readonly string[] PublicActions =
     {
         "Auth.Login",                 // the login form posts here
+        "Auth.SetPassword",           // emailed password links (by single-use token)
         "Home.Index",                 // the login page
         "ServiceQuotes.Approve",      // client quote links (by unguessable token)
         "ServiceQuotes.ClientView",

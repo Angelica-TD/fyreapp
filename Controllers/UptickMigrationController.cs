@@ -1,5 +1,7 @@
 using System.Text.Json;
+using System.Security.Claims;
 using FyreApp.Data;
+using FyreApp.Services.Email;
 using FyreApp.Services.Files;
 using FyreApp.Services.Uptick.Files;
 using FyreApp.Services.Uptick.Api;
@@ -10,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using MimeKit;
 
 namespace FyreApp.Controllers;
 
@@ -23,10 +26,12 @@ public class UptickMigrationController : Controller
     private readonly UptickApiOptions _options;
     private readonly UptickMapping _mapping;
     private readonly IFileStore _store;
+    private readonly IEmailService _email;
 
     public UptickMigrationController(AppDbContext db, IUptickApiClient api, IUptickMigrationRunner runner, IOptions<UptickApiOptions> options,
-        UptickMapping mapping, IFileStore store)
+        UptickMapping mapping, IFileStore store, IEmailService email)
     {
+        _email = email;
         _store = store;
         _mapping = mapping;
         _db = db;
@@ -49,6 +54,9 @@ public class UptickMigrationController : Controller
             Mapped = _mapping.Resources,
             StorageConfigured = _store.IsConfigured,
             Storage = _store.Description,
+            EmailConfigured = _email.IsConfigured,
+            Email = _email.Description,
+            TestEmailTo = User.FindFirstValue(ClaimTypes.Email) ?? User.Identity?.Name,
             Files = await FileCountsAsync(ct),
             Endpoints = await _db.UptickEndpointStates.AsNoTracking().OrderBy(s => s.Resource).ToListAsync(ct),
             Runs = await _db.UptickMigrationRuns.AsNoTracking()
@@ -114,6 +122,31 @@ public class UptickMigrationController : Controller
     {
         var (ok, message) = await FileStores.TestAsync(_store, ct: ct);
         TempData[ok ? "Success" : "Error"] = message;
+        return RedirectToAction(nameof(Index));
+    }
+
+    // Sends a short email, to check the SMTP settings (Email__… in /etc/fyreapp.env) and that it arrives
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestEmail(string? to, CancellationToken ct)
+    {
+        to = to?.Trim();
+        if (!_email.IsConfigured)
+            TempData["Error"] = "Email isn't set up: set Email__SmtpHost and the rest in /etc/fyreapp.env, then restart FyreApp.";
+        else if (string.IsNullOrEmpty(to) || !MailboxAddress.TryParse(to, out _))
+            TempData["Error"] = "Enter the email address to send the test to.";
+        else
+        {
+            try
+            {
+                await _email.SendAsync(to, to, "FyreApp test email",
+                    "<p>This is a test email from FyreApp. If you're reading it, FyreApp can send email.</p>", ct);
+                TempData["Success"] = $"Test email sent to {to} ({_email.Description}). If it doesn't arrive in a few minutes, check the spam folder.";
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                TempData["Error"] = $"Couldn't send the test email: {ex.Message}";
+            }
+        }
         return RedirectToAction(nameof(Index));
     }
 

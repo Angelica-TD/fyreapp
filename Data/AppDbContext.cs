@@ -1,4 +1,5 @@
 using FyreApp.Models;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Data;
 
-public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, string>
+public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, string>, IDataProtectionKeyContext
 {
     private readonly IHttpContextAccessor? _http;
 
@@ -42,6 +43,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<MaintenanceHistory> MaintenanceHistory => Set<MaintenanceHistory>();
     public DbSet<ClientTask> ClientTasks => Set<ClientTask>();
     public DbSet<AssetCatalogue> AssetCatalogue => Set<AssetCatalogue>();
+
+    // The keys that sign sign-in cookies and emailed password links, kept here so they survive restarts and deploys
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
     public DbSet<Proposal> Proposals => Set<Proposal>();
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
     public DbSet<ServiceType> ServiceTypes => Set<ServiceType>();

@@ -9,4 +9,8 @@ public sealed class EmailOptions
     public string FromAddress { get; set; } = string.Empty;
     public string FromName { get; set; } = "FyreApp";
     public bool UseSsl { get; set; } = true;
+
+    // FyreApp's public address (e.g. https://app.fyrepower.com.au), which emailed links point at. Unset, a link uses
+    // the address the request that sent it came in on.
+    public string SiteUrl { get; set; } = string.Empty;
 }
