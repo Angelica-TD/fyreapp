@@ -24,6 +24,11 @@ public sealed class UptickMigrationPageVm
     public bool StorageConfigured { get; init; }
     public string Storage { get; init; } = string.Empty;
     public IReadOnlyList<UptickFileCounts> Files { get; init; } = [];
+
+    // Sending email (proposals, login emails): set up or not, and a test send to the signed-in user
+    public bool EmailConfigured { get; init; }
+    public string Email { get; init; } = string.Empty;
+    public string? TestEmailTo { get; init; }
 }
 
 // One kind of file: listed in the raw copy, downloaded (and their size), without a file in Uptick, failing

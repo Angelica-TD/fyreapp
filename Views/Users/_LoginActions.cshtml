@@ -5,6 +5,10 @@
 
 @if (Model.IsActive)
 {
+    <form asp-action="SendPasswordLink" asp-route-id="@Model.Id" method="post" class="d-inline">
+        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Emails them a link to choose a new password (works once, for 3 days)"
+                onclick="return confirm('Email this login a link to choose a new password?')">Email a password link</button>
+    </form>
     <form asp-action="Deactivate" asp-route-id="@Model.Id" method="post" class="d-inline">
         <button type="submit" class="btn btn-sm btn-outline-warning"
                 onclick="return confirm('Deactivate this login?')">Deactivate</button>

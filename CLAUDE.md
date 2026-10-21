@@ -79,7 +79,7 @@ FyreApp is an **ASP.NET Core MVC (.NET 10) application** with a **hybrid fronten
 |-----|---------|
 | `ConnectionStrings:DefaultConnection` | PostgreSQL DSN |
 | `Auth:Enabled` | Set to `false` in dev to bypass login |
-| `Email` | SMTP settings (MailKit); dev default targets smtp4dev on localhost:25 |
+| `Email` | SMTP settings (MailKit; production: Amazon SES in Sydney, sending as @fyrepower.com.au, secrets as `Email__*` in `/etc/fyreapp.env`); dev default targets smtp4dev on localhost:25. `SiteUrl` is the public address emailed links use. Unset `SmtpHost`, nothing is sent. Test from the Uptick migration page ("Send a test email"). Used for proposals and login emails: giving a login can email a link to choose a password (`LoginEmailService`, `/Auth/SetPassword`, works once for 3 days), and the Users page can send a new one. Data protection keys (cookies, those links) are kept in the database (`DataProtectionKeys`) |
 | `GoogleMaps:BrowserKey` / `GoogleMaps:ApiKey` | Maps integration keys |
 | `Storage` | File store (`IFileStore`, `Services/Files`): `Provider` `S3` (production; `Storage:S3:Bucket`, `Region`, secrets `AccessKey` / `SecretKey` as `Storage__S3__*` in `/etc/fyreapp.env`) or `Local` (development, `App_Data/files`, git-ignored); unset, nothing is stored |
 | `Uptick:Api` | Uptick API migration (`docs/uptick-migration.md`): `BaseUrl` (pinned API version), pace and page size in `appsettings.json`; `ClientId`, `ClientSecret`, `Username`, `Password` are secrets (user secrets in dev, `Uptick__Api__*` in `/etc/fyreapp.env` in prod) |

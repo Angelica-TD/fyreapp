@@ -90,7 +90,10 @@ public class UserManagementService : IUserManagementService
             UptickUserId = uptick.Id
         };
 
-        var createResult = await _userManager.CreateAsync(user, dto.Password);
+        // No password yet when they're emailed a link to choose one
+        var createResult = string.IsNullOrEmpty(dto.Password)
+            ? await _userManager.CreateAsync(user)
+            : await _userManager.CreateAsync(user, dto.Password);
         if (!createResult.Succeeded)
             return new UserCreateResult(UserCreateStatus.Failed, Errors: createResult.Errors.Select(e => e.Description));
 
