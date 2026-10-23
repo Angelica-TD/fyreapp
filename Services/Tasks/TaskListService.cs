@@ -199,8 +199,7 @@ public class TaskListService : ITaskListService
     {
         if (technicianId != null)
         {
-            var user = await _db.UptickUsers.FindAsync([technicianId], ct);
-            if (user == null || !TechnicianMatch.CanBeAssigned(user)) return null;
+            if (!await TechnicianMatch.IsAssignableAsync(_db, technicianId.Value, ct)) return null;
         }
 
         var tasks = await Selected(selection, filter).ToListAsync(ct);

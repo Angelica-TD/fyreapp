@@ -34,28 +34,26 @@ public class PeopleServiceTests
         var sp = Services();
         var people = sp.GetRequiredService<IPeopleService>();
 
-        var added = await people.CreateAsync(new PersonInput { Name = " Test Tech ", Email = "test.tech@fyrepower.com.au", LicenseType = "FIELD" });
+        var added = await people.CreateAsync(new PersonInput { Name = " Test Tech ", Email = "test.tech@fyrepower.com.au" });
 
         Assert.Equal(PersonStatus.Done, added.Status);
         var person = (await people.GetAsync(added.Id!.Value))!;
-        Assert.Equal(("Test Tech", "test.tech@fyrepower.com.au", "FIELD", (long?)null), (person.Name, person.Email, person.LicenseType, person.UptickId));
+        Assert.Equal(("Test Tech", "test.tech@fyrepower.com.au", (long?)null), (person.Name, person.Email, person.UptickId));
     }
 
     [Fact]
-    public async Task AnEmailOrLicenceTypeAlreadyTaken_IsRefused()
+    public async Task AnEmailAlreadyTaken_IsRefused()
     {
         var sp = Services();
         var db = sp.GetRequiredService<AppDbContext>();
-        db.UptickUsers.Add(new UptickUser { UptickId = 7, Name = "Dwayne Page", Email = "dwayne@fyrepower.com.au", LicenseType = "FIELD" });
+        db.UptickUsers.Add(new UptickUser { UptickId = 7, Name = "Dwayne Page", Email = "dwayne@fyrepower.com.au" });
         await db.SaveChangesAsync();
         var people = sp.GetRequiredService<IPeopleService>();
 
-        var taken = await people.CreateAsync(new PersonInput { Name = "Test", Email = "Dwayne@FyrePower.com.au", LicenseType = "FIELD" });
-        var customer = await people.CreateAsync(new PersonInput { Name = "Test", LicenseType = "CUSTOMER" });
+        var taken = await people.CreateAsync(new PersonInput { Name = "Test", Email = "Dwayne@FyrePower.com.au" });
 
         Assert.Equal(PersonStatus.EmailTaken, taken.Status);
         Assert.Contains("Dwayne Page", taken.Message);
-        Assert.Equal(PersonStatus.Invalid, customer.Status);
     }
 
     [Fact]
@@ -64,7 +62,7 @@ public class PeopleServiceTests
         var sp = Services();
         var db = sp.GetRequiredService<AppDbContext>();
         var people = sp.GetRequiredService<IPeopleService>();
-        var id = (await people.CreateAsync(new PersonInput { Name = "Test Tech", Email = "test@fyrepower.com.au", LicenseType = "FIELD" })).Id!.Value;
+        var id = (await people.CreateAsync(new PersonInput { Name = "Test Tech", Email = "test@fyrepower.com.au" })).Id!.Value;
         await sp.GetRequiredService<UserManager<ApplicationUser>>().CreateAsync(new ApplicationUser
         {
             UserName = "test@fyrepower.com.au", Email = "test@fyrepower.com.au", FirstName = "Test", LastName = "Tech", UptickUserId = id
@@ -73,8 +71,8 @@ public class PeopleServiceTests
         db.UptickUsers.Add(fromUptick);
         await db.SaveChangesAsync();
 
-        var edited = await people.UpdateAsync(id, new PersonInput { Name = "Tess Tech", Email = "tess@fyrepower.com.au", LicenseType = "CONTRACTOR" });
-        var refused = await people.UpdateAsync(fromUptick.Id, new PersonInput { Name = "Someone else", LicenseType = "FIELD" });
+        var edited = await people.UpdateAsync(id, new PersonInput { Name = "Tess Tech", Email = "tess@fyrepower.com.au" });
+        var refused = await people.UpdateAsync(fromUptick.Id, new PersonInput { Name = "Someone else" });
 
         Assert.Equal(PersonStatus.Done, edited.Status);
         var login = await db.Users.SingleAsync();
@@ -89,7 +87,7 @@ public class PeopleServiceTests
         var sp = Services();
         var db = sp.GetRequiredService<AppDbContext>();
         var people = sp.GetRequiredService<IPeopleService>();
-        var id = (await people.CreateAsync(new PersonInput { Name = "Test Tech", Email = "test@fyrepower.com.au", LicenseType = "FIELD" })).Id!.Value;
+        var id = (await people.CreateAsync(new PersonInput { Name = "Test Tech", Email = "test@fyrepower.com.au" })).Id!.Value;
         await sp.GetRequiredService<UserManager<ApplicationUser>>().CreateAsync(new ApplicationUser
         {
             UserName = "test@fyrepower.com.au", Email = "test@fyrepower.com.au", UptickUserId = id

@@ -50,7 +50,7 @@ public class DirectoryListTests
         Assert.Equal(expected, new Supplier { PaymentTerms = terms, PaymentDay = day }.PaymentTermsLabel);
 
     [Fact]
-    public async Task UptickUsers_StaffFirst_FilterByLicenceAndLogin_AndShowLinkedLogins()
+    public async Task UptickUsers_WithLoginsFirst_FilterByLogin_AndShowLinkedLogins()
     {
         using var db = DbContextFactory.Create();
         var dwayne = new UptickUser { UptickId = 9, Name = "Dwayne Page", Email = "FyreTech02@gmail.com", LicenseType = "FIELD" };
@@ -64,16 +64,28 @@ public class DirectoryListTests
         var list = new DirectoryListService(db);
 
         var all = await list.UptickUsersAsync(new DirectoryFilter { Active = "any" });
-        Assert.Equal(new[] { "FyrePower Team", "Dwayne Page", "Mermaid Central" }, all.Items.Select(i => i.User.Name));
-        Assert.Equal(new[] { null, "dwayne", null }, all.Items.Select(i => i.Login?.Id));
+        // People with a login first, then by name
+        Assert.Equal(new[] { "Dwayne Page", "FyrePower Team", "Mermaid Central" }, all.Items.Select(i => i.User.Name));
+        Assert.Equal(new[] { "dwayne", null, null }, all.Items.Select(i => i.Login?.Id));
 
-        var customers = await list.UptickUsersAsync(new DirectoryFilter { Active = "any", License = "customer" });
-        Assert.Equal("Mermaid Central", Assert.Single(customers.Items).User.Name);
 
         var withLogin = await list.UptickUsersAsync(new DirectoryFilter { Active = "any", Login = "yes" });
         Assert.Equal("Dwayne Page", Assert.Single(withLogin.Items).User.Name);
         var withoutLogin = await list.UptickUsersAsync(new DirectoryFilter { Active = "any", Login = "no" });
         Assert.Equal(2, withoutLogin.Total);
+    }
+
+    [Fact]
+    public async Task Users_FilterByTheirLoginsRole()
+    {
+        using var db = DbContextFactory.Create();
+        await Logins.PersonAsync(db, "Test Tech");
+        await Logins.PersonAsync(db, "Office Admin", "Admin");
+        await Logins.PersonAsync(db, "No Login", null);
+        var list = new DirectoryListService(db);
+
+        Assert.Equal(new[] { "Test Tech" }, (await list.UptickUsersAsync(new DirectoryFilter { Active = "any", Role = "Tech" })).Items.Select(i => i.User.Name));
+        Assert.Equal(new[] { "Office Admin" }, (await list.UptickUsersAsync(new DirectoryFilter { Active = "any", Role = "Admin" })).Items.Select(i => i.User.Name));
     }
 
     [Theory]
