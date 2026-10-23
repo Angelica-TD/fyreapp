@@ -133,6 +133,7 @@ builder.Services.AddSingleton<FyreApp.Services.Uptick.Migration.IUptickMigration
 builder.Services.AddHostedService(sp => sp.GetRequiredService<FyreApp.Services.Uptick.Migration.UptickMigrationRunner>());
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<FyreApp.Services.UserManagement.ILoginEmailService, FyreApp.Services.UserManagement.LoginEmailService>();
+builder.Services.AddScoped<FyreApp.Services.UserManagement.IPeopleService, FyreApp.Services.UserManagement.PeopleService>();
 
 builder.Services.AddControllersWithViews(options =>
 {

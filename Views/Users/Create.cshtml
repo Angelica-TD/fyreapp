@@ -13,14 +13,16 @@
 <div class="row">
     <div class="col-md-6">
         <dl class="row mb-3">
-            <dt class="col-sm-4">Uptick user</dt>
+            <dt class="col-sm-4">@(uptick.UptickId == null ? "Person" : "Uptick user")</dt>
             <dd class="col-sm-8">@uptick.Name</dd>
             <dt class="col-sm-4">Email (sign-in)</dt>
             <dd class="col-sm-8">@(uptick.Email ?? "None in Uptick")</dd>
             <dt class="col-sm-4">Licence type</dt>
             <dd class="col-sm-8">@UptickUser.LicenseLabel(uptick.LicenseType)</dd>
         </dl>
-        <p class="small text-muted">Name and email come from Uptick and update with each Uptick migration run.</p>
+        <p class="small text-muted">@(uptick.UptickId == null
+            ? "Name and email are this person's, added in FyreApp: edit them on the Users page."
+            : "Name and email come from Uptick and update with each Uptick migration run.")</p>
 
         <form asp-action="Create" method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>

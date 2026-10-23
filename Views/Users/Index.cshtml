@@ -86,14 +86,18 @@
         <div>
             <h1 class="h4 m-0">Users</h1>
             <div class="small text-muted">
-                Everyone with an Uptick login, brought in by the Uptick migration. Uptick is the source of truth: a
-                FyreApp login takes its name and email from its Uptick user. Give a login to anyone who needs to sign in to FyreApp.
+                Everyone with an Uptick login, brought in by the Uptick migration, plus anyone added here. Uptick is the source
+                of truth: a FyreApp login takes its name and email from its Uptick user. Give a login to anyone who needs to sign in to FyreApp.
             </div>
         </div>
-        <form asp-action="Sync" method="post">
-            <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap"
-                    title="Link logins to Uptick users by email and copy names and emails from Uptick">Update from Uptick</button>
-        </form>
+        <div class="d-flex gap-2">
+            <a asp-action="AddPerson" class="btn btn-sm btn-primary text-nowrap"
+               title="Someone not in Uptick, e.g. a technician to test the field app with">Add a person</a>
+            <form asp-action="Sync" method="post">
+                <button type="submit" class="btn btn-sm btn-outline-secondary text-nowrap"
+                        title="Link logins to Uptick users by email and copy names and emails from Uptick">Update from Uptick</button>
+            </form>
+        </div>
     </div>
 
     <div class="card-body">
@@ -153,6 +157,7 @@
                             <tr>
                                 <td>
                                     @u.Name
+                                    @if (u.UptickId == null) { <span class="badge bg-info-subtle text-info-emphasis border ms-1" title="Not from Uptick">Added in FyreApp</span> }
                                     @if (u.ServiceGroup != null) { <div class="small text-muted">@u.ServiceGroup</div> }
                                     @foreach (var a in item.Accreditations)
                                     {
@@ -182,6 +187,11 @@
                                     else { <span class="text-muted">-</span> }
                                 </td>
                                 <td class="text-end text-nowrap">
+                                    @if (u.UptickId == null)
+                                    {
+                                        <a asp-action="EditPerson" asp-route-id="@u.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                        <a asp-action="DeletePerson" asp-route-id="@u.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+                                    }
                                     @if (login != null)
                                     {
                                         @await Html.PartialAsync("_LoginActions", login)
