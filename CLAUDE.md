@@ -63,7 +63,7 @@ FyreApp is an **ASP.NET Core MVC (.NET 10) application** with a **hybrid fronten
 
 - ASP.NET Identity with PostgreSQL backing store.
 - 5 failed login attempts triggers a 15-minute lockout.
-- Technicians (logins without the Admin role) land on My day (`/Field`) and reach only an allowlist: the field app, their own tasks (assigned or booked; the Tasks list is held to them), those tasks' properties' asset and remark pages, and files. `Auth/TechAccess.cs` (a global filter) holds the list; a new page is closed to technicians unless added there.
+- Technicians (logins without the Admin role) land on My day (`/Field`) and work in the field app alone, in its own layout (`Views/Shared/_LayoutField.cshtml`: a bar with My day and a menu, no sidebar or breadcrumbs): My day, their jobs (the field controller checks each is theirs), the photos and signatures those show, and their password. `Auth/TechAccess.cs` (a global filter) holds the list; a new page is closed to technicians unless added there.
 - API/AJAX requests get `401`/`403` responses; UI requests redirect to the login page (path: `/`).
 - Dev bypass: set `Auth:Enabled: false` in `appsettings.Development.json` — all requests authenticate as Admin via `DevAuthHandler`.
 

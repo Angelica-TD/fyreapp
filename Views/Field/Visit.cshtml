@@ -4,77 +4,83 @@
 @{
     var task = Model.Task;
     var p = task.Property;
-    ViewData["Title"] = $"{task.DisplayRef} {task.Title}";
+    ViewData["Title"] = $"{task.DisplayRef} {p.Name}";
     string Time(DateTime? utc) => utc is { } d ? d.ToSydney().ToString("h:mmtt", CultureInfo.InvariantCulture).ToLowerInvariant() : "";
     string Hours(decimal? h) => h is { } n ? $"{n:0.##} h" : "";
     var access = new (string Label, string? Value)[]
     {
         ("Access times", p.AccessSchedule), ("Access procedure", p.AccessProcedure), ("Access code", p.AccessCode),
-        ("Access note", p.AccessNote), ("Service requirements", p.ServiceRequirements)
+        ("Access note", p.AccessNote), ("Service requirements", p.ServiceRequirements), ("About the task", task.Description)
     }.Where(a => !string.IsNullOrWhiteSpace(a.Value)).ToList();
     var routines = Model.Lines.GroupBy(l => l.Routine).ToList();
     var canWork = Model.CannotWork == null;
     var line = 0;
     var shownRemarks = new HashSet<int>();
+    var caller = Model.Contacts.FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.Mobile));
+    var step = 0;
+
+    var assetsDone = Model.Lines.Count > 0 && Model.Lines.All(l => l.Result != null);
+    var linesDone = Model.TaskLines.Count > 0 && Model.TaskLines.All(l => l.IsPerformed);
+    var signedOff = Model.SignOff != null;
 }
 
-@* The field app's task page: where to go and who to call, the technician's clock, and the assets to service *@
-<div class="field-app mx-auto" style="max-width: 720px">
-    @if (TempData["Error"] is string error)
-    {
-        <div class="alert alert-danger">@error</div>
-    }
-    @if (TempData["Success"] is string success)
-    {
-        <div class="alert alert-success">@success</div>
-    }
+@* A step of the job: its number, ticked once done *@
+@functions {
+    private static Microsoft.AspNetCore.Html.IHtmlContent Step(int n, bool done) =>
+        new Microsoft.AspNetCore.Html.HtmlString(done
+            ? "<span class=\"field-step bg-success text-white\"><i class=\"bi bi-check-lg\"></i></span>"
+            : $"<span class=\"field-step bg-secondary-subtle text-secondary-emphasis\">{n}</span>");
+}
 
-    <div class="mb-3">
-        <div class="text-muted small">
-            @task.DisplayRef
-            @if (task.Category != null) { <text>· @task.Category</text> }
-            · @task.Status
-        </div>
-        <h1 class="h4 mb-1">@task.Title</h1>
-        <div class="small text-muted">@task.Client.Name</div>
+@* The technician's job: where it is, then the work in order (test the assets, the task's lines, stock, forms,
+   the customer's sign-off), with their clock docked at the bottom. Nothing to navigate. *@
+
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success py-2">@success</div>
+}
+
+@* Where *@
+<div class="mb-3">
+    <div class="small text-muted">@task.DisplayRef@(task.Category != null ? $" · {task.Category}" : "")</div>
+    <h1 class="h4 mb-0">@p.Name</h1>
+    @if (p.AddressDisplay != null) { <div class="text-muted">@p.AddressDisplay</div> }
+    <div class="mt-1">@task.Title</div>
+
+    <div class="d-flex gap-2 mt-2">
+        @if (Model.MapsUrl != null)
+        {
+            <a class="btn btn-primary flex-grow-1" href="@Model.MapsUrl" target="_blank" rel="noopener"><i class="bi bi-sign-turn-right"></i> Directions</a>
+        }
+        @if (caller != null)
+        {
+            <a class="btn btn-outline-success flex-grow-1" href="tel:@caller.Mobile!.Replace(" ", "")"><i class="bi bi-telephone"></i> Call @caller.Name.Split(' ')[0]</a>
+        }
     </div>
 
-    @* Where *@
-    <div class="card mb-3">
-        <div class="card-body">
-            <div class="fw-semibold">@p.Name</div>
-            @if (p.AddressDisplay != null) { <div class="text-muted">@p.AddressDisplay</div> }
-            @if (Model.MapsUrl != null)
-            {
-                <a class="btn btn-outline-primary btn-sm mt-2" href="@Model.MapsUrl" target="_blank" rel="noopener">
-                    <i class="bi bi-sign-turn-right"></i> Directions
-                </a>
-            }
-            @foreach (var a in access)
-            {
-                <div class="mt-2">
-                    <div class="small text-muted">@a.Label</div>
-                    <div style="white-space: pre-line">@a.Value</div>
-                </div>
-            }
-            @if (!string.IsNullOrWhiteSpace(task.Description))
-            {
-                <div class="mt-2">
-                    <div class="small text-muted">Description</div>
-                    <div style="white-space: pre-line">@task.Description</div>
-                </div>
-            }
-        </div>
-        @if (Model.Contacts.Count > 0)
-        {
-            <ul class="list-group list-group-flush">
+    @if (access.Count > 0 || Model.Contacts.Count > 0 || Model.Appointments.Count > 0)
+    {
+        <details class="card mt-2">
+            <summary class="card-body py-2 small">
+                <i class="bi bi-info-circle"></i> Site info: access, contacts, booking
+                @if (p.AccessCode != null) { <span class="badge text-bg-warning ms-1">Access code</span> }
+            </summary>
+            <div class="card-body pt-0">
+                @foreach (var a in access)
+                {
+                    <div class="mt-2">
+                        <div class="small text-muted">@a.Label</div>
+                        <div style="white-space: pre-line">@a.Value</div>
+                    </div>
+                }
                 @foreach (var c in Model.Contacts)
                 {
-                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-                        <span>
-                            @c.Name
-                            @if (c.Role != null) { <span class="small text-muted">· @c.Role</span> }
-                        </span>
+                    <div class="d-flex justify-content-between align-items-center gap-2 mt-2">
+                        <span>@c.Name @if (c.Role != null) { <span class="small text-muted">· @c.Role</span> }</span>
                         <span class="text-nowrap">
                             @if (!string.IsNullOrWhiteSpace(c.Mobile))
                             {
@@ -85,150 +91,50 @@
                                 <a class="btn btn-sm btn-outline-secondary" href="mailto:@c.Email" aria-label="Email @c.Name"><i class="bi bi-envelope"></i></a>
                             }
                         </span>
-                    </li>
+                    </div>
                 }
-            </ul>
-        }
-    </div>
-
-    @if (Model.Appointments.Count > 0)
-    {
-        <div class="card mb-3">
-            <div class="card-header">Booked</div>
-            <ul class="list-group list-group-flush">
                 @foreach (var a in Model.Appointments)
                 {
-                    <li class="list-group-item">
-                        <div>@a.StartUtc.ToSydney().ToOrdinalDateTime()@(a.EndUtc != null ? $" – {Time(a.EndUtc)}" : "")</div>
-                        <div class="small text-muted">@string.Join(", ", a.Technicians.Select(t => t.Name).Order())</div>
-                        @if (!string.IsNullOrWhiteSpace(a.Notes)) { <div class="small" style="white-space: pre-line">@a.Notes</div> }
-                    </li>
-                }
-            </ul>
-        </div>
-    }
-
-    @* The technician's clock *@
-    <div class="card mb-3">
-        <div class="card-header">My time</div>
-        <div class="card-body">
-            @if (!canWork)
-            {
-                <div class="text-muted">@Model.CannotWork</div>
-            }
-            else if (Model.Running is { } running)
-            {
-                <form method="post" asp-action="Finish" asp-route-id="@task.Id" class="js-geo">
-                    <input type="hidden" name="lat" /><input type="hidden" name="lng" />
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <i class="bi bi-stopwatch fs-4 text-success"></i>
-                        <span><strong>@running.Type</strong> since @Time(running.StartedUtc)</span>
-                    </div>
-                    <textarea name="note" class="form-control mb-2" rows="2" placeholder="What you did (optional)"></textarea>
-                    <div class="d-flex gap-2 flex-wrap">
-                        <button type="submit" class="btn btn-danger btn-lg flex-grow-1">Finish</button>
-                    </div>
-                </form>
-                @foreach (var (type, _) in FieldService.SessionTypes.Where(s => s.Type != running.Type))
-                {
-                    <form method="post" asp-action="Start" asp-route-id="@task.Id" class="js-geo mt-2">
-                        <input type="hidden" name="lat" /><input type="hidden" name="lng" />
-                        <button type="submit" name="type" value="@type" class="btn btn-outline-primary w-100">Switch to @type</button>
-                    </form>
-                }
-            }
-            else
-            {
-                @if (Model.RunningElsewhere is { } other)
-                {
-                    <div class="alert alert-warning py-2 small">
-                        Your time is running on <a href="@Url.Action("Visit", new { id = other.TaskId })">@other.TaskRef</a> at @other.PropertyName.
-                        Starting here finishes it.
+                    <div class="mt-2 small">
+                        <i class="bi bi-calendar-event"></i> @a.StartUtc.ToSydney().ToOrdinalDateTime()@(a.EndUtc != null ? $" – {Time(a.EndUtc)}" : ""):
+                        @string.Join(", ", a.Technicians.Select(t => t.Name).Order())
+                        @if (!string.IsNullOrWhiteSpace(a.Notes)) { <div style="white-space: pre-line">@a.Notes</div> }
                     </div>
                 }
-                <form method="post" asp-action="Start" asp-route-id="@task.Id" class="js-geo d-flex gap-2">
-                    <input type="hidden" name="lat" /><input type="hidden" name="lng" />
-                    @foreach (var (type, onSite) in FieldService.SessionTypes)
-                    {
-                        <button type="submit" name="type" value="@type" class="btn btn-lg flex-grow-1 @(onSite ? "btn-success" : "btn-outline-primary")">
-                            <i class="bi @(onSite ? "bi-play-fill" : "bi-truck")"></i> @(onSite ? "Start work" : "Travelling")
-                        </button>
-                    }
-                </form>
-            }
-
-            @if (Model.MyTimeToday.Any(s => s.FinishedUtc != null))
-            {
-                <ul class="list-unstyled small text-muted mt-3 mb-0">
-                    @foreach (var s in Model.MyTimeToday.Where(s => s.FinishedUtc != null))
-                    {
-                        <li>@s.Type: @Time(s.StartedUtc) – @Time(s.FinishedUtc) (@Hours(s.Hours))</li>
-                    }
-                </ul>
-            }
-        </div>
-    </div>
-
-    @* The task's lines (Uptick's subtasks): routines due and products, ticked off once done *@
-    @if (Model.TaskLines.Count > 0)
-    {
-        <div class="card mb-3 js-lines" id="lines">
-            <div class="card-header d-flex justify-content-between gap-2">
-                <span>Task lines</span>
-                <span class="small"><span class="js-done">@Model.TaskLines.Count(l => l.IsPerformed)</span> of @Model.TaskLines.Count</span>
             </div>
-            <ul class="list-group list-group-flush">
-                @foreach (var tl in Model.TaskLines)
-                {
-                    <li class="list-group-item">
-                        <form method="post" asp-action="Line" asp-route-id="@task.Id" class="js-line d-flex align-items-center gap-2">
-                            <input type="hidden" name="subtaskId" value="@tl.Id" />
-                            <input class="form-check-input fs-4 m-0 flex-shrink-0" type="checkbox" name="done" value="true" id="line-@tl.Id"
-                                   checked="@tl.IsPerformed" disabled="@(!canWork)" />
-                            <input type="hidden" name="done" value="false" />
-                            <label class="form-check-label flex-grow-1" for="line-@tl.Id">
-                                @tl.Label
-                                @if (tl.Due != null) { <span class="small text-muted d-block">due @tl.Due.ToOrdinalDate()</span> }
-                            </label>
-                            <noscript><button type="submit" class="btn btn-sm btn-outline-secondary">Save</button></noscript>
-                            <span class="small js-status" aria-live="polite"></span>
-                        </form>
-                    </li>
-                }
-            </ul>
-        </div>
+        </details>
     }
+</div>
 
-    @* The assets to service *@
-    <h2 class="h5 mt-4">Work</h2>
+@if (!canWork)
+{
+    <div class="alert alert-secondary">@Model.CannotWork</div>
+}
+
+@* 1. Test the assets *@
+<section class="mb-4" id="assets">
+    <h2 class="h5 d-flex align-items-center gap-2 mb-2">@Step(++step, assetsDone) Test the assets</h2>
     @if (routines.Count == 0)
     {
-        <div class="card"><div class="card-body text-muted">No assets to service on this task.</div></div>
+        <div class="card"><div class="card-body text-muted">No assets listed on this job.</div></div>
     }
     @foreach (var group in routines)
     {
         <div class="card mb-3 js-routine">
             <div class="card-header d-flex justify-content-between gap-2">
-                <span class="fw-semibold">@group.Key</span>
+                <span class="fw-semibold small">@(string.IsNullOrWhiteSpace(group.Key) ? "Assets" : group.Key)</span>
                 <span class="small text-nowrap"><span class="js-done">@group.Count(l => l.Result != null)</span> of @group.Count()</span>
             </div>
             <ul class="list-group list-group-flush">
                 @foreach (var l in group)
                 {
                     var n = line++;
-                    <li class="list-group-item" id="asset-@l.AssetId">
-                        <div class="d-flex justify-content-between gap-2">
-                            <div>
-                                <a class="fw-semibold" asp-controller="Assets" asp-action="Details" asp-route-id="@l.AssetId">@(l.AssetRef ?? l.Asset)</a>
-                                @if (l.AssetRef != null) { <span class="text-muted">@l.Asset</span> }
-                                @if (l.Location != null) { <div class="small text-muted">@l.Location</div> }
-                            </div>
-                            @if (canWork)
-                            {
-                                <a class="btn btn-sm btn-outline-warning align-self-start text-nowrap" href="@Url.Action("Remark", new { id = task.Id, assetId = l.AssetId })">
-                                    <i class="bi bi-exclamation-triangle"></i> Remark
-                                </a>
-                            }
+                    var open = l.Result == "Fail" || !string.IsNullOrEmpty(l.Notes);
+                    <li class="list-group-item py-3" id="asset-@l.AssetId">
+                        <div>
+                            <span class="fw-semibold">@(l.AssetRef ?? l.Asset)</span>
+                            @if (l.AssetRef != null) { <span class="text-muted">@l.Asset</span> }
+                            @if (l.Location != null) { <div class="small text-muted"><i class="bi bi-geo-alt"></i> @l.Location</div> }
                         </div>
                         @* An asset serviced for more than one routine lists its remarks once *@
                         @if (shownRemarks.Add(l.AssetId))
@@ -245,15 +151,24 @@
                                         var id = $"r{n}-{r.Replace("/", "")}";
                                         var style = r switch { "Pass" => "success", "Fail" => "danger", _ => "secondary" };
                                         <input type="radio" class="btn-check" name="result" value="@r" id="@id" autocomplete="off" checked="@(l.Result == r)" />
-                                        <label class="btn btn-outline-@style" for="@id">@r</label>
+                                        <label class="btn btn-outline-@style fw-semibold" for="@id">@r</label>
                                     }
                                 </div>
-                                <div class="d-flex gap-2 mt-2">
-                                    <input type="text" name="notes" value="@l.Notes" class="form-control form-control-sm" placeholder="Notes" maxlength="2000" />
-                                    <button type="submit" class="btn btn-sm btn-outline-secondary js-save">Save</button>
-                                    <button type="button" class="btn btn-sm btn-link text-muted js-clear @(l.Result == null ? "d-none" : "")">Clear</button>
+                                @* A note, and raising a remark: offered when it fails (or on asking) *@
+                                <div class="js-more mt-2 @(open ? "" : "d-none")">
+                                    <input type="text" name="notes" value="@l.Notes" class="form-control mb-2" placeholder="Note (what you found)" maxlength="2000" />
+                                    <div class="d-flex gap-2">
+                                        <a class="btn btn-warning flex-grow-1 js-remark" href="@Url.Action("Remark", new { id = task.Id, assetId = l.AssetId })">
+                                            <i class="bi bi-exclamation-triangle"></i> Raise a remark
+                                        </a>
+                                        <button type="button" class="btn btn-outline-secondary js-clear @(l.Result == null ? "d-none" : "")">Clear result</button>
+                                    </div>
                                 </div>
-                                <div class="small js-status" aria-live="polite"></div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <button type="button" class="btn btn-link btn-sm px-0 text-muted js-show-more @(open ? "d-none" : "")">Add a note or remark</button>
+                                    <span class="small js-status ms-auto" aria-live="polite"></span>
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-outline-secondary js-save">Save</button>
                             </fieldset>
                         </form>
                     </li>
@@ -262,163 +177,226 @@
         </div>
     }
 
-    @* Stock used on the task *@
-    <div class="card mb-3" id="stock">
-        <div class="card-header">Stock used</div>
+    @* Remarks on the property itself, or assets not on the list *@
+    @if (Model.OtherRemarks.Count > 0)
+    {
+        <div class="card mb-2"><div class="card-body py-2">
+            <div class="small text-muted">Other remarks raised here</div>
+            <partial name="_Remarks" model="new FyreApp.ViewModels.Field.FieldRemarksList(task.Id, Model.OtherRemarks, canWork)" />
+        </div></div>
+    }
+    @if (canWork)
+    {
+        <a class="btn btn-outline-warning w-100" href="@Url.Action("Remark", new { id = task.Id })">
+            <i class="bi bi-exclamation-triangle"></i> Something else wrong at the site? Raise a remark
+        </a>
+    }
+</section>
+
+@* 2. The task's lines (Uptick's subtasks): routines due and products, ticked off once done *@
+@if (Model.TaskLines.Count > 0)
+{
+    <section class="mb-4 js-lines" id="lines">
+        <h2 class="h5 d-flex align-items-center gap-2 mb-2">
+            @Step(++step, linesDone) Tick off the job's lines
+            <span class="small text-muted fw-normal ms-auto"><span class="js-done">@Model.TaskLines.Count(l => l.IsPerformed)</span> of @Model.TaskLines.Count</span>
+        </h2>
+        <div class="card">
+            <ul class="list-group list-group-flush">
+                @foreach (var tl in Model.TaskLines)
+                {
+                    <li class="list-group-item py-3">
+                        <form method="post" asp-action="Line" asp-route-id="@task.Id" class="js-line d-flex align-items-center gap-3">
+                            <input type="hidden" name="subtaskId" value="@tl.Id" />
+                            <input class="form-check-input fs-3 m-0 flex-shrink-0" type="checkbox" name="done" value="true" id="line-@tl.Id"
+                                   checked="@tl.IsPerformed" disabled="@(!canWork)" />
+                            <input type="hidden" name="done" value="false" />
+                            <label class="form-check-label flex-grow-1" for="line-@tl.Id">
+                                @tl.Label
+                                @if (tl.Due != null) { <span class="small text-muted d-block">due @tl.Due.ToOrdinalDate()</span> }
+                            </label>
+                            <noscript><button type="submit" class="btn btn-sm btn-outline-secondary">Save</button></noscript>
+                            <span class="small js-status" aria-live="polite"></span>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </div>
+    </section>
+}
+
+@* 3. Stock used *@
+<section class="mb-4" id="stock">
+    <h2 class="h5 d-flex align-items-center gap-2 mb-2">@Step(++step, Model.StockUsed.Count > 0) Stock used <span class="small text-muted fw-normal">if any</span></h2>
+    <div class="card">
         @if (Model.StockUsed.Count > 0)
         {
             <ul class="list-group list-group-flush">
                 @foreach (var s in Model.StockUsed)
                 {
                     <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-                        <span>
-                            <strong>@s.Quantity.ToString("0.##")</strong> × @s.Product
-                            <span class="small text-muted d-block">@s.By@(s.WhenUtc is { } w ? " · " + w.ToSydney().ToOrdinalDateTime() : "")</span>
-                        </span>
+                        <span><strong>@s.Quantity.ToString("0.##")</strong> × @s.Product <span class="small text-muted d-block">@s.By</span></span>
                         @if (s.Removable && canWork)
                         {
                             <form method="post" asp-action="RemoveStock" asp-route-id="@task.Id" asp-route-useId="@s.Id"
                                   data-confirm="Remove @s.Quantity.ToString("0.##") × @s.Product?" onsubmit="return confirm(this.dataset.confirm)">
-                                <button type="submit" class="btn btn-sm btn-link text-danger">Remove</button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger" aria-label="Remove"><i class="bi bi-x-lg"></i></button>
                             </form>
                         }
                     </li>
                 }
             </ul>
         }
-        <div class="card-body">
-            @if (canWork)
-            {
+        @if (canWork)
+        {
+            <div class="card-body">
                 <form method="post" asp-action="Stock" asp-route-id="@task.Id">
-                    <div class="mb-2">
-                        <label for="productId" class="form-label small mb-1">Product</label>
-                        <select id="productId" name="productId" class="form-select" required>
-                            <option value="">— Pick a product —</option>
-                            @foreach (var p in Model.Products)
-                            {
-                                <option value="@p.Id">@p.Name@(p.Code != null ? $" ({p.Code})" : "")</option>
-                            }
-                        </select>
-                    </div>
+                    <select name="productId" class="form-select mb-2" aria-label="Product" required>
+                        <option value="">Pick a product…</option>
+                        @foreach (var pr in Model.Products)
+                        {
+                            <option value="@pr.Id">@pr.Name@(pr.Code != null ? $" ({pr.Code})" : "")</option>
+                        }
+                    </select>
                     <div class="d-flex gap-2">
                         <input type="number" name="quantity" value="1" min="0.01" max="10000" step="0.01" inputmode="decimal"
-                               class="form-control" style="max-width: 7rem" aria-label="Quantity" required />
-                        <button type="submit" class="btn btn-primary flex-grow-1">Add used</button>
+                               class="form-control" style="max-width: 6rem" aria-label="How many" required />
+                        <button type="submit" class="btn btn-outline-primary flex-grow-1">Add</button>
                     </div>
                 </form>
-            }
-            else if (Model.StockUsed.Count == 0)
-            {
-                <div class="small text-muted">None recorded.</div>
-            }
-        </div>
-    </div>
-
-    @* Remarks on the property itself, or assets not on the list *@
-    <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center gap-2">
-            <span>Other remarks</span>
-            @if (canWork)
-            {
-                <a class="btn btn-sm btn-outline-warning" href="@Url.Action("Remark", new { id = task.Id })">
-                    <i class="bi bi-exclamation-triangle"></i> Raise a remark
-                </a>
-            }
-        </div>
-        <div class="card-body py-2">
-            @if (Model.OtherRemarks.Count == 0)
-            {
-                <div class="small text-muted">For something at the property that isn't one of the assets above.</div>
-            }
-            <partial name="_Remarks" model="new FyreApp.ViewModels.Field.FieldRemarksList(task.Id, Model.OtherRemarks, canWork)" />
-        </div>
-    </div>
-
-    @* Forms filled in on the task *@
-    <div class="card mb-3" id="forms">
-        <div class="card-header">Forms</div>
-        @if (Model.Forms.Count > 0)
-        {
-            <ul class="list-group list-group-flush">
-                @foreach (var f in Model.Forms)
-                {
-                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-                        <a href="@Url.Action("SubmittedForm", new { id = task.Id, responseId = f.Id })">@f.Name@(f.Ref != null ? $" {f.Ref}" : "")</a>
-                        <span class="small text-muted text-end">
-                            @(f.SubmittedUtc?.ToSydney().ToOrdinalDateTime())@(f.By != null ? $" · {f.By}" : "")
-                            @if (!f.IsComplete) { <span class="badge bg-warning text-dark">Incomplete</span> }
-                        </span>
-                    </li>
-                }
-            </ul>
+            </div>
         }
-        <div class="card-body">
+    </div>
+</section>
+
+@* 4. Forms *@
+@if (Model.Forms.Count > 0 || (canWork && Model.FormTemplates.Count > 0))
+{
+    <section class="mb-4" id="forms">
+        <h2 class="h5 d-flex align-items-center gap-2 mb-2">@Step(++step, Model.Forms.Count > 0) Forms <span class="small text-muted fw-normal">if the job needs one</span></h2>
+        <div class="card">
+            @if (Model.Forms.Count > 0)
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var f in Model.Forms)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                            <span><i class="bi bi-check-circle text-success"></i> @f.Name@(f.Ref != null ? $" {f.Ref}" : "")</span>
+                            <a class="btn btn-sm btn-outline-secondary" href="@Url.Action("SubmittedForm", new { id = task.Id, responseId = f.Id })">View</a>
+                        </li>
+                    }
+                </ul>
+            }
             @if (canWork && Model.FormTemplates.Count > 0)
             {
-                <form method="get" asp-action="Form" asp-route-id="@task.Id" class="d-flex gap-2">
-                    <select name="version" class="form-select" aria-label="Form" required>
-                        <option value="">— Fill in a form —</option>
-                        @foreach (var t in Model.FormTemplates) { <option value="@t.VersionId">@t.Name</option> }
-                    </select>
-                    <button type="submit" class="btn btn-outline-primary text-nowrap">Start</button>
+                <div class="card-body d-grid gap-2">
+                    @foreach (var t in Model.FormTemplates)
+                    {
+                        <a class="btn btn-outline-primary text-start" href="@Url.Action("Form", new { id = task.Id, version = t.VersionId })">
+                            <i class="bi bi-ui-checks"></i> Fill in @t.Name
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+    </section>
+}
+
+@* 5. The customer's sign-off *@
+<section class="mb-4" id="signoff">
+    <h2 class="h5 d-flex align-items-center gap-2 mb-2">@Step(++step, signedOff) Customer sign-off</h2>
+    <div class="card"><div class="card-body">
+        @if (Model.SignOff is { } so)
+        {
+            @if (so.SigneeName != null)
+            {
+                <div>Signed by <strong>@so.SigneeName</strong> <span class="small text-muted">· @Time(so.SignedUtc)</span></div>
+                @if (so.SignatureFileId != null)
+                {
+                    <img src="/Files/@so.SignatureFileId" alt="Signature of @so.SigneeName" class="border rounded bg-white mt-2" style="max-width: 100%; max-height: 8rem" />
+                }
+            }
+            else
+            {
+                <div>Not signed: @so.NoSignatureReason</div>
+            }
+        }
+        @if (canWork)
+        {
+            <details class="@(signedOff ? "mt-2" : "")" open="@(!signedOff)">
+                <summary class="small text-muted mb-2 @(signedOff ? "" : "d-none")">Sign again</summary>
+                <form method="post" asp-action="SignOff" asp-route-id="@task.Id">
+                    <input name="signee" class="form-control mb-2" maxlength="300" autocomplete="off" placeholder="Customer's name" aria-label="Customer's name" />
+                    <partial name="_SignaturePad" model="@("signature")" />
+                    <button type="submit" class="btn btn-primary w-100 mb-2">Save signature</button>
+                    <details>
+                        <summary class="small text-muted">Nobody to sign?</summary>
+                        <div class="d-flex gap-2 mt-2">
+                            <input name="noSignatureReason" class="form-control" maxlength="1000" placeholder="Why, e.g. nobody on site" aria-label="Why it wasn't signed" />
+                            <button type="submit" class="btn btn-outline-secondary text-nowrap">Save</button>
+                        </div>
+                    </details>
+                </form>
+            </details>
+        }
+        else if (!signedOff)
+        {
+            <div class="small text-muted">Not signed off.</div>
+        }
+    </div></div>
+</section>
+
+@if (User.IsInRole("Admin"))
+{
+    <p class="small"><a asp-controller="Task" asp-action="Details" asp-route-id="@task.Id">The task's full page</a></p>
+}
+
+@* The clock, docked at the bottom: the one thing to press next *@
+@if (canWork)
+{
+    var running = Model.Running;
+    var today = Model.MyTimeToday.Where(s => s.FinishedUtc != null).Sum(s => s.Hours ?? 0);
+    <div class="field-dock bg-white border-top shadow">
+        <div class="field-dock-inner">
+            @if (running != null)
+            {
+                <div class="small mb-2 d-flex justify-content-between">
+                    <span><i class="bi bi-stopwatch text-success"></i> <strong>@(running.IsOnsite ? "Working" : "Travelling")</strong> since @Time(running.StartedUtc)</span>
+                    @if (today > 0) { <span class="text-muted">@Hours(today) earlier today</span> }
+                </div>
+                <div class="d-flex gap-2">
+                    @if (!running.IsOnsite)
+                    {
+                        <form method="post" asp-action="Start" asp-route-id="@task.Id" class="js-geo flex-grow-1">
+                            <input type="hidden" name="lat" /><input type="hidden" name="lng" />
+                            <button type="submit" name="type" value="Performing Task" class="btn btn-success btn-lg w-100"><i class="bi bi-play-fill"></i> Arrived: start work</button>
+                        </form>
+                    }
+                    <form method="post" asp-action="Finish" asp-route-id="@task.Id" class="js-geo @(running.IsOnsite ? "flex-grow-1" : "")">
+                        <input type="hidden" name="lat" /><input type="hidden" name="lng" />
+                        <button type="submit" class="btn @(running.IsOnsite ? "btn-danger btn-lg w-100" : "btn-outline-danger btn-lg")"><i class="bi bi-stop-fill"></i> @(running.IsOnsite ? "Finish work" : "Stop")</button>
+                    </form>
+                </div>
+            }
+            else
+            {
+                @if (Model.RunningElsewhere is { } other)
+                {
+                    <div class="small text-warning-emphasis mb-2">Your clock is running on @other.TaskRef at @other.PropertyName: starting here stops it.</div>
+                }
+                else if (today > 0)
+                {
+                    <div class="small text-muted mb-2">@Hours(today) on this job today</div>
+                }
+                <form method="post" asp-action="Start" asp-route-id="@task.Id" class="js-geo d-flex gap-2">
+                    <input type="hidden" name="lat" /><input type="hidden" name="lng" />
+                    <button type="submit" name="type" value="Travelling" class="btn btn-outline-primary btn-lg"><i class="bi bi-truck"></i> Travel</button>
+                    <button type="submit" name="type" value="Performing Task" class="btn btn-success btn-lg flex-grow-1"><i class="bi bi-play-fill"></i> Start work</button>
                 </form>
             }
-            else if (Model.Forms.Count == 0)
-            {
-                <div class="small text-muted">None filled in.</div>
-            }
         </div>
     </div>
-
-    @* The customer's sign-off *@
-    <div class="card mb-3" id="signoff">
-        <div class="card-header">Customer sign-off</div>
-        <div class="card-body">
-            @if (Model.SignOff is { } so)
-            {
-                @if (so.SigneeName != null)
-                {
-                    <div>Signed by <strong>@so.SigneeName</strong> <span class="small text-muted">· @so.SignedUtc.ToSydney().ToOrdinalDateTime()</span></div>
-                    @if (so.SignatureFileId != null)
-                    {
-                        <img src="/Files/@so.SignatureFileId" alt="Signature of @so.SigneeName" class="border rounded bg-white mt-2" style="max-width: 100%; max-height: 8rem" />
-                    }
-                }
-                else
-                {
-                    <div>Not signed: @so.NoSignatureReason <span class="small text-muted">· @so.SignedUtc.ToSydney().ToOrdinalDateTime()</span></div>
-                }
-            }
-            @if (canWork)
-            {
-                <details class="mt-2" open="@(Model.SignOff == null)">
-                    <summary class="small text-muted mb-2">@(Model.SignOff == null ? "Take the customer's sign-off" : "Sign again")</summary>
-                    <form method="post" asp-action="SignOff" asp-route-id="@task.Id">
-                        <div class="mb-2">
-                            <label for="signee" class="form-label small mb-1">Customer's name</label>
-                            <input id="signee" name="signee" class="form-control" maxlength="300" autocomplete="off" />
-                        </div>
-                        <partial name="_SignaturePad" model="@("signature")" />
-                        <div class="mb-2">
-                            <label for="noSignatureReason" class="form-label small mb-1">Or, why it wasn't signed</label>
-                            <input id="noSignatureReason" name="noSignatureReason" class="form-control" maxlength="1000"
-                                   placeholder="e.g. Nobody on site" />
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Save sign-off</button>
-                    </form>
-                </details>
-            }
-            else if (Model.SignOff == null)
-            {
-                <div class="small text-muted">Not signed off.</div>
-            }
-        </div>
-    </div>
-
-    <p class="small mt-3">
-        <a asp-controller="Task" asp-action="Details" asp-route-id="@task.Id">The task's full page</a>
-    </p>
-</div>
+}
 
 @section Scripts {
     <script src="~/js/field.js" asp-append-version="true"></script>

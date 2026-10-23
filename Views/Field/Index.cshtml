@@ -12,10 +12,7 @@
 
 @* The technicians' field app: what they're booked on for a day, each opening the task's field page *@
 <div class="field-app mx-auto" style="max-width: 720px">
-    <div class="d-flex align-items-baseline justify-content-between mb-2">
-        <h1 class="h3 mb-0">My day</h1>
-        @if (Model.Technician != null) { <span class="text-muted small">@Model.Technician</span> }
-    </div>
+    @if (Model.Technician != null) { <div class="text-muted small mb-2">@Model.Technician</div> }
 
     <form method="get" asp-action="Index" class="d-flex align-items-center gap-2 mb-3">
         <a class="btn btn-outline-secondary" href="@Url.Action("Index", new { date = Day(Model.Day.AddDays(-1)) })" aria-label="Previous day">
@@ -28,7 +25,10 @@
         <a class="btn btn-outline-secondary" href="@Url.Action("Index", new { date = Day(Model.Day.AddDays(1)) })" aria-label="Next day">
             <i class="bi bi-chevron-right"></i>
         </a>
-        <input type="date" name="date" value="@Day(Model.Day)" class="form-control w-auto" aria-label="Go to a day" onchange="this.form.submit()" />
+        @* The phone's date picker, opened from a button (the input itself is too wide for the row) *@
+        <input type="date" name="date" value="@Day(Model.Day)" class="visually-hidden" id="pick-day" tabindex="-1" aria-hidden="true" onchange="this.form.submit()" />
+        <button type="button" class="btn btn-outline-secondary" aria-label="Go to a day"
+                onclick="const d = document.getElementById('pick-day'); d.showPicker ? d.showPicker() : d.click()"><i class="bi bi-calendar3"></i></button>
         @if (Model.Day != today)
         {
             <a class="btn btn-outline-primary" asp-action="Index">Today</a>
@@ -102,10 +102,4 @@
             }
         </div>
     }
-
-    <p class="small text-muted mt-3">
-        Booked visits come from appointments; tasks assigned to you and scheduled for the day are listed under "Any time",
-        and your other open tasks after them.
-        <a asp-controller="Task" asp-action="Index">All tasks</a>
-    </p>
 </div>

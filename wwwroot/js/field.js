@@ -191,6 +191,7 @@
                     throw new Error(body.error || (res.status === 403 ? 'Not allowed.' : 'Not saved.'));
                 }
                 status.textContent = 'Saved';
+                setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500);
                 clear.classList.toggle('d-none', !form.querySelector('input[name=result]:checked'));
                 recount();
             } catch (err) {
@@ -199,8 +200,28 @@
             }
         };
 
-        form.querySelectorAll('input[name=result]').forEach(r => r.addEventListener('change', save));
+        // A note and "Raise a remark" open when it fails, or on asking
+        const more = form.querySelector('.js-more');
+        const showMore = form.querySelector('.js-show-more');
+        const reveal = focus => {
+            more.classList.remove('d-none');
+            showMore.classList.add('d-none');
+            if (focus) form.elements.notes.focus();
+        };
+        showMore.addEventListener('click', () => reveal(true));
+
+        form.querySelectorAll('input[name=result]').forEach(r => r.addEventListener('change', () => {
+            save();
+            if (r.value === 'Fail' && r.checked) reveal(false);
+        }));
         form.elements.notes.addEventListener('change', save);
+        // Raising a remark leaves the page: the note goes first
+        form.querySelector('.js-remark').addEventListener('click', async e => {
+            e.preventDefault();
+            const href = e.currentTarget.href;
+            await save();
+            window.location.href = href;
+        });
         clear.addEventListener('click', () => {
             form.querySelectorAll('input[name=result]').forEach(r => r.checked = false);
             save();
