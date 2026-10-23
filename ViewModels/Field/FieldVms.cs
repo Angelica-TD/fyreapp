@@ -61,6 +61,12 @@ public class FieldTaskVm
     // Open remarks raised on this task that aren't on an asset in Lines (on the property, or another asset)
     public IReadOnlyList<FieldRemark> OtherRemarks { get; set; } = [];
 
+    public IReadOnlyList<FieldTaskLine> TaskLines { get; set; } = [];
+    public IReadOnlyList<FieldStockUse> StockUsed { get; set; } = [];
+
+    // What can be recorded as used (when the technician can work here)
+    public IReadOnlyList<FieldProduct> Products { get; set; } = [];
+
     // Why the signed-in login can't record work here (none when it can)
     public string? CannotWork { get; set; }
 
@@ -69,3 +75,11 @@ public class FieldTaskVm
             p.Latitude is { } lat && p.Longitude is { } lng ? $"{lat},{lng}" : p.AddressDisplay ?? p.Name)
         : null;
 }
+
+// One of the task's lines (Uptick's subtasks): a routine due, or a product, ticked off once done
+public sealed record FieldTaskLine(int Id, string Label, DateTime? Due, bool IsPerformed);
+
+// Stock used on the task; Removable when the signed-in technician recorded it in FyreApp
+public sealed record FieldStockUse(int Id, string Product, decimal Quantity, string? By, DateTime? WhenUtc, bool Removable);
+
+public sealed record FieldProduct(int Id, string Name, string? Code);

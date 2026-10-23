@@ -34,6 +34,15 @@ public interface IFieldService
 
     // Pass, Fail or N/A for an asset serviced for one of the task's routines (none clears it)
     Task<FieldResult> RecordAsync(int taskId, int technicianId, int assetId, string routine, string? result, string? notes, CancellationToken ct = default);
+
+    // Ticks one of the task's lines (subtasks) done today, or not done
+    Task<FieldResult> SetLineDoneAsync(int taskId, int subtaskId, bool done, CancellationToken ct = default);
+
+    // Records a product used on the task, as Uptick does: stock off the task onto a service line
+    Task<FieldResult> UseStockAsync(int taskId, int technicianId, int productId, decimal quantity, CancellationToken ct = default);
+
+    // Takes back stock the technician recorded as used (in FyreApp) by mistake
+    Task<FieldResult> RemoveStockAsync(int taskId, int technicianId, int useId, CancellationToken ct = default);
 }
 
 // The technicians' field app (/Field): their day, a task's details, their time on it and the assets they service.
@@ -138,6 +147,22 @@ public class FieldService : IFieldService
             OtherRemarks = remarks.Where(r => r.AssetId == null || !assetIds.Contains(r.AssetId.Value)).Select(r => r.Remark).ToList()
         };
 
+        vm.TaskLines = (await _db.Subtasks.AsNoTracking()
+                .Where(s => s.ClientTaskId == taskId && s.DeletedUtc == null)
+                .OrderBy(s => s.Order).ThenBy(s => s.Id)
+                .Select(s => new { s.Id, Routine = s.Routine != null ? s.Routine.Name : null, Due = s.Routine != null ? s.Routine.DueDate : (DateTime?)null, Product = s.Product != null ? s.Product.Name : null, s.IsPerformed })
+                .ToListAsync(ct))
+            .Select(s => new FieldTaskLine(s.Id, s.Routine ?? s.Product ?? "Line", s.Due, s.IsPerformed))
+            .ToList();
+        vm.StockUsed = (await _db.TaskStockTransactions.AsNoTracking()
+                .Where(s => s.ClientTaskId == taskId && s.Quantity < 0)
+                .OrderBy(s => s.CreatedUtc).ThenBy(s => s.Id)
+                .Select(s => new { s.Id, s.UptickId, Product = s.Product != null ? s.Product.Name : null, s.Quantity, s.UptickUserId, By = s.UptickUser != null ? s.UptickUser.Name : null, s.CreatedUtc })
+                .ToListAsync(ct))
+            .Select(s => new FieldStockUse(s.Id, s.Product ?? "Unknown product", -s.Quantity, s.By, s.CreatedUtc,
+                s.UptickId == null && technicianId != null && s.UptickUserId == technicianId))
+            .ToList();
+
         if (technicianId is not { } me)
         {
             vm.CannotWork = "Your login isn't linked to an Uptick user, so you can look but not record work.";
@@ -153,6 +178,12 @@ public class FieldService : IFieldService
             .ToListAsync(ct);
         vm.Running = vm.MyTimeToday.LastOrDefault(s => s.FinishedUtc == null && s.UptickId == null);
         if (vm.Running == null) vm.RunningElsewhere = await RunningVisitAsync(me, taskId, ct);
+        if (vm.CannotWork == null)
+            vm.Products = await _db.Products.AsNoTracking()
+                .Where(p => p.Active)
+                .OrderBy(p => p.Name)
+                .Select(p => new FieldProduct(p.Id, p.Name, p.Code))
+                .ToListAsync(ct);
         return vm;
     }
 
@@ -231,6 +262,59 @@ public class FieldService : IFieldService
         line.Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
         line.PerformedUtc = chosen == null ? null : DateTime.UtcNow;
         line.TechnicianId = chosen == null ? null : technicianId;
+        await _db.SaveChangesAsync(ct);
+        return FieldResult.Done;
+    }
+
+    public async Task<FieldResult> SetLineDoneAsync(int taskId, int subtaskId, bool done, CancellationToken ct = default)
+    {
+        var task = await _db.ClientTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
+        if (task == null) return new(FieldOutcome.NotFound);
+        if (!IsOpen(task)) return new(FieldOutcome.Invalid, "This task is closed.");
+        var line = await _db.Subtasks.FirstOrDefaultAsync(s => s.Id == subtaskId && s.ClientTaskId == taskId && s.DeletedUtc == null, ct);
+        if (line == null) return new(FieldOutcome.NotFound, "That line isn't on this task.");
+
+        line.IsPerformed = done;
+        // A calendar date where it was done (dates are kept as UTC midnight)
+        line.PerformedDate = done ? DateTime.SpecifyKind(DateTime.UtcNow.ToSydney().Date, DateTimeKind.Utc) : null;
+        await _db.SaveChangesAsync(ct);
+        return FieldResult.Done;
+    }
+
+    public async Task<FieldResult> UseStockAsync(int taskId, int technicianId, int productId, decimal quantity, CancellationToken ct = default)
+    {
+        if (quantity <= 0 || quantity > 10000 || decimal.Round(quantity, 2) != quantity)
+            return new(FieldOutcome.Invalid, "Enter how many were used.");
+        var task = await _db.ClientTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
+        if (task == null) return new(FieldOutcome.NotFound);
+        if (!IsOpen(task)) return new(FieldOutcome.Invalid, "This task is closed.");
+        var product = await _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == productId && p.Active, ct);
+        if (product == null) return new(FieldOutcome.Invalid, "Pick a product from the list.");
+
+        _db.TaskStockTransactions.Add(new TaskStockTransaction
+        {
+            ClientTaskId = taskId,
+            ProductId = product.Id,
+            Quantity = -quantity,
+            OtherType = "servicetask",
+            CostPrice = product.CostPrice,
+            UptickUserId = technicianId,
+            CreatedUtc = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync(ct);
+        return FieldResult.Done;
+    }
+
+    public async Task<FieldResult> RemoveStockAsync(int taskId, int technicianId, int useId, CancellationToken ct = default)
+    {
+        var task = await _db.ClientTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
+        if (task == null) return new(FieldOutcome.NotFound);
+        if (!IsOpen(task)) return new(FieldOutcome.Invalid, "This task is closed.");
+        // Only what this technician recorded in FyreApp: Uptick's movements are Uptick's
+        var use = await _db.TaskStockTransactions.FirstOrDefaultAsync(s => s.Id == useId && s.ClientTaskId == taskId
+            && s.UptickId == null && s.UptickUserId == technicianId && s.Quantity < 0, ct);
+        if (use == null) return new(FieldOutcome.NotFound, "That isn't stock you recorded on this task.");
+        _db.TaskStockTransactions.Remove(use);
         await _db.SaveChangesAsync(ct);
         return FieldResult.Done;
     }

@@ -1,4 +1,5 @@
 using FyreApp.Data;
+using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.Services.Field;
 using FyreApp.Tests.Helpers;
@@ -140,6 +141,64 @@ public class FieldServiceTests
 
         Assert.Equal(FieldOutcome.Invalid, started.Outcome);
         Assert.Equal("This task is closed.", (await field.TaskAsync(w.Task.Id, w.Me.Id))!.CannotWork);
+    }
+
+    [Fact]
+    public async Task ATaskLine_IsTickedDoneToday_AndCanBeUnticked()
+    {
+        var w = await SetupAsync();
+        var routine = new Routine { Name = "10 - Portable Fire Extinguishers: Six-monthly", Property = w.Task.Property, DueDate = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc) };
+        var line = new Subtask { ClientTask = w.Task, Routine = routine, Order = 1 };
+        var removed = new Subtask { ClientTask = w.Task, Order = 2, DeletedUtc = DateTime.UtcNow };
+        var otherTask = new Subtask { ClientTask = w.Elsewhere, Order = 1 };
+        w.Db.AddRange(line, removed, otherTask);
+        await w.Db.SaveChangesAsync();
+        var field = new FieldService(w.Db);
+
+        var vm = (await field.TaskAsync(w.Task.Id, w.Me.Id))!;
+        var listed = Assert.Single(vm.TaskLines);
+        Assert.Equal(("10 - Portable Fire Extinguishers: Six-monthly", false), (listed.Label, listed.IsPerformed));
+
+        Assert.Equal(FieldOutcome.NotFound, (await field.SetLineDoneAsync(w.Task.Id, otherTask.Id, true)).Outcome);
+        Assert.Equal(FieldOutcome.NotFound, (await field.SetLineDoneAsync(w.Task.Id, removed.Id, true)).Outcome);
+
+        await field.SetLineDoneAsync(w.Task.Id, line.Id, true);
+        Assert.True(line.IsPerformed);
+        Assert.Equal(DateTime.SpecifyKind(DateTime.UtcNow.ToSydney().Date, DateTimeKind.Utc), line.PerformedDate);
+
+        await field.SetLineDoneAsync(w.Task.Id, line.Id, false);
+        Assert.Equal((false, null), (line.IsPerformed, line.PerformedDate));
+    }
+
+    [Fact]
+    public async Task StockUsed_IsRecordedAsUptickDoes_AndOnlyTheTechsOwnCanBeRemoved()
+    {
+        var w = await SetupAsync();
+        var tags = new Product { Name = "Maintenance tag", CostPrice = 0.5m };
+        var retired = new Product { Name = "Old gauge", Active = false };
+        w.Db.AddRange(tags, retired);
+        var uptickUse = new TaskStockTransaction { UptickId = 5, ClientTask = w.Task, Product = tags, Quantity = -3, OtherType = "servicetask", UptickUserId = w.Me.Id };
+        w.Db.Add(uptickUse);
+        await w.Db.SaveChangesAsync();
+        var field = new FieldService(w.Db);
+
+        Assert.Equal(FieldOutcome.Invalid, (await field.UseStockAsync(w.Task.Id, w.Me.Id, tags.Id, 0)).Outcome);
+        Assert.Equal(FieldOutcome.Invalid, (await field.UseStockAsync(w.Task.Id, w.Me.Id, retired.Id, 1)).Outcome);
+        Assert.Equal(FieldOutcome.Done, (await field.UseStockAsync(w.Task.Id, w.Me.Id, tags.Id, 12)).Outcome);
+        await field.UseStockAsync(w.Task.Id, w.Other.Id, tags.Id, 2);
+
+        var mine = await w.Db.TaskStockTransactions.SingleAsync(s => s.UptickId == null && s.UptickUserId == w.Me.Id);
+        Assert.Equal((-12m, "servicetask", 0.5m), (mine.Quantity, mine.OtherType, mine.CostPrice));
+
+        var vm = (await field.TaskAsync(w.Task.Id, w.Me.Id))!;
+        Assert.Equal(new[] { (3m, false), (12m, true), (2m, false) }, vm.StockUsed.OrderBy(s => s.Id).Select(s => (s.Quantity, s.Removable)));
+        Assert.Equal(new[] { "Maintenance tag" }, vm.Products.Select(p => p.Name));
+
+        var others = await w.Db.TaskStockTransactions.SingleAsync(s => s.UptickUserId == w.Other.Id);
+        Assert.Equal(FieldOutcome.NotFound, (await field.RemoveStockAsync(w.Task.Id, w.Me.Id, uptickUse.Id)).Outcome);
+        Assert.Equal(FieldOutcome.NotFound, (await field.RemoveStockAsync(w.Task.Id, w.Me.Id, others.Id)).Outcome);
+        Assert.Equal(FieldOutcome.Done, (await field.RemoveStockAsync(w.Task.Id, w.Me.Id, mine.Id)).Outcome);
+        Assert.Equal(2, await w.Db.TaskStockTransactions.CountAsync());
     }
 
     [Fact]

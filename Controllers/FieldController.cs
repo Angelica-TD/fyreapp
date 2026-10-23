@@ -67,6 +67,30 @@ public class FieldController : Controller
         return Done(id, done, $"asset-{assetId}");
     }
 
+    [HttpPost("/Field/Task/{id:int}/Line"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> Line(int id, int subtaskId, bool done, CancellationToken ct = default)
+    {
+        if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
+        var saved = await _field.SetLineDoneAsync(id, subtaskId, done, ct);
+        if (Request.Headers.XRequestedWith == "fetch")
+            return saved.Outcome == FieldOutcome.Done ? Ok(new { done }) : BadRequest(new { error = saved.Message ?? "Not saved." });
+        return Done(id, saved, "lines");
+    }
+
+    [HttpPost("/Field/Task/{id:int}/Stock"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> Stock(int id, int productId, decimal quantity, CancellationToken ct = default)
+    {
+        if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
+        return Done(id, await _field.UseStockAsync(id, me, productId, quantity, ct), "stock");
+    }
+
+    [HttpPost("/Field/Task/{id:int}/Stock/{useId:int}/Remove"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveStock(int id, int useId, CancellationToken ct = default)
+    {
+        if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
+        return Done(id, await _field.RemoveStockAsync(id, me, useId, ct), "stock");
+    }
+
     // Photos come straight off a phone (field.js shrinks them first when it can)
     private const long PhotoUploadLimit = 200L * 1024 * 1024;
 
@@ -135,7 +159,8 @@ public class FieldController : Controller
     private IActionResult Done(int id, FieldResult result, string? anchor = null)
     {
         if (result.Outcome == FieldOutcome.NotFound && result.Message == null) return NotFound();
-        if (result.Outcome != FieldOutcome.Done) TempData["Error"] = result.Message;
+        // An error shows at the top of the page, so go there rather than to the section
+        if (result.Outcome != FieldOutcome.Done) (TempData["Error"], anchor) = (result.Message, null);
         return Redirect(Url.Action(nameof(Visit), new { id }) + (anchor == null ? "" : "#" + anchor));
     }
 
