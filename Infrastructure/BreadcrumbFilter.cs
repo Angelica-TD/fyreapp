@@ -32,6 +32,12 @@ public sealed class BreadcrumbFilter : IActionFilter
         {
             crumbs.Add(("Routine Servicing", controller.Url.Action("Index", "Routines")));
         }
+        else if (controllerName == "Field")
+        {
+            // The field app: "Home / My day / Task"
+            crumbs.Add(("My day", controller.Url.Action("Index", "Field")));
+            if (actionName == "Visit") actionName = "Task";
+        }
         else
         {
             // Controller crumb

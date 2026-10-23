@@ -1,0 +1,230 @@
+@model FyreApp.ViewModels.Field.FieldTaskVm
+@using System.Globalization
+@using FyreApp.Services.Field
+@{
+    var task = Model.Task;
+    var p = task.Property;
+    ViewData["Title"] = $"{task.DisplayRef} {task.Title}";
+    string Time(DateTime? utc) => utc is { } d ? d.ToSydney().ToString("h:mmtt", CultureInfo.InvariantCulture).ToLowerInvariant() : "";
+    string Hours(decimal? h) => h is { } n ? $"{n:0.##} h" : "";
+    var access = new (string Label, string? Value)[]
+    {
+        ("Access times", p.AccessSchedule), ("Access procedure", p.AccessProcedure), ("Access code", p.AccessCode),
+        ("Access note", p.AccessNote), ("Service requirements", p.ServiceRequirements)
+    }.Where(a => !string.IsNullOrWhiteSpace(a.Value)).ToList();
+    var routines = Model.Lines.GroupBy(l => l.Routine).ToList();
+    var canWork = Model.CannotWork == null;
+    var line = 0;
+}
+
+@* The field app's task page: where to go and who to call, the technician's clock, and the assets to service *@
+<div class="field-app mx-auto" style="max-width: 720px">
+    @if (TempData["Error"] is string error)
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+
+    <div class="mb-3">
+        <div class="text-muted small">
+            @task.DisplayRef
+            @if (task.Category != null) { <text>· @task.Category</text> }
+            · @task.Status
+        </div>
+        <h1 class="h4 mb-1">@task.Title</h1>
+        <div class="small text-muted">@task.Client.Name</div>
+    </div>
+
+    @* Where *@
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="fw-semibold">@p.Name</div>
+            @if (p.AddressDisplay != null) { <div class="text-muted">@p.AddressDisplay</div> }
+            @if (Model.MapsUrl != null)
+            {
+                <a class="btn btn-outline-primary btn-sm mt-2" href="@Model.MapsUrl" target="_blank" rel="noopener">
+                    <i class="bi bi-sign-turn-right"></i> Directions
+                </a>
+            }
+            @foreach (var a in access)
+            {
+                <div class="mt-2">
+                    <div class="small text-muted">@a.Label</div>
+                    <div style="white-space: pre-line">@a.Value</div>
+                </div>
+            }
+            @if (!string.IsNullOrWhiteSpace(task.Description))
+            {
+                <div class="mt-2">
+                    <div class="small text-muted">Description</div>
+                    <div style="white-space: pre-line">@task.Description</div>
+                </div>
+            }
+        </div>
+        @if (Model.Contacts.Count > 0)
+        {
+            <ul class="list-group list-group-flush">
+                @foreach (var c in Model.Contacts)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                        <span>
+                            @c.Name
+                            @if (c.Role != null) { <span class="small text-muted">· @c.Role</span> }
+                        </span>
+                        <span class="text-nowrap">
+                            @if (!string.IsNullOrWhiteSpace(c.Mobile))
+                            {
+                                <a class="btn btn-sm btn-outline-success" href="tel:@c.Mobile.Replace(" ", "")" aria-label="Call @c.Name"><i class="bi bi-telephone"></i></a>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(c.Email))
+                            {
+                                <a class="btn btn-sm btn-outline-secondary" href="mailto:@c.Email" aria-label="Email @c.Name"><i class="bi bi-envelope"></i></a>
+                            }
+                        </span>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+
+    @if (Model.Appointments.Count > 0)
+    {
+        <div class="card mb-3">
+            <div class="card-header">Booked</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var a in Model.Appointments)
+                {
+                    <li class="list-group-item">
+                        <div>@a.StartUtc.ToSydney().ToOrdinalDateTime()@(a.EndUtc != null ? $" – {Time(a.EndUtc)}" : "")</div>
+                        <div class="small text-muted">@string.Join(", ", a.Technicians.Select(t => t.Name).Order())</div>
+                        @if (!string.IsNullOrWhiteSpace(a.Notes)) { <div class="small" style="white-space: pre-line">@a.Notes</div> }
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
+    @* The technician's clock *@
+    <div class="card mb-3">
+        <div class="card-header">My time</div>
+        <div class="card-body">
+            @if (!canWork)
+            {
+                <div class="text-muted">@Model.CannotWork</div>
+            }
+            else if (Model.Running is { } running)
+            {
+                <form method="post" asp-action="Finish" asp-route-id="@task.Id" class="js-geo">
+                    <input type="hidden" name="lat" /><input type="hidden" name="lng" />
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <i class="bi bi-stopwatch fs-4 text-success"></i>
+                        <span><strong>@running.Type</strong> since @Time(running.StartedUtc)</span>
+                    </div>
+                    <textarea name="note" class="form-control mb-2" rows="2" placeholder="What you did (optional)"></textarea>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-danger btn-lg flex-grow-1">Finish</button>
+                    </div>
+                </form>
+                @foreach (var (type, _) in FieldService.SessionTypes.Where(s => s.Type != running.Type))
+                {
+                    <form method="post" asp-action="Start" asp-route-id="@task.Id" class="js-geo mt-2">
+                        <input type="hidden" name="lat" /><input type="hidden" name="lng" />
+                        <button type="submit" name="type" value="@type" class="btn btn-outline-primary w-100">Switch to @type</button>
+                    </form>
+                }
+            }
+            else
+            {
+                @if (Model.RunningElsewhere is { } other)
+                {
+                    <div class="alert alert-warning py-2 small">
+                        Your time is running on <a href="@Url.Action("Visit", new { id = other.TaskId })">@other.TaskRef</a> at @other.PropertyName.
+                        Starting here finishes it.
+                    </div>
+                }
+                <form method="post" asp-action="Start" asp-route-id="@task.Id" class="js-geo d-flex gap-2">
+                    <input type="hidden" name="lat" /><input type="hidden" name="lng" />
+                    @foreach (var (type, onSite) in FieldService.SessionTypes)
+                    {
+                        <button type="submit" name="type" value="@type" class="btn btn-lg flex-grow-1 @(onSite ? "btn-success" : "btn-outline-primary")">
+                            <i class="bi @(onSite ? "bi-play-fill" : "bi-truck")"></i> @(onSite ? "Start work" : "Travelling")
+                        </button>
+                    }
+                </form>
+            }
+
+            @if (Model.MyTimeToday.Any(s => s.FinishedUtc != null))
+            {
+                <ul class="list-unstyled small text-muted mt-3 mb-0">
+                    @foreach (var s in Model.MyTimeToday.Where(s => s.FinishedUtc != null))
+                    {
+                        <li>@s.Type: @Time(s.StartedUtc) – @Time(s.FinishedUtc) (@Hours(s.Hours))</li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+
+    @* The assets to service *@
+    <h2 class="h5 mt-4">Work</h2>
+    @if (routines.Count == 0)
+    {
+        <div class="card"><div class="card-body text-muted">No assets to service on this task.</div></div>
+    }
+    @foreach (var group in routines)
+    {
+        <div class="card mb-3 js-routine">
+            <div class="card-header d-flex justify-content-between gap-2">
+                <span class="fw-semibold">@group.Key</span>
+                <span class="small text-nowrap"><span class="js-done">@group.Count(l => l.Result != null)</span> of @group.Count()</span>
+            </div>
+            <ul class="list-group list-group-flush">
+                @foreach (var l in group)
+                {
+                    var n = line++;
+                    <li class="list-group-item" id="asset-@l.AssetId">
+                        <div class="d-flex justify-content-between gap-2">
+                            <div>
+                                <a class="fw-semibold" asp-controller="Assets" asp-action="Details" asp-route-id="@l.AssetId">@(l.AssetRef ?? l.Asset)</a>
+                                @if (l.AssetRef != null) { <span class="text-muted">@l.Asset</span> }
+                                @if (l.Location != null) { <div class="small text-muted">@l.Location</div> }
+                            </div>
+                            @if (l.OpenRemarks > 0)
+                            {
+                                <span class="badge text-bg-warning align-self-start" title="Open remarks">@l.OpenRemarks remark@(l.OpenRemarks == 1 ? "" : "s")</span>
+                            }
+                        </div>
+                        <form method="post" asp-action="Record" asp-route-id="@task.Id" class="js-result mt-2">
+                            <fieldset disabled="@(!canWork)">
+                                <input type="hidden" name="assetId" value="@l.AssetId" />
+                                <input type="hidden" name="routine" value="@l.Routine" />
+                                <div class="btn-group w-100" role="group" aria-label="Result">
+                                    @foreach (var r in FieldService.Results)
+                                    {
+                                        var id = $"r{n}-{r.Replace("/", "")}";
+                                        var style = r switch { "Pass" => "success", "Fail" => "danger", _ => "secondary" };
+                                        <input type="radio" class="btn-check" name="result" value="@r" id="@id" autocomplete="off" checked="@(l.Result == r)" />
+                                        <label class="btn btn-outline-@style" for="@id">@r</label>
+                                    }
+                                </div>
+                                <div class="d-flex gap-2 mt-2">
+                                    <input type="text" name="notes" value="@l.Notes" class="form-control form-control-sm" placeholder="Notes" maxlength="2000" />
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary js-save">Save</button>
+                                    <button type="button" class="btn btn-sm btn-link text-muted js-clear @(l.Result == null ? "d-none" : "")">Clear</button>
+                                </div>
+                                <div class="small js-status" aria-live="polite"></div>
+                            </fieldset>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
+    <p class="small mt-3">
+        <a asp-controller="Task" asp-action="Details" asp-route-id="@task.Id">The task's full page</a>
+    </p>
+</div>
+
+@section Scripts {
+    <script src="~/js/field.js" asp-append-version="true"></script>
+}

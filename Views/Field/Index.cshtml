@@ -1,0 +1,87 @@
+@model FyreApp.ViewModels.Field.FieldDayVm
+@using System.Globalization
+@{
+    ViewData["Title"] = "My day";
+    var today = DateTime.UtcNow.ToSydney().Date;
+    string Day(DateTime d) => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    string Time(DateTime? d) => d is { } t ? t.ToString("h:mmtt", CultureInfo.InvariantCulture).ToLowerInvariant() : "";
+    string Heading(DateTime d) =>
+        d == today ? "Today" : d == today.AddDays(1) ? "Tomorrow" : d == today.AddDays(-1) ? "Yesterday"
+        : d.ToString("dddd", CultureInfo.InvariantCulture);
+}
+
+@* The technicians' field app: what they're booked on for a day, each opening the task's field page *@
+<div class="field-app mx-auto" style="max-width: 720px">
+    <div class="d-flex align-items-baseline justify-content-between mb-2">
+        <h1 class="h3 mb-0">My day</h1>
+        @if (Model.Technician != null) { <span class="text-muted small">@Model.Technician</span> }
+    </div>
+
+    <form method="get" asp-action="Index" class="d-flex align-items-center gap-2 mb-3">
+        <a class="btn btn-outline-secondary" href="@Url.Action("Index", new { date = Day(Model.Day.AddDays(-1)) })" aria-label="Previous day">
+            <i class="bi bi-chevron-left"></i>
+        </a>
+        <div class="flex-grow-1 text-center">
+            <div class="fw-semibold">@Heading(Model.Day)</div>
+            <div class="small text-muted">@Model.Day.ToDisplayDate()</div>
+        </div>
+        <a class="btn btn-outline-secondary" href="@Url.Action("Index", new { date = Day(Model.Day.AddDays(1)) })" aria-label="Next day">
+            <i class="bi bi-chevron-right"></i>
+        </a>
+        <input type="date" name="date" value="@Day(Model.Day)" class="form-control w-auto" aria-label="Go to a day" onchange="this.form.submit()" />
+        @if (Model.Day != today)
+        {
+            <a class="btn btn-outline-primary" asp-action="Index">Today</a>
+        }
+    </form>
+
+    @if (Model.NotLinked)
+    {
+        <div class="alert alert-info">
+            Your login isn't linked to an Uptick user, so nothing is booked for you. An admin can link it on the Users page.
+        </div>
+    }
+
+    @if (Model.Working is { } w)
+    {
+        <a class="alert alert-success d-flex align-items-center gap-2 text-decoration-none" href="@Url.Action("Visit", new { id = w.TaskId })">
+            <i class="bi bi-stopwatch fs-4"></i>
+            <span>
+                <strong>@w.Category</strong> since @Time(w.StartLocal) on <strong>@w.TaskRef</strong> at @w.PropertyName
+                <span class="d-block small">Open it to finish</span>
+            </span>
+        </a>
+    }
+
+    @if (!Model.NotLinked && Model.Visits.Count == 0)
+    {
+        <div class="card"><div class="card-body text-muted">Nothing booked for you on this day.</div></div>
+    }
+
+    <div class="list-group">
+        @foreach (var v in Model.Visits)
+        {
+            <a class="list-group-item list-group-item-action py-3" href="@Url.Action("Visit", new { id = v.TaskId })">
+                <div class="d-flex justify-content-between gap-2">
+                    <span class="fw-semibold">
+                        @(v.StartLocal != null ? $"{Time(v.StartLocal)}{(v.EndLocal != null ? " – " + Time(v.EndLocal) : "")}" : "Any time")
+                    </span>
+                    <span>
+                        @if (v.Category != null) { <span class="badge text-bg-light border">@v.Category</span> }
+                        @if (v.Status == ClientTaskStatus.InProgress) { <span class="badge text-bg-warning">In progress</span> }
+                        else if (v.Status == ClientTaskStatus.Completed) { <span class="badge text-bg-success">Completed</span> }
+                    </span>
+                </div>
+                <div class="mt-1"><span class="text-muted">@v.TaskRef</span> @v.Title</div>
+                <div class="fw-semibold mt-1">@v.PropertyName</div>
+                @if (v.Address != null) { <div class="small text-muted">@v.Address</div> }
+                @if (!string.IsNullOrWhiteSpace(v.Notes)) { <div class="small mt-1" style="white-space: pre-line">@v.Notes</div> }
+            </a>
+        }
+    </div>
+
+    <p class="small text-muted mt-3">
+        Booked visits come from appointments; tasks assigned to you and scheduled for the day are listed under "Any time".
+        <a asp-controller="Task" asp-action="Index">All tasks</a>
+    </p>
+</div>
