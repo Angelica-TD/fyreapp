@@ -185,8 +185,7 @@ public class ClientTaskService : IClientTaskService
 
         if (technicianId != null)
         {
-            var user = await _db.UptickUsers.FindAsync(technicianId);
-            if (user == null || !TechnicianMatch.CanBeAssigned(user))
+            if (!await TechnicianMatch.IsAssignableAsync(_db, technicianId.Value))
                 return (true, false);
         }
 

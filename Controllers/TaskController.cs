@@ -1,5 +1,6 @@
 using FyreApp.Data;
 using FyreApp.Models;
+using FyreApp.Services.Tasks;
 using FyreApp.Services;
 using FyreApp.ViewModels.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -372,20 +373,19 @@ public class TaskController : Controller
         }
     }
 
-    // Technicians are Uptick users: field technicians and contractors, plus whoever the task already has
-    // (e.g. an office user Uptick assigned an imported task to)
+    // Technicians: people whose FyreApp login has the Tech role (TechnicianMatch), plus whoever the task already has
+    // (e.g. who Uptick assigned an imported task to)
     private async Task<List<SelectListItem>> GetTechSelectListAsync(int? selectedId = null)
     {
-        var items = await _db.UptickUsers.AsNoTracking()
-            .Where(u => u.LicenseType == "FIELD" || u.LicenseType == "CONTRACTOR" || u.Id == selectedId)
+        var items = (await _db.UptickUsers.AsNoTracking()
+                .Where(u => u.Id == selectedId)
+                .Concat(_db.UptickUsers.AsNoTracking().Assignable(_db))
+                .Select(u => new { u.Id, u.Name })
+                .ToListAsync())
+            .DistinctBy(u => u.Id)
             .OrderBy(u => u.Name)
-            .Select(u => new SelectListItem
-            {
-                Value = u.Id.ToString(),
-                Text = u.LicenseType == "CONTRACTOR" ? u.Name + " (contractor)" : u.Name,
-                Selected = u.Id == selectedId
-            })
-            .ToListAsync();
+            .Select(u => new SelectListItem { Value = u.Id.ToString(), Text = u.Name, Selected = u.Id == selectedId })
+            .ToList();
 
         items.Insert(0, new SelectListItem { Value = "", Text = "— Unassigned —" });
         return items;

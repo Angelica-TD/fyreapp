@@ -2,6 +2,7 @@ using FyreApp.Auth;
 using FyreApp.Infrastructure;
 using FyreApp.Services.Email;
 using FyreApp.Services.Lists;
+using FyreApp.Services.Tasks;
 using FyreApp.Services.UserManagement;
 using FyreApp.ViewModels.Lists;
 using Microsoft.AspNetCore.Authorization;
@@ -32,22 +33,22 @@ public class UsersController : Controller
     // Everyone in Uptick (the source of truth for who's who) with their FyreApp login, plus any logins
     // not linked to an Uptick user yet
     [HttpGet]
-    public async Task<IActionResult> Index(string? search, string? license, string? login, int page = 1, CancellationToken ct = default) =>
+    public async Task<IActionResult> Index(string? search, string? role, string? login, int page = 1, CancellationToken ct = default) =>
         View(new UsersIndexVm
         {
-            List = await _directory.UptickUsersAsync(UsersFilter(search, license, login, page), ct),
+            List = await _directory.UptickUsersAsync(UsersFilter(search, role, login, page), ct),
             Unlinked = await _userService.GetUnlinkedAsync(),
             Linkable = await _userService.GetLinkableUptickUsersAsync()
         });
 
     // The old "Uptick users" page, now the Users page
     [HttpGet]
-    public IActionResult Uptick(string? search, string? license, int page = 1) =>
-        RedirectToAction(nameof(Index), new { search, license, page });
+    public IActionResult Uptick(string? search, int page = 1) =>
+        RedirectToAction(nameof(Index), new { search, page });
 
     [HttpGet]
-    public async Task<IActionResult> Download(string? search, string? license, string? login, CancellationToken ct = default) =>
-        File(await _directory.UptickUsersCsvAsync(UsersFilter(search, license, login, 1), ct), "text/csv", CsvExport.FileName("users"));
+    public async Task<IActionResult> Download(string? search, string? role, string? login, CancellationToken ct = default) =>
+        File(await _directory.UptickUsersCsvAsync(UsersFilter(search, role, login, 1), ct), "text/csv", CsvExport.FileName("users"));
 
     // Only a Developer can make someone a Developer, or change a Developer's login (its role, password, active flag,
     // link): otherwise an Admin could make themselves one, or sign in as one, and reach the Developer-only pages
@@ -95,9 +96,10 @@ public class UsersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private static DirectoryFilter UsersFilter(string? search, string? license, string? login, int page) => new()
+    private DirectoryFilter UsersFilter(string? search, string? role, string? login, int page) => new()
     {
-        Search = search, License = license, Active = "any", Page = page,
+        Search = search, Active = "any", Page = page,
+        Role = _userService.GetAvailableRoles().FirstOrDefault(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase)),
         Login = login?.ToLowerInvariant() is "yes" or "no" ? login.ToLowerInvariant() : null
     };
 
@@ -115,7 +117,7 @@ public class UsersController : Controller
         {
             UptickUserId = uptickUserId,
             EmailPasswordLink = _email.IsConfigured,
-            Role = uptick.LicenseType == "DESK" ? "Admin" : "Tech"
+            Role = TechnicianMatch.TechRole
         });
     }
 
@@ -352,7 +354,7 @@ public class UsersController : Controller
         var person = await people.GetAsync(id, ct);
         if (person == null) return NotFound();
         if (person.UptickId != null) return Forbid();
-        return View("Person", new PersonPageVm { Id = id, Input = new PersonInput { Name = person.Name, Email = person.Email, LicenseType = person.LicenseType ?? "FIELD", Licence = person.Licence } });
+        return View("Person", new PersonPageVm { Id = id, Input = new PersonInput { Name = person.Name, Email = person.Email, Licence = person.Licence } });
     }
 
     [HttpPost, ValidateAntiForgeryToken]

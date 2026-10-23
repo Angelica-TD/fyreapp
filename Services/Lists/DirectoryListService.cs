@@ -97,10 +97,11 @@ public class DirectoryListService : IDirectoryListService
     private IQueryable<UptickUser> UptickUsers(DirectoryFilter filter)
     {
         var q = _db.UptickUsers.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(filter.License))
+        if (!string.IsNullOrWhiteSpace(filter.Role))
         {
-            var license = filter.License.ToUpper();
-            q = q.Where(u => u.LicenseType == license);
+            var role = filter.Role;
+            q = q.Where(u => _db.Users.Any(a => a.UptickUserId == u.Id
+                && _db.UserRoles.Any(ur => ur.UserId == a.Id && _db.Roles.Any(r => r.Id == ur.RoleId && r.Name == role))));
         }
         if (filter.Login == "yes")
             q = q.Where(u => _db.Users.Any(a => a.UptickUserId == u.Id));
@@ -110,8 +111,8 @@ public class DirectoryListService : IDirectoryListService
             q = q.Where(u => u.Name.ToLower().Contains(term) ||
                              (u.Email != null && u.Email.ToLower().Contains(term)) ||
                              (u.Licence != null && u.Licence.ToLower().Contains(term)));
-        // Staff first (desk, field), then contractors, then client portal users
-        return q.OrderBy(u => u.LicenseType == "DESK" ? 0 : u.LicenseType == "FIELD" ? 1 : u.LicenseType == "CONTRACTOR" ? 2 : 3)
+        // People with a FyreApp login first
+        return q.OrderBy(u => _db.Users.Any(a => a.UptickUserId == u.Id) ? 0 : 1)
             .ThenBy(u => u.Name);
     }
 

@@ -5,7 +5,7 @@
     ViewData["Title"] = "Users";
     var list = Model.List;
     var f = list.Filter;
-    var licenses = new[] { "DESK", "FIELD", "CONTRACTOR", "CUSTOMER" };
+    var roles = new[] { "Admin", "Tech", "Developer" };
 }
 
 @if (TempData["Success"] != null)
@@ -106,11 +106,11 @@
                 <input type="search" name="search" value="@f.Search" class="form-control" placeholder="Search name, email or licence" />
             </div>
             <div class="col-sm-6 col-lg-3">
-                <select name="license" class="form-select" aria-label="Licence type" onchange="this.form.submit()">
-                    <option value="" selected="@string.IsNullOrEmpty(f.License)">All licence types</option>
-                    @foreach (var l in licenses)
+                <select name="role" class="form-select" aria-label="Role" onchange="this.form.submit()">
+                    <option value="" selected="@string.IsNullOrEmpty(f.Role)">All roles</option>
+                    @foreach (var r in roles)
                     {
-                        <option value="@l" selected="@(string.Equals(f.License, l, StringComparison.OrdinalIgnoreCase))">@UptickUser.LicenseLabel(l)</option>
+                        <option value="@r" selected="@(f.Role == r)">@r</option>
                     }
                 </select>
             </div>
@@ -141,7 +141,6 @@
                         <tr>
                             <th>Name</th>
                             <th>Email</th>
-                            <th>Licence type</th>
                             <th>Security groups</th>
                             <th>Licence</th>
                             <th>Last Uptick login</th>
@@ -167,7 +166,6 @@
                                     }
                                 </td>
                                 <td>@if (u.Email != null) { <a href="mailto:@u.Email">@u.Email</a> } else { <text>-</text> }</td>
-                                <td>@UptickUser.LicenseLabel(u.LicenseType)</td>
                                 <td class="small">
                                     @if (item.Groups.Any())
                                     {

@@ -108,7 +108,7 @@ function filterBody(query, filters) {
   }
 }
 
-function TaskSearch({ canEdit, canMigrate, techs, canFilterMine, defaultTechnician, onlyMine }) {
+function TaskSearch({ canEdit, techs, canFilterMine, defaultTechnician, onlyMine }) {
   // onlyMine: a technician, who only ever sees their own tasks (the server holds them to it), has no technician filter
   const [DEFAULTS] = useState(() => defaultsFor(defaultTechnician))
   const [initial] = useState(() => filtersFromUrl(DEFAULTS))
@@ -211,8 +211,8 @@ function TaskSearch({ canEdit, canMigrate, techs, canFilterMine, defaultTechnici
 
   const noTechs = canEdit && techs.length === 0 && (
     <p className="small text-muted mb-0">
-      No technicians yet. Technicians are Uptick's field users and contractors, brought in by
-      the {canMigrate ? <a href="/UptickMigration">Uptick migration</a> : 'Uptick migration'}.
+      No technicians yet. A technician is anyone whose FyreApp login has the Tech role: give them one on
+      the <a href="/Users">Users</a> page.
     </p>
   )
 
@@ -314,7 +314,7 @@ function TaskSearch({ canEdit, canMigrate, techs, canFilterMine, defaultTechnici
 
 const el = document.getElementById('task-search-root')
 if (el) createRoot(el).render(
-  <TaskSearch canEdit={el.dataset.canEdit === 'true'} canMigrate={el.dataset.canMigrate === 'true'} techs={JSON.parse(el.dataset.techs || '[]')}
+  <TaskSearch canEdit={el.dataset.canEdit === 'true'} techs={JSON.parse(el.dataset.techs || '[]')}
               canFilterMine={el.dataset.canFilterMine === 'true'} defaultTechnician={el.dataset.defaultTechnician || ''}
               onlyMine={el.dataset.onlyMine === 'true'} />
 )

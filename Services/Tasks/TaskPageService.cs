@@ -79,12 +79,15 @@ public class TaskPageService : ITaskPageService
                     .ToListAsync(ct))
                 .Select(x => (x.f, x.Name))
                 .ToList(),
+            // Technicians (Tech logins), plus whoever the task already has (e.g. who Uptick assigned an imported task to)
             Techs = (await _db.UptickUsers.AsNoTracking()
-                    .Assignable()
-                    .OrderBy(u => u.Name)
-                    .Select(u => new { u.Id, u.Name, u.LicenseType })
+                    .Where(u => u.Id == task.AssignedToUptickUserId)
+                    .Concat(_db.UptickUsers.AsNoTracking().Assignable(_db))
+                    .Select(u => new { u.Id, u.Name })
                     .ToListAsync(ct))
-                .Select(u => (u.Id.ToString(), u.LicenseType == "CONTRACTOR" ? u.Name + " (contractor)" : u.Name))
+                .DistinctBy(u => u.Id)
+                .OrderBy(u => u.Name)
+                .Select(u => (u.Id.ToString(), u.Name))
                 .ToList()
         };
         vm.PerformedOn = await PerformedAsync(task, serviceAssets, ct);

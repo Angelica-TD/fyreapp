@@ -2,7 +2,7 @@ using FyreApp.Models;
 
 namespace FyreApp.ViewModels.Lists;
 
-// Contractors, suppliers and Uptick users: search, Active (default active) and, for users, licence type
+// Contractors, suppliers and users: search, Active (default active) and, for users, their FyreApp login's role
 public class DirectoryFilter
 {
     public string? Search { get; set; }
@@ -10,8 +10,8 @@ public class DirectoryFilter
     // "active" (default), "inactive" or "any"
     public string Active { get; set; } = "active";
 
-    // Users only: DESK, FIELD, CONTRACTOR, CUSTOMER or blank for all
-    public string? License { get; set; }
+    // Users only: the role of their FyreApp login (Admin, Tech, Developer), or blank for all
+    public string? Role { get; set; }
 
     // Users only: "yes" (has a FyreApp login), "no" or blank for all
     public string? Login { get; set; }
@@ -25,7 +25,7 @@ public class DirectoryFilter
     {
         yield return FilterQuery.Kv("search", Search);
         yield return FilterQuery.Kv("active", Active);
-        if (!string.IsNullOrWhiteSpace(License)) yield return FilterQuery.Kv("license", License);
+        if (!string.IsNullOrWhiteSpace(Role)) yield return FilterQuery.Kv("role", Role);
         if (!string.IsNullOrWhiteSpace(Login)) yield return FilterQuery.Kv("login", Login);
     }
 }

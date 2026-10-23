@@ -33,17 +33,6 @@
             </div>
 
             <div class="mb-3">
-                <label asp-for="Input.LicenseType" class="form-label">Licence type</label>
-                <select asp-for="Input.LicenseType" class="form-select">
-                    @foreach (var l in PeopleService.LicenseTypes)
-                    {
-                        <option value="@l">@UptickUser.LicenseLabel(l)@(l == "FIELD" ? " (technician)" : "")</option>
-                    }
-                </select>
-                <div class="form-text">Field technicians and contractors can be assigned tasks.</div>
-            </div>
-
-            <div class="mb-3">
                 <label asp-for="Input.Licence" class="form-label">Trade licence</label>
                 <input asp-for="Input.Licence" class="form-control" placeholder="e.g. QBCC 15366855" />
             </div>
@@ -53,6 +42,7 @@
                 <div class="form-check mb-3">
                     <input asp-for="Input.GiveLogin" class="form-check-input" />
                     <label asp-for="Input.GiveLogin" class="form-check-label">Give them a FyreApp login next (needs an email)</label>
+                    <div class="form-text">Give a technician the Tech role: that's who tasks can be assigned to.</div>
                 </div>
             }
 

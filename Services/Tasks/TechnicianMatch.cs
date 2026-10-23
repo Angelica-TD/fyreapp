@@ -5,16 +5,20 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FyreApp.Services.Tasks;
 
-// Tasks are assigned to Uptick users. Who can be picked, and matching the technician Uptick names on an
-// imported task ("Assigned Technician", e.g. "Dwayne Page") to the Uptick user of that name.
+// Tasks are assigned to Uptick users (the people on the Users page). Who can be picked: anyone whose FyreApp login is a
+// technician (the Tech role), not Uptick's licence type. And matching the technician Uptick names on an imported task
+// ("Assigned Technician", e.g. "Dwayne Page") to the Uptick user of that name.
 public static class TechnicianMatch
 {
-    // Field technicians and contractors, as Uptick lets you assign
-    public static IQueryable<UptickUser> Assignable(this IQueryable<UptickUser> users) =>
-        users.Where(u => u.LicenseType == "FIELD" || u.LicenseType == "CONTRACTOR");
+    public const string TechRole = "Tech";
 
-    // Anyone but a client portal user (an imported task can be assigned to office staff in Uptick)
-    public static bool CanBeAssigned(UptickUser u) => u.LicenseType != "CUSTOMER";
+    // People with an active FyreApp login in the Tech role
+    public static IQueryable<UptickUser> Assignable(this IQueryable<UptickUser> users, AppDbContext db) =>
+        users.Where(u => db.Users.Any(l => l.UptickUserId == u.Id && l.IsActive
+            && db.UserRoles.Any(ur => ur.UserId == l.Id && db.Roles.Any(r => r.Id == ur.RoleId && r.Name == TechRole))));
+
+    public static Task<bool> IsAssignableAsync(AppDbContext db, int uptickUserId, CancellationToken ct = default) =>
+        db.UptickUsers.Where(u => u.Id == uptickUserId).Assignable(db).AnyAsync(ct);
 
     // Uptick user ids by name, role suffix dropped ("Wes Speedon (Field Tech)" -> "Wes Speedon").
     // Names shared by more than one user are left out rather than guessed.

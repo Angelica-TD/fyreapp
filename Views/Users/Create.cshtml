@@ -17,8 +17,6 @@
             <dd class="col-sm-8">@uptick.Name</dd>
             <dt class="col-sm-4">Email (sign-in)</dt>
             <dd class="col-sm-8">@(uptick.Email ?? "None in Uptick")</dd>
-            <dt class="col-sm-4">Licence type</dt>
-            <dd class="col-sm-8">@UptickUser.LicenseLabel(uptick.LicenseType)</dd>
         </dl>
         <p class="small text-muted">@(uptick.UptickId == null
             ? "Name and email are this person's, added in FyreApp: edit them on the Users page."

@@ -15,9 +15,6 @@ public sealed class PersonInput
     [EmailAddress, StringLength(200)]
     public string? Email { get; set; }
 
-    [Required]
-    public string LicenseType { get; set; } = "FIELD";
-
     // Trade licence, e.g. "QBCC 15366855"
     [StringLength(200)]
     public string? Licence { get; set; }
@@ -51,9 +48,6 @@ public interface IPeopleService
 // changed there, brought in by the migration.
 public class PeopleService : IPeopleService
 {
-    // Who can be added: office staff, technicians and contractors (not client portal users)
-    public static readonly IReadOnlyList<string> LicenseTypes = ["DESK", "FIELD", "CONTRACTOR"];
-
     private readonly AppDbContext _db;
     private readonly UserManager<ApplicationUser> _logins;
 
@@ -130,7 +124,6 @@ public class PeopleService : IPeopleService
 
     private async Task<PersonResult?> ProblemAsync(PersonInput input, int? id, CancellationToken ct)
     {
-        if (!LicenseTypes.Contains(input.LicenseType)) return new(PersonStatus.Invalid, id, "Pick a licence type.");
         var email = Clean(input.Email);
         if (email == null) return null;
         // An email Sync would match to someone else's login
@@ -144,7 +137,6 @@ public class PeopleService : IPeopleService
     {
         person.Name = input.Name.Trim();
         person.Email = Clean(input.Email);
-        person.LicenseType = input.LicenseType;
         person.Licence = Clean(input.Licence);
     }
 

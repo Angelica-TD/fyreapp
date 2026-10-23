@@ -55,7 +55,7 @@ FyreApp is an **ASP.NET Core MVC (.NET 10) application** with a **hybrid fronten
 | `Asset` | Equipment at a Property; N:N with `AssetType` |
 | `MaintenanceSchedule` | Recurring maintenance plan linking Asset + Property + interval |
 | `MaintenanceHistory` | Audit log of completed maintenance events |
-| `ClientTask` | Work items with status, priority, and due date; assigned to an `UptickUser` (technician) |
+| `ClientTask` | Work items with status, priority, and due date; assigned to an `UptickUser` (technician): in FyreApp, someone whose FyreApp login has the Tech role (`TechnicianMatch.Assignable`), not by Uptick's licence type |
 | `Proposal` | FyreApp's own proposals, with a `ClientToken` (Guid) for public/unauthenticated viewing at `/q/{token}` (pages still under `/ServiceQuotes`); `ServiceQuote` is Uptick's sales quote |
 | `ApplicationUser` | A FyreApp login (`IdentityUser` + FirstName, LastName, IsActive), linked to the `UptickUser` it takes its name and email from |
 

@@ -35,14 +35,8 @@ public class TaskAssignFlowTests
         return site;
     }
 
-    // Technicians are Uptick users
-    private static async Task<UptickUser> TechAsync(AppDbContext db, string name, string licence = "FIELD")
-    {
-        var user = new UptickUser { Name = name, LicenseType = licence };
-        db.UptickUsers.Add(user);
-        await db.SaveChangesAsync();
-        return user;
-    }
+    // Technicians: people with a FyreApp login in the Tech role
+    private static Task<UptickUser> TechAsync(AppDbContext db, string name, string? role = "Tech") => Logins.PersonAsync(db, name, role);
 
     // What the Routines page links to after generating: /Task?category=I%26T&technician=none&dueFrom=…&dueTo=…
     private static TaskFilter NovemberToAssign => new()
@@ -104,16 +98,38 @@ public class TaskAssignFlowTests
         var site = await SeedAsync(db);
         var task = await db.ClientTasks.SingleAsync(t => t.Title == "Repair");
         var wes = await TechAsync(db, "Wes Speedon");
-        var client = await TechAsync(db, "Mermaid Central", "CUSTOMER");
+        var admin = await TechAsync(db, "Office Admin", "Admin");
+        var noLogin = await TechAsync(db, "Mermaid Central", null);
         var svc = new TaskListService(db, Mock.Of<IClientTaskService>());
         var justThis = new BulkSelection(new[] { task.Id }, AllMatching: false);
 
         Assert.Equal(1, await svc.AssignAsync(justThis, new TaskFilter(), wes.Id));
-        Assert.Null(await svc.AssignAsync(justThis, new TaskFilter(), client.Id));
+        Assert.Null(await svc.AssignAsync(justThis, new TaskFilter(), admin.Id));
+        Assert.Null(await svc.AssignAsync(justThis, new TaskFilter(), noLogin.Id));
         Assert.Null(await svc.AssignAsync(justThis, new TaskFilter(), 9999));
 
         Assert.Equal(wes.Id, (await db.ClientTasks.AsNoTracking().SingleAsync(t => t.Id == task.Id)).AssignedToUptickUserId);
         Assert.Equal(1, await db.ClientTasks.CountAsync(t => t.AssignedToUptickUserId != null));
+    }
+
+    [Fact]
+    public async Task TheTaskPage_OffersTechLogins_AndWhoeverTheTaskHas()
+    {
+        using var db = DbContextFactory.Create();
+        await SeedAsync(db);
+        var wes = await TechAsync(db, "Wes Speedon");
+        await TechAsync(db, "Office Admin", "Admin");
+        await TechAsync(db, "Gone Tech", "Tech");
+        (await db.Users.SingleAsync(u => u.UptickUser!.Name == "Gone Tech")).IsActive = false;
+        var fromUptick = await TechAsync(db, "Dwayne Page", null);
+        var task = await db.ClientTasks.SingleAsync(t => t.Title == "Repair");
+        task.AssignedToUptickUserId = fromUptick.Id;
+        await db.SaveChangesAsync();
+
+        var vm = (await new TaskPageService(db).LoadAsync(task.Id, null))!;
+
+        Assert.Equal(new[] { "Dwayne Page", "Wes Speedon" }, vm.Techs.Select(t => t.Name));
+        Assert.Contains(wes.Id.ToString(), vm.Techs.Select(t => t.Id));
     }
 
     [Fact]
