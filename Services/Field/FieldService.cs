@@ -87,11 +87,26 @@ public class FieldService : IFieldService
                     null, null, null, s.Task.Status)))
             .ToList();
 
+        // Their other open tasks, whatever the day
+        var onTheDay = visits.Select(v => v.TaskId).ToHashSet();
+        var assigned = (await _db.ClientTasks.AsNoTracking()
+                .Where(t => t.AssignedToUptickUserId == technicianId && t.IsActive && !onTheDay.Contains(t.Id)
+                            && t.Status != ClientTaskStatus.Completed && t.Status != ClientTaskStatus.Cancelled)
+                .Select(t => new { Task = t, t.Property.Name, t.Property.AddressDisplay })
+                .ToListAsync(ct))
+            .Select(s => new FieldVisit(s.Task.Id, s.Task.DisplayRef, s.Task.Title, s.Task.Category, s.Name, s.AddressDisplay,
+                null, null, null, s.Task.Status, s.Task.ScheduledDate, s.Task.DueDateUtc.ToSydney()?.Date))
+            .OrderBy(v => v.Scheduled ?? v.Due ?? DateTime.MaxValue)
+            .ThenBy(v => v.Due ?? DateTime.MaxValue)
+            .ThenBy(v => v.PropertyName)
+            .ToList();
+
         return new FieldDayVm
         {
             Day = day,
             Technician = await _db.UptickUsers.Where(u => u.Id == technicianId).Select(u => u.Name).FirstOrDefaultAsync(ct),
             Visits = visits,
+            Assigned = assigned,
             Working = await RunningVisitAsync(technicianId, null, ct)
         };
     }
