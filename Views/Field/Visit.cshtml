@@ -15,6 +15,7 @@
     var routines = Model.Lines.GroupBy(l => l.Routine).ToList();
     var canWork = Model.CannotWork == null;
     var line = 0;
+    var shownRemarks = new HashSet<int>();
 }
 
 @* The field app's task page: where to go and who to call, the technician's clock, and the assets to service *@
@@ -22,6 +23,10 @@
     @if (TempData["Error"] is string error)
     {
         <div class="alert alert-danger">@error</div>
+    }
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success">@success</div>
     }
 
     <div class="mb-3">
@@ -188,11 +193,18 @@
                                 @if (l.AssetRef != null) { <span class="text-muted">@l.Asset</span> }
                                 @if (l.Location != null) { <div class="small text-muted">@l.Location</div> }
                             </div>
-                            @if (l.OpenRemarks > 0)
+                            @if (canWork)
                             {
-                                <span class="badge text-bg-warning align-self-start" title="Open remarks">@l.OpenRemarks remark@(l.OpenRemarks == 1 ? "" : "s")</span>
+                                <a class="btn btn-sm btn-outline-warning align-self-start text-nowrap" href="@Url.Action("Remark", new { id = task.Id, assetId = l.AssetId })">
+                                    <i class="bi bi-exclamation-triangle"></i> Remark
+                                </a>
                             }
                         </div>
+                        @* An asset serviced for more than one routine lists its remarks once *@
+                        @if (shownRemarks.Add(l.AssetId))
+                        {
+                            <partial name="_Remarks" model="new FyreApp.ViewModels.Field.FieldRemarksList(task.Id, l.Remarks, canWork)" />
+                        }
                         <form method="post" asp-action="Record" asp-route-id="@task.Id" class="js-result mt-2">
                             <fieldset disabled="@(!canWork)">
                                 <input type="hidden" name="assetId" value="@l.AssetId" />
@@ -219,6 +231,26 @@
             </ul>
         </div>
     }
+
+    @* Remarks on the property itself, or assets not on the list *@
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center gap-2">
+            <span>Other remarks</span>
+            @if (canWork)
+            {
+                <a class="btn btn-sm btn-outline-warning" href="@Url.Action("Remark", new { id = task.Id })">
+                    <i class="bi bi-exclamation-triangle"></i> Raise a remark
+                </a>
+            }
+        </div>
+        <div class="card-body py-2">
+            @if (Model.OtherRemarks.Count == 0)
+            {
+                <div class="small text-muted">For something at the property that isn't one of the assets above.</div>
+            }
+            <partial name="_Remarks" model="new FyreApp.ViewModels.Field.FieldRemarksList(task.Id, Model.OtherRemarks, canWork)" />
+        </div>
+    </div>
 
     <p class="small mt-3">
         <a asp-controller="Task" asp-action="Details" asp-route-id="@task.Id">The task's full page</a>

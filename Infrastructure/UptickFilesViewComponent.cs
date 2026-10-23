@@ -21,17 +21,19 @@ public class UptickFilesViewComponent : ViewComponent
 
     public UptickFilesViewComponent(AppDbContext db) => _db = db;
 
-    public async Task<IViewComponentResult> InvokeAsync(string resource, long? uptickId)
+    // recordId: the FyreApp record, for photos taken in FyreApp (FyreAppFiles)
+    public async Task<IViewComponentResult> InvokeAsync(string resource, long? uptickId, int? recordId = null)
     {
-        if (uptickId is not { } id) return Content("");
-        var model = await LoadAsync(_db, resource, id);
+        if (uptickId == null && recordId == null) return Content("");
+        var model = await LoadAsync(_db, resource, uptickId, recordId);
         return model.Any ? View(model) : Content("");
     }
 
-    public static async Task<Model> LoadAsync(AppDbContext db, string resource, long uptickId)
+    public static async Task<Model> LoadAsync(AppDbContext db, string resource, long? uptickId, int? recordId = null)
     {
         var rows = await db.UptickFiles.AsNoTracking()
-            .Where(f => f.RecordType == resource && f.RecordUptickId == uptickId && !f.NoFile)
+            .Where(f => f.RecordType == resource && !f.NoFile
+                        && ((uptickId != null && f.RecordUptickId == uptickId) || (recordId != null && f.RecordId == recordId)))
             .Select(f => new { f.Id, f.Path, f.Kind, f.PhotoType, f.Caption, f.Size, f.CreatedUtc, Held = f.StorageKey != null })
             .ToListAsync();
         var held = rows.Where(f => f.Held)

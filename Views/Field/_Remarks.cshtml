@@ -1,0 +1,24 @@
+@model FyreApp.ViewModels.Field.FieldRemarksList
+
+@* Open remarks on the field page, each resolvable once fixed *@
+@if (Model.Remarks.Count > 0)
+{
+    <ul class="list-unstyled small mb-0 mt-2">
+        @foreach (var r in Model.Remarks)
+        {
+            <li class="d-flex justify-content-between align-items-start gap-2 border rounded px-2 py-1 mb-1 bg-warning-subtle">
+                <span>
+                    <a asp-controller="Remarks" asp-action="Details" asp-route-id="@r.Id">@r.Ref</a>
+                    @if (r.SeverityLabel != null) { <span class="text-muted">· @r.SeverityLabel</span> }
+                    @if (r.RaisedHere) { <span class="badge text-bg-light border">Raised on this task</span> }
+                    <span class="d-block">@(r.Type ?? r.Description)</span>
+                    @if (r.Type != null && r.Description != null && r.Description != r.Type) { <span class="d-block text-muted">@r.Description</span> }
+                </span>
+                @if (Model.CanWork)
+                {
+                    <a class="btn btn-sm btn-outline-success text-nowrap" href="@Url.Action("Resolve", "Field", new { id = Model.TaskId, remarkId = r.Id })">Resolve</a>
+                }
+            </li>
+        }
+    </ul>
+}

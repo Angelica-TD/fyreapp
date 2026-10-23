@@ -106,6 +106,8 @@ public class UptickMigrationRun
 // A file Uptick stores, copied into FyreApp's file store (§8): a document file (photo, signature, attachment;
 // Uptick "documentfiles") or a report's PDF. Each is checked again on a Files run and downloaded when it's new or
 // changed in Uptick.
+// Photos taken in FyreApp (the field app's remark photos) are kept here too, as Source "fyreapp" (FyreAppFiles), with
+// the FyreApp record they belong to (RecordType, RecordId); Files runs only look at Uptick's sources.
 public class UptickFile
 {
     public int Id { get; set; }
@@ -124,6 +126,9 @@ public class UptickFile
     // remark's photo is ("remarks", 55400). Null for account-level files (contracts, exports).
     [StringLength(50)] public string? RecordType { get; set; }
     public long? RecordUptickId { get; set; }
+
+    // The FyreApp record it belongs to, for a file added in FyreApp (by its Id, e.g. a remark's)
+    public int? RecordId { get; set; }
 
     // photo, signature, document or pdf (a report's generated PDF)
     [StringLength(20)] public string? Kind { get; set; }

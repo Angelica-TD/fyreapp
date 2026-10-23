@@ -40,7 +40,7 @@ public sealed record FieldLine(
     string Routine,
     string? Result,
     string? Notes,
-    int OpenRemarks);
+    IReadOnlyList<FieldRemark> Remarks);
 
 // The field app's task page (/Field/Task/{id})
 public class FieldTaskVm
@@ -57,6 +57,9 @@ public class FieldTaskVm
     public FieldVisit? RunningElsewhere { get; set; }
 
     public IReadOnlyList<FieldLine> Lines { get; set; } = [];
+
+    // Open remarks raised on this task that aren't on an asset in Lines (on the property, or another asset)
+    public IReadOnlyList<FieldRemark> OtherRemarks { get; set; } = [];
 
     // Why the signed-in login can't record work here (none when it can)
     public string? CannotWork { get; set; }
