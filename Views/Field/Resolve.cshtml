@@ -1,0 +1,43 @@
+@model FyreApp.ViewModels.Field.ResolveRemarkVm
+@{
+    ViewData["Title"] = "Resolve a remark";
+    var r = Model.Remark;
+}
+
+@* The field app: resolving an open remark once fixed, with photos *@
+<div class="field-app mx-auto" style="max-width: 720px">
+    <div class="text-muted small">@Model.TaskRef</div>
+    <h1 class="h4 mb-3">Resolve @r.DisplayRef</h1>
+
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            @if (r.Asset != null)
+            {
+                <div class="fw-semibold">@(r.Asset.Ref ?? r.Asset.Name) @if (r.Asset.Ref != null) { <span class="fw-normal text-muted">@r.Asset.Name</span> }</div>
+            }
+            <div>@(r.RemarkType ?? r.Description)</div>
+            @if (r.RemarkType != null && r.Description != null && r.Description != r.RemarkType) { <div class="small text-muted">@r.Description</div> }
+            @if (r.SeverityLabel != null) { <div class="small text-muted">@r.SeverityLabel</div> }
+        </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" asp-action="Resolve" asp-route-id="@Model.TaskId" asp-route-remarkId="@r.Id" class="js-photos">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+        <div class="mb-3">
+            <label for="resolution" class="form-label">How it was fixed</label>
+            <textarea id="resolution" name="resolution" class="form-control" rows="3" required>@Model.Resolution</textarea>
+        </div>
+
+        <partial name="_PhotoInput" model="@("Photos once fixed")" />
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-success btn-lg flex-grow-1">Resolve</button>
+            <a class="btn btn-outline-secondary btn-lg" href="@Url.Action("Visit", new { id = Model.TaskId })">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script src="~/js/field.js" asp-append-version="true"></script>
+}

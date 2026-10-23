@@ -3824,6 +3824,9 @@ namespace FyreApp.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<int?>("RecordId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("RecordType")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -3852,6 +3855,8 @@ namespace FyreApp.Migrations
                         .HasColumnType("character varying(300)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RecordType", "RecordId");
 
                     b.HasIndex("RecordType", "RecordUptickId");
 

@@ -4,7 +4,7 @@
     string When(DateTime? utc) => utc is { } d ? d.ToSydney().ToOrdinalDate() : "";
     // A remark's photos as Uptick sorts them: as found, then once fixed
     var groups = Model.Photos
-        .GroupBy(p => p.PhotoType?.ToLowerInvariant() switch { "open" => "As found", "closed" => "Once fixed", _ => "" })
+        .GroupBy(p => p.PhotoType?.ToLowerInvariant() switch { "open" => "As found", "closed" or "fixed" => "Once fixed", _ => "" })
         .OrderBy(g => g.Key switch { "As found" => 0, "Once fixed" => 1, _ => 2 })
         .ToList();
 }

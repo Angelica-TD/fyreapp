@@ -127,6 +127,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
         {
             entity.HasIndex(f => new { f.Source, f.SourceId }).IsUnique();
             entity.HasIndex(f => new { f.RecordType, f.RecordUptickId });
+            entity.HasIndex(f => new { f.RecordType, f.RecordId });
             entity.Property(f => f.SourceUpdatedUtc).HasColumnType("timestamptz");
             entity.Property(f => f.DownloadedUtc).HasColumnType("timestamptz");
             entity.Property(f => f.CheckedUtc).HasColumnType("timestamptz");

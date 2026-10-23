@@ -24,6 +24,63 @@
         });
     });
 
+    // Photos (raising and resolving remarks): shrunk on the phone to at most 1600px JPEGs before sending, so they go
+    // up quickly on poor signal; any the browser can't read go as they are
+    const MaxSide = 1600;
+    const shrink = async file => {
+        if (!file.type.startsWith('image/')) return file;
+        try {
+            const bitmap = await createImageBitmap(file);
+            const scale = Math.min(1, MaxSide / Math.max(bitmap.width, bitmap.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(bitmap.width * scale);
+            canvas.height = Math.round(bitmap.height * scale);
+            canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            bitmap.close();
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+            if (!blob || blob.size >= file.size) return file;
+            return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg', lastModified: file.lastModified });
+        } catch {
+            return file;
+        }
+    };
+
+    document.querySelectorAll('form.js-photos').forEach(form => {
+        const input = form.querySelector('.js-photo-input');
+        const previews = form.querySelector('.js-photo-previews');
+        const status = form.querySelector('.js-photo-status');
+        const submit = form.querySelector('button[type=submit]');
+
+        input.addEventListener('change', () => {
+            (async () => {
+                submit.disabled = true;
+                status.textContent = 'Preparing photos…';
+                const files = await Promise.all([...input.files].map(shrink));
+                if (typeof DataTransfer !== 'undefined') {
+                    const dt = new DataTransfer();
+                    files.forEach(f => dt.items.add(f));
+                    input.files = dt.files;
+                }
+                previews.replaceChildren(...files.map(f => {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(f);
+                    img.className = 'rounded border';
+                    img.style.cssText = 'width: 5rem; height: 5rem; object-fit: cover';
+                    img.alt = f.name;
+                    return img;
+                }));
+                const mb = files.reduce((n, f) => n + f.size, 0) / 1024 / 1024;
+                status.textContent = files.length ? `${files.length} photo${files.length === 1 ? '' : 's'}, ${mb.toFixed(1)} MB` : '';
+                submit.disabled = false;
+            })();
+        });
+
+        form.addEventListener('submit', () => {
+            submit.disabled = true;
+            submit.textContent = input.files.length ? 'Sending photos…' : 'Saving…';
+        });
+    });
+
     // An asset's result and notes save as they change, without reloading the page
     document.querySelectorAll('form.js-result').forEach(form => {
         const status = form.querySelector('.js-status');

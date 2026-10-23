@@ -104,11 +104,18 @@ public class FieldService : IFieldService
                 .ToListAsync(ct))
             .DistinctBy(s => (s.AssetId, s.Routine))
             .ToDictionary(s => (s.AssetId, s.Routine));
-        var remarks = await _db.Remarks.AsNoTracking()
-            .Where(d => d.Active && d.AssetId != null && assetIds.Contains(d.AssetId.Value))
-            .GroupBy(d => d.AssetId!.Value)
-            .Select(g => new { g.Key, Count = g.Count() })
-            .ToDictionaryAsync(g => g.Key, g => g.Count, ct);
+        // Open remarks at the property: on the assets being serviced, and any others raised on this task
+        var remarks = (await _db.Remarks.AsNoTracking()
+                .Where(d => d.Active && d.PropertyId == task.PropertyId
+                            && ((d.AssetId != null && assetIds.Contains(d.AssetId.Value)) || d.RaisedOnTaskId == taskId))
+                .OrderBy(d => d.RaisedUtc).ThenBy(d => d.Id)
+                .Select(d => new { d.Id, d.UptickId, d.FyreRef, d.AssetId, d.RemarkType, d.Description, d.SeverityLabel, d.RaisedOnTaskId })
+                .ToListAsync(ct))
+            .Select(d => (d.AssetId, Remark: new FieldRemark(d.Id, new Remark { UptickId = d.UptickId, FyreRef = d.FyreRef }.DisplayRef,
+                d.RemarkType, d.Description, d.SeverityLabel, d.RaisedOnTaskId == taskId)))
+            .ToList();
+        var byAsset = remarks.Where(r => r.AssetId != null)
+            .ToLookup(r => r.AssetId!.Value, r => r.Remark);
 
         var vm = new FieldTaskVm
         {
@@ -126,8 +133,9 @@ public class FieldService : IFieldService
             {
                 saved.TryGetValue((l.Asset.Id, l.Routine), out var s);
                 return new FieldLine(l.Asset.Id, l.Asset.Name, l.Asset.Ref, l.Asset.Location, l.Routine, s?.Result, s?.Notes,
-                    remarks.GetValueOrDefault(l.Asset.Id));
-            }).ToList()
+                    byAsset[l.Asset.Id].ToList());
+            }).ToList(),
+            OtherRemarks = remarks.Where(r => r.AssetId == null || !assetIds.Contains(r.AssetId.Value)).Select(r => r.Remark).ToList()
         };
 
         if (technicianId is not { } me)
@@ -135,7 +143,7 @@ public class FieldService : IFieldService
             vm.CannotWork = "Your login isn't linked to an Uptick user, so you can look but not record work.";
             return vm;
         }
-        if (!task.IsActive || task.Status is ClientTaskStatus.Completed or ClientTaskStatus.Cancelled)
+        if (!IsOpen(task))
             vm.CannotWork = "This task is closed.";
 
         var todayUtc = SydneyToUtc(DateTime.UtcNow.ToSydney().Date);
@@ -159,7 +167,7 @@ public class FieldService : IFieldService
         if (sessionType.Type == null) return new(FieldOutcome.Invalid, "Pick what you're doing.");
         var task = await _db.ClientTasks.FirstOrDefaultAsync(t => t.Id == taskId, ct);
         if (task == null) return new(FieldOutcome.NotFound);
-        if (!task.IsActive || task.Status is ClientTaskStatus.Completed or ClientTaskStatus.Cancelled)
+        if (!IsOpen(task))
             return new(FieldOutcome.Invalid, "This task is closed.");
 
         var now = DateTime.UtcNow;
@@ -201,7 +209,7 @@ public class FieldService : IFieldService
         }
         var task = await _db.ClientTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
         if (task == null) return new(FieldOutcome.NotFound);
-        if (!task.IsActive || task.Status is ClientTaskStatus.Completed or ClientTaskStatus.Cancelled)
+        if (!IsOpen(task))
             return new(FieldOutcome.Invalid, "This task is closed.");
 
         var rows = await _db.ServiceTasks.Where(s => s.ClientTaskId == taskId && s.AssetId != null).ToListAsync(ct);
@@ -226,6 +234,9 @@ public class FieldService : IFieldService
         await _db.SaveChangesAsync(ct);
         return FieldResult.Done;
     }
+
+    public static bool IsOpen(ClientTask task) =>
+        task.IsActive && task.Status is not (ClientTaskStatus.Completed or ClientTaskStatus.Cancelled);
 
     private static void Finish(TaskSession s, DateTime now, Coords? at, string? note)
     {

@@ -3,6 +3,7 @@ using FyreApp.Auth;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.Services.Field;
+using FyreApp.ViewModels.Field;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -64,6 +65,71 @@ public class FieldController : Controller
         if (Request.Headers.XRequestedWith == "fetch")
             return done.Outcome == FieldOutcome.Done ? Ok(new { result }) : BadRequest(new { error = done.Message ?? "Not saved." });
         return Done(id, done, $"asset-{assetId}");
+    }
+
+    // Photos come straight off a phone (field.js shrinks them first when it can)
+    private const long PhotoUploadLimit = 200L * 1024 * 1024;
+
+    [HttpGet("/Field/Task/{id:int}/Remark")]
+    public async Task<IActionResult> Remark(int id, int? assetId, [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
+    {
+        if (!await MayOpenAsync(id, await TechnicianIdAsync(), ct)) return Forbid();
+        var vm = await remarks.RaiseFormAsync(id, assetId, ct);
+        return vm == null ? NotFound() : View(vm);
+    }
+
+    [HttpPost("/Field/Task/{id:int}/Remark"), ValidateAntiForgeryToken]
+    [RequestSizeLimit(PhotoUploadLimit), RequestFormLimits(MultipartBodyLengthLimit = PhotoUploadLimit)]
+    public async Task<IActionResult> Remark(int id, [Bind(Prefix = "Input")] RaiseRemarkInput input, List<IFormFile> photos,
+        [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
+    {
+        if (!await MayOpenAsync(id, await TechnicianIdAsync(), ct)) return Forbid();
+        var saved = await remarks.RaiseAsync(id, input, photos, ct);
+        if (saved.Result.Outcome == FieldOutcome.Invalid)
+        {
+            var vm = await remarks.RaiseFormAsync(id, input.AssetId, ct);
+            if (vm == null) return NotFound();
+            vm.Input = input;
+            ModelState.AddModelError("", saved.Result.Message!);
+            return View(vm);
+        }
+        return Saved(id, saved, "Remark raised", input.AssetId);
+    }
+
+    [HttpGet("/Field/Task/{id:int}/Remark/{remarkId:int}/Resolve")]
+    public async Task<IActionResult> Resolve(int id, int remarkId, [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
+    {
+        if (!await MayOpenAsync(id, await TechnicianIdAsync(), ct)) return Forbid();
+        var vm = await remarks.ResolveFormAsync(id, remarkId, ct);
+        return vm == null ? NotFound() : View(vm);
+    }
+
+    [HttpPost("/Field/Task/{id:int}/Remark/{remarkId:int}/Resolve"), ValidateAntiForgeryToken]
+    [RequestSizeLimit(PhotoUploadLimit), RequestFormLimits(MultipartBodyLengthLimit = PhotoUploadLimit)]
+    public async Task<IActionResult> Resolve(int id, int remarkId, string? resolution, List<IFormFile> photos,
+        [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
+    {
+        if (!await MayOpenAsync(id, await TechnicianIdAsync(), ct)) return Forbid();
+        var saved = await remarks.ResolveAsync(id, remarkId, resolution, photos, ct);
+        if (saved.Result.Outcome == FieldOutcome.Invalid)
+        {
+            var vm = await remarks.ResolveFormAsync(id, remarkId, ct);
+            if (vm == null) return Done(id, saved.Result);
+            vm.Resolution = resolution;
+            ModelState.AddModelError("", saved.Result.Message!);
+            return View(vm);
+        }
+        return Saved(id, saved, "Remark resolved", null);
+    }
+
+    private IActionResult Saved(int id, RemarkSaved saved, string what, int? assetId)
+    {
+        if (saved.Result.Outcome != FieldOutcome.Done) return Done(id, saved.Result);
+        if (saved.PhotoProblems is { Count: > 0 } problems)
+            TempData["Error"] = $"{what}, but not all its photos: {string.Join(" ", problems)}";
+        else
+            TempData["Success"] = $"{what}.";
+        return Redirect(Url.Action(nameof(Visit), new { id }) + (assetId == null ? "" : $"#asset-{assetId}"));
     }
 
     private IActionResult Done(int id, FieldResult result, string? anchor = null)

@@ -1,0 +1,82 @@
+@model FyreApp.ViewModels.Field.RaiseRemarkVm
+@using FyreApp.Services.Field
+@{
+    ViewData["Title"] = "Raise a remark";
+    var a = Model.Asset;
+    var forAsset = Model.Types.Where(t => t.ForAsset).ToList();
+    var others = Model.Types.Where(t => !t.ForAsset).ToList();
+}
+
+@* The field app: raising a remark on an asset (or the property) with photos as found *@
+<div class="field-app mx-auto" style="max-width: 720px">
+    <div class="text-muted small">@Model.TaskRef · @Model.PropertyName</div>
+    <h1 class="h4 mb-3">Raise a remark</h1>
+
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            @if (a != null)
+            {
+                <div class="fw-semibold">@(a.Ref ?? a.Name) @if (a.Ref != null) { <span class="fw-normal text-muted">@a.Name</span> }</div>
+                @if (a.Location != null) { <div class="small text-muted">@a.Location</div> }
+            }
+            else
+            {
+                <div class="fw-semibold">The property</div>
+                <div class="small text-muted">Not on one asset</div>
+            }
+        </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" asp-action="Remark" asp-route-id="@Model.TaskId" class="js-photos">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+        <input type="hidden" asp-for="Input.AssetId" />
+
+        <div class="mb-3">
+            <label asp-for="Input.RemarkTypeId" class="form-label">Remark type</label>
+            <select asp-for="Input.RemarkTypeId" class="form-select">
+                <option value="">— Pick one, or describe it below —</option>
+                @if (forAsset.Count > 0)
+                {
+                    <optgroup label="For this asset">
+                        @foreach (var t in forAsset) { <option value="@t.Id" selected="@(Model.Input.RemarkTypeId == t.Id)">@t.Label</option> }
+                    </optgroup>
+                }
+                <optgroup label="@(forAsset.Count > 0 ? "Other types" : "Types")">
+                    @foreach (var t in others) { <option value="@t.Id" selected="@(Model.Input.RemarkTypeId == t.Id)">@t.Label</option> }
+                </optgroup>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Input.Severity" class="form-label">Severity</label>
+            <select asp-for="Input.Severity" class="form-select">
+                <option value="">The remark type's</option>
+                @foreach (var (value, label) in FieldRemarkService.Severities)
+                {
+                    <option value="@value" selected="@(Model.Input.Severity == value)">@label</option>
+                }
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Input.Description" class="form-label">What's wrong</label>
+            <textarea asp-for="Input.Description" class="form-control" rows="3"></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Input.Location" class="form-label">Where</label>
+            <input asp-for="Input.Location" class="form-control" />
+        </div>
+
+        <partial name="_PhotoInput" model="@("Photos as found")" />
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-warning btn-lg flex-grow-1">Raise remark</button>
+            <a class="btn btn-outline-secondary btn-lg" href="@Url.Action("Visit", new { id = Model.TaskId })">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script src="~/js/field.js" asp-append-version="true"></script>
+}
