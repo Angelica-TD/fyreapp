@@ -36,10 +36,7 @@ public class TaskPageService : ITaskPageService
             .Where(o => o.ClientTaskId == id)
             .ToListAsync(ct);
 
-        var siteRoutines = routines.Select(o => new RoutineAssets.SiteRoutine(o.PropertyId, o.Name, o.RoutineServiceLevel?.RoutineServiceType.Name ?? RoutineAssets.RoutineType(o.Name))).ToList();
-        // Imported tasks list assets for every routine their scope names, even ones whose routine isn't imported
-        if (siteRoutines.Count == 0 && task.ScopeOfWorks is { } scope)
-            siteRoutines = RoutineAssets.FromScope(task.PropertyId, scope, await _db.RoutineServiceTypes.AsNoTracking().Select(t => t.Name).ToListAsync(ct)).ToList();
+        var siteRoutines = await TaskServiceLines.SiteRoutinesAsync(_db, task, routines, ct);
         var visits = routines.Count > 0
             ? routines.OrderBy(o => o.Name).ThenBy(o => o.DueDate).Select(o => (o.Name, (Routine?)o)).ToList()
             : await NearestRoutinesAsync(task, siteRoutines.Select(r => r.Routine).ToList(), ct);
@@ -219,29 +216,7 @@ public class TaskPageService : ITaskPageService
             .ToList();
     }
 
-    // The assets the task services for its routines: saved when it was generated; for routine tasks generated
-    // before they were saved, worked out from the property's assets now
-    private async Task<IReadOnlyList<(string Routine, Asset Asset)>> ServiceAssetsAsync(
-        int taskId, IReadOnlyCollection<RoutineAssets.SiteRoutine> routines, CancellationToken ct)
-    {
-        var saved = await _db.ServiceTasks.AsNoTracking()
-            // (lines of stock used have no asset)
-            .Where(a => a.ClientTaskId == taskId && a.AssetId != null)
-            .Select(a => new { a.Id, a.Routine, Asset = a.Asset! })
-            .ToListAsync(ct);
-        if (saved.Count > 0 || routines.Count == 0)
-            return Ordered(saved.Select(a => (a.Routine, a.Asset)));
-
-        var lines = await RoutineAssets.ForAsync(_db, routines, ct);
-        var assetIds = lines.SelectMany(g => g).Select(l => l.AssetId).Distinct().ToList();
-        var assets = await _db.Assets.AsNoTracking().Where(a => assetIds.Contains(a.Id)).ToDictionaryAsync(a => a.Id, ct);
-        return Ordered(lines.SelectMany(g => g).Select(l => (l.Routine, assets[l.AssetId])));
-    }
-
-    // By routine, then in inspection order
-    private static IReadOnlyList<(string Routine, Asset Asset)> Ordered(IEnumerable<(string Routine, Asset Asset)> lines) =>
-        lines.OrderBy(l => l.Routine)
-            .ThenBy(l => l.Asset.InspectionOrder == null).ThenBy(l => l.Asset.InspectionOrder)
-            .ThenBy(l => l.Asset.Ref).ThenBy(l => l.Asset.Name).ThenBy(l => l.Asset.Id)
-            .ToList();
+    private Task<IReadOnlyList<(string Routine, Asset Asset)>> ServiceAssetsAsync(
+        int taskId, IReadOnlyCollection<RoutineAssets.SiteRoutine> routines, CancellationToken ct) =>
+        TaskServiceLines.AssetsAsync(_db, taskId, routines, ct);
 }
