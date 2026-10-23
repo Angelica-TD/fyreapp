@@ -14,6 +14,9 @@ public class FieldDayVm
 
     public IReadOnlyList<FieldVisit> Visits { get; set; } = [];
 
+    // Every other open task assigned to them, whatever the day: soonest scheduled or due first
+    public IReadOnlyList<FieldVisit> Assigned { get; set; } = [];
+
     // The task the technician's clock is running on, wherever it is
     public FieldVisit? Working { get; set; }
 }
@@ -29,7 +32,10 @@ public sealed record FieldVisit(
     DateTime? StartLocal,
     DateTime? EndLocal,
     string? Notes,
-    ClientTaskStatus Status);
+    ClientTaskStatus Status,
+    // For an open task listed under "Your other open tasks": when it's scheduled, and due (Sydney dates)
+    DateTime? Scheduled = null,
+    DateTime? Due = null);
 
 // One asset to service for one of the task's routines, and what the technician found
 public sealed record FieldLine(

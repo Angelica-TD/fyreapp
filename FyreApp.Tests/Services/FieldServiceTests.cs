@@ -36,6 +36,9 @@ public class FieldServiceTests
         var w = await SetupAsync();
         var third = new ClientTask { Property = w.Task.Property, Client = w.Task.Client, Title = "Callout", Ref = "T-3", AssignedTo = w.Me,
             ScheduledDate = DateTime.SpecifyKind(Day, DateTimeKind.Utc) };
+        var done = new ClientTask { Property = w.Task.Property, Client = w.Task.Client, Title = "Done", Ref = "T-4", AssignedTo = w.Me, Status = ClientTaskStatus.Completed, IsActive = false };
+        var others = new ClientTask { Property = w.Task.Property, Client = w.Task.Client, Title = "Theirs", Ref = "T-5", AssignedTo = w.Other };
+        w.Db.AddRange(done, others);
         w.Db.AddRange(
             third,
             new Appointment { ClientTask = w.Task, StartUtc = NineAmUtc, EndUtc = NineAmUtc.AddHours(2), Status = "scheduled", Technicians = [w.Me] },
@@ -51,6 +54,9 @@ public class FieldServiceTests
         Assert.Equal(new DateTime(2026, 3, 10, 9, 0, 0), day.Visits[0].StartLocal);
         Assert.Null(day.Visits[1].StartLocal);
         Assert.Equal("Dwayne Page", day.Technician);
+
+        // Their other open tasks: not those on the day, closed ones or someone else's
+        Assert.Equal(new[] { "T-2" }, day.Assigned.Select(v => v.TaskRef));
     }
 
     [Fact]
