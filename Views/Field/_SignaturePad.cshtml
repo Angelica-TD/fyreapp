@@ -1,0 +1,8 @@
+@model string
+
+@* Signing with a finger: the drawing goes in the hidden input (named by the model) as a PNG data: URL (field.js) *@
+<div class="js-signature">
+    <canvas class="border rounded bg-white w-100 d-block" style="height: 10rem; touch-action: none" aria-label="Sign here"></canvas>
+    <input type="hidden" name="@Model" />
+    <button type="button" class="btn btn-sm btn-link px-0 js-signature-clear">Clear</button>
+</div>

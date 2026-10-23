@@ -85,6 +85,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
     public DbSet<ServiceTask> ServiceTasks => Set<ServiceTask>();
     public DbSet<TaskSession> TaskSessions => Set<TaskSession>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<TaskSignOff> TaskSignOffs => Set<TaskSignOff>();
     public DbSet<Subtask> Subtasks => Set<Subtask>();
     public DbSet<TaskStockTransaction> TaskStockTransactions => Set<TaskStockTransaction>();
     public DbSet<ReportItem> ReportItems => Set<ReportItem>();
@@ -742,6 +743,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole, str
             entity.HasIndex(f => f.UptickId).IsUnique();
             entity.HasOne(f => f.ClientTask).WithMany().HasForeignKey(f => f.ClientTaskId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(f => f.UptickUser).WithMany().HasForeignKey(f => f.UptickUserId).OnDelete(DeleteBehavior.SetNull);
+            entity.Property(f => f.Values).HasColumnType("jsonb");
+        });
+        modelBuilder.Entity<TaskSignOff>(entity =>
+        {
+            entity.HasIndex(s => s.ClientTaskId).IsUnique();
+            entity.HasOne(s => s.ClientTask).WithMany().HasForeignKey(s => s.ClientTaskId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(s => s.SignatureFile).WithMany().HasForeignKey(s => s.SignatureFileId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(s => s.UptickUser).WithMany().HasForeignKey(s => s.UptickUserId).OnDelete(DeleteBehavior.SetNull);
+            entity.Property(s => s.SignedUtc).HasColumnType("timestamptz");
         });
         modelBuilder.Entity<Stock>(entity =>
         {

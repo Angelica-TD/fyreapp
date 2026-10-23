@@ -416,7 +416,7 @@
                                 {
                                     <div class="task-process-row">
                                         <i class="bi bi-arrow-return-right text-muted"></i>
-                                        <span>@(form.TemplateName ?? "Form")@(form.Ref != null ? $" {form.Ref}" : "")</span>
+                                        <a asp-controller="Field" asp-action="SubmittedForm" asp-route-id="@t.Id" asp-route-responseId="@form.Id">@(form.TemplateName ?? "Form")@(form.Ref != null ? $" {form.Ref}" : "")</a>
                                         <span class="text-muted">@(form.SubmittedUtc?.ToSydney().ToOrdinalDate() ?? "")@(submitter != null ? $" by {submitter}" : "")</span>
                                         @if (!form.IsComplete) { <span class="badge bg-warning text-dark">Incomplete</span> }
                                     </div>
@@ -461,7 +461,7 @@
                     </div>
                 </div>
 
-                @await Component.InvokeAsync("UptickFiles", new { resource = "tasks", uptickId = t.UptickId })
+                @await Component.InvokeAsync("UptickFiles", new { resource = "tasks", uptickId = t.UptickId, recordId = t.Id })
                 @await Component.InvokeAsync("Correspondence", new { resource = "tasks", uptickId = t.UptickId })
                 @await Component.InvokeAsync("UptickRecord", new { resource = "tasks", uptickId = t.UptickId })
             </div>

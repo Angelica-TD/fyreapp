@@ -43,6 +43,8 @@ builder.Services.AddScoped<FyreApp.Services.Tasks.ITaskListService, FyreApp.Serv
 builder.Services.AddScoped<FyreApp.Services.Tasks.ITaskPageService, FyreApp.Services.Tasks.TaskPageService>();
 builder.Services.AddScoped<FyreApp.Services.Field.IFieldService, FyreApp.Services.Field.FieldService>();
 builder.Services.AddScoped<FyreApp.Services.Field.IFieldRemarkService, FyreApp.Services.Field.FieldRemarkService>();
+builder.Services.AddScoped<FyreApp.Services.Field.IFieldSignOffService, FyreApp.Services.Field.FieldSignOffService>();
+builder.Services.AddScoped<FyreApp.Services.Forms.IFieldFormService, FyreApp.Services.Forms.FieldFormService>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IDirectoryListService, FyreApp.Services.Lists.DirectoryListService>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IProductListService, FyreApp.Services.Lists.ProductListService>();
 builder.Services.AddScoped<FyreApp.Services.Timeline.ITimelineService, FyreApp.Services.Timeline.TimelineService>();

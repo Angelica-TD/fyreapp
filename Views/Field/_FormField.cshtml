@@ -1,0 +1,89 @@
+@model FyreApp.Services.Forms.FormFieldPartial
+@using FyreApp.Services.Forms
+@{
+    var vm = Model.Form;
+    var f = Model.Field;
+    var id = "f-" + System.Text.RegularExpressions.Regex.Replace(f.Key, "[^a-zA-Z0-9_-]", "_");
+    var missing = vm.Missing.Contains(f.Caption);
+    var invalid = missing ? "is-invalid" : "";
+    var ro = vm.ReadOnly;
+    string Answer(string a) => a switch { "pass" => f.PassOption ?? "Pass", "fail" => f.FailOption ?? "Fail", "na" => "N/A", _ => "-" };
+}
+
+@* One field of a form: an input to fill in, or (submitted) its answer *@
+@switch (f.Type)
+{
+    case FormField.Message:
+        @if (f.Heading != null) { <h3 class="h6 mt-3 mb-1">@f.Heading</h3> }
+        @if (f.Text != null) { <div class="small text-muted" style="white-space: pre-line">@f.Text</div> }
+        break;
+
+    case FormField.Checkbox:
+        <div class="form-check">
+            <input class="form-check-input @invalid" type="checkbox" id="@id" name="@f.Key" value="true" checked="@vm.Checked(f.Key)" disabled="@ro" />
+            <label class="form-check-label" for="@id">@f.Caption@(f.Required ? " *" : "")</label>
+        </div>
+        break;
+
+    case FormField.CheckboxGroup:
+        <div class="small text-muted mb-1">@f.Caption@(f.Required ? " *" : "")</div>
+        @for (var i = 0; i < f.Options.Count; i++)
+        {
+            var o = f.Options[i];
+            <div class="form-check">
+                <input class="form-check-input @invalid" type="checkbox" id="@id-@i" name="@f.Key" value="@o.Value" checked="@vm.Chosen(f.Key, o.Value)" disabled="@ro" />
+                <label class="form-check-label" for="@id-@i">@o.Label</label>
+            </div>
+        }
+        break;
+
+    case FormField.Assertion:
+        <div class="mb-1">@f.Caption@(f.Required ? " *" : "")</div>
+        @if (ro)
+        {
+            <div class="fw-semibold">@Answer(vm.Text(f.Key))</div>
+            @if (vm.Text(f.Key + "__comment") is { Length: > 0 } comment) { <div class="small">@comment</div> }
+        }
+        else
+        {
+            <div class="btn-group w-100 @(missing ? "border border-danger rounded" : "")" role="group">
+                @foreach (var (value, label) in new[] { ("pass", f.PassOption ?? "Pass"), ("fail", f.FailOption ?? "Fail") }
+                             .Concat(f.ShowNa ? new[] { ("na", "N/A") } : []))
+                {
+                    <input type="radio" class="btn-check" name="@f.Key" id="@id-@value" value="@value" autocomplete="off" checked="@(vm.Text(f.Key) == value)" />
+                    <label class="btn btn-outline-@(value == "pass" ? "success" : value == "fail" ? "danger" : "secondary")" for="@id-@value">@label</label>
+                }
+            </div>
+            <input type="text" class="form-control form-control-sm mt-1" name="@(f.Key)__comment" value="@vm.Text(f.Key + "__comment")"
+                   placeholder="@(f.FailPrompt ?? "If not, why?")" aria-label="@(f.FailPrompt ?? "Comment")" />
+        }
+        break;
+
+    case FormField.Signature:
+        <div class="small text-muted mb-1">@f.Caption@(f.Required ? " *" : "")</div>
+        @if (ro)
+        {
+            @if (vm.Text(f.Key) is { } sig && sig.StartsWith("data:image/"))
+            {
+                <img src="@sig" alt="@f.Caption" class="border rounded bg-white" style="max-width: 100%; max-height: 10rem" />
+            }
+            else { <div>-</div> }
+        }
+        else
+        {
+            <partial name="_SignaturePad" model="@(f.Key)" />
+        }
+        break;
+
+    default:
+        <label class="form-label small text-muted mb-1" for="@id">@f.Caption@(f.Required ? " *" : "")</label>
+        @if (ro)
+        {
+            <div>@(vm.Text(f.Key) is { Length: > 0 } t ? t : "-")</div>
+        }
+        else
+        {
+            <input type="text" class="form-control @invalid" id="@id" name="@f.Key" value="@vm.Text(f.Key)" />
+        }
+        break;
+}

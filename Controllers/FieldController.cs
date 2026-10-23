@@ -3,6 +3,7 @@ using FyreApp.Auth;
 using FyreApp.Infrastructure;
 using FyreApp.Models;
 using FyreApp.Services.Field;
+using FyreApp.Services.Forms;
 using FyreApp.ViewModels.Field;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -35,12 +36,17 @@ public class FieldController : Controller
     }
 
     [HttpGet("/Field/Task/{id:int}")]
-    public async Task<IActionResult> Visit(int id, CancellationToken ct = default)
+    public async Task<IActionResult> Visit(int id, [FromServices] IFieldFormService forms, [FromServices] IFieldSignOffService signOffs,
+        CancellationToken ct = default)
     {
         var me = await TechnicianIdAsync();
         if (!await MayOpenAsync(id, me, ct)) return Forbid();
         var vm = await _field.TaskAsync(id, me, ct);
-        return vm == null ? NotFound() : View(vm);
+        if (vm == null) return NotFound();
+        vm.Forms = await forms.TaskFormsAsync(id, ct);
+        if (vm.CannotWork == null) vm.FormTemplates = await forms.TemplatesAsync(ct);
+        vm.SignOff = await signOffs.GetAsync(id, ct);
+        return View(vm);
     }
 
     [HttpPost("/Field/Task/{id:int}/Start"), ValidateAntiForgeryToken]
@@ -89,6 +95,53 @@ public class FieldController : Controller
     {
         if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
         return Done(id, await _field.RemoveStockAsync(id, me, useId, ct), "stock");
+    }
+
+    [HttpGet("/Field/Task/{id:int}/Form")]
+    public async Task<IActionResult> Form(int id, string version, [FromServices] IFieldFormService forms, CancellationToken ct = default)
+    {
+        var me = await TechnicianIdAsync();
+        if (!await MayOpenAsync(id, me, ct)) return Forbid();
+        var vm = await forms.NewAsync(id, version, me, ct);
+        return vm == null ? NotFound() : View(vm);
+    }
+
+    [HttpPost("/Field/Task/{id:int}/Form"), ValidateAntiForgeryToken]
+    [ActionName("Form")]
+    public async Task<IActionResult> SubmitForm(int id, string version, [FromServices] IFieldFormService forms, CancellationToken ct = default)
+    {
+        if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
+        var saved = await forms.SubmitAsync(id, me, version, Request.Form, ct);
+        if (saved.Result.Outcome == FieldOutcome.Invalid && saved.Values != null)
+        {
+            // Show it again as filled in, with what's missing
+            var vm = await forms.NewAsync(id, version, me, ct);
+            if (vm == null) return NotFound();
+            vm.Values = saved.Values;
+            vm.Missing = saved.Missing ?? [];
+            ModelState.AddModelError("", saved.Result.Message!);
+            return View(vm);
+        }
+        if (saved.Result.Outcome == FieldOutcome.Done) TempData["Success"] = "Form submitted.";
+        return Done(id, saved.Result, "forms");
+    }
+
+    [HttpGet("/Field/Task/{id:int}/Form/{responseId:int}")]
+    public async Task<IActionResult> SubmittedForm(int id, int responseId, [FromServices] IFieldFormService forms, CancellationToken ct = default)
+    {
+        if (!await MayOpenAsync(id, await TechnicianIdAsync(), ct)) return Forbid();
+        var vm = await forms.ViewAsync(id, responseId, ct);
+        return vm == null ? NotFound() : View("Form", vm);
+    }
+
+    [HttpPost("/Field/Task/{id:int}/SignOff"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> SignOff(int id, string? signee, string? signature, string? noSignatureReason,
+        [FromServices] IFieldSignOffService signOffs, CancellationToken ct = default)
+    {
+        if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
+        var saved = await signOffs.SignAsync(id, me, signee, signature, noSignatureReason, ct);
+        if (saved.Outcome == FieldOutcome.Done) TempData["Success"] = "Sign-off saved.";
+        return Done(id, saved, "signoff");
     }
 
     // Photos come straight off a phone (field.js shrinks them first when it can)

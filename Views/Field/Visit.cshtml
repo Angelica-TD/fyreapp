@@ -334,6 +334,87 @@
         </div>
     </div>
 
+    @* Forms filled in on the task *@
+    <div class="card mb-3" id="forms">
+        <div class="card-header">Forms</div>
+        @if (Model.Forms.Count > 0)
+        {
+            <ul class="list-group list-group-flush">
+                @foreach (var f in Model.Forms)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                        <a href="@Url.Action("SubmittedForm", new { id = task.Id, responseId = f.Id })">@f.Name@(f.Ref != null ? $" {f.Ref}" : "")</a>
+                        <span class="small text-muted text-end">
+                            @(f.SubmittedUtc?.ToSydney().ToOrdinalDateTime())@(f.By != null ? $" · {f.By}" : "")
+                            @if (!f.IsComplete) { <span class="badge bg-warning text-dark">Incomplete</span> }
+                        </span>
+                    </li>
+                }
+            </ul>
+        }
+        <div class="card-body">
+            @if (canWork && Model.FormTemplates.Count > 0)
+            {
+                <form method="get" asp-action="Form" asp-route-id="@task.Id" class="d-flex gap-2">
+                    <select name="version" class="form-select" aria-label="Form" required>
+                        <option value="">— Fill in a form —</option>
+                        @foreach (var t in Model.FormTemplates) { <option value="@t.VersionId">@t.Name</option> }
+                    </select>
+                    <button type="submit" class="btn btn-outline-primary text-nowrap">Start</button>
+                </form>
+            }
+            else if (Model.Forms.Count == 0)
+            {
+                <div class="small text-muted">None filled in.</div>
+            }
+        </div>
+    </div>
+
+    @* The customer's sign-off *@
+    <div class="card mb-3" id="signoff">
+        <div class="card-header">Customer sign-off</div>
+        <div class="card-body">
+            @if (Model.SignOff is { } so)
+            {
+                @if (so.SigneeName != null)
+                {
+                    <div>Signed by <strong>@so.SigneeName</strong> <span class="small text-muted">· @so.SignedUtc.ToSydney().ToOrdinalDateTime()</span></div>
+                    @if (so.SignatureFileId != null)
+                    {
+                        <img src="/Files/@so.SignatureFileId" alt="Signature of @so.SigneeName" class="border rounded bg-white mt-2" style="max-width: 100%; max-height: 8rem" />
+                    }
+                }
+                else
+                {
+                    <div>Not signed: @so.NoSignatureReason <span class="small text-muted">· @so.SignedUtc.ToSydney().ToOrdinalDateTime()</span></div>
+                }
+            }
+            @if (canWork)
+            {
+                <details class="mt-2" open="@(Model.SignOff == null)">
+                    <summary class="small text-muted mb-2">@(Model.SignOff == null ? "Take the customer's sign-off" : "Sign again")</summary>
+                    <form method="post" asp-action="SignOff" asp-route-id="@task.Id">
+                        <div class="mb-2">
+                            <label for="signee" class="form-label small mb-1">Customer's name</label>
+                            <input id="signee" name="signee" class="form-control" maxlength="300" autocomplete="off" />
+                        </div>
+                        <partial name="_SignaturePad" model="@("signature")" />
+                        <div class="mb-2">
+                            <label for="noSignatureReason" class="form-label small mb-1">Or, why it wasn't signed</label>
+                            <input id="noSignatureReason" name="noSignatureReason" class="form-control" maxlength="1000"
+                                   placeholder="e.g. Nobody on site" />
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Save sign-off</button>
+                    </form>
+                </details>
+            }
+            else if (Model.SignOff == null)
+            {
+                <div class="small text-muted">Not signed off.</div>
+            }
+        </div>
+    </div>
+
     <p class="small mt-3">
         <a asp-controller="Task" asp-action="Details" asp-route-id="@task.Id">The task's full page</a>
     </p>

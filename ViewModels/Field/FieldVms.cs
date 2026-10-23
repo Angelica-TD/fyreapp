@@ -67,6 +67,13 @@ public class FieldTaskVm
     // What can be recorded as used (when the technician can work here)
     public IReadOnlyList<FieldProduct> Products { get; set; } = [];
 
+    // Forms submitted on the task, and those that can be filled in
+    public IReadOnlyList<FyreApp.Services.Forms.FieldFormSummary> Forms { get; set; } = [];
+    public IReadOnlyList<FyreApp.Services.Forms.FormTemplateOption> FormTemplates { get; set; } = [];
+
+    // The customer's sign-off, once taken
+    public TaskSignOff? SignOff { get; set; }
+
     // Why the signed-in login can't record work here (none when it can)
     public string? CannotWork { get; set; }
 

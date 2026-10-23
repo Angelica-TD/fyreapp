@@ -81,6 +81,63 @@
         });
     });
 
+    // Signature pads (_SignaturePad): drawn with a finger or mouse, kept in the hidden input as a PNG data: URL
+    document.querySelectorAll('.js-signature').forEach(pad => {
+        const canvas = pad.querySelector('canvas');
+        const input = pad.querySelector('input[type=hidden]');
+        const ctx = canvas.getContext('2d');
+        let drawing = false, last = null;
+
+        const size = () => {
+            const ratio = window.devicePixelRatio || 1;
+            canvas.width = canvas.clientWidth * ratio;
+            canvas.height = canvas.clientHeight * ratio;
+            ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#111';
+            input.value = '';
+        };
+        const at = e => {
+            const r = canvas.getBoundingClientRect();
+            return { x: e.clientX - r.left, y: e.clientY - r.top };
+        };
+
+        canvas.addEventListener('pointerdown', e => {
+            drawing = true;
+            last = at(e);
+            canvas.setPointerCapture(e.pointerId);
+            ctx.beginPath();
+            ctx.arc(last.x, last.y, 1, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        canvas.addEventListener('pointermove', e => {
+            if (!drawing) return;
+            const p = at(e);
+            ctx.beginPath();
+            ctx.moveTo(last.x, last.y);
+            ctx.lineTo(p.x, p.y);
+            ctx.stroke();
+            last = p;
+        });
+        const end = () => {
+            if (!drawing) return;
+            drawing = false;
+            input.value = canvas.toDataURL('image/png');
+        };
+        canvas.addEventListener('pointerup', end);
+        canvas.addEventListener('pointercancel', end);
+        pad.querySelector('.js-signature-clear').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            input.value = '';
+        });
+        // Sized once shown (a closed <details> has no size yet)
+        const details = pad.closest('details');
+        if (details && !details.open) details.addEventListener('toggle', size, { once: true });
+        else size();
+    });
+
     // A task line saves as it's ticked
     document.querySelectorAll('form.js-line').forEach(form => {
         const box = form.querySelector('input[type=checkbox]');

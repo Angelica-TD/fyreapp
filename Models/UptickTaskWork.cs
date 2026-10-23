@@ -119,3 +119,26 @@ public class TaskStockTransaction : IUptickMapped
 
     public DateTime? CreatedUtc { get; set; }
 }
+
+// The customer's sign-off on a task in the field app: who signed (their signature kept as a file), or why nobody did
+// (Uptick's taskclientsignatures). One per task; signing again replaces it.
+public class TaskSignOff
+{
+    public int Id { get; set; }
+
+    public int ClientTaskId { get; set; }
+    public ClientTask ClientTask { get; set; } = null!;
+
+    [StringLength(300)] public string? SigneeName { get; set; }
+    [StringLength(1000)] public string? NoSignatureReason { get; set; }
+
+    // The signature image (an UptickFile with Source "fyreapp", Kind "signature")
+    public int? SignatureFileId { get; set; }
+    public UptickFile? SignatureFile { get; set; }
+
+    public DateTime SignedUtc { get; set; }
+
+    // The technician who took it
+    public int? UptickUserId { get; set; }
+    public UptickUser? UptickUser { get; set; }
+}

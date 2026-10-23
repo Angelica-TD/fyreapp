@@ -1,0 +1,65 @@
+@model FyreApp.Services.Forms.FieldFormVm
+@using FyreApp.Services.Forms
+@{
+    ViewData["Title"] = Model.Name;
+    var layout = Model.Definition.Layout;
+    var unplaced = layout.Count > 0 ? Model.Definition.Unplaced() : Model.Definition.Fields;
+}
+
+@* A form on a task: filled in on the phone from Uptick's template, or (submitted) shown read only *@
+<div class="field-app mx-auto" style="max-width: 900px">
+    <div class="text-muted small">@Model.TaskRef</div>
+    <h1 class="h4 mb-1">@Model.Name @if (Model.Ref != null) { <span class="text-muted fw-normal">@Model.Ref</span> }</h1>
+    @if (Model.ReadOnly)
+    {
+        <div class="small text-muted mb-3">
+            Submitted @(Model.SubmittedUtc?.ToSydney().ToOrdinalDateTime() ?? "")@(Model.SubmittedBy != null ? $" by {Model.SubmittedBy}" : "")
+            @if (!Model.IsComplete) { <span class="badge bg-warning text-dark ms-1">Incomplete</span> }
+        </div>
+        @if (Model.Definition.Fields.Count == 0)
+        {
+            <div class="alert alert-info">This form's template isn't held in FyreApp, so its answers are listed as they were saved.</div>
+            <dl class="row">
+                @foreach (var (key, value) in Model.Values)
+                {
+                    <dt class="col-sm-4">@key</dt>
+                    <dd class="col-sm-8">@(value?.ToJsonString().Trim('"') ?? "-")</dd>
+                }
+            </dl>
+        }
+    }
+
+    <form method="post" asp-action="Form" asp-route-id="@Model.TaskId" asp-route-version="@Model.VersionId" class="mt-3 field-form">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+        @foreach (var node in layout)
+        {
+            <partial name="_FormNode" model="new FormNodePartial(Model, node)" />
+        }
+        @if (layout.Count > 0 && unplaced.Count > 0)
+        {
+            <hr />
+        }
+        @foreach (var field in unplaced)
+        {
+            <div class="mb-3"><partial name="_FormField" model="new FormFieldPartial(Model, field)" /></div>
+        }
+
+        @if (!Model.ReadOnly)
+        {
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary btn-lg flex-grow-1">Submit form</button>
+                <a class="btn btn-outline-secondary btn-lg" href="@Url.Action("Visit", new { id = Model.TaskId })">Cancel</a>
+            </div>
+        }
+    </form>
+
+    @if (Model.ReadOnly)
+    {
+        <p class="small mt-3"><a href="@Url.Action("Visit", new { id = Model.TaskId })">Back to the task</a></p>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/field.js" asp-append-version="true"></script>
+}

@@ -1497,6 +1497,9 @@ namespace FyreApp.Migrations
                     b.Property<int?>("UptickUserId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Values")
+                        .HasColumnType("jsonb");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ClientTaskId");
@@ -3598,6 +3601,46 @@ namespace FyreApp.Migrations
                     b.ToTable("TaskSessions");
                 });
 
+            modelBuilder.Entity("FyreApp.Models.TaskSignOff", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClientTaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NoSignatureReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int?>("SignatureFileId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("SignedUtc")
+                        .HasColumnType("timestamptz");
+
+                    b.Property<string>("SigneeName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int?>("UptickUserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientTaskId")
+                        .IsUnique();
+
+                    b.HasIndex("SignatureFileId");
+
+                    b.HasIndex("UptickUserId");
+
+                    b.ToTable("TaskSignOffs");
+                });
+
             modelBuilder.Entity("FyreApp.Models.TaskStockTransaction", b =>
                 {
                     b.Property<int>("Id")
@@ -5148,6 +5191,31 @@ namespace FyreApp.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("ClientTask");
+
+                    b.Navigation("UptickUser");
+                });
+
+            modelBuilder.Entity("FyreApp.Models.TaskSignOff", b =>
+                {
+                    b.HasOne("FyreApp.Models.ClientTask", "ClientTask")
+                        .WithMany()
+                        .HasForeignKey("ClientTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FyreApp.Models.UptickFile", "SignatureFile")
+                        .WithMany()
+                        .HasForeignKey("SignatureFileId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("FyreApp.Models.UptickUser", "UptickUser")
+                        .WithMany()
+                        .HasForeignKey("UptickUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ClientTask");
+
+                    b.Navigation("SignatureFile");
 
                     b.Navigation("UptickUser");
                 });
