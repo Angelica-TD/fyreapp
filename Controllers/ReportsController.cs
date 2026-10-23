@@ -21,6 +21,11 @@ public class ReportsController : Controller
     public async Task<IActionResult> Details(int id, CancellationToken ct = default) =>
         await _list.DetailsAsync(id, ct) is { } vm ? View(vm) : NotFound();
 
+    // A report made in FyreApp as the customer gets it, to print or save as a PDF (Uptick's have their own PDF)
+    [HttpGet]
+    public async Task<IActionResult> Print(int id, CancellationToken ct = default) =>
+        await _list.DetailsAsync(id, ct) is { Work: not null } vm ? View(vm) : NotFound();
+
     // Every report matching the search, as CSV
     [HttpGet]
     public async Task<IActionResult> Download(string? search, CancellationToken ct = default) =>

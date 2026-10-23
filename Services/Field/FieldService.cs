@@ -338,7 +338,7 @@ public class FieldService : IFieldService
     public static bool IsOpen(ClientTask task) =>
         task.IsActive && task.Status is not (ClientTaskStatus.Completed or ClientTaskStatus.Cancelled);
 
-    private static void Finish(TaskSession s, DateTime now, Coords? at, string? note)
+    internal static void Finish(TaskSession s, DateTime now, Coords? at, string? note)
     {
         s.FinishedUtc = now;
         s.Hours = Math.Round((decimal)(now - s.StartedUtc).TotalHours, 2);

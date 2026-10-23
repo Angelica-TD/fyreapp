@@ -1,0 +1,177 @@
+@model FyreApp.ViewModels.Lists.ReportPageVm
+@using System.Globalization
+@using FyreApp.Infrastructure
+
+@* A report made by completing a task in the field app, as the customer gets it: printed, or saved as a PDF from the
+   browser's print dialog. Plain page, A4. *@
+@{
+    Layout = null;
+    var r = Model.Report;
+    var site = r.Property;
+    var w = Model.Work!;
+    var failed = Model.Items.Count(i => i.Compliant == false);
+    string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
+    string When(DateTime utc) => utc.ToSydney().ToString("d MMM yyyy h:mmtt", CultureInfo.InvariantCulture);
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(r.DisplayRef) @(r.ReportType ?? "Report") - @site.Name</title>
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="~/css/bootstrap.custom.css" />
+    <style>
+        body { background: #f3f4f6; font-size: .9rem; }
+        .sheet { background: #fff; max-width: 210mm; margin: 1rem auto; padding: 14mm; box-shadow: 0 0 .5rem rgba(0,0,0,.15); }
+        .sheet h2 { font-size: 1.05rem; margin: 1.5rem 0 .5rem; border-bottom: 1px solid #dee2e6; padding-bottom: .25rem; }
+        .sheet table { font-size: .85rem; }
+        .sheet tr { break-inside: avoid; }
+        .result-pass { color: #146c43; font-weight: 600; }
+        .result-fail { color: #b02a37; font-weight: 600; }
+        @@page { size: A4; margin: 12mm; }
+        @@media print {
+            body { background: #fff; }
+            .sheet { margin: 0; padding: 0; box-shadow: none; max-width: none; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print text-center mt-3">
+        <button type="button" class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> Print or save as PDF</button>
+        <a class="btn btn-link" asp-action="Details" asp-route-id="@r.Id">Back to the report</a>
+    </div>
+
+    <div class="sheet">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+                <h1 class="h3 mb-1">@(r.ReportType ?? "Report")@(r.Amendment ? " (amended)" : "")</h1>
+                <div class="text-muted">@r.DisplayRef · issued @(r.IssuedDate?.ToOrdinalDate() ?? "-")</div>
+            </div>
+            <img src="~/logo.png" alt="" style="max-height: 56px" />
+        </div>
+
+        <div class="mt-3 p-2 rounded text-center fw-semibold @(r.Compliant == false ? "bg-danger-subtle text-danger-emphasis" : r.Compliant == true ? "bg-success-subtle text-success-emphasis" : "bg-light")">
+            @(r.Compliant == true ? "Compliant" : r.Compliant == false ? $"Not compliant: {failed} {(failed == 1 ? "asset" : "assets")} failed" : "No assets tested")
+        </div>
+
+        <table class="table table-sm table-borderless mt-3 mb-0">
+            <tbody>
+                <tr><th class="text-muted fw-normal" style="width: 25%">Property</th><td>@site.Name@(site.DisplayRef != null ? $" ({site.DisplayRef})" : "")<div>@site.AddressDisplay</div></td></tr>
+                <tr><th class="text-muted fw-normal">Client</th><td>@site.Client.Name</td></tr>
+                <tr><th class="text-muted fw-normal">Task</th><td>@Dash(r.TaskRef) · @Dash(r.TaskName)</td></tr>
+                <tr><th class="text-muted fw-normal">Inspected</th><td>@(r.InspectedDate?.ToOrdinalDate() ?? "-")</td></tr>
+                <tr><th class="text-muted fw-normal">Technician</th><td>@Dash(r.Technician)</td></tr>
+                @if (w.OnSiteHours > 0)
+                {
+                    <tr><th class="text-muted fw-normal">Time on site</th><td>@w.OnSiteHours.ToString("0.##") h</td></tr>
+                }
+            </tbody>
+        </table>
+
+        @if (!string.IsNullOrWhiteSpace(r.GeneralNote))
+        {
+            <h2>Notes</h2>
+            <div style="white-space: pre-line">@r.GeneralNote</div>
+        }
+
+        <h2>Assets inspected <span class="text-muted fw-normal small">@Model.Items.Count</span></h2>
+        @if (Model.Items.Count == 0)
+        {
+            <p class="text-muted">No assets were tested on this job.</p>
+        }
+        else
+        {
+            <table class="table table-sm">
+                <thead><tr><th>Asset</th><th>Location</th><th>Result</th><th>Note</th></tr></thead>
+                <tbody>
+                    @foreach (var i in Model.Items)
+                    {
+                        <tr>
+                            <td>@Dash(i.Label)</td>
+                            <td>@Dash(i.Location)</td>
+                            <td>
+                                @if (i.Compliant == true) { <span class="result-pass">Pass</span> }
+                                else if (i.Compliant == false) { <span class="result-fail">Fail</span> }
+                                else { <span class="text-muted">N/A</span> }
+                            </td>
+                            <td>@i.Notes</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        @if (w.Raised.Count > 0)
+        {
+            <h2>Defects and remarks found <span class="text-muted fw-normal small">@w.Raised.Count</span></h2>
+            <table class="table table-sm">
+                <thead><tr><th>Ref</th><th>Asset</th><th>Severity</th><th>Remark</th></tr></thead>
+                <tbody>
+                    @foreach (var d in w.Raised)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@Dash(d.Ref)</td>
+                            <td>@(d.Asset ?? "Property")</td>
+                            <td>@Dash(d.Severity)</td>
+                            <td>@(d.Description ?? d.Type)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        @if (w.Resolved.Count > 0)
+        {
+            <h2>Remarks fixed <span class="text-muted fw-normal small">@w.Resolved.Count</span></h2>
+            <table class="table table-sm">
+                <thead><tr><th>Ref</th><th>Asset</th><th>Remark</th><th>How it was fixed</th></tr></thead>
+                <tbody>
+                    @foreach (var d in w.Resolved)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@Dash(d.Ref)</td>
+                            <td>@(d.Asset ?? "Property")</td>
+                            <td>@(d.Description ?? d.Type)</td>
+                            <td>@d.Resolution</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        @if (w.Forms.Count > 0)
+        {
+            <h2>Forms completed</h2>
+            <ul class="mb-0">
+                @foreach (var f in w.Forms)
+                {
+                    <li>@f.Name@(f.Ref != null ? $" {f.Ref}" : "")@(f.SubmittedUtc is { } s ? $", {When(s)}" : "")</li>
+                }
+            </ul>
+        }
+
+        <h2>Customer sign-off</h2>
+        @if (w.SignOff is { } so)
+        {
+            @if (so.SigneeName != null)
+            {
+                <div>Signed by <strong>@so.SigneeName</strong>, @When(so.SignedUtc)</div>
+                @if (so.SignatureFileId != null)
+                {
+                    <img src="/Files/@so.SignatureFileId" alt="Signature of @so.SigneeName" class="border rounded mt-2" style="max-width: 320px; max-height: 120px" />
+                }
+            }
+            else
+            {
+                <div>Not signed: @so.NoSignatureReason</div>
+            }
+        }
+        else
+        {
+            <div class="text-muted">Not signed off.</div>
+        }
+    </div>
+</body>
+</html>

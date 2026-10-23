@@ -71,6 +71,10 @@ public class ReportItem : IUptickMapped
     [StringLength(200)] public string? Standard { get; set; }
 
     public bool? Compliant { get; set; }
+
+    // What the technician noted, on a report made by completing the task in the field app
+    [StringLength(2000)] public string? Notes { get; set; }
+
     public DateTime? InspectedDate { get; set; }
     public DateTime? ServicedDate { get; set; }
     public DateTime? BaseDate { get; set; }

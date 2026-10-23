@@ -144,6 +144,18 @@ public class FieldController : Controller
         return Done(id, saved, "signoff");
     }
 
+    // The job's done: the task is closed and its report written; back to their day
+    [HttpPost("/Field/Task/{id:int}/Complete"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> Complete(int id, string? note, double? lat, double? lng, [FromServices] IFieldFinishService finish,
+        CancellationToken ct = default)
+    {
+        if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
+        var done = await finish.CompleteAsync(id, me, note, At(lat, lng), ct);
+        if (done.Result.Outcome != FieldOutcome.Done) return Done(id, done.Result);
+        TempData["Success"] = "Job completed. Its report is ready for the office.";
+        return RedirectToAction(nameof(Index));
+    }
+
     // Photos come straight off a phone (field.js shrinks them first when it can)
     private const long PhotoUploadLimit = 200L * 1024 * 1024;
 
@@ -160,8 +172,9 @@ public class FieldController : Controller
     public async Task<IActionResult> Remark(int id, [Bind(Prefix = "Input")] RaiseRemarkInput input, List<IFormFile> photos,
         [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
     {
-        if (!await MayOpenAsync(id, await TechnicianIdAsync(), ct)) return Forbid();
-        var saved = await remarks.RaiseAsync(id, input, photos, ct);
+        var me = await TechnicianIdAsync();
+        if (!await MayOpenAsync(id, me, ct)) return Forbid();
+        var saved = await remarks.RaiseAsync(id, input, photos, me, ct);
         if (saved.Result.Outcome == FieldOutcome.Invalid)
         {
             var vm = await remarks.RaiseFormAsync(id, input.AssetId, ct);
@@ -186,8 +199,9 @@ public class FieldController : Controller
     public async Task<IActionResult> Resolve(int id, int remarkId, string? resolution, List<IFormFile> photos,
         [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
     {
-        if (!await MayOpenAsync(id, await TechnicianIdAsync(), ct)) return Forbid();
-        var saved = await remarks.ResolveAsync(id, remarkId, resolution, photos, ct);
+        var me = await TechnicianIdAsync();
+        if (!await MayOpenAsync(id, me, ct)) return Forbid();
+        var saved = await remarks.ResolveAsync(id, remarkId, resolution, photos, me, ct);
         if (saved.Result.Outcome == FieldOutcome.Invalid)
         {
             var vm = await remarks.ResolveFormAsync(id, remarkId, ct);

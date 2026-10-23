@@ -8,6 +8,7 @@
     ViewData["Title"] = r.DisplayRef ?? "Report";
     string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
     var failed = Model.Items.Count(i => i.Compliant == false);
+    var notes = Model.Items.Any(i => !string.IsNullOrWhiteSpace(i.Notes));
 }
 
 <div class="property-page">
@@ -35,6 +36,13 @@
                         @if (!r.Published) { <span class="badge bg-secondary">NOT PUBLISHED</span> }
                         @if (r.Amendment) { <span class="badge bg-info text-dark">AMENDMENT</span> }
                     </div>
+                    @if (Model.Work != null)
+                    {
+                        <p class="mb-3">
+                            <a class="btn btn-sm btn-outline-primary" asp-action="Print" asp-route-id="@r.Id" target="_blank"><i class="bi bi-printer"></i> Print or save as PDF</a>
+                            <span class="small text-muted d-block mt-1">Made in FyreApp when the job was completed in the field.</span>
+                        </p>
+                    }
                     @if (Model.PdfFileId is { } pdf)
                     {
                         <p class="mb-3">
@@ -79,6 +87,10 @@
                 </div>
             </div>
 
+            @if (Model.Work is { } work)
+            {
+                <partial name="_ReportWork" model="work" />
+            }
             @await Component.InvokeAsync("UptickFiles", new { resource = "reports", uptickId = r.UptickId })
             @await Component.InvokeAsync("UptickRecord", new { resource = "reports", uptickId = r.UptickId })
         </div>
@@ -93,13 +105,13 @@
                 </div>
                 @if (Model.Items.Count == 0)
                 {
-                    <div class="card-body text-muted">No asset lines for this report in Uptick.</div>
+                    <div class="card-body text-muted">@(Model.Work != null ? "No assets were tested on this job." : "No asset lines for this report in Uptick.")</div>
                 }
                 else
                 {
                     <div class="table-responsive">
                         <table class="table table-sm align-middle mb-0">
-                            <thead><tr><th>Asset</th><th>Location</th><th>Barcode</th><th>Inspected</th><th>Result</th></tr></thead>
+                            <thead><tr><th>Asset</th><th>Location</th><th>Barcode</th><th>Inspected</th><th>Result</th>@if (notes) { <th>Note</th> }</tr></thead>
                             <tbody>
                                 @foreach (var i in Model.Items)
                                 {
@@ -122,6 +134,7 @@
                                             else if (i.Compliant == false) { <span class="badge bg-danger">Fail</span> }
                                             else { <span class="text-muted">-</span> }
                                         </td>
+                                        @if (notes) { <td class="small">@i.Notes</td> }
                                     </tr>
                                 }
                             </tbody>

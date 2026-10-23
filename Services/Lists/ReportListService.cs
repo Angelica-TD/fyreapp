@@ -39,7 +39,50 @@ public class ReportListService : IReportListService
             Report = report,
             // As the report lists them: by ref ("001", "002", …), then label
             Items = items.OrderBy(i => i.Ref?.Length ?? int.MaxValue).ThenBy(i => i.Ref).ThenBy(i => i.Label).ToList(),
-            PdfFileId = report.UptickId is { } uid && pdfs.TryGetValue(uid, out var file) ? file : null
+            PdfFileId = report.UptickId is { } uid && pdfs.TryGetValue(uid, out var file) ? file : null,
+            Work = report.UptickId == null && report.ClientTaskId is { } taskId ? await WorkAsync(taskId, ct) : null
+        };
+    }
+
+    // What was done on the task, for a report made in the field app
+    private async Task<ReportWorkVm> WorkAsync(int taskId, CancellationToken ct)
+    {
+        static string? AssetLabel(Asset? a) => a == null ? null : string.IsNullOrWhiteSpace(a.Ref) ? a.Name : $"{a.Ref} - {a.Name}";
+        static ReportRemark Line(Remark r) =>
+            new(r.Id, r.DisplayRef, AssetLabel(r.Asset), r.RemarkType, r.SeverityLabel, r.Description, r.Resolution);
+
+        var raised = await _db.Remarks.AsNoTracking().Include(r => r.Asset)
+            .Where(r => r.RaisedOnTaskId == taskId)
+            .OrderBy(r => r.RaisedUtc).ThenBy(r => r.Id)
+            .ToListAsync(ct);
+        var resolved = await _db.Remarks.AsNoTracking().Include(r => r.Asset)
+            .Where(r => !r.Active && _db.RemarkEvents.Any(e => e.RemarkId == r.Id && e.ClientTaskId == taskId && e.Event == "R"))
+            .OrderBy(r => r.InactiveUtc).ThenBy(r => r.Id)
+            .ToListAsync(ct);
+        var time = await _db.TaskSessions.AsNoTracking()
+            .Where(s => s.ClientTaskId == taskId && s.TrashedUtc == null && s.Hours != null)
+            .GroupBy(s => s.IsOnsite)
+            .Select(g => new { OnSite = g.Key, Hours = g.Sum(s => s.Hours!.Value) })
+            .ToListAsync(ct);
+
+        return new ReportWorkVm
+        {
+            TaskId = taskId,
+            Raised = raised.Select(Line).ToList(),
+            Resolved = resolved.Select(Line).ToList(),
+            Forms = (await _db.DynamicFormResponses.AsNoTracking()
+                    .Where(f => f.ClientTaskId == taskId)
+                    .OrderBy(f => f.SubmittedUtc)
+                    .Select(f => new { f.Id, f.TemplateName, f.Ref, f.SubmittedUtc, By = f.UptickUser != null ? f.UptickUser.Name : null, f.IsComplete })
+                    .ToListAsync(ct))
+                .Select(f => new Services.Forms.FieldFormSummary(f.Id, f.TemplateName ?? "Form", f.Ref, f.SubmittedUtc, f.By, f.IsComplete))
+                .ToList(),
+            SignOff = await _db.TaskSignOffs.AsNoTracking()
+                .Where(s => s.ClientTaskId == taskId)
+                .OrderByDescending(s => s.SignedUtc)
+                .FirstOrDefaultAsync(ct),
+            OnSiteHours = time.Where(t => t.OnSite).Sum(t => t.Hours),
+            TravelHours = time.Where(t => !t.OnSite).Sum(t => t.Hours)
         };
     }
 

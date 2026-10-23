@@ -2739,6 +2739,10 @@ namespace FyreApp.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
                     b.Property<string>("Ref")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");

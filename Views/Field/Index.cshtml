@@ -12,6 +12,10 @@
 
 @* The technicians' field app: what they're booked on for a day, each opening the task's field page *@
 <div class="field-app mx-auto" style="max-width: 720px">
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success py-2"><i class="bi bi-check-circle"></i> @success</div>
+    }
     @if (Model.Technician != null) { <div class="text-muted small mb-2">@Model.Technician</div> }
 
     <form method="get" asp-action="Index" class="d-flex align-items-center gap-2 mb-3">
