@@ -169,6 +169,36 @@
         </div>
     </div>
 
+    @* The task's lines (Uptick's subtasks): routines due and products, ticked off once done *@
+    @if (Model.TaskLines.Count > 0)
+    {
+        <div class="card mb-3 js-lines" id="lines">
+            <div class="card-header d-flex justify-content-between gap-2">
+                <span>Task lines</span>
+                <span class="small"><span class="js-done">@Model.TaskLines.Count(l => l.IsPerformed)</span> of @Model.TaskLines.Count</span>
+            </div>
+            <ul class="list-group list-group-flush">
+                @foreach (var tl in Model.TaskLines)
+                {
+                    <li class="list-group-item">
+                        <form method="post" asp-action="Line" asp-route-id="@task.Id" class="js-line d-flex align-items-center gap-2">
+                            <input type="hidden" name="subtaskId" value="@tl.Id" />
+                            <input class="form-check-input fs-4 m-0 flex-shrink-0" type="checkbox" name="done" value="true" id="line-@tl.Id"
+                                   checked="@tl.IsPerformed" disabled="@(!canWork)" />
+                            <input type="hidden" name="done" value="false" />
+                            <label class="form-check-label flex-grow-1" for="line-@tl.Id">
+                                @tl.Label
+                                @if (tl.Due != null) { <span class="small text-muted d-block">due @tl.Due.ToOrdinalDate()</span> }
+                            </label>
+                            <noscript><button type="submit" class="btn btn-sm btn-outline-secondary">Save</button></noscript>
+                            <span class="small js-status" aria-live="polite"></span>
+                        </form>
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
     @* The assets to service *@
     <h2 class="h5 mt-4">Work</h2>
     @if (routines.Count == 0)
@@ -231,6 +261,58 @@
             </ul>
         </div>
     }
+
+    @* Stock used on the task *@
+    <div class="card mb-3" id="stock">
+        <div class="card-header">Stock used</div>
+        @if (Model.StockUsed.Count > 0)
+        {
+            <ul class="list-group list-group-flush">
+                @foreach (var s in Model.StockUsed)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                        <span>
+                            <strong>@s.Quantity.ToString("0.##")</strong> × @s.Product
+                            <span class="small text-muted d-block">@s.By@(s.WhenUtc is { } w ? " · " + w.ToSydney().ToOrdinalDateTime() : "")</span>
+                        </span>
+                        @if (s.Removable && canWork)
+                        {
+                            <form method="post" asp-action="RemoveStock" asp-route-id="@task.Id" asp-route-useId="@s.Id"
+                                  data-confirm="Remove @s.Quantity.ToString("0.##") × @s.Product?" onsubmit="return confirm(this.dataset.confirm)">
+                                <button type="submit" class="btn btn-sm btn-link text-danger">Remove</button>
+                            </form>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        <div class="card-body">
+            @if (canWork)
+            {
+                <form method="post" asp-action="Stock" asp-route-id="@task.Id">
+                    <div class="mb-2">
+                        <label for="productId" class="form-label small mb-1">Product</label>
+                        <select id="productId" name="productId" class="form-select" required>
+                            <option value="">— Pick a product —</option>
+                            @foreach (var p in Model.Products)
+                            {
+                                <option value="@p.Id">@p.Name@(p.Code != null ? $" ({p.Code})" : "")</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <input type="number" name="quantity" value="1" min="0.01" max="10000" step="0.01" inputmode="decimal"
+                               class="form-control" style="max-width: 7rem" aria-label="Quantity" required />
+                        <button type="submit" class="btn btn-primary flex-grow-1">Add used</button>
+                    </div>
+                </form>
+            }
+            else if (Model.StockUsed.Count == 0)
+            {
+                <div class="small text-muted">None recorded.</div>
+            }
+        </div>
+    </div>
 
     @* Remarks on the property itself, or assets not on the list *@
     <div class="card mb-3">

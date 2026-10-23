@@ -81,6 +81,34 @@
         });
     });
 
+    // A task line saves as it's ticked
+    document.querySelectorAll('form.js-line').forEach(form => {
+        const box = form.querySelector('input[type=checkbox]');
+        const status = form.querySelector('.js-status');
+        box.addEventListener('change', async () => {
+            status.className = 'small js-status text-muted';
+            status.textContent = 'Saving…';
+            try {
+                const res = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'fetch' }
+                });
+                if (!res.ok) {
+                    const body = await res.json().catch(() => ({}));
+                    throw new Error(body.error || (res.status === 403 ? 'Not allowed.' : 'Not saved.'));
+                }
+                status.textContent = '';
+                const card = form.closest('.js-lines');
+                card.querySelector('.js-done').textContent = card.querySelectorAll('input[type=checkbox]:checked').length;
+            } catch (err) {
+                box.checked = !box.checked;
+                status.className = 'small js-status text-danger';
+                status.textContent = (err.message || 'Not saved.') + ' Try again.';
+            }
+        });
+    });
+
     // An asset's result and notes save as they change, without reloading the page
     document.querySelectorAll('form.js-result').forEach(form => {
         const status = form.querySelector('.js-status');
