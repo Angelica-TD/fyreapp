@@ -15,6 +15,13 @@
     <link rel="stylesheet" href="~/css/bootstrap.custom.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="icon" type="image/png" href="~/logo.png" />
+    @* Installable (a home-screen app that opens on My day), working with poor signal: sw.js, field-sync.js *@
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="FyreApp" />
     <style>
         body.field { background: #f3f4f6; overflow-x: hidden; }
         /* Nothing wider than the phone: long names wrap, buttons too */
@@ -46,6 +53,11 @@
                     <i class="bi bi-chevron-left"></i> My day
                 </a>
             }
+            @* Offline, and what's waiting to send (filled in by field-sync.js) *@
+            <div class="dropdown d-none" id="field-sync">
+                <button class="btn btn-sm btn-outline-light" type="button" id="field-sync-button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"></button>
+                <div class="dropdown-menu dropdown-menu-end p-2" id="field-sync-menu" style="width: min(20rem, calc(100vw - 2rem))" aria-live="polite"></div>
+            </div>
             <div class="dropdown">
                 <button class="btn btn-outline-light" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu">
                     <i class="bi bi-person-circle"></i>
@@ -56,10 +68,11 @@
                     {
                         <li><a class="dropdown-item" asp-controller="Home" asp-action="Index"><i class="bi bi-grid"></i> Back to FyreApp</a></li>
                     }
+                    <li><button type="button" class="dropdown-item d-none" id="field-install"><i class="bi bi-phone"></i> Put the app on your home screen</button></li>
                     <li><a class="dropdown-item" asp-controller="Auth" asp-action="ChangePassword"><i class="bi bi-key"></i> Change password</a></li>
                     <li><hr class="dropdown-divider" /></li>
                     <li>
-                        <form asp-controller="Auth" asp-action="Logout" method="post">
+                        <form asp-controller="Auth" asp-action="Logout" method="post" class="js-sign-out">
                             <button type="submit" class="dropdown-item"><i class="bi bi-box-arrow-right"></i> Log out</button>
                         </form>
                     </li>
@@ -73,6 +86,8 @@
     </main>
 
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/js/field-outbox.js"></script>
+    <script src="/js/field-sync.js"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

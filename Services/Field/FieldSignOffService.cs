@@ -12,7 +12,7 @@ public interface IFieldSignOffService
 
     // The customer signs (their name and a signature drawn on the phone), or the technician says why nobody did.
     // Replaces an earlier sign-off on the task.
-    Task<FieldResult> SignAsync(int taskId, int technicianId, string? signee, string? signature, string? noSignatureReason, CancellationToken ct = default);
+    Task<FieldResult> SignAsync(int taskId, int technicianId, string? signee, string? signature, string? noSignatureReason, DateTime? when = null, CancellationToken ct = default);
 }
 
 // The customer's sign-off on a task in the field app, as Uptick's taskclientsignatures: a signature kept in the file
@@ -32,7 +32,7 @@ public class FieldSignOffService : IFieldSignOffService
         _db.TaskSignOffs.AsNoTracking().Include(s => s.UptickUser).FirstOrDefaultAsync(s => s.ClientTaskId == taskId, ct);
 
     public async Task<FieldResult> SignAsync(int taskId, int technicianId, string? signee, string? signature, string? noSignatureReason,
-        CancellationToken ct = default)
+        DateTime? when = null, CancellationToken ct = default)
     {
         var task = await _db.ClientTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
         if (task == null) return new(FieldOutcome.NotFound);
@@ -44,7 +44,7 @@ public class FieldSignOffService : IFieldSignOffService
         if (signed && signee == null) return new(FieldOutcome.Invalid, "Enter the name of who signed.");
         if (!signed && noSignatureReason == null) return new(FieldOutcome.Invalid, "Have the customer sign, or say why they didn't.");
 
-        var now = DateTime.UtcNow;
+        var now = when ?? DateTime.UtcNow;
         UptickFile? file = null;
         if (signed)
         {

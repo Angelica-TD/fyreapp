@@ -35,6 +35,9 @@
 @* The technician's job: where it is, then the work in order (test the assets, the task's lines, stock, forms,
    the customer's sign-off), with their clock docked at the bottom. Nothing to navigate. *@
 
+@* Which job this is, for what's held on the phone (field-sync.js) *@
+<div hidden data-field-task="@task.Id" data-field-title="@task.DisplayRef @p.Name"></div>
+
 @if (TempData["Error"] is string error)
 {
     <div class="alert alert-danger">@error</div>

@@ -5,6 +5,7 @@ using FyreApp.Models;
 using FyreApp.Services.Field;
 using FyreApp.Services.Forms;
 using FyreApp.ViewModels.Field;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -50,44 +51,38 @@ public class FieldController : Controller
     }
 
     [HttpPost("/Field/Task/{id:int}/Start"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> Start(int id, string type, double? lat, double? lng, CancellationToken ct = default)
+    public async Task<IActionResult> Start(int id, string type, double? lat, double? lng, long? doneAt, CancellationToken ct = default)
     {
         if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
-        return Done(id, await _field.StartAsync(id, me, type, At(lat, lng), ct));
+        return Done(id, await _field.StartAsync(id, me, type, At(lat, lng), When(doneAt), ct));
     }
 
     [HttpPost("/Field/Task/{id:int}/Finish"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> Finish(int id, string? note, double? lat, double? lng, CancellationToken ct = default)
+    public async Task<IActionResult> Finish(int id, string? note, double? lat, double? lng, long? doneAt, CancellationToken ct = default)
     {
         if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
-        return Done(id, await _field.FinishAsync(id, me, At(lat, lng), note, ct));
+        return Done(id, await _field.FinishAsync(id, me, At(lat, lng), note, When(doneAt), ct));
     }
 
     [HttpPost("/Field/Task/{id:int}/Record"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> Record(int id, int assetId, string routine, string? result, string? notes, CancellationToken ct = default)
+    public async Task<IActionResult> Record(int id, int assetId, string routine, string? result, string? notes, long? doneAt, CancellationToken ct = default)
     {
         if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
-        var done = await _field.RecordAsync(id, me, assetId, routine, result, notes, ct);
-        if (Request.Headers.XRequestedWith == "fetch")
-            return done.Outcome == FieldOutcome.Done ? Ok(new { result }) : BadRequest(new { error = done.Message ?? "Not saved." });
-        return Done(id, done, $"asset-{assetId}");
+        return Done(id, await _field.RecordAsync(id, me, assetId, routine, result, notes, When(doneAt), ct), $"asset-{assetId}");
     }
 
     [HttpPost("/Field/Task/{id:int}/Line"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> Line(int id, int subtaskId, bool done, CancellationToken ct = default)
+    public async Task<IActionResult> Line(int id, int subtaskId, bool done, long? doneAt, CancellationToken ct = default)
     {
         if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
-        var saved = await _field.SetLineDoneAsync(id, subtaskId, done, ct);
-        if (Request.Headers.XRequestedWith == "fetch")
-            return saved.Outcome == FieldOutcome.Done ? Ok(new { done }) : BadRequest(new { error = saved.Message ?? "Not saved." });
-        return Done(id, saved, "lines");
+        return Done(id, await _field.SetLineDoneAsync(id, subtaskId, done, When(doneAt), ct), "lines");
     }
 
     [HttpPost("/Field/Task/{id:int}/Stock"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> Stock(int id, int productId, decimal quantity, CancellationToken ct = default)
+    public async Task<IActionResult> Stock(int id, int productId, decimal quantity, long? doneAt, CancellationToken ct = default)
     {
         if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
-        return Done(id, await _field.UseStockAsync(id, me, productId, quantity, ct), "stock");
+        return Done(id, await _field.UseStockAsync(id, me, productId, quantity, When(doneAt), ct), "stock");
     }
 
     [HttpPost("/Field/Task/{id:int}/Stock/{useId:int}/Remove"), ValidateAntiForgeryToken]
@@ -112,7 +107,7 @@ public class FieldController : Controller
     {
         if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
         var saved = await forms.SubmitAsync(id, me, version, Request.Form, ct);
-        if (saved.Result.Outcome == FieldOutcome.Invalid && saved.Values != null)
+        if (saved.Result.Outcome == FieldOutcome.Invalid && saved.Values != null && !Fetched)
         {
             // Show it again as filled in, with what's missing
             var vm = await forms.NewAsync(id, version, me, ct);
@@ -135,23 +130,23 @@ public class FieldController : Controller
     }
 
     [HttpPost("/Field/Task/{id:int}/SignOff"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> SignOff(int id, string? signee, string? signature, string? noSignatureReason,
+    public async Task<IActionResult> SignOff(int id, string? signee, string? signature, string? noSignatureReason, long? doneAt,
         [FromServices] IFieldSignOffService signOffs, CancellationToken ct = default)
     {
         if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
-        var saved = await signOffs.SignAsync(id, me, signee, signature, noSignatureReason, ct);
+        var saved = await signOffs.SignAsync(id, me, signee, signature, noSignatureReason, When(doneAt), ct);
         if (saved.Outcome == FieldOutcome.Done) TempData["Success"] = "Sign-off saved.";
         return Done(id, saved, "signoff");
     }
 
     // The job's done: the task is closed and its report written; back to their day
     [HttpPost("/Field/Task/{id:int}/Complete"), ValidateAntiForgeryToken]
-    public async Task<IActionResult> Complete(int id, string? note, double? lat, double? lng, [FromServices] IFieldFinishService finish,
+    public async Task<IActionResult> Complete(int id, string? note, double? lat, double? lng, long? doneAt, [FromServices] IFieldFinishService finish,
         CancellationToken ct = default)
     {
         if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
-        var done = await finish.CompleteAsync(id, me, note, At(lat, lng), ct);
-        if (done.Result.Outcome != FieldOutcome.Done) return Done(id, done.Result);
+        var done = await finish.CompleteAsync(id, me, note, At(lat, lng), When(doneAt), ct);
+        if (done.Result.Outcome != FieldOutcome.Done || Fetched) return Done(id, done.Result);
         TempData["Success"] = "Job completed. Its report is ready for the office.";
         return RedirectToAction(nameof(Index));
     }
@@ -169,13 +164,13 @@ public class FieldController : Controller
 
     [HttpPost("/Field/Task/{id:int}/Remark"), ValidateAntiForgeryToken]
     [RequestSizeLimit(PhotoUploadLimit), RequestFormLimits(MultipartBodyLengthLimit = PhotoUploadLimit)]
-    public async Task<IActionResult> Remark(int id, [Bind(Prefix = "Input")] RaiseRemarkInput input, List<IFormFile> photos,
+    public async Task<IActionResult> Remark(int id, [Bind(Prefix = "Input")] RaiseRemarkInput input, List<IFormFile> photos, long? doneAt,
         [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
     {
         var me = await TechnicianIdAsync();
         if (!await MayOpenAsync(id, me, ct)) return Forbid();
-        var saved = await remarks.RaiseAsync(id, input, photos, me, ct);
-        if (saved.Result.Outcome == FieldOutcome.Invalid)
+        var saved = await remarks.RaiseAsync(id, input, photos, me, When(doneAt), ct);
+        if (saved.Result.Outcome == FieldOutcome.Invalid && !Fetched)
         {
             var vm = await remarks.RaiseFormAsync(id, input.AssetId, ct);
             if (vm == null) return NotFound();
@@ -196,13 +191,13 @@ public class FieldController : Controller
 
     [HttpPost("/Field/Task/{id:int}/Remark/{remarkId:int}/Resolve"), ValidateAntiForgeryToken]
     [RequestSizeLimit(PhotoUploadLimit), RequestFormLimits(MultipartBodyLengthLimit = PhotoUploadLimit)]
-    public async Task<IActionResult> Resolve(int id, int remarkId, string? resolution, List<IFormFile> photos,
+    public async Task<IActionResult> Resolve(int id, int remarkId, string? resolution, List<IFormFile> photos, long? doneAt,
         [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
     {
         var me = await TechnicianIdAsync();
         if (!await MayOpenAsync(id, me, ct)) return Forbid();
-        var saved = await remarks.ResolveAsync(id, remarkId, resolution, photos, me, ct);
-        if (saved.Result.Outcome == FieldOutcome.Invalid)
+        var saved = await remarks.ResolveAsync(id, remarkId, resolution, photos, me, When(doneAt), ct);
+        if (saved.Result.Outcome == FieldOutcome.Invalid && !Fetched)
         {
             var vm = await remarks.ResolveFormAsync(id, remarkId, ct);
             if (vm == null) return Done(id, saved.Result);
@@ -215,7 +210,7 @@ public class FieldController : Controller
 
     private IActionResult Saved(int id, RemarkSaved saved, string what, int? assetId)
     {
-        if (saved.Result.Outcome != FieldOutcome.Done) return Done(id, saved.Result);
+        if (saved.Result.Outcome != FieldOutcome.Done || Fetched) return Done(id, saved.Result);
         if (saved.PhotoProblems is { Count: > 0 } problems)
             TempData["Error"] = $"{what}, but not all its photos: {string.Join(" ", problems)}";
         else
@@ -223,8 +218,27 @@ public class FieldController : Controller
         return Redirect(Url.Action(nameof(Visit), new { id }) + (assetId == null ? "" : $"#asset-{assetId}"));
     }
 
+    // A fresh anti-forgery token for sending changes held on the phone (the one on the page they came from may be for a
+    // cookie that's gone since)
+    [HttpGet("/Field/Token")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public IActionResult Token([FromServices] IAntiforgery antiforgery) =>
+        Json(new { token = antiforgery.GetAndStoreTokens(HttpContext).RequestToken });
+
+    // Sent by the phone itself (a save as it changes, or a change held on the phone while there was no signal):
+    // answered in JSON rather than with a page
+    private bool Fetched => Request.Headers.XRequestedWith == "fetch";
+
     private IActionResult Done(int id, FieldResult result, string? anchor = null)
     {
+        if (Fetched)
+            return result.Outcome switch
+            {
+                FieldOutcome.Done => Ok(new { saved = true }),
+                FieldOutcome.NotFound => NotFound(new { error = result.Message ?? "Not found." }),
+                FieldOutcome.NotAllowed => StatusCode(StatusCodes.Status403Forbidden, new { error = result.Message ?? "Not allowed." }),
+                _ => BadRequest(new { error = result.Message ?? "Not saved." })
+            };
         if (result.Outcome == FieldOutcome.NotFound && result.Message == null) return NotFound();
         // An error shows at the top of the page, so go there rather than to the section
         if (result.Outcome != FieldOutcome.Done) (TempData["Error"], anchor) = (result.Message, null);
@@ -238,4 +252,6 @@ public class FieldController : Controller
     private async Task<int?> TechnicianIdAsync() => (await _users.GetUserAsync(User))?.UptickUserId;
 
     private static Coords? At(double? lat, double? lng) => lat is { } a && lng is { } b ? new Coords(a, b) : null;
+
+    private static DateTime? When(long? doneAt) => FieldService.WhenDone(doneAt, DateTime.UtcNow);
 }

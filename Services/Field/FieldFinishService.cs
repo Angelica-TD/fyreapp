@@ -12,7 +12,7 @@ public interface IFieldFinishService
 {
     // Completes the task in the field: stops the technician's clock on it, closes it (as completing it anywhere does)
     // and writes its service report from the assets' results, with the technician's note
-    Task<FinishResult> CompleteAsync(int taskId, int technicianId, string? note, Coords? at, CancellationToken ct = default);
+    Task<FinishResult> CompleteAsync(int taskId, int technicianId, string? note, Coords? at, DateTime? when = null, CancellationToken ct = default);
 }
 
 // Finishing a job in the field app. The report is FyreApp's (no Uptick id, a FyreRef such as "SR-1001"): one line per
@@ -31,7 +31,7 @@ public class FieldFinishService : IFieldFinishService
         _tasks = tasks;
     }
 
-    public async Task<FinishResult> CompleteAsync(int taskId, int technicianId, string? note, Coords? at, CancellationToken ct = default)
+    public async Task<FinishResult> CompleteAsync(int taskId, int technicianId, string? note, Coords? at, DateTime? when = null, CancellationToken ct = default)
     {
         var task = await _db.ClientTasks.FirstOrDefaultAsync(t => t.Id == taskId, ct);
         if (task == null) return new(new(FieldOutcome.NotFound));
@@ -39,7 +39,7 @@ public class FieldFinishService : IFieldFinishService
         note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
         if (note?.Length > 4000) return new(new(FieldOutcome.Invalid, "The note is too long."));
 
-        var now = DateTime.UtcNow;
+        var now = when ?? DateTime.UtcNow;
         // A calendar date where it was done (dates are kept as UTC midnight)
         var today = DateTime.SpecifyKind(now.ToSydney().Date, DateTimeKind.Utc);
 
