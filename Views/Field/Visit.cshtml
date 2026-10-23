@@ -346,6 +346,52 @@
     </div></div>
 </section>
 
+@* 6. Finish: closes the task and writes its report. What's still open is said first, but doesn't stop it (not every
+   asset can always be reached) *@
+@if (canWork)
+{
+    var untested = Model.Lines.Count(l => l.Result == null);
+    var failed = Model.Lines.Where(l => l.Result == "Fail").Select(l => l.AssetId).Distinct().Count();
+    var unticked = Model.TaskLines.Count(l => !l.IsPerformed);
+    var gaps = new List<string>();
+    if (untested > 0) gaps.Add($"{untested} {(untested == 1 ? "asset" : "assets")} not tested");
+    if (unticked > 0) gaps.Add($"{unticked} {(unticked == 1 ? "line" : "lines")} not ticked off");
+    if (!signedOff) gaps.Add("no customer sign-off");
+    <section class="mb-4" id="finish">
+        <h2 class="h5 d-flex align-items-center gap-2 mb-2">@Step(++step, false) Finish the job</h2>
+        <div class="card"><div class="card-body">
+            @if (gaps.Count > 0)
+            {
+                <ul class="list-unstyled mb-2">
+                    @foreach (var g in gaps)
+                    {
+                        <li class="text-warning-emphasis"><i class="bi bi-exclamation-circle"></i> @(char.ToUpper(g[0]) + g[1..])</li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <div class="text-success mb-2"><i class="bi bi-check-circle"></i> Everything's done.</div>
+            }
+            @if (failed > 0)
+            {
+                <div class="small text-muted mb-2">@failed @(failed == 1 ? "asset" : "assets") failed: the report shows it not compliant.</div>
+            }
+            <form method="post" asp-action="Complete" asp-route-id="@task.Id" class="js-geo"
+                  data-confirm="@(gaps.Count > 0 ? $"Still open: {string.Join(", ", gaps)}.\n\n" : "")Complete this job? It can't be changed after.">
+                <input type="hidden" name="lat" /><input type="hidden" name="lng" />
+                <textarea name="note" class="form-control mb-2" rows="3" maxlength="4000" placeholder="Note for the report (optional)" aria-label="Note for the report"></textarea>
+                <button type="submit" class="btn btn-success btn-lg w-100"><i class="bi bi-check2-all"></i> Complete the job</button>
+                @if (Model.Running != null) { <div class="small text-muted mt-1 text-center">This stops your clock.</div> }
+            </form>
+        </div></div>
+    </section>
+}
+else if (task.Status == ClientTaskStatus.Completed)
+{
+    <div class="alert alert-success"><i class="bi bi-check2-all"></i> Completed@(task.CompletedUtc != null ? $" {task.CompletedUtc.Value.ToSydney().ToOrdinalDateTime()}" : "").</div>
+}
+
 @if (User.IsInRole("Admin"))
 {
     <p class="small"><a asp-controller="Task" asp-action="Details" asp-route-id="@task.Id">The task's full page</a></p>

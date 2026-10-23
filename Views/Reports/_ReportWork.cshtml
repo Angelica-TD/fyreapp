@@ -1,0 +1,73 @@
+@model FyreApp.ViewModels.Lists.ReportWorkVm
+@using FyreApp.Infrastructure
+
+@* A report made in the field app: what else was done on the job (remarks, forms, the customer's sign-off, time) *@
+<div class="card property-card mt-3">
+    <div class="card-header">On the job</div>
+    <div class="card-body">
+        <dl class="row property-facts mb-0">
+            <dt class="col-4">Time</dt>
+            <dd class="col-8">
+                @(Model.OnSiteHours + Model.TravelHours == 0 ? "-" : $"{Model.OnSiteHours:0.##} h on site{(Model.TravelHours > 0 ? $", {Model.TravelHours:0.##} h travelling" : "")}")
+            </dd>
+
+            <dt class="col-4">Remarks found</dt>
+            <dd class="col-8">
+                @if (Model.Raised.Count == 0) { <span>-</span> }
+                @foreach (var d in Model.Raised)
+                {
+                    <div>
+                        <a asp-controller="Remarks" asp-action="Details" asp-route-id="@d.Id">@d.Ref</a>
+                        @(d.Description ?? d.Type)
+                        <span class="small text-muted">@(d.Asset ?? "Property")@(d.Severity != null ? $" · {d.Severity}" : "")</span>
+                    </div>
+                }
+            </dd>
+
+            <dt class="col-4">Remarks fixed</dt>
+            <dd class="col-8">
+                @if (Model.Resolved.Count == 0) { <span>-</span> }
+                @foreach (var d in Model.Resolved)
+                {
+                    <div>
+                        <a asp-controller="Remarks" asp-action="Details" asp-route-id="@d.Id">@d.Ref</a>
+                        @(d.Description ?? d.Type)
+                        @if (d.Resolution != null) { <span class="small text-muted d-block">@d.Resolution</span> }
+                    </div>
+                }
+            </dd>
+
+            <dt class="col-4">Forms</dt>
+            <dd class="col-8">
+                @if (Model.Forms.Count == 0) { <span>-</span> }
+                @foreach (var f in Model.Forms)
+                {
+                    <div><a href="@Url.Action("SubmittedForm", "Field", new { id = Model.TaskId, responseId = f.Id })">@f.Name@(f.Ref != null ? $" {f.Ref}" : "")</a></div>
+                }
+            </dd>
+
+            <dt class="col-4">Sign-off</dt>
+            <dd class="col-8">
+                @if (Model.SignOff is { } so)
+                {
+                    @if (so.SigneeName != null)
+                    {
+                        <div>@so.SigneeName <span class="small text-muted">· @so.SignedUtc.ToSydney().ToOrdinalDateTime()</span></div>
+                        @if (so.SignatureFileId != null)
+                        {
+                            <img src="/Files/@so.SignatureFileId" alt="Signature of @so.SigneeName" class="border rounded bg-white mt-1" style="max-width: 100%; max-height: 6rem" />
+                        }
+                    }
+                    else
+                    {
+                        <span>Not signed: @so.NoSignatureReason</span>
+                    }
+                }
+                else
+                {
+                    <span>-</span>
+                }
+            </dd>
+        </dl>
+    </div>
+</div>

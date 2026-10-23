@@ -3,7 +3,10 @@
     // Starting and finishing time: note where the phone is, if it says within a few seconds (never blocks)
     document.querySelectorAll('form.js-geo').forEach(form => {
         form.addEventListener('submit', e => {
-            if (form.dataset.located || !navigator.geolocation) return;
+            if (e.defaultPrevented || form.dataset.located) return;
+            // Asked once, before waiting on the location (sending it on doesn't ask again)
+            if (form.dataset.confirm && !confirm(form.dataset.confirm)) { e.preventDefault(); return; }
+            if (!navigator.geolocation) return;
             e.preventDefault();
             const submitter = e.submitter;
             form.querySelectorAll('button').forEach(b => b.disabled = true);
