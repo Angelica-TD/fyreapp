@@ -19,6 +19,10 @@ public class HomeController : Controller
     [AllowAnonymous] // the login page
     public IActionResult Index(string? returnUrl = null)
     {
+        // Technicians land on their day (the field app)
+        if (FyreApp.Auth.TechAccessFilter.IsTech(User)) return RedirectToAction("Index", "Field");
+
+
         ViewData["HideBreadcrumb"] = true;
         var vm = new HomeIndexVm();
         vm.Login.ReturnUrl = returnUrl ?? Url.Action(nameof(Index), "Home");

@@ -39,7 +39,7 @@ public class TaskController : Controller
             Techs = techs,
             CanFilterMine = me?.UptickUserId != null,
             // Technicians open the list on their own tasks
-            DefaultTechnician = me?.UptickUserId != null && User.IsInRole("Tech") && !User.IsInRole("Admin") ? "me" : ""
+            DefaultTechnician = FyreApp.Auth.TechAccessFilter.IsTech(User) ? "me" : ""
         });
     }
 
@@ -392,9 +392,10 @@ public class TaskController : Controller
     }
 
     // "me" in the technician filter: the Uptick user the signed-in login is linked to ("-1", no tasks, if none)
+    // A technician only ever sees their own (Auth/TechAccess.cs)
     private async Task<string?> ResolveTechnicianAsync(string? technician)
     {
-        if (technician != "me") return technician;
+        if (technician != "me" && !FyreApp.Auth.TechAccessFilter.IsTech(User)) return technician;
         var me = await _userManager.GetUserAsync(User);
         return me?.UptickUserId?.ToString() ?? "-1";
     }

@@ -11,7 +11,7 @@
     {
         ("customer-data", "Customer data", "bi-buildings", new[]
         {
-            ("Clients", "Clients", "bi-people-fill", true),
+            ("Clients", "Clients", "bi-people-fill", isAdmin),
             ("Property", "Properties", "bi-building", isAdmin),
             ("Assets", "Assets", "bi-fire", isAdmin),
             ("Remarks", "Remarks", "bi-exclamation-triangle", isAdmin),
@@ -54,6 +54,9 @@
                 }
         </li>
 
+        @* Technicians see only My day and their tasks (Auth/TechAccess.cs) *@
+        @if (isAdmin)
+        {
         <!-- Home -->
         <li class="nav-item">
             <a class="nav-link sidebar-link"
@@ -64,6 +67,7 @@
                 <span class="sidebar-label">Home</span>
             </a>
         </li>
+        }
 
         <!-- My day: the technicians' field app -->
         <li class="nav-item">
@@ -87,6 +91,8 @@
                 <i class="bi bi-check2-square sidebar-icon"></i>
                 <span class="sidebar-label">Tasks</span>
             </a>
+            @if (isAdmin)
+            {
             <ul class="nav flex-column sub-nav ps-4 mt-1">
                 <li class="nav-item">
                     <a class="nav-link sidebar-link sidebar-sublink"
@@ -97,6 +103,7 @@
                     </a>
                 </li>
             </ul>
+            }
         </li>
 
         @if (isAdmin)
@@ -114,6 +121,8 @@
             </li>
         }
 
+        @if (isAdmin)
+        {
         <!-- Quotes -->
         <li class="nav-item">
             <a class="nav-link sidebar-link"
@@ -125,6 +134,7 @@
                 <span class="sidebar-label">Quotes</span>
             </a>
         </li>
+        }
 
         @foreach (var group in groups)
         {
