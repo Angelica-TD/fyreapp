@@ -115,6 +115,10 @@ public class DynamicFormResponse : IUptickMapped
     [StringLength(64)] public string? TargetObjectId { get; set; }
     public bool IsComplete { get; set; }
 
+    // The answers, by field key, for a form filled in FyreApp (JSON, as Uptick keeps them: text, true/false, a list of
+    // choices, a signature as a data: URL). A migrated response's are in its raw copy.
+    public string? Values { get; set; }
+
     public const string TaskContentType = "28";
 }
 

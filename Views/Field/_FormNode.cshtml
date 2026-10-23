@@ -1,0 +1,29 @@
+@model FyreApp.Services.Forms.FormNodePartial
+@using FyreApp.Services.Forms
+@{
+    var n = Model.Node;
+    // The template's own Bootstrap classes (rows, columns, headings), letters and dashes only
+    var css = System.Text.RegularExpressions.Regex.Replace(n.Class ?? "", "[^a-zA-Z0-9 _-]", "");
+}
+
+@* One piece of a form template's layout: a group (row) of pieces, a line of text, or a field *@
+@switch (n.Type)
+{
+    case FormLayoutNode.TextType:
+        <div class="@css mb-2" style="white-space: pre-line">@n.Text</div>
+        break;
+    case FormLayoutNode.FieldType:
+        if (n.Field != null && Model.Form.Definition.Field(n.Field) is { } field)
+        {
+            <div class="@css mb-2"><partial name="_FormField" model="new FormFieldPartial(Model.Form, field)" /></div>
+        }
+        break;
+    default:
+        <div class="@css">
+            @foreach (var child in n.Contents)
+            {
+                <partial name="_FormNode" model="new FormNodePartial(Model.Form, child)" />
+            }
+        </div>
+        break;
+}
