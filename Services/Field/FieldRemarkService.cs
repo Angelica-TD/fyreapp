@@ -16,13 +16,13 @@ public interface IFieldRemarkService
     Task<RaiseRemarkVm?> RaiseFormAsync(int taskId, int? assetId, CancellationToken ct = default);
 
     // Raises a remark on the task (as found), with its photos
-    Task<RemarkSaved> RaiseAsync(int taskId, RaiseRemarkInput input, IReadOnlyList<IFormFile> photos, int? technicianId = null, CancellationToken ct = default);
+    Task<RemarkSaved> RaiseAsync(int taskId, RaiseRemarkInput input, IReadOnlyList<IFormFile> photos, int? technicianId = null, DateTime? when = null, CancellationToken ct = default);
 
     // Null when the remark isn't an open one at the task's property
     Task<ResolveRemarkVm?> ResolveFormAsync(int taskId, int remarkId, CancellationToken ct = default);
 
     // Closes an open remark at the task's property (fixed on this task), with photos once fixed
-    Task<RemarkSaved> ResolveAsync(int taskId, int remarkId, string? resolution, IReadOnlyList<IFormFile> photos, int? technicianId = null, CancellationToken ct = default);
+    Task<RemarkSaved> ResolveAsync(int taskId, int remarkId, string? resolution, IReadOnlyList<IFormFile> photos, int? technicianId = null, DateTime? when = null, CancellationToken ct = default);
 }
 
 // Remarks in the field app: raising one on an asset (or the property) with photos as found, resolving one with
@@ -79,7 +79,7 @@ public class FieldRemarkService : IFieldRemarkService
         };
     }
 
-    public async Task<RemarkSaved> RaiseAsync(int taskId, RaiseRemarkInput input, IReadOnlyList<IFormFile> photos, int? technicianId = null, CancellationToken ct = default)
+    public async Task<RemarkSaved> RaiseAsync(int taskId, RaiseRemarkInput input, IReadOnlyList<IFormFile> photos, int? technicianId = null, DateTime? when = null, CancellationToken ct = default)
     {
         var task = await _db.ClientTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
         if (task == null) return new(new(FieldOutcome.NotFound));
@@ -105,7 +105,7 @@ public class FieldRemarkService : IFieldRemarkService
             : Severities.FirstOrDefault(x => string.Equals(x.Label, type?.SeverityLabel, StringComparison.OrdinalIgnoreCase));
         if (input.Severity != null && severity.Label == null) return new(new(FieldOutcome.Invalid, "Pick a severity from the list."));
 
-        var now = DateTime.UtcNow;
+        var now = when ?? DateTime.UtcNow;
         var remark = new Remark
         {
             PropertyId = task.PropertyId,
@@ -146,7 +146,7 @@ public class FieldRemarkService : IFieldRemarkService
         };
     }
 
-    public async Task<RemarkSaved> ResolveAsync(int taskId, int remarkId, string? resolution, IReadOnlyList<IFormFile> photos, int? technicianId = null, CancellationToken ct = default)
+    public async Task<RemarkSaved> ResolveAsync(int taskId, int remarkId, string? resolution, IReadOnlyList<IFormFile> photos, int? technicianId = null, DateTime? when = null, CancellationToken ct = default)
     {
         var task = await _db.ClientTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
         if (task == null) return new(new(FieldOutcome.NotFound));
@@ -156,7 +156,7 @@ public class FieldRemarkService : IFieldRemarkService
         if (!remark.Active) return new(new(FieldOutcome.Invalid, "That remark is already resolved."));
         if (string.IsNullOrWhiteSpace(resolution)) return new(new(FieldOutcome.Invalid, "Say how it was fixed."));
 
-        var now = DateTime.UtcNow;
+        var now = when ?? DateTime.UtcNow;
         remark.Active = false;
         remark.Status = Resolved;
         remark.InactiveUtc = now;

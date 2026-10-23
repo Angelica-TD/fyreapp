@@ -152,13 +152,15 @@
                 const res = await fetch(form.action, {
                     method: 'POST',
                     body: new FormData(form),
-                    headers: { 'X-Requested-With': 'fetch' }
+                    headers: { 'X-Requested-With': 'fetch', Accept: 'application/json' }
                 });
                 if (!res.ok) {
                     const body = await res.json().catch(() => ({}));
-                    throw new Error(body.error || (res.status === 403 ? 'Not allowed.' : 'Not saved.'));
+                    throw new Error(body.error || (res.status === 403 ? 'Not allowed.' : res.status === 401 ? "You're signed out." : 'Not saved.'));
                 }
-                status.textContent = '';
+                // 202: no signal, held on the phone by the service worker (sw.js) to send later
+                status.className = 'small js-status text-warning-emphasis';
+                status.textContent = res.status === 202 ? 'On your phone' : '';
                 const card = form.closest('.js-lines');
                 card.querySelector('.js-done').textContent = card.querySelectorAll('input[type=checkbox]:checked').length;
             } catch (err) {
@@ -187,14 +189,20 @@
                 const res = await fetch(form.action, {
                     method: 'POST',
                     body: new FormData(form),
-                    headers: { 'X-Requested-With': 'fetch' }
+                    headers: { 'X-Requested-With': 'fetch', Accept: 'application/json' }
                 });
                 if (!res.ok) {
                     const body = await res.json().catch(() => ({}));
-                    throw new Error(body.error || (res.status === 403 ? 'Not allowed.' : 'Not saved.'));
+                    throw new Error(body.error || (res.status === 403 ? 'Not allowed.' : res.status === 401 ? "You're signed out." : 'Not saved.'));
                 }
-                status.textContent = 'Saved';
-                setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500);
+                if (res.status === 202) {
+                    // No signal: held on the phone by the service worker (sw.js), sent when there's signal
+                    status.className = 'small js-status text-warning-emphasis';
+                    status.textContent = 'On your phone, not sent yet';
+                } else {
+                    status.textContent = 'Saved';
+                    setTimeout(() => { if (status.textContent === 'Saved') status.textContent = ''; }, 1500);
+                }
                 clear.classList.toggle('d-none', !form.querySelector('input[name=result]:checked'));
                 recount();
             } catch (err) {
@@ -222,6 +230,9 @@
         form.querySelector('.js-remark').addEventListener('click', async e => {
             e.preventDefault();
             const href = e.currentTarget.href;
+            // Named on the remark form if it opens without signal (field-sync.js)
+            const asset = form.closest('li')?.querySelector('.fw-semibold')?.parentElement?.textContent.trim().replace(/\s+/g, ' ');
+            try { sessionStorage.setItem('remark-asset', asset || ''); } catch { /* private mode */ }
             await save();
             window.location.href = href;
         });

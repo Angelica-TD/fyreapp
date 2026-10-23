@@ -12,6 +12,9 @@
 
 @* The technicians' field app: what they're booked on for a day, each opening the task's field page *@
 <div class="field-app mx-auto" style="max-width: 720px">
+    @* The day's jobs and their other open ones, kept on the phone to open without signal (field-sync.js, sw.js) *@
+    <div hidden data-field-keep="@System.Text.Json.JsonSerializer.Serialize(Model.Visits.Concat(Model.Assigned).Select(v => v.TaskId).Distinct().Take(40).SelectMany(id => new[] { Url.Action("Visit", new { id }), Url.Action("Remark", new { id }) }))"></div>
+
     @if (TempData["Success"] is string success)
     {
         <div class="alert alert-success py-2"><i class="bi bi-check-circle"></i> @success</div>

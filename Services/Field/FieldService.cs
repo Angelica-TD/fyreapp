@@ -28,18 +28,18 @@ public interface IFieldService
     Task<bool> IsTheirsAsync(int taskId, int technicianId, CancellationToken ct = default);
 
     // Starts the technician's clock on the task (finishing it wherever it was running)
-    Task<FieldResult> StartAsync(int taskId, int technicianId, string type, Coords? at, CancellationToken ct = default);
+    Task<FieldResult> StartAsync(int taskId, int technicianId, string type, Coords? at, DateTime? when = null, CancellationToken ct = default);
 
-    Task<FieldResult> FinishAsync(int taskId, int technicianId, Coords? at, string? note, CancellationToken ct = default);
+    Task<FieldResult> FinishAsync(int taskId, int technicianId, Coords? at, string? note, DateTime? when = null, CancellationToken ct = default);
 
     // Pass, Fail or N/A for an asset serviced for one of the task's routines (none clears it)
-    Task<FieldResult> RecordAsync(int taskId, int technicianId, int assetId, string routine, string? result, string? notes, CancellationToken ct = default);
+    Task<FieldResult> RecordAsync(int taskId, int technicianId, int assetId, string routine, string? result, string? notes, DateTime? when = null, CancellationToken ct = default);
 
     // Ticks one of the task's lines (subtasks) done today, or not done
-    Task<FieldResult> SetLineDoneAsync(int taskId, int subtaskId, bool done, CancellationToken ct = default);
+    Task<FieldResult> SetLineDoneAsync(int taskId, int subtaskId, bool done, DateTime? when = null, CancellationToken ct = default);
 
     // Records a product used on the task, as Uptick does: stock off the task onto a service line
-    Task<FieldResult> UseStockAsync(int taskId, int technicianId, int productId, decimal quantity, CancellationToken ct = default);
+    Task<FieldResult> UseStockAsync(int taskId, int technicianId, int productId, decimal quantity, DateTime? when = null, CancellationToken ct = default);
 
     // Takes back stock the technician recorded as used (in FyreApp) by mistake
     Task<FieldResult> RemoveStockAsync(int taskId, int technicianId, int useId, CancellationToken ct = default);
@@ -208,7 +208,7 @@ public class FieldService : IFieldService
             (t.AssignedToUptickUserId == technicianId
              || _db.Appointments.Any(a => a.ClientTaskId == taskId && a.Technicians.Any(u => u.Id == technicianId))), ct);
 
-    public async Task<FieldResult> StartAsync(int taskId, int technicianId, string type, Coords? at, CancellationToken ct = default)
+    public async Task<FieldResult> StartAsync(int taskId, int technicianId, string type, Coords? at, DateTime? when = null, CancellationToken ct = default)
     {
         var sessionType = SessionTypes.FirstOrDefault(s => s.Type == type);
         if (sessionType.Type == null) return new(FieldOutcome.Invalid, "Pick what you're doing.");
@@ -217,7 +217,7 @@ public class FieldService : IFieldService
         if (!IsOpen(task))
             return new(FieldOutcome.Invalid, "This task is closed.");
 
-        var now = DateTime.UtcNow;
+        var now = when ?? DateTime.UtcNow;
         foreach (var running in await RunningAsync(technicianId, ct))
             Finish(running, now, at, null);
 
@@ -236,17 +236,17 @@ public class FieldService : IFieldService
         return FieldResult.Done;
     }
 
-    public async Task<FieldResult> FinishAsync(int taskId, int technicianId, Coords? at, string? note, CancellationToken ct = default)
+    public async Task<FieldResult> FinishAsync(int taskId, int technicianId, Coords? at, string? note, DateTime? when = null, CancellationToken ct = default)
     {
         var running = (await RunningAsync(technicianId, ct)).Where(s => s.ClientTaskId == taskId).ToList();
         if (running.Count == 0) return new(FieldOutcome.Invalid, "Your time isn't running on this task.");
-        var now = DateTime.UtcNow;
+        var now = when ?? DateTime.UtcNow;
         foreach (var s in running) Finish(s, now, at, note);
         await _db.SaveChangesAsync(ct);
         return FieldResult.Done;
     }
 
-    public async Task<FieldResult> RecordAsync(int taskId, int technicianId, int assetId, string routine, string? result, string? notes, CancellationToken ct = default)
+    public async Task<FieldResult> RecordAsync(int taskId, int technicianId, int assetId, string routine, string? result, string? notes, DateTime? when = null, CancellationToken ct = default)
     {
         string? chosen = null;
         if (!string.IsNullOrWhiteSpace(result))
@@ -276,13 +276,13 @@ public class FieldService : IFieldService
 
         line.Result = chosen;
         line.Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
-        line.PerformedUtc = chosen == null ? null : DateTime.UtcNow;
+        line.PerformedUtc = chosen == null ? null : when ?? DateTime.UtcNow;
         line.TechnicianId = chosen == null ? null : technicianId;
         await _db.SaveChangesAsync(ct);
         return FieldResult.Done;
     }
 
-    public async Task<FieldResult> SetLineDoneAsync(int taskId, int subtaskId, bool done, CancellationToken ct = default)
+    public async Task<FieldResult> SetLineDoneAsync(int taskId, int subtaskId, bool done, DateTime? when = null, CancellationToken ct = default)
     {
         var task = await _db.ClientTasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == taskId, ct);
         if (task == null) return new(FieldOutcome.NotFound);
@@ -292,12 +292,12 @@ public class FieldService : IFieldService
 
         line.IsPerformed = done;
         // A calendar date where it was done (dates are kept as UTC midnight)
-        line.PerformedDate = done ? DateTime.SpecifyKind(DateTime.UtcNow.ToSydney().Date, DateTimeKind.Utc) : null;
+        line.PerformedDate = done ? DateTime.SpecifyKind((when ?? DateTime.UtcNow).ToSydney().Date, DateTimeKind.Utc) : null;
         await _db.SaveChangesAsync(ct);
         return FieldResult.Done;
     }
 
-    public async Task<FieldResult> UseStockAsync(int taskId, int technicianId, int productId, decimal quantity, CancellationToken ct = default)
+    public async Task<FieldResult> UseStockAsync(int taskId, int technicianId, int productId, decimal quantity, DateTime? when = null, CancellationToken ct = default)
     {
         if (quantity <= 0 || quantity > 10000 || decimal.Round(quantity, 2) != quantity)
             return new(FieldOutcome.Invalid, "Enter how many were used.");
@@ -315,7 +315,7 @@ public class FieldService : IFieldService
             OtherType = "servicetask",
             CostPrice = product.CostPrice,
             UptickUserId = technicianId,
-            CreatedUtc = DateTime.UtcNow
+            CreatedUtc = when ?? DateTime.UtcNow
         });
         await _db.SaveChangesAsync(ct);
         return FieldResult.Done;
@@ -335,11 +335,23 @@ public class FieldService : IFieldService
         return FieldResult.Done;
     }
 
+    // When the technician pressed it, as the phone says (milliseconds since 1970), for a change held on the phone while
+    // there was no signal and sent later. Never in the future; none (now) when the phone's clock is a week out.
+    public static DateTime? WhenDone(long? doneAt, DateTime nowUtc)
+    {
+        if (doneAt is not { } ms || ms < 0 || ms > DateTimeOffset.MaxValue.ToUnixTimeMilliseconds()) return null;
+        var at = DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime;
+        if (at < nowUtc.AddDays(-7)) return null;
+        return at > nowUtc ? nowUtc : at;
+    }
+
     public static bool IsOpen(ClientTask task) =>
         task.IsActive && task.Status is not (ClientTaskStatus.Completed or ClientTaskStatus.Cancelled);
 
     internal static void Finish(TaskSession s, DateTime now, Coords? at, string? note)
     {
+        // Sent late from the phone, a stop can come before a start recorded since: never a negative time
+        if (now < s.StartedUtc) now = s.StartedUtc;
         s.FinishedUtc = now;
         s.Hours = Math.Round((decimal)(now - s.StartedUtc).TotalHours, 2);
         s.FinishedLatitude = at?.Latitude;

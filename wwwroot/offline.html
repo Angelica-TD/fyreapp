@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#212529" />
+    <title>No signal - FyreApp</title>
+    <link rel="stylesheet" href="/css/bootstrap.custom.css" />
+    <link rel="stylesheet" href="/lib/bootstrap-icons/font/bootstrap-icons.css" />
+</head>
+<!-- Shown by the service worker (sw.js) for a field page that isn't on the phone yet while there's no signal -->
+<body style="background: #f3f4f6">
+    <header class="bg-dark text-white px-3 py-2">
+        <a class="btn btn-outline-light" href="/Field"><i class="bi bi-chevron-left"></i> My day</a>
+    </header>
+    <main class="p-3 mx-auto" style="max-width: 760px">
+        <div class="card"><div class="card-body">
+            <h1 class="h5"><i class="bi bi-wifi-off"></i> No signal</h1>
+            <p class="mb-2">This page isn't on your phone yet, so it needs signal to open.</p>
+            <p class="mb-3 text-muted small">Jobs you've opened today (and those on My day, once it's loaded with signal) open without it. Anything you record while offline stays on your phone and sends when you have signal again.</p>
+            <button type="button" class="btn btn-primary w-100" onclick="location.reload()">Try again</button>
+        </div></div>
+    </main>
+</body>
+</html>

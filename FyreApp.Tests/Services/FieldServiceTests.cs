@@ -219,4 +219,39 @@ public class FieldServiceTests
         Assert.True(await field.IsTheirsAsync(w.Elsewhere.Id, w.Other.Id));
         Assert.False(await field.IsTheirsAsync(w.Task.Id, w.Other.Id));
     }
+
+    // A change held on the phone without signal is sent later with when it was made
+    [Fact]
+    public void WhenDone_TakesThePhonesTime_NeverInTheFuture_NorAWeekOut()
+    {
+        var now = new DateTime(2026, 10, 24, 1, 0, 0, DateTimeKind.Utc);
+        long Ms(DateTime d) => new DateTimeOffset(d).ToUnixTimeMilliseconds();
+
+        Assert.Null(FieldService.WhenDone(null, now));
+        Assert.Equal(now.AddHours(-3), FieldService.WhenDone(Ms(now.AddHours(-3)), now));
+        Assert.Equal(now, FieldService.WhenDone(Ms(now.AddMinutes(10)), now));
+        Assert.Null(FieldService.WhenDone(Ms(now.AddDays(-8)), now));
+        Assert.Null(FieldService.WhenDone(-1, now));
+    }
+
+    [Fact]
+    public async Task HeldChanges_AreRecordedAtWhenTheyWereMade()
+    {
+        var w = await SetupAsync();
+        var field = new FieldService(w.Db);
+        var start = DateTime.UtcNow.AddHours(-3);
+
+        await field.StartAsync(w.Task.Id, w.Me.Id, "Performing Task", null, start);
+        await field.FinishAsync(w.Task.Id, w.Me.Id, null, null, start.AddHours(2));
+
+        var session = await w.Db.TaskSessions.SingleAsync();
+        Assert.Equal(start, session.StartedUtc);
+        Assert.Equal(2m, session.Hours);
+
+        // A stop sent after a later start: never a negative time
+        await field.StartAsync(w.Task.Id, w.Me.Id, "Performing Task", null, start.AddHours(2.5));
+        await field.FinishAsync(w.Task.Id, w.Me.Id, null, null, start.AddHours(2));
+        var second = await w.Db.TaskSessions.OrderBy(s => s.Id).LastAsync();
+        Assert.Equal(0m, second.Hours);
+    }
 }
