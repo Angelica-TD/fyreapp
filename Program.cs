@@ -137,6 +137,8 @@ builder.Services.AddScoped<FyreApp.Services.UserManagement.ILoginEmailService, F
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add<BreadcrumbFilter>();
+    // Technicians reach only My day, their own tasks and what those lead to (Auth/TechAccess.cs)
+    options.Filters.Add<FyreApp.Auth.TechAccessFilter>();
 });
 
 

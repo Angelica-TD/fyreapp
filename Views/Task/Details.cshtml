@@ -33,10 +33,10 @@
     @* Client / property *@
     <div class="task-crumbs mb-1">
         <i class="bi bi-person-fill"></i>
-        <a asp-controller="Clients" asp-action="Details" asp-route-id="@t.ClientId">@t.Client.Name</a>
+        @if (isAdmin) { <a asp-controller="Clients" asp-action="Details" asp-route-id="@t.ClientId">@t.Client.Name</a> } else { <span>@t.Client.Name</span> }
         <span class="text-muted mx-2">/</span>
         <i class="bi bi-building"></i>
-        <a asp-controller="Property" asp-action="Details" asp-route-id="@t.PropertyId"><strong>@site.DisplayRef @site.Name</strong></a>
+        @if (isAdmin) { <a asp-controller="Property" asp-action="Details" asp-route-id="@t.PropertyId"><strong>@site.DisplayRef @site.Name</strong></a> } else { <strong>@site.DisplayRef @site.Name</strong> }
         @if (suburb != "") { <span class="text-muted">@suburb</span> }
     </div>
 
@@ -54,7 +54,8 @@
                     <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Mark this task complete?')">Mark complete</button>
                 </form>
             }
-            <a asp-action="Delete" asp-route-id="@t.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+            @if (isAdmin) { <a asp-action="Delete" asp-route-id="@t.Id" class="btn btn-sm btn-outline-danger">Delete</a> }
+            else { <a asp-controller="Field" asp-action="Visit" asp-route-id="@t.Id" class="btn btn-sm btn-primary">Open in My day</a> }
         </div>
     </div>
 
@@ -301,7 +302,7 @@
                         <i class="bi bi-building"></i>
                         <div>
                             <div class="fw-semibold">Property</div>
-                            <a asp-controller="Property" asp-action="Details" asp-route-id="@t.PropertyId">@site.DisplayRef @site.Name</a>
+                            @if (isAdmin) { <a asp-controller="Property" asp-action="Details" asp-route-id="@t.PropertyId">@site.DisplayRef @site.Name</a> } else { <div>@site.DisplayRef @site.Name</div> }
                             @foreach (var line in addressLines) { <div>@line</div> }
                         </div>
                     </div>
@@ -309,7 +310,7 @@
                         <i class="bi bi-person-fill"></i>
                         <div>
                             <div class="fw-semibold">Client</div>
-                            <a asp-controller="Clients" asp-action="Details" asp-route-id="@t.ClientId">@t.Client.Name</a>
+                            @if (isAdmin) { <a asp-controller="Clients" asp-action="Details" asp-route-id="@t.ClientId">@t.Client.Name</a> } else { <div>@t.Client.Name</div> }
                             @if (Model.U("Primary Contact Name") is { } contact) { <div>@contact</div> }
                             @if (Model.U("Primary Contact Email") is { } email) { <div class="text-break"><a href="mailto:@email">@email</a></div> }
                         </div>
@@ -346,7 +347,7 @@
                                 <div class="fw-semibold">Routines</div>
                                 @foreach (var r in Model.Routines) { <div>@r</div> }
                                 @foreach (var s in t.CoveredSchedules.OrderBy(s => s.MaintenanceInterval.Months)) { <div>@s.MaintenanceInterval.Name</div> }
-                                <a asp-controller="Property" asp-action="Details" asp-route-id="@t.PropertyId" asp-route-tab="routines">Property's routines</a>
+                                @if (isAdmin) { <a asp-controller="Property" asp-action="Details" asp-route-id="@t.PropertyId" asp-route-tab="routines">Property's routines</a> }
                             </div>
                         </div>
                     }

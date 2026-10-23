@@ -108,7 +108,8 @@ function filterBody(query, filters) {
   }
 }
 
-function TaskSearch({ canEdit, canMigrate, techs, canFilterMine, defaultTechnician }) {
+function TaskSearch({ canEdit, canMigrate, techs, canFilterMine, defaultTechnician, onlyMine }) {
+  // onlyMine: a technician, who only ever sees their own tasks (the server holds them to it), has no technician filter
   const [DEFAULTS] = useState(() => defaultsFor(defaultTechnician))
   const [initial] = useState(() => filtersFromUrl(DEFAULTS))
   const [query, setQuery]     = useState(initial.query)
@@ -244,14 +245,16 @@ function TaskSearch({ canEdit, canMigrate, techs, canFilterMine, defaultTechnici
           <input type="date" className="form-control w-auto" aria-label="Due to"
                  value={filters.dueTo} onChange={e => set({ dueTo: e.target.value })} />
         </FilterRow>
-        <FilterRow label="Technician" htmlFor="taskTechFilter">
-          <select id="taskTechFilter" className="form-select" value={filters.technician} onChange={e => set({ technician: e.target.value })}>
-            <option value="">Any value</option>
-            {canFilterMine && <option value="me">My tasks</option>}
-            <option value="none">Unassigned</option>
-            {techs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-        </FilterRow>
+        {!onlyMine && (
+          <FilterRow label="Technician" htmlFor="taskTechFilter">
+            <select id="taskTechFilter" className="form-select" value={filters.technician} onChange={e => set({ technician: e.target.value })}>
+              <option value="">Any value</option>
+              {canFilterMine && <option value="me">My tasks</option>}
+              <option value="none">Unassigned</option>
+              {techs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </FilterRow>
+        )}
       </FilterPanel>
 
       <SelectionBar selection={selection} total={data.total} noun="Tasks" nounSingular="Task" canEdit={canEdit}
@@ -312,5 +315,6 @@ function TaskSearch({ canEdit, canMigrate, techs, canFilterMine, defaultTechnici
 const el = document.getElementById('task-search-root')
 if (el) createRoot(el).render(
   <TaskSearch canEdit={el.dataset.canEdit === 'true'} canMigrate={el.dataset.canMigrate === 'true'} techs={JSON.parse(el.dataset.techs || '[]')}
-              canFilterMine={el.dataset.canFilterMine === 'true'} defaultTechnician={el.dataset.defaultTechnician || ''} />
+              canFilterMine={el.dataset.canFilterMine === 'true'} defaultTechnician={el.dataset.defaultTechnician || ''}
+              onlyMine={el.dataset.onlyMine === 'true'} />
 )

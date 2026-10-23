@@ -8,7 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 namespace FyreApp.Controllers;
 
 // Uptick "Remarks" = FyreApp defects, listed like Uptick's Remarks page
-[Authorize(Roles = "Admin")]
+// Admins only, except a remark's page, which a technician can open for their own tasks' properties (Auth/TechAccess.cs)
+[Authorize]
 public class RemarksController : Controller
 {
     private readonly IRemarkListService _list;
@@ -31,6 +32,7 @@ public class RemarksController : Controller
     }
 
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Index(
         string? search, string? assetActive, List<RemarkCompliance>? compliance, List<string>? propertyStatus,
         List<string>? severity, int page = 1, bool f = false, CancellationToken ct = default)
@@ -58,6 +60,7 @@ public class RemarksController : Controller
 
     // Every remark matching the current filters, as CSV
     [HttpGet]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Download(
         string? search, string? assetActive, List<RemarkCompliance>? compliance, List<string>? propertyStatus,
         List<string>? severity, bool f = false, CancellationToken ct = default) =>
