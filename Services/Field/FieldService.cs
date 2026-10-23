@@ -153,7 +153,8 @@ public class FieldService : IFieldService
                 .Where(a => a.ClientTaskId == taskId && a.Status != "cancelled")
                 .OrderBy(a => a.StartUtc)
                 .ToListAsync(ct),
-            Lines = lines.Select(l =>
+            // (Uptick can hold the same asset twice for a routine: listed once)
+            Lines = lines.DistinctBy(l => (l.Asset.Id, l.Routine)).Select(l =>
             {
                 saved.TryGetValue((l.Asset.Id, l.Routine), out var s);
                 return new FieldLine(l.Asset.Id, l.Asset.Name, l.Asset.Ref, l.Asset.Location, l.Routine, s?.Result, s?.Notes,
