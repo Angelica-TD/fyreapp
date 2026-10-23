@@ -1,0 +1,35 @@
+@model FyreApp.Services.UserManagement.PersonDeleteInfo
+@{
+    ViewData["Title"] = "Delete person";
+    var p = Model.Person;
+}
+
+<h1>Delete @p.Name?</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <ul>
+            @if (Model.LoginId != null)
+            {
+                <li>Their FyreApp login (@Model.LoginEmail@(Model.LoginRole != null ? $", {Model.LoginRole}" : "")) is deleted too.</li>
+            }
+            @if (Model.TasksAssigned > 0)
+            {
+                <li>@Model.TasksAssigned task@(Model.TasksAssigned == 1 ? " is" : "s are") assigned to them, and become@(Model.TasksAssigned == 1 ? "s" : "") unassigned.</li>
+            }
+            @if (Model.WorkRecorded > 0)
+            {
+                <li>Work they recorded (time, asset results, stock used: @Model.WorkRecorded in all) stays, without their name.</li>
+            }
+            @if (Model.LoginId == null && Model.TasksAssigned == 0 && Model.WorkRecorded == 0)
+            {
+                <li>They have no login, tasks or recorded work.</li>
+            }
+        </ul>
+
+        <form asp-action="DeletePerson" asp-route-id="@p.Id" method="post">
+            <button type="submit" class="btn btn-danger">Delete</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>

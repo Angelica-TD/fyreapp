@@ -325,6 +325,76 @@ public class UsersController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // People added in FyreApp (not from Uptick), e.g. a technician to test with; then given a login like anyone else
+
+    [HttpGet]
+    public IActionResult AddPerson() => View("Person", new PersonPageVm());
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddPerson([Bind(Prefix = "Input")] PersonInput input, [FromServices] IPeopleService people, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return View("Person", new PersonPageVm { Input = input });
+        var result = await people.CreateAsync(input, ct);
+        if (result.Status != PersonStatus.Done)
+        {
+            ModelState.AddModelError("", result.Message ?? "Not added.");
+            return View("Person", new PersonPageVm { Input = input });
+        }
+        TempData["Success"] = $"{input.Name.Trim()} added.";
+        return input.GiveLogin && !string.IsNullOrWhiteSpace(input.Email)
+            ? RedirectToAction(nameof(Create), new { uptickUserId = result.Id })
+            : RedirectToAction(nameof(Index), new { search = input.Name.Trim() });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> EditPerson(int id, [FromServices] IPeopleService people, CancellationToken ct)
+    {
+        var person = await people.GetAsync(id, ct);
+        if (person == null) return NotFound();
+        if (person.UptickId != null) return Forbid();
+        return View("Person", new PersonPageVm { Id = id, Input = new PersonInput { Name = person.Name, Email = person.Email, LicenseType = person.LicenseType ?? "FIELD", Licence = person.Licence } });
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditPerson(int id, [Bind(Prefix = "Input")] PersonInput input, [FromServices] IPeopleService people, CancellationToken ct)
+    {
+        if (!ModelState.IsValid) return View("Person", new PersonPageVm { Id = id, Input = input });
+        var result = await people.UpdateAsync(id, input, ct);
+        switch (result.Status)
+        {
+            case PersonStatus.NotFound: return NotFound();
+            case PersonStatus.FromUptick: return Forbid();
+            case PersonStatus.Done:
+                TempData[result.Message == null ? "Success" : "Error"] = result.Message ?? $"{input.Name.Trim()} saved.";
+                return RedirectToAction(nameof(Index), new { search = input.Name.Trim() });
+            default:
+                ModelState.AddModelError("", result.Message ?? "Not saved.");
+                return View("Person", new PersonPageVm { Id = id, Input = input });
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> DeletePerson(int id, [FromServices] IPeopleService people, CancellationToken ct)
+    {
+        var info = await people.DeleteInfoAsync(id, ct);
+        if (info == null) return NotFound();
+        if (info.Person.UptickId != null || (info.LoginId != null && !await MayManageAsync(info.LoginId))) return Forbid();
+        return View(info);
+    }
+
+    [HttpPost, ActionName("DeletePerson"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeletePersonConfirmed(int id, [FromServices] IPeopleService people, CancellationToken ct)
+    {
+        var info = await people.DeleteInfoAsync(id, ct);
+        if (info == null) return NotFound();
+        if (info.LoginId != null && !await MayManageAsync(info.LoginId)) return Forbid();
+        var result = await people.DeleteAsync(id, ct);
+        if (result.Status == PersonStatus.FromUptick) return Forbid();
+        TempData[result.Status == PersonStatus.Done ? "Success" : "Error"] =
+            result.Status == PersonStatus.Done ? $"{info.Person.Name} deleted." : result.Message ?? "Not deleted.";
+        return RedirectToAction(nameof(Index));
+    }
+
     [HttpGet]
     public async Task<IActionResult> ResetPassword(string id)
     {

@@ -1,0 +1,67 @@
+@model FyreApp.Services.UserManagement.PersonPageVm
+@using FyreApp.Models
+@using FyreApp.Services.UserManagement
+@{
+    var adding = Model.Id == 0;
+    ViewData["Title"] = adding ? "Add a person" : "Edit person";
+}
+
+@* A person added in FyreApp rather than from Uptick (e.g. a technician to test with) *@
+<h1>@ViewData["Title"]</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <p class="text-muted small">
+            People normally come from Uptick, brought in by the Uptick migration. Someone added here is FyreApp's own:
+            useful for testing, or for someone not in Uptick. They can be given a FyreApp login like anyone else.
+        </p>
+
+        <form asp-action="@(adding ? "AddPerson" : "EditPerson")" asp-route-id="@(adding ? null : Model.Id)" method="post">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+            <div class="mb-3">
+                <label asp-for="Input.Name" class="form-label">Name</label>
+                <input asp-for="Input.Name" class="form-control" placeholder="e.g. Test Tech" />
+                <span asp-validation-for="Input.Name" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.Email" class="form-label">Email</label>
+                <input asp-for="Input.Email" class="form-control" type="email" />
+                <div class="form-text">Their sign-in, if they're given a login.</div>
+                <span asp-validation-for="Input.Email" class="text-danger small"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.LicenseType" class="form-label">Licence type</label>
+                <select asp-for="Input.LicenseType" class="form-select">
+                    @foreach (var l in PeopleService.LicenseTypes)
+                    {
+                        <option value="@l">@UptickUser.LicenseLabel(l)@(l == "FIELD" ? " (technician)" : "")</option>
+                    }
+                </select>
+                <div class="form-text">Field technicians and contractors can be assigned tasks.</div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.Licence" class="form-label">Trade licence</label>
+                <input asp-for="Input.Licence" class="form-control" placeholder="e.g. QBCC 15366855" />
+            </div>
+
+            @if (adding)
+            {
+                <div class="form-check mb-3">
+                    <input asp-for="Input.GiveLogin" class="form-check-input" />
+                    <label asp-for="Input.GiveLogin" class="form-check-label">Give them a FyreApp login next (needs an email)</label>
+                </div>
+            }
+
+            <button type="submit" class="btn btn-primary">@(adding ? "Add" : "Save")</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
