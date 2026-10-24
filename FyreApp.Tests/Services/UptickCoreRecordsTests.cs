@@ -415,6 +415,26 @@ public class UptickCoreRecordsTests
         Assert.Equal((false, "Reset", "admin"), (edit.IsOpen, edit.ClosedReason, edit.ClosedBy));
     }
 
+    // Every kind of field a migrated record has goes back from the text LocalEdit keeps (a task's status is an enum:
+    // started in the field app, it's an edit an admin may put back)
+    [Theory]
+    [InlineData(typeof(ClientTaskStatus), ClientTaskStatus.Open)]
+    [InlineData(typeof(ClientTaskStatus?), ClientTaskStatus.Completed)]
+    [InlineData(typeof(int?), 7)]
+    [InlineData(typeof(bool), true)]
+    [InlineData(typeof(string), "Roof")]
+    public void A_stored_value_parses_back_to_its_type(Type type, object value) =>
+        Assert.Equal(value, LocalEditLog.Parse(LocalEditLog.Text(value), type));
+
+    [Fact]
+    public void Dates_and_decimals_parse_back_as_kept()
+    {
+        var when = new DateTime(2026, 10, 24, 1, 2, 3, DateTimeKind.Utc);
+        var back = (DateTime)LocalEditLog.Parse(LocalEditLog.Text(when), typeof(DateTime?))!;
+        Assert.Equal((when, DateTimeKind.Utc), (back, back.Kind));
+        Assert.Equal(2.5m, LocalEditLog.Parse(LocalEditLog.Text(2.5m), typeof(decimal?)));
+    }
+
     [Fact]
     public async Task Editing_back_to_Uptick_closes_the_edit_and_FyreApps_own_records_record_nothing()
     {

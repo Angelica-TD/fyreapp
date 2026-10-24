@@ -111,6 +111,8 @@ public static class LocalEditLog
         if (t == typeof(string)) return text;
         if (t == typeof(DateTime)) return DateTime.Parse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
         if (t == typeof(bool)) return text == "true";
+        // Kept by name (a task's status: "Open")
+        if (t.IsEnum) return Enum.Parse(t, text);
         return Convert.ChangeType(text, t, CultureInfo.InvariantCulture);
     }
 

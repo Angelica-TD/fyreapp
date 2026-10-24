@@ -33,11 +33,19 @@ public class LocalEditsController : Controller
         if (edit != null && Entities.TryGetValue(edit.Entity, out var type) && await _db.FindAsync(type, [edit.RecordId], ct) is { } record)
         {
             if (record is Asset asset) await _db.Entry(asset).Collection(a => a.AssetTypes).LoadAsync(ct);
-            LocalEditLog.Reset(_db, edit, record, User.Identity?.Name, DateTime.UtcNow);
-            // Uptick's value, not a new FyreApp edit
-            _db.RecordLocalEdits = false;
-            await _db.SaveChangesAsync(ct);
-            TempData["Success"] = "Put back to Uptick's value.";
+            try
+            {
+                LocalEditLog.Reset(_db, edit, record, User.Identity?.Name, DateTime.UtcNow);
+                // Uptick's value, not a new FyreApp edit
+                _db.RecordLocalEdits = false;
+                await _db.SaveChangesAsync(ct);
+                TempData["Success"] = "Put back to Uptick's value.";
+            }
+            catch (Exception e) when (e is FormatException or InvalidCastException or ArgumentException or OverflowException)
+            {
+                // A value that can't be put back as it was kept: said, rather than an error page
+                TempData["Error"] = $"Couldn't put {edit.Field} back to Uptick's value ({edit.UptickValue}).";
+            }
         }
         return Url.IsLocalUrl(returnUrl) ? LocalRedirect(returnUrl) : RedirectToAction("Index", "Home");
     }
