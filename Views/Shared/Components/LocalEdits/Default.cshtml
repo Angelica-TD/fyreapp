@@ -1,14 +1,23 @@
 @model List<FyreApp.Infrastructure.LocalEditsViewComponent.Row>
+@inject Microsoft.Extensions.Options.IOptions<FyreApp.Services.Uptick.Mapping.UptickMappingOptions> Mapping
 
-@* Fields of this record changed in FyreApp. Uptick still has its own value; migration runs keep FyreApp's
-   until the field changes in Uptick. *@
+@* Fields of this record changed in FyreApp. Uptick still has its own value. Until cutover the next migration run
+   puts Uptick's back (Uptick:Mapping:KeepFyreAppEdits off); after, runs keep FyreApp's until the field changes in
+   Uptick. *@
 @if (Model.Count > 0)
 {
     var admin = User.IsInRole("Admin");
     <div class="alert alert-warning local-edits">
         <div class="fw-semibold mb-1">Edited in FyreApp</div>
         <div class="small mb-2">
-            These fields differ from Uptick. Migration runs keep FyreApp's value until the field is changed in Uptick.
+            @if (Mapping.Value.KeepFyreAppEdits)
+            {
+                <text>These fields differ from Uptick. Migration runs keep FyreApp's value until the field is changed in Uptick.</text>
+            }
+            else
+            {
+                <text>These fields differ from Uptick. Uptick's data comes first until cutover: the next migration run (Refresh, Full or Re-map) puts Uptick's value back.</text>
+            }
         </div>
         <table class="table table-sm mb-0 small align-middle">
             <thead>

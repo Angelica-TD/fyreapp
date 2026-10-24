@@ -8,11 +8,27 @@ namespace FyreApp.Services.Uptick.Mapping;
 
 // An endpoint mapped onto one FyreApp entity: each record upserts the row with its Uptick id, and one deleted in
 // Uptick deactivates its row rather than removing it, so what points at it survives.
-public abstract class UptickEntityMapper<T> : IUptickMapper where T : class
+public abstract class UptickEntityMapper<T> : IUptickMapper, IUptickEditedMapper where T : class
 {
     protected UptickEntityMapper(AppDbContext db) => Db = db;
 
     protected AppDbContext Db { get; }
+
+    // Set by UptickMapping from UptickMappingOptions: until cutover, Uptick's value wins
+    public bool KeepFyreAppEdits { get; set; }
+
+    public async Task<IReadOnlyList<long>> EditedAsync(CancellationToken ct)
+    {
+        var entity = typeof(T).Name;
+        var ids = await Db.LocalEdits.Where(e => e.ClosedUtc == null && e.Entity == entity).Select(e => e.RecordId).Distinct().ToListAsync(ct);
+        if (ids.Count == 0) return [];
+        return (await Db.Set<T>().AsNoTracking()
+                .Where(e => ids.Contains(EF.Property<int>(e, "Id")))
+                .Select(e => EF.Property<long?>(e, "UptickId"))
+                .ToListAsync(ct))
+            .OfType<long>()
+            .ToList();
+    }
 
     public abstract string Resource { get; }
 
@@ -99,13 +115,19 @@ public abstract class UptickEntityMapper<T> : IUptickMapper where T : class
         return failures;
     }
 
-    // Fields changed in FyreApp (§7): while Uptick's value is still the one it had at the edit, FyreApp's stays;
-    // once Uptick's has changed, it wins and the edit is closed
+    // Fields changed in FyreApp (§7). Until cutover (KeepFyreAppEdits off), Uptick's value, just mapped, wins and the
+    // edit is closed. Otherwise, while Uptick's value is still the one it had at the edit, FyreApp's stays; once
+    // Uptick's has changed, it wins and the edit is closed.
     private void KeepLocalEdits(T entity, UptickRaw raw, List<LocalEdit> edits)
     {
         var entry = Db.Entry(entity);
         foreach (var edit in edits)
         {
+            if (!KeepFyreAppEdits)
+            {
+                LocalEditLog.Close(edit, "Uptick", "Uptick", DateTime.UtcNow);
+                continue;
+            }
             string? uptick;
             if (edit.Field == LocalEditLog.AssetTypes) uptick = UptickValue(entity, edit);
             else if (entry.Metadata.FindProperty(edit.Field) == null) continue;

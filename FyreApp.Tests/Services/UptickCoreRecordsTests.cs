@@ -52,7 +52,7 @@ public class UptickCoreRecordsTests
         "\"date_joined\":\"2021-02-05T17:20:54.739990+11:00\",\"last_login\":null,\"extra_fields\":{\"license\":\"QBCC: 117726\"}}",
         "{\"home_branch\":{\"data\":null},\"servicegroup\":" + To("ServiceGroup", serviceGroup) + "}");
 
-    private static UptickMapping Mapping(AppDbContext db) => new(db,
+    private static UptickMapping Mapping(AppDbContext db, bool keepEdits = false) => new(db,
         [new BillingCardMapper(db), new ClientMapper(db), new PropertyMapper(db), new ClientContactMapper(db), new PropertyContactMapper(db), new UserMapper(db),
             new SecurityGroupMapper(db), new ContractorMapper(db), new SupplierMapper(db), new AccreditationMapper(db),
             new ExtraFieldMapper(db), new PromptQuestionMapper(db), new PropertyScheduleMapper(db),
@@ -66,12 +66,12 @@ public class UptickCoreRecordsTests
             new DefectQuoteLineMapper(db), new InvoiceLineMapper(db), new ServiceQuoteProductLineMapper(db), new ServiceQuoteFixedLineMapper(db),
             new ServiceQuoteDoAndChargeLineMapper(db), new RemarkEventMapper(db),
             new TimelineEventMapper(db)],
-        NullLogger<UptickMapping>.Instance);
+        NullLogger<UptickMapping>.Instance, null, Microsoft.Extensions.Options.Options.Create(new UptickMappingOptions { KeepFyreAppEdits = keepEdits }));
 
     // Every mapper in order, as a run ends
-    private static async Task<Dictionary<string, UptickEndpointResult>> MapAllAsync(AppDbContext db, bool remap = false)
+    private static async Task<Dictionary<string, UptickEndpointResult>> MapAllAsync(AppDbContext db, bool remap = false, bool keepEdits = false)
     {
-        var mapping = Mapping(db);
+        var mapping = Mapping(db, keepEdits);
         var results = new Dictionary<string, UptickEndpointResult>();
         foreach (var resource in mapping.Resources)
         {
@@ -354,6 +354,35 @@ public class UptickCoreRecordsTests
         db.ChangeTracker.Clear();
     }
 
+    // Until cutover (the default): a run puts what was edited in FyreApp back to Uptick's, changed there or not
+    [Fact]
+    public async Task Until_cutover_a_run_puts_a_field_edited_in_FyreApp_back_to_Upticks()
+    {
+        await using var db = await MappedAssetAsync();
+        var asset = await db.Assets.SingleAsync();
+        asset.Location = "Plant room";
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        Assert.True((await db.LocalEdits.SingleAsync()).IsOpen);
+
+        // A Refresh with nothing changed in Uptick
+        await MapAllAsync(db);
+
+        Assert.Equal("Kitchen", (await db.Assets.SingleAsync()).Location);
+        var edit = await db.LocalEdits.SingleAsync();
+        Assert.Equal((false, "Uptick"), (edit.IsOpen, edit.ClosedReason));
+
+        // Edited again: a Re-map does the same
+        asset = await db.Assets.SingleAsync();
+        asset.Location = "Roof";
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        await MapAllAsync(db, remap: true);
+        Assert.Equal("Kitchen", (await db.Assets.SingleAsync()).Location);
+        Assert.All(await db.LocalEdits.ToListAsync(), e => Assert.False(e.IsOpen));
+    }
+
+    // After cutover (KeepFyreAppEdits on)
     [Fact]
     public async Task A_field_edited_in_FyreApp_survives_mapping_until_Uptick_changes_it()
     {
@@ -367,16 +396,16 @@ public class UptickCoreRecordsTests
             (edit.Entity, edit.RecordId, edit.Field, edit.UptickValue, edit.FyreAppValue, edit.IsOpen));
 
         // A re-map, and a change in Uptick to another field: FyreApp's location stays
-        await MapAllAsync(db, remap: true);
+        await MapAllAsync(db, remap: true, keepEdits: true);
         await ChangeInUptickAsync(db, "42896", "internal_note", "\"Swap at next service\"");
-        await MapAllAsync(db);
+        await MapAllAsync(db, keepEdits: true);
         asset = await db.Assets.SingleAsync();
         Assert.Equal(("Plant room", "Swap at next service"), (asset.Location, asset.InternalNote));
         Assert.True((await db.LocalEdits.SingleAsync()).IsOpen);
 
         // Changed in Uptick since: Uptick's wins and the edit closes
         await ChangeInUptickAsync(db, "42896", "location", "\"Store room\"");
-        await MapAllAsync(db);
+        await MapAllAsync(db, keepEdits: true);
         Assert.Equal("Store room", (await db.Assets.SingleAsync()).Location);
         edit = await db.LocalEdits.SingleAsync();
         Assert.Equal((false, "Uptick"), (edit.IsOpen, edit.ClosedReason));
@@ -397,7 +426,7 @@ public class UptickCoreRecordsTests
         var edit = await db.LocalEdits.SingleAsync();
         Assert.Equal((LocalEditLog.AssetTypes, extinguisher.Id.ToString(), blanket.Id.ToString()), (edit.Field, edit.UptickValue, edit.FyreAppValue));
 
-        await MapAllAsync(db, remap: true);
+        await MapAllAsync(db, remap: true, keepEdits: true);
         Assert.Equal(blanket.Id, (await db.Assets.Include(a => a.AssetTypes).SingleAsync()).AssetTypes.Single().Id);
         db.ChangeTracker.Clear();
 

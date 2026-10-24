@@ -63,6 +63,7 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email
 // Uptick API migration (docs/uptick-migration.md): one client for the whole app, so every run shares its
 // request budget and token
 builder.Services.Configure<FyreApp.Services.Uptick.Api.UptickApiOptions>(builder.Configuration.GetSection("Uptick:Api"));
+builder.Services.Configure<FyreApp.Services.Uptick.Mapping.UptickMappingOptions>(builder.Configuration.GetSection("Uptick:Mapping"));
 // Redirects aren't followed: a file download's is a signed link to Uptick's storage, fetched without the API token
 builder.Services.AddHttpClient(FyreApp.Services.Uptick.Api.UptickApiClient.HttpClientName)
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });

@@ -366,6 +366,13 @@ at the edit, or close it (`ClosedReason` "Uptick"). Editing a field back to Upti
 ("Reverted"). Asset, property and client pages show open edits ("Edited in FyreApp") with an admin
 **Reset to Uptick's** ("Reset").
 
+**Until cutover, Uptick comes first** (decided 2026-10-24): `Uptick:Mapping:KeepFyreAppEdits` is false, so every
+run puts what was edited in FyreApp back to Uptick's value and closes the edit ("Uptick"), whether or not Uptick
+changed it. A Refresh maps only records changed in Uptick, so each run first marks the raw copies of rows with an
+open edit as waiting (`IUptickEditedMapper.EditedAsync`), and they're mapped again. That includes what the field
+app records on migrated tasks (results, a task's status). Setting it true at cutover gives the keep-until-changed
+behaviour above.
+
 ## 8. Files
 
 "All data" includes the files Uptick stores: report, invoice and quote PDFs, photos, signatures, attachments. The raw copy holds their
