@@ -2,6 +2,9 @@
 @using FyreApp.Services.Forms
 @{
     ViewData["Title"] = Model.Name;
+    // The bar's back button: to the job
+    ViewData["BackUrl"] = Url.Action("Visit", new { id = Model.TaskId }) + "#forms";
+    ViewData["BackLabel"] = "The job";
     var layout = Model.Definition.Layout;
     var unplaced = layout.Count > 0 ? Model.Definition.Unplaced() : Model.Definition.Fields;
 }

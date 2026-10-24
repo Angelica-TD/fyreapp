@@ -114,6 +114,24 @@ public class FieldRemarkTests
         Assert.Equal(remark.Id, Assert.Single(page.OtherRemarks).Id);
     }
 
+    // None of the list fits: the technician's own words are its type (and its description, unless they gave one)
+    [Fact]
+    public async Task ARemarkType_CanBeTheirOwn()
+    {
+        var w = await SetupAsync();
+        var remarks = new FieldRemarkService(w.Db, new MemoryStore());
+
+        var own = await remarks.RaiseAsync(w.Task.Id, new RaiseRemarkInput { AssetId = w.Extinguisher.Id, CustomType = "  Bracket loose  ", Severity = 1 }, []);
+        // Picked from the list: their words aren't used
+        var listed = await remarks.RaiseAsync(w.Task.Id, new RaiseRemarkInput { AssetId = w.Extinguisher.Id, RemarkTypeId = w.Pressure.Id, CustomType = "Ignored" }, []);
+        var tooLong = await remarks.RaiseAsync(w.Task.Id, new RaiseRemarkInput { CustomType = new string('x', 201) }, []);
+
+        Assert.Equal((FieldOutcome.Done, FieldOutcome.Done, FieldOutcome.Invalid), (own.Result.Outcome, listed.Result.Outcome, tooLong.Result.Outcome));
+        var first = await w.Db.Remarks.SingleAsync(r => r.Id == own.RemarkId);
+        Assert.Equal(("Bracket loose", "Bracket loose", (int?)null), (first.RemarkType, first.Description, first.RemarkTypeId));
+        Assert.Equal(w.Pressure.Label, (await w.Db.Remarks.SingleAsync(r => r.Id == listed.RemarkId)).RemarkType);
+    }
+
     [Fact]
     public async Task PhotosThatCantBeKept_AreReported_ButTheRemarkIsRaised()
     {

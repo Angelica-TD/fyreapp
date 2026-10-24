@@ -3,6 +3,9 @@
     // Opened from an asset's page: back there once saved or cancelled
     var backToAsset = int.TryParse(Context.Request.Query["backToAsset"].FirstOrDefault() ?? (Context.Request.HasFormContentType ? Context.Request.Form["backToAsset"].FirstOrDefault() : null), out var back) ? back : (int?)null;
     ViewData["Title"] = "Resolve a remark";
+    // The bar's back button: to the asset's page it came from, else the job
+    ViewData["BackUrl"] = backToAsset is { } fromAsset ? Url.Action("Asset", new { id = Model.TaskId, assetId = fromAsset }) : Url.Action("Visit", new { id = Model.TaskId });
+    ViewData["BackLabel"] = backToAsset != null ? "The asset" : "The job";
     var r = Model.Remark;
 }
 

@@ -228,7 +228,8 @@
         {
             <div class="card-body">
                 <form method="post" asp-action="Stock" asp-route-id="@task.Id">
-                    <select name="productId" class="form-select mb-2" aria-label="Product" required>
+                    @* Typed into (field.js): the list narrows by name or code *@
+                    <select name="productId" class="form-select mb-2 js-typeahead" aria-label="Product" required data-placeholder="Start typing a product or code">
                         <option value="">Pick a product…</option>
                         @foreach (var pr in Model.Products)
                         {
