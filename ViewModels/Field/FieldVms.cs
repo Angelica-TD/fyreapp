@@ -17,6 +17,9 @@ public class FieldDayVm
     // Every other open task assigned to them, whatever the day: soonest scheduled or due first
     public IReadOnlyList<FieldVisit> Assigned { get; set; } = [];
 
+    // Theirs completed on the day (not on its list already): shown greyed out, read only
+    public IReadOnlyList<FieldVisit> Done { get; set; } = [];
+
     // The task the technician's clock is running on, wherever it is
     public FieldVisit? Working { get; set; }
 }

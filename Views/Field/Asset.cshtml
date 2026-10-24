@@ -41,7 +41,8 @@
 
 @if (!canWork)
 {
-    <div class="alert alert-secondary">@Model.Job.CannotWork</div>
+    ViewData["ReadOnly"] = true;
+    <div class="alert alert-secondary d-flex align-items-center gap-2"><i class="bi bi-lock"></i> @Model.Job.CannotWork</div>
 }
 
 @* The result for each of the job's routines *@
