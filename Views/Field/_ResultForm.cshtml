@@ -1,0 +1,40 @@
+@model FyreApp.ViewModels.Field.FieldResultForm
+@using FyreApp.Services.Field
+
+@* An asset's Pass / Fail / N/A for one of the job's routines, saved as it changes (field.js), with a note and
+   "Raise a remark" when it fails. On the job's page and the asset's. *@
+@{
+    var l = Model.Line;
+    var open = l.Result == "Fail" || !string.IsNullOrEmpty(l.Notes);
+}
+<form method="post" asp-controller="Field" asp-action="Record" asp-route-id="@Model.TaskId" class="js-result mt-2"
+      data-asset-label="@(l.AssetRef != null ? $"{l.AssetRef} {l.Asset}" : l.Asset)">
+    <fieldset disabled="@(!Model.CanWork)">
+        <input type="hidden" name="assetId" value="@l.AssetId" />
+        <input type="hidden" name="routine" value="@l.Routine" />
+        <div class="btn-group w-100" role="group" aria-label="Result">
+            @foreach (var r in FieldService.Results)
+            {
+                var id = $"r{Model.Key}-{r.Replace("/", "")}";
+                var style = r switch { "Pass" => "success", "Fail" => "danger", _ => "secondary" };
+                <input type="radio" class="btn-check" name="result" value="@r" id="@id" autocomplete="off" checked="@(l.Result == r)" />
+                <label class="btn btn-outline-@style fw-semibold" for="@id">@r</label>
+            }
+        </div>
+        @* A note, and raising a remark: offered when it fails (or on asking) *@
+        <div class="js-more mt-2 @(open ? "" : "d-none")">
+            <input type="text" name="notes" value="@l.Notes" class="form-control mb-2" placeholder="Note (what you found)" maxlength="2000" />
+            <div class="d-flex gap-2">
+                <a class="btn btn-warning flex-grow-1 js-remark" href="@Url.Action("Remark", "Field", new { id = Model.TaskId, assetId = l.AssetId, backToAsset = Model.BackToAsset })">
+                    <i class="bi bi-exclamation-triangle"></i> Raise a remark
+                </a>
+                <button type="button" class="btn btn-outline-secondary js-clear @(l.Result == null ? "d-none" : "")">Clear result</button>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+            <button type="button" class="btn btn-link btn-sm px-0 text-muted js-show-more @(open ? "d-none" : "")">Add a note or remark</button>
+            <span class="small js-status ms-auto" aria-live="polite"></span>
+        </div>
+        <button type="submit" class="btn btn-sm btn-outline-secondary js-save">Save</button>
+    </fieldset>
+</form>

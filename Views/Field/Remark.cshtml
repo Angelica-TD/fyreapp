@@ -1,6 +1,8 @@
 @model FyreApp.ViewModels.Field.RaiseRemarkVm
 @using FyreApp.Services.Field
 @{
+    // Opened from an asset's page: back there once saved or cancelled
+    var backToAsset = int.TryParse(Context.Request.Query["backToAsset"].FirstOrDefault() ?? (Context.Request.HasFormContentType ? Context.Request.Form["backToAsset"].FirstOrDefault() : null), out var back) ? back : (int?)null;
     ViewData["Title"] = "Raise a remark";
     var a = Model.Asset;
     var forAsset = Model.Types.Where(t => t.ForAsset).ToList();
@@ -29,6 +31,7 @@
     </div>
 
     <form method="post" enctype="multipart/form-data" asp-action="Remark" asp-route-id="@Model.TaskId" class="js-photos">
+        @if (backToAsset != null) { <input type="hidden" name="backToAsset" value="@backToAsset" /> }
         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
         <input type="hidden" asp-for="Input.AssetId" />
 
@@ -73,7 +76,7 @@
 
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-warning btn-lg flex-grow-1">Raise remark</button>
-            <a class="btn btn-outline-secondary btn-lg" href="@Url.Action("Visit", new { id = Model.TaskId })">Cancel</a>
+            <a class="btn btn-outline-secondary btn-lg" href="@(backToAsset is { } a ? Url.Action("Asset", new { id = Model.TaskId, assetId = a }) : Url.Action("Visit", new { id = Model.TaskId }))">Cancel</a>
         </div>
     </form>
 </div>

@@ -45,6 +45,7 @@ builder.Services.AddScoped<FyreApp.Services.Field.IFieldService, FyreApp.Service
 builder.Services.AddScoped<FyreApp.Services.Field.IFieldRemarkService, FyreApp.Services.Field.FieldRemarkService>();
 builder.Services.AddScoped<FyreApp.Services.Field.IFieldSignOffService, FyreApp.Services.Field.FieldSignOffService>();
 builder.Services.AddScoped<FyreApp.Services.Field.IFieldFinishService, FyreApp.Services.Field.FieldFinishService>();
+builder.Services.AddScoped<FyreApp.Services.Field.IFieldAssetService, FyreApp.Services.Field.FieldAssetService>();
 builder.Services.AddScoped<FyreApp.Services.Forms.IFieldFormService, FyreApp.Services.Forms.FieldFormService>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IDirectoryListService, FyreApp.Services.Lists.DirectoryListService>();
 builder.Services.AddScoped<FyreApp.Services.Lists.IProductListService, FyreApp.Services.Lists.ProductListService>();

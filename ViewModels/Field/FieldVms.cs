@@ -96,3 +96,32 @@ public sealed record FieldTaskLine(int Id, string Label, DateTime? Due, bool IsP
 public sealed record FieldStockUse(int Id, string Product, decimal Quantity, string? By, DateTime? WhenUtc, bool Removable);
 
 public sealed record FieldProduct(int Id, string Name, string? Code);
+
+// An asset on the job (/Field/Task/{id}/Asset/{assetId}): what it is, its result for each of the job's routines, its
+// remarks, photos and history
+public class FieldAssetVm
+{
+    public required FieldTaskVm Job { get; init; }
+    public required Asset Asset { get; init; }
+
+    // This asset's lines on the job (one per routine); none when it's at the property but not on the job
+    public IReadOnlyList<FieldLine> Lines { get; init; } = [];
+    public IReadOnlyList<FieldRemark> OpenRemarks { get; init; } = [];
+
+    // Its service on every task, newest first
+    public IReadOnlyList<FieldAssetServiceLine> Service { get; init; } = [];
+
+    // Remarks no longer open, newest first
+    public IReadOnlyList<Remark> PastRemarks { get; init; } = [];
+
+    public IReadOnlyList<TimelineEvent> Timeline { get; init; } = [];
+
+    public bool CanWork => Job.CannotWork == null;
+}
+
+// One time the asset was serviced: on which task, for which routine, the result and who
+public sealed record FieldAssetServiceLine(DateTime? WhenUtc, int TaskId, string? TaskRef, string Routine, string? Result, string? Notes, string? By);
+
+// One asset line's Pass / Fail / N/A form (_ResultForm), on the job and on the asset's page. Key makes its inputs'
+// ids unique on the page; BackToAsset: raising a remark from it returns to the asset's page.
+public sealed record FieldResultForm(int TaskId, FieldLine Line, string Key, bool CanWork, int? BackToAsset = null);
