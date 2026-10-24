@@ -7,6 +7,9 @@ import { useState, useEffect } from 'react'
  * a Filters button with a count, a labelled filter row, checkbox groups and a pager.
  */
 
+// The filter panel starts open on a wider screen; on a phone, closed (open, it fills the screen)
+export const filtersOpenAtFirst = () => !window.matchMedia('(max-width: 767.98px)').matches
+
 export function FiltersButton({ count, open, onToggle }) {
   return (
     <button type="button" className="btn btn-light border text-nowrap" onClick={onToggle} aria-expanded={open}>

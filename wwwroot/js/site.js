@@ -22,6 +22,34 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
 
+    // =========================================================
+    // PHONES: list filter panels start closed (open, they fill the screen); the Filters button opens them
+    // =========================================================
+    if (window.matchMedia("(max-width: 767.98px)").matches) {
+        // Wide tables (5+ columns) read as cards: each cell labelled with its column's heading (site.css .table-stack).
+        // Not the routines grid, which scrolls across the months.
+        document.querySelectorAll(".app-main table.table:not(.routine-grid):not(.table-stack)").forEach(function (table) {
+            var heads = table.tHead ? Array.prototype.slice.call(table.tHead.rows[0] ? table.tHead.rows[0].cells : []) : [];
+            if (heads.length < 5 || heads.some(function (h) { return h.colSpan > 1; })) return;
+            var labels = heads.map(function (h) { return h.textContent.trim(); });
+            Array.prototype.forEach.call(table.tBodies, function (body) {
+                Array.prototype.forEach.call(body.rows, function (row) {
+                    if (row.cells.length !== labels.length) return;
+                    Array.prototype.forEach.call(row.cells, function (cell, i) { cell.setAttribute("data-label", labels[i]); });
+                });
+            });
+            table.classList.add("table-stack");
+        });
+
+        document.querySelectorAll(".js-filters.collapse.show").forEach(function (panel) {
+            panel.classList.remove("show");
+            document.querySelectorAll('[data-bs-target="#' + panel.id + '"]').forEach(function (b) {
+                b.setAttribute("aria-expanded", "false");
+                b.classList.add("collapsed");
+            });
+        });
+    }
+
     document.querySelectorAll(".has-subnav").forEach(function (item) {
         const activeLink = item.querySelector(".sidebar-link.active");
         if (activeLink) {

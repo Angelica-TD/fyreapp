@@ -4,7 +4,7 @@ import { SearchToolbar } from '../shared/SearchToolbar'
 import { SearchTable } from '../shared/SearchTable'
 import {
   FiltersButton, FilterPanel, FilterRow, YesNoAny, ListPager,
-  useSelection, selectColumn, SelectionBar, Modal, postJson, SuccessAlert
+  useSelection, selectColumn, SelectionBar, Modal, postJson, SuccessAlert, filtersOpenAtFirst
 } from '../shared/ListControls'
 
 // Defaults match Uptick's Clients page: active clients only
@@ -37,7 +37,7 @@ function ClientSearch({ canEdit }) {
   const [query, setQuery]       = useState('')
   const [active, setActive]     = useState(DEFAULT_ACTIVE)
   const [page, setPage]         = useState(1)
-  const [showFilters, setShowFilters] = useState(true)
+  const [showFilters, setShowFilters] = useState(filtersOpenAtFirst)
   const [data, setData]         = useState({ total: 0, pages: 1, items: [] })
   const [loading, setLoading]   = useState(true)
   const [reload, setReload]     = useState(0)

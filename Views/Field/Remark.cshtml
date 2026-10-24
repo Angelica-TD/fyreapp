@@ -54,7 +54,7 @@
         <div class="mb-3">
             <label asp-for="Input.Severity" class="form-label">Severity</label>
             <select asp-for="Input.Severity" class="form-select">
-                <option value="">The remark type's</option>
+                <option value="">Remark type</option>
                 @foreach (var (value, label) in FieldRemarkService.Severities)
                 {
                     <option value="@value" selected="@(Model.Input.Severity == value)">@label</option>
