@@ -101,12 +101,25 @@ public class FieldService : IFieldService
             .ThenBy(v => v.PropertyName)
             .ToList();
 
+        // Theirs completed that day and not on the day's list already: kept on the day, greyed out (read only)
+        var listed = onTheDay.Concat(assigned.Select(v => v.TaskId)).ToHashSet();
+        var done = (await _db.ClientTasks.AsNoTracking()
+                .Where(t => t.AssignedToUptickUserId == technicianId && t.Status == ClientTaskStatus.Completed
+                            && t.CompletedUtc >= fromUtc && t.CompletedUtc < toUtc && !listed.Contains(t.Id))
+                .Select(t => new { Task = t, t.Property.Name, t.Property.AddressDisplay })
+                .ToListAsync(ct))
+            .OrderBy(s => s.Task.CompletedUtc)
+            .Select(s => new FieldVisit(s.Task.Id, s.Task.DisplayRef, s.Task.Title, s.Task.Category, s.Name, s.AddressDisplay,
+                null, null, null, s.Task.Status, s.Task.ScheduledDate, s.Task.DueDateUtc.ToSydney()?.Date))
+            .ToList();
+
         return new FieldDayVm
         {
             Day = day,
             Technician = await _db.UptickUsers.Where(u => u.Id == technicianId).Select(u => u.Name).FirstOrDefaultAsync(ct),
             Visits = visits,
             Assigned = assigned,
+            Done = done,
             Working = await RunningVisitAsync(technicianId, null, ct)
         };
     }
@@ -185,7 +198,9 @@ public class FieldService : IFieldService
             return vm;
         }
         if (!IsOpen(task))
-            vm.CannotWork = "This task is closed.";
+            vm.CannotWork = task.Status == ClientTaskStatus.Completed
+                ? $"Completed{(task.CompletedUtc is { } done ? " " + done.ToSydney().ToOrdinalDate() : "")}: read only."
+                : "This task is closed: read only.";
 
         var todayUtc = SydneyToUtc(DateTime.UtcNow.ToSydney().Date);
         vm.MyTimeToday = await _db.TaskSessions.AsNoTracking()

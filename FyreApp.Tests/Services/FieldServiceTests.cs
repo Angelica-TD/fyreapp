@@ -146,7 +146,7 @@ public class FieldServiceTests
         var started = await field.StartAsync(w.Task.Id, w.Me.Id, "Performing Task", null);
 
         Assert.Equal(FieldOutcome.Invalid, started.Outcome);
-        Assert.Equal("This task is closed.", (await field.TaskAsync(w.Task.Id, w.Me.Id))!.CannotWork);
+        Assert.Equal("Completed: read only.", (await field.TaskAsync(w.Task.Id, w.Me.Id))!.CannotWork);
     }
 
     [Fact]
@@ -218,6 +218,26 @@ public class FieldServiceTests
         Assert.True(await field.IsTheirsAsync(w.Task.Id, w.Me.Id));
         Assert.True(await field.IsTheirsAsync(w.Elsewhere.Id, w.Other.Id));
         Assert.False(await field.IsTheirsAsync(w.Task.Id, w.Other.Id));
+    }
+
+    // A job completed on the day stays on it (greyed out on the page), and its page is read only
+    [Fact]
+    public async Task AJobCompletedOnTheDay_StaysOnIt_ReadOnly()
+    {
+        var w = await SetupAsync();
+        var task = await w.Db.ClientTasks.SingleAsync(t => t.Id == w.Elsewhere.Id);
+        (task.Status, task.IsActive, task.CompletedUtc) = (ClientTaskStatus.Completed, false, NineAmUtc.AddHours(3));
+        var yesterday = new ClientTask { Property = w.Task.Property, Client = w.Task.Client, Title = "Earlier", Ref = "T-9", AssignedTo = w.Me,
+            Status = ClientTaskStatus.Completed, IsActive = false, CompletedUtc = NineAmUtc.AddDays(-1) };
+        w.Db.Add(yesterday);
+        await w.Db.SaveChangesAsync();
+        var field = new FieldService(w.Db);
+
+        var day = await field.DayAsync(w.Me.Id, Day);
+
+        Assert.Equal(new[] { "T-2" }, day.Done.Select(v => v.TaskRef));
+        Assert.DoesNotContain(day.Assigned, v => v.TaskRef == "T-2");
+        Assert.Equal("Completed 10th Mar 2026: read only.", (await field.TaskAsync(w.Elsewhere.Id, w.Me.Id))!.CannotWork);
     }
 
     // A change held on the phone without signal is sent later with when it was made

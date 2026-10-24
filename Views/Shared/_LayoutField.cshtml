@@ -28,6 +28,7 @@
         .field-main { overflow-wrap: anywhere; }
         .field-main .btn { white-space: normal; }
         .field-main .d-flex > * { min-width: 0; }
+        .field-main .d-flex > .text-nowrap { flex-shrink: 0; }
         .field-bar { position: sticky; top: 0; z-index: 1030; }
         .field-main { max-width: 760px; margin: 0 auto; padding: 1rem 1rem 7rem; }
         /* The clock: always in reach at the bottom of the job */
@@ -37,6 +38,10 @@
         .field-step { display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem;
                       border-radius: 50%; font-size: .9rem; font-weight: 600; flex-shrink: 0; }
         .field-main .btn-group > .btn { padding-top: .6rem; padding-bottom: .6rem; }
+        /* A completed job: greyed out on My day, and its page read only */
+        .field-done { background: #e9ecef; color: #6c757d; }
+        .field-done .text-muted, .field-done .fw-semibold { color: #6c757d !important; }
+        .field-readonly section { opacity: .7; }
         /* Pull down to refresh, in the installed app (field-sync.js): a round button sliding down under the bar */
         .field-pull { position: fixed; top: calc(3.5rem + env(safe-area-inset-top)); left: 50%; z-index: 1029;
                       width: 2.5rem; height: 2.5rem; border-radius: 50%; background: #fff; color: #6c757d;
@@ -92,7 +97,8 @@
         </div>
     </header>
 
-    <main class="field-main">
+    @* Read only (a completed or closed job): its sections greyed out *@
+    <main class="field-main @(ViewData["ReadOnly"] is true ? "field-readonly" : "")">
         @RenderBody()
     </main>
 
