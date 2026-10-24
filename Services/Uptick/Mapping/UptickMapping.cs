@@ -18,9 +18,12 @@ public class UptickMapping
     private readonly IReadOnlyList<IUptickMapper> _mappers;
     private readonly ILogger<UptickMapping> _logger;
     private readonly TimeProvider _clock;
+    private readonly UptickMappingOptions _options;
 
-    public UptickMapping(AppDbContext db, IEnumerable<IUptickMapper> mappers, ILogger<UptickMapping> logger, TimeProvider? clock = null)
+    public UptickMapping(AppDbContext db, IEnumerable<IUptickMapper> mappers, ILogger<UptickMapping> logger, TimeProvider? clock = null,
+        Microsoft.Extensions.Options.IOptions<UptickMappingOptions>? options = null)
     {
+        _options = options?.Value ?? new UptickMappingOptions();
         _db = db;
         _mappers = mappers.ToList();
         _logger = logger;
@@ -39,6 +42,13 @@ public class UptickMapping
         try
         {
             if (remap) await ClearMappedAsync(mapper.Resource, ct);
+            if (mapper is IUptickEditedMapper edited)
+            {
+                edited.KeepFyreAppEdits = _options.KeepFyreAppEdits;
+                // Until cutover Uptick wins: records edited in FyreApp are mapped again even if Uptick hasn't changed them
+                if (!remap && !_options.KeepFyreAppEdits)
+                    await MarkWaitingAsync(mapper.Resource, (await edited.EditedAsync(ct)).Select(id => id.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList(), ct);
+            }
             await mapper.BeginAsync(ct);
             _db.ChangeTracker.Clear();
 
@@ -117,6 +127,22 @@ public class UptickMapping
         }
 
         // The in-memory provider the tests use has no bulk update
+        foreach (var row in await rows.ToListAsync(ct)) row.MappedUtc = null;
+        await _db.SaveChangesAsync(ct);
+        _db.ChangeTracker.Clear();
+    }
+
+    // Waiting to be mapped again
+    private async Task MarkWaitingAsync(string resource, List<string> ids, CancellationToken ct)
+    {
+        if (ids.Count == 0) return;
+        var rows = _db.UptickRecords.Where(r => r.Resource == resource && r.MappedUtc != null && ids.Contains(r.UptickId));
+        if (_db.Database.IsRelational())
+        {
+            await rows.ExecuteUpdateAsync(s => s.SetProperty(r => r.MappedUtc, (DateTime?)null), ct);
+            return;
+        }
+
         foreach (var row in await rows.ToListAsync(ct)) row.MappedUtc = null;
         await _db.SaveChangesAsync(ct);
         _db.ChangeTracker.Clear();
