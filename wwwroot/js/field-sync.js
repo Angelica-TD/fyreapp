@@ -195,6 +195,62 @@
     });
     if (install && !standalone && /iPhone|iPad|iPod/.test(navigator.userAgent)) install.classList.remove('d-none');
 
+    // Pull down to refresh, in the installed app (it has no browser to do it: iPhones never do, and Chrome doesn't once
+    // installed). From the top of the page, past the bar; changes waiting to send are safe on the phone, but what's
+    // typed into a form and not saved yet would go, so it asks first.
+    if (standalone) {
+        const Ready = 70;    // how far to pull (after damping), in px
+        const pull = document.createElement('div');
+        pull.className = 'field-pull';
+        pull.setAttribute('aria-hidden', 'true');
+        pull.innerHTML = '<i class="bi bi-arrow-clockwise"></i>';
+        document.body.append(pull);
+
+        // Saves as they change (results, lines) don't count as unsaved typing
+        let typed = false;
+        document.addEventListener('input', e => { if (!e.target.closest('.js-result, .js-line')) typed = true; }, true);
+        document.addEventListener('submit', () => { typed = false; }, true);
+
+        let startY = null, distance = 0;
+        const show = d => {
+            pull.style.transform = `translate(-50%, ${Math.min(d, 110) - 48}px) rotate(${d * 3}deg)`;
+            pull.style.opacity = String(Math.min(1, d / 50));
+            pull.classList.toggle('field-pull-ready', d >= Ready);
+        };
+        const reset = () => {
+            startY = null;
+            pull.style.transition = 'transform .2s, opacity .2s';
+            show(0);
+            setTimeout(() => { pull.style.transition = ''; }, 200);
+        };
+
+        document.addEventListener('touchstart', e => {
+            // Not while drawing a signature, picking from a menu or typing
+            if (e.touches.length !== 1 || window.scrollY > 0
+                || e.target.closest('canvas, .dropdown-menu, input, textarea, select, .modal')) { startY = null; return; }
+            startY = e.touches[0].clientY;
+            distance = 0;
+        }, { passive: true });
+        document.addEventListener('touchmove', e => {
+            if (startY === null) return;
+            if (window.scrollY > 0) { reset(); return; }
+            distance = Math.max(0, e.touches[0].clientY - startY) * 0.5;
+            show(distance);
+        }, { passive: true });
+        document.addEventListener('touchend', () => {
+            if (startY === null) return;
+            const go = distance >= Ready;
+            startY = null;
+            if (go && (!typed || confirm("Refresh? What you've typed here and not saved yet will be lost."))) {
+                pull.classList.add('field-pull-busy');
+                ask({ type: 'flush' });
+                location.reload();
+            } else {
+                reset();
+            }
+        });
+    }
+
     // Signing out leaves nothing of theirs on the phone (another technician may sign in on it)
     document.querySelectorAll('form.js-sign-out').forEach(form => form.addEventListener('submit', async e => {
         if (form.dataset.cleared) return;

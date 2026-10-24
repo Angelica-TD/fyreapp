@@ -37,6 +37,16 @@
         .field-step { display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem;
                       border-radius: 50%; font-size: .9rem; font-weight: 600; flex-shrink: 0; }
         .field-main .btn-group > .btn { padding-top: .6rem; padding-bottom: .6rem; }
+        /* Pull down to refresh, in the installed app (field-sync.js): a round button sliding down under the bar */
+        .field-pull { position: fixed; top: calc(3.5rem + env(safe-area-inset-top)); left: 50%; z-index: 1029;
+                      width: 2.5rem; height: 2.5rem; border-radius: 50%; background: #fff; color: #6c757d;
+                      box-shadow: 0 .25rem .75rem rgba(0,0,0,.2); display: flex; align-items: center; justify-content: center;
+                      font-size: 1.25rem; opacity: 0; transform: translate(-50%, -48px); pointer-events: none; }
+        .field-pull-ready { color: #2f7bd6; }
+        .field-pull-busy i { animation: field-spin .8s linear infinite; }
+        @@keyframes field-spin { to { transform: rotate(360deg); } }
+        /* Installed: the page itself doesn't bounce or pull (the pull above does it) */
+        @@media (display-mode: standalone) { html, body { overscroll-behavior-y: none; } }
     </style>
     @await RenderSectionAsync("Styles", required: false)
 </head>
