@@ -155,4 +155,20 @@ public class BulkActionTests
         Assert.Equal(4, remarks.Length);
         Assert.Contains(remarks, l => l.StartsWith("D-54179,Critical defect"));
     }
+
+    // A task inactive in Uptick (status still Open) isn't in the list by default; searching for it says it's hidden
+    [Fact]
+    public async Task Tasks_list_counts_matches_its_filters_hide()
+    {
+        await using var db = DbContextFactory.Create();
+        var (a, _) = await SeedAsync(db);
+        db.ClientTasks.Add(new ClientTask { Title = "PM2026/10 Servicing", Ref = "T-46536", ClientId = a.ClientId, PropertyId = a.Id, IsActive = false });
+        await db.SaveChangesAsync();
+        var svc = new TaskListService(db, Mock.Of<IClientTaskService>());
+
+        var (total, _, _, _) = await svc.SearchAsync(new TaskFilter { Search = "T-46536" });
+        Assert.Equal(0, total);
+        Assert.Equal(1, await svc.CountSearchAsync("t-46536"));
+        Assert.Equal(0, await svc.CountSearchAsync("T-1"));
+    }
 }

@@ -309,7 +309,9 @@ public class TaskController : Controller
         var filter = TaskFilterFrom(search, active, category, categoryNot, status, statusNot, dueFrom, dueTo, await ResolveTechnicianAsync(technician));
         filter.Page = page;
         var (total, current, items, categories) = await _taskList.SearchAsync(filter, ct);
-        return Json(new { total, page = current, pages = FyreApp.ViewModels.Lists.ListFilters.Pages(total), items, categories });
+        // Nothing found: how many the filters hide (e.g. a task inactive in Uptick, with Active "Yes")
+        var hidden = total == 0 && !string.IsNullOrWhiteSpace(search) ? await _taskList.CountSearchAsync(search, ct) : 0;
+        return Json(new { total, page = current, pages = FyreApp.ViewModels.Lists.ListFilters.Pages(total), items, categories, hidden });
     }
 
     // Every task matching the current filters, as CSV
