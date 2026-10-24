@@ -265,7 +265,17 @@ function TaskSearch({ canEdit, techs, canFilterMine, defaultTechnician, onlyMine
         rows={data.items}
         loading={loading}
         onRowClick={row => window.location = `/Task/Details/${row.id}`}
-        emptyMessage="No tasks found."
+        emptyMessage={data.hidden > 0 ? (
+          // Found, but the filters hide them (often a task inactive in Uptick, with Active "Yes")
+          <span>
+            No tasks found with these filters, but {data.hidden.toLocaleString()} task{data.hidden === 1 ? '' : 's'} matching
+            “{query}” {data.hidden === 1 ? 'is' : 'are'} hidden by them.{' '}
+            <button type="button" className="btn btn-link btn-sm p-0 align-baseline"
+                    onClick={() => setFilters({ ...DEFAULTS, active: 'any' })}>
+              Show {data.hidden === 1 ? 'it' : 'them'}
+            </button>
+          </span>
+        ) : 'No tasks found.'}
       />
       <ListPager page={data.page ?? page} pages={data.pages} onPage={setPage} />
 

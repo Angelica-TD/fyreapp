@@ -35,11 +35,15 @@
                     @foreach (var t in Model.Tasks)
                     {
                         var done = t.Status is ClientTaskStatus.Completed or ClientTaskStatus.Cancelled;
-                        <tr class="@(done ? "text-muted" : "")">
+                        <tr class="@(done || !t.IsActive ? "text-muted" : "")">
                             <td class="text-nowrap">@t.DisplayRef</td>
                             <td><a asp-controller="Task" asp-action="Details" asp-route-id="@t.Id">@t.Title</a></td>
                             <td>@t.Category</td>
-                            <td>@t.Status</td>
+                            <td>
+                                @t.Status
+                                @* Inactive in Uptick (archived): not in the Tasks list unless its Active filter is Any *@
+                                @if (!t.IsActive && !done) { <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1" title="Inactive: the Tasks list shows it with Active set to Any">Inactive</span> }
+                            </td>
                             <td class="text-nowrap">@t.DueDateUtc.ToDisplayDate()</td>
                             <td>@(t.AssignedTo?.Name ?? t.UptickTechnician ?? "")</td>
                         </tr>

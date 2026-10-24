@@ -39,6 +39,10 @@ public interface ITaskListService
     Task<(int Total, int Page, List<TaskListItem> Items, List<string> Categories)> SearchAsync(TaskFilter filter, CancellationToken ct = default);
     Task<byte[]> CsvAsync(TaskFilter filter, CancellationToken ct = default);
 
+    // Tasks matching the search alone, whatever the other filters (active or not, any category, …): said when the
+    // filters hide every match
+    Task<int> CountSearchAsync(string search, CancellationToken ct = default);
+
     // Edit → Change status. Completing goes through the task service, so linked schedules roll forward as usual.
     Task<int> SetStatusAsync(BulkSelection selection, TaskFilter filter, ClientTaskStatus status, CancellationToken ct = default);
 
@@ -149,6 +153,9 @@ public class TaskListService : ITaskListService
 
         return (total, page, items, categories);
     }
+
+    public Task<int> CountSearchAsync(string search, CancellationToken ct = default) =>
+        Filtered(new TaskFilter { Search = search, Active = null }).CountAsync(ct);
 
     public async Task<byte[]> CsvAsync(TaskFilter filter, CancellationToken ct = default)
     {
