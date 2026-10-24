@@ -4,6 +4,9 @@
     // Opened from an asset's page: back there once saved or cancelled
     var backToAsset = int.TryParse(Context.Request.Query["backToAsset"].FirstOrDefault() ?? (Context.Request.HasFormContentType ? Context.Request.Form["backToAsset"].FirstOrDefault() : null), out var back) ? back : (int?)null;
     ViewData["Title"] = "Raise a remark";
+    // The bar's back button: to the asset's page it came from, else the job
+    ViewData["BackUrl"] = backToAsset is { } fromAsset ? Url.Action("Asset", new { id = Model.TaskId, assetId = fromAsset }) : Url.Action("Visit", new { id = Model.TaskId });
+    ViewData["BackLabel"] = backToAsset != null ? "The asset" : "The job";
     var a = Model.Asset;
     var forAsset = Model.Types.Where(t => t.ForAsset).ToList();
     var others = Model.Types.Where(t => !t.ForAsset).ToList();
@@ -37,7 +40,9 @@
 
         <div class="mb-3">
             <label asp-for="Input.RemarkTypeId" class="form-label">Remark type</label>
-            <select asp-for="Input.RemarkTypeId" class="form-select">
+            @* Typed into (field.js): the list narrows as they type; their own words when none fits *@
+            <select asp-for="Input.RemarkTypeId" class="form-select js-typeahead"
+                    data-placeholder="Start typing, e.g. pressure gauge" data-custom="Input.CustomType" data-custom-value="@Model.Input.CustomType">
                 <option value="">— Pick one, or describe it below —</option>
                 @if (forAsset.Count > 0)
                 {

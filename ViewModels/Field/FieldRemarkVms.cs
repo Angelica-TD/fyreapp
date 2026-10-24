@@ -12,6 +12,9 @@ public class RaiseRemarkInput
 {
     public int? AssetId { get; set; }
     public int? RemarkTypeId { get; set; }
+
+    // A remark type of their own, typed in when none of the list fits (none picked from it)
+    public string? CustomType { get; set; }
     public int? Severity { get; set; }
     public string? Description { get; set; }
     public string? Location { get; set; }

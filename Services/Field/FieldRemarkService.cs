@@ -97,7 +97,10 @@ public class FieldRemarkService : IFieldRemarkService
             type = await _db.RemarkTypes.AsNoTracking().FirstOrDefaultAsync(t => t.Id == typeId, ct);
             if (type == null) return new(new(FieldOutcome.Invalid, "Pick a remark type from the list."));
         }
-        if (type == null && string.IsNullOrWhiteSpace(input.Description))
+        // Not on the list: their own words as its type
+        var custom = type == null ? Clean(input.CustomType) : null;
+        if (custom?.Length > 200) return new(new(FieldOutcome.Invalid, "The remark type is too long."));
+        if (type == null && custom == null && string.IsNullOrWhiteSpace(input.Description))
             return new(new(FieldOutcome.Invalid, "Pick a remark type or describe the problem."));
 
         var severity = input.Severity is { } s
@@ -111,10 +114,10 @@ public class FieldRemarkService : IFieldRemarkService
             PropertyId = task.PropertyId,
             AssetId = asset?.Id,
             RemarkTypeId = type?.Id,
-            RemarkType = type?.Label,
+            RemarkType = type?.Label ?? custom,
             Severity = severity.Label == null ? null : severity.Value,
             SeverityLabel = severity.Label,
-            Description = Clean(input.Description) ?? type?.Label,
+            Description = Clean(input.Description) ?? type?.Label ?? custom,
             Location = Clean(input.Location),
             Status = NeedsQuoting,
             Active = true,

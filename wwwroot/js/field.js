@@ -244,4 +244,137 @@
         });
         form.addEventListener('submit', e => { e.preventDefault(); save(); });
     });
+
+    // A long list (select.js-typeahead) as a box to type into: what's typed narrows the list (every word, in any
+    // order, matching anywhere), tap one to pick it. data-custom names a field for their own words when nothing
+    // fits ("Use “…”"). The select stays in the form, hidden, holding what's picked (and is what shows without
+    // scripts).
+    const MaxShown = 40;
+    document.querySelectorAll('select.js-typeahead').forEach(select => {
+        const options = [...select.options].filter(o => o.value !== '').map(o => ({
+            value: o.value, text: o.text.trim(), group: o.parentElement.tagName === 'OPTGROUP' ? o.parentElement.label : null,
+            words: o.text.toLowerCase()
+        }));
+        const customName = select.dataset.custom;
+
+        const wrap = document.createElement('div');
+        // Keeps the select's spacing (mb-2 …)
+        wrap.className = ['position-relative', ...[...select.classList].filter(c => /^m[tbsexy]?-/.test(c))].join(' ');
+        const box = document.createElement('input');
+        box.type = 'text';
+        box.className = 'form-control';
+        box.placeholder = select.dataset.placeholder || 'Start typing…';
+        box.autocomplete = 'off';
+        box.setAttribute('role', 'combobox');
+        box.setAttribute('aria-expanded', 'false');
+        if (select.id) { box.id = select.id + '-search'; document.querySelector(`label[for="${select.id}"]`)?.setAttribute('for', box.id); }
+        const list = document.createElement('div');
+        list.className = 'list-group position-absolute w-100 shadow d-none';
+        list.style.cssText = 'z-index: 1040; max-height: 55vh; overflow-y: auto; top: 100%';
+        list.setAttribute('role', 'listbox');
+        let custom = null;
+        if (customName) {
+            custom = document.createElement('input');
+            custom.type = 'hidden';
+            custom.name = customName;
+            custom.value = select.dataset.customValue || '';
+        }
+        // Required: the box carries it (a hidden select can't show the browser's message)
+        const required = select.required;
+        select.required = false;
+        select.classList.add('d-none');
+        select.tabIndex = -1;
+        select.after(wrap);
+        wrap.append(box, list);
+        if (custom) wrap.append(custom);
+
+        const picked = () => options.find(o => o.value === select.value);
+        const show = (o, typed) => {
+            box.value = o ? o.text : (typed ?? custom?.value ?? '');
+            box.setCustomValidity(required && !o && !(custom && custom.value) ? 'Pick one from the list.' : '');
+        };
+        show(picked());
+
+        const choose = (o, typed) => {
+            select.value = o ? o.value : '';
+            if (custom) custom.value = o ? '' : (typed || '').trim();
+            show(o, typed);
+            close();
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        const close = () => { list.classList.add('d-none'); box.setAttribute('aria-expanded', 'false'); };
+
+        const render = () => {
+            const typed = box.value.trim();
+            const words = typed.toLowerCase().split(/\s+/).filter(Boolean);
+            const matches = options.filter(o => words.every(w => o.words.includes(w)));
+            list.replaceChildren();
+            if (custom && typed && !options.some(o => o.text.toLowerCase() === typed.toLowerCase())) {
+                const own = document.createElement('button');
+                own.type = 'button';
+                own.className = 'list-group-item list-group-item-action list-group-item-warning';
+                own.innerHTML = '<i class="bi bi-plus-lg"></i> Use “<span></span>”';
+                own.querySelector('span').textContent = typed;
+                own.addEventListener('click', () => choose(null, typed));
+                list.append(own);
+            }
+            let group;
+            for (const o of matches.slice(0, MaxShown)) {
+                if (o.group && o.group !== group) {
+                    group = o.group;
+                    const head = document.createElement('div');
+                    head.className = 'list-group-item small text-muted bg-light py-1';
+                    head.textContent = group;
+                    list.append(head);
+                }
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'list-group-item list-group-item-action' + (o.value === select.value ? ' active' : '');
+                item.setAttribute('role', 'option');
+                item.textContent = o.text;
+                item.addEventListener('click', () => choose(o));
+                list.append(item);
+            }
+            if (matches.length > MaxShown) {
+                const more = document.createElement('div');
+                more.className = 'list-group-item small text-muted';
+                more.textContent = `${matches.length - MaxShown} more: keep typing to narrow it down`;
+                list.append(more);
+            }
+            if (matches.length === 0 && !custom) {
+                const none = document.createElement('div');
+                none.className = 'list-group-item small text-muted';
+                none.textContent = 'Nothing matches.';
+                list.append(none);
+            }
+            list.classList.remove('d-none');
+            box.setAttribute('aria-expanded', 'true');
+        };
+
+        box.addEventListener('focus', () => { box.select(); render(); });
+        box.addEventListener('input', () => {
+            // Typing starts a new choice
+            select.value = '';
+            if (custom) custom.value = '';
+            box.setCustomValidity(required ? 'Pick one from the list.' : '');
+            render();
+        });
+        box.addEventListener('keydown', e => {
+            if (e.key === 'Escape') close();
+            if (e.key === 'Enter') {
+                // Enter picks the only match (or their own words), rather than sending the form
+                e.preventDefault();
+                const first = list.querySelector('button');
+                if (first) first.click();
+            }
+        });
+        // Leaving the box: their own words stay as typed where allowed; otherwise back to what was picked
+        document.addEventListener('pointerdown', e => {
+            if (wrap.contains(e.target) || list.classList.contains('d-none')) return;
+            const typed = box.value.trim();
+            if (!picked() && custom && typed) choose(null, typed);
+            else show(picked());
+            close();
+        });
+    });
 })();
