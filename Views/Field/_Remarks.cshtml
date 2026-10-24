@@ -16,7 +16,7 @@
                 </span>
                 @if (Model.CanWork)
                 {
-                    <a class="btn btn-sm btn-outline-success text-nowrap" href="@Url.Action("Resolve", "Field", new { id = Model.TaskId, remarkId = r.Id })">Resolve</a>
+                    <a class="btn btn-sm btn-outline-success text-nowrap" href="@Url.Action("Resolve", "Field", new { id = Model.TaskId, remarkId = r.Id, backToAsset = Model.BackToAsset })">Resolve</a>
                 }
             </li>
         }

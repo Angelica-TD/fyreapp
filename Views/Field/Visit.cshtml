@@ -132,48 +132,22 @@
                 @foreach (var l in group)
                 {
                     var n = line++;
-                    var open = l.Result == "Fail" || !string.IsNullOrEmpty(l.Notes);
                     <li class="list-group-item py-3" id="asset-@l.AssetId">
-                        <div>
-                            <span class="fw-semibold">@(l.AssetRef ?? l.Asset)</span>
-                            @if (l.AssetRef != null) { <span class="text-muted">@l.Asset</span> }
-                            @if (l.Location != null) { <div class="small text-muted"><i class="bi bi-geo-alt"></i> @l.Location</div> }
-                        </div>
+                        @* Tapping the asset opens its page: details, photos, history *@
+                        <a class="d-flex justify-content-between align-items-center gap-2 text-reset text-decoration-none" href="@Url.Action("Asset", new { id = task.Id, assetId = l.AssetId })">
+                            <span>
+                                <span class="fw-semibold">@(l.AssetRef ?? l.Asset)</span>
+                                @if (l.AssetRef != null) { <span class="text-muted">@l.Asset</span> }
+                                @if (l.Location != null) { <span class="d-block small text-muted"><i class="bi bi-geo-alt"></i> @l.Location</span> }
+                            </span>
+                            <i class="bi bi-chevron-right text-muted"></i>
+                        </a>
                         @* An asset serviced for more than one routine lists its remarks once *@
                         @if (shownRemarks.Add(l.AssetId))
                         {
                             <partial name="_Remarks" model="new FyreApp.ViewModels.Field.FieldRemarksList(task.Id, l.Remarks, canWork)" />
                         }
-                        <form method="post" asp-action="Record" asp-route-id="@task.Id" class="js-result mt-2">
-                            <fieldset disabled="@(!canWork)">
-                                <input type="hidden" name="assetId" value="@l.AssetId" />
-                                <input type="hidden" name="routine" value="@l.Routine" />
-                                <div class="btn-group w-100" role="group" aria-label="Result">
-                                    @foreach (var r in FieldService.Results)
-                                    {
-                                        var id = $"r{n}-{r.Replace("/", "")}";
-                                        var style = r switch { "Pass" => "success", "Fail" => "danger", _ => "secondary" };
-                                        <input type="radio" class="btn-check" name="result" value="@r" id="@id" autocomplete="off" checked="@(l.Result == r)" />
-                                        <label class="btn btn-outline-@style fw-semibold" for="@id">@r</label>
-                                    }
-                                </div>
-                                @* A note, and raising a remark: offered when it fails (or on asking) *@
-                                <div class="js-more mt-2 @(open ? "" : "d-none")">
-                                    <input type="text" name="notes" value="@l.Notes" class="form-control mb-2" placeholder="Note (what you found)" maxlength="2000" />
-                                    <div class="d-flex gap-2">
-                                        <a class="btn btn-warning flex-grow-1 js-remark" href="@Url.Action("Remark", new { id = task.Id, assetId = l.AssetId })">
-                                            <i class="bi bi-exclamation-triangle"></i> Raise a remark
-                                        </a>
-                                        <button type="button" class="btn btn-outline-secondary js-clear @(l.Result == null ? "d-none" : "")">Clear result</button>
-                                    </div>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <button type="button" class="btn btn-link btn-sm px-0 text-muted js-show-more @(open ? "d-none" : "")">Add a note or remark</button>
-                                    <span class="small js-status ms-auto" aria-live="polite"></span>
-                                </div>
-                                <button type="submit" class="btn btn-sm btn-outline-secondary js-save">Save</button>
-                            </fieldset>
-                        </form>
+                        <partial name="_ResultForm" model="new FyreApp.ViewModels.Field.FieldResultForm(task.Id, l, n.ToString(), canWork)" />
                     </li>
                 }
             </ul>

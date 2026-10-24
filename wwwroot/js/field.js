@@ -178,7 +178,9 @@
         form.querySelector('.js-save').classList.add('d-none');
 
         const recount = () => {
+            // On the job's page: the routine's count of assets done (the asset's own page has none)
             const card = form.closest('.js-routine');
+            if (!card) return;
             card.querySelector('.js-done').textContent = card.querySelectorAll('input[name=result]:checked').length;
         };
 
@@ -231,7 +233,7 @@
             e.preventDefault();
             const href = e.currentTarget.href;
             // Named on the remark form if it opens without signal (field-sync.js)
-            const asset = form.closest('li')?.querySelector('.fw-semibold')?.parentElement?.textContent.trim().replace(/\s+/g, ' ');
+            const asset = form.dataset.assetLabel;
             try { sessionStorage.setItem('remark-asset', asset || ''); } catch { /* private mode */ }
             await save();
             window.location.href = href;

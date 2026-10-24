@@ -41,4 +41,5 @@ public class ResolveRemarkVm
 }
 
 // Views/Field/_Remarks.cshtml: open remarks listed on the field page, each with a Resolve button
-public sealed record FieldRemarksList(int TaskId, IReadOnlyList<FieldRemark> Remarks, bool CanWork);
+// BackToAsset: shown on an asset's page, which resolving returns to
+public sealed record FieldRemarksList(int TaskId, IReadOnlyList<FieldRemark> Remarks, bool CanWork, int? BackToAsset = null);

@@ -99,7 +99,7 @@
                 }
             </div>
 
-            @await Component.InvokeAsync("UptickFiles", new { resource = "assets", uptickId = a.UptickId })
+            @await Component.InvokeAsync("UptickFiles", new { resource = "assets", uptickId = a.UptickId, recordId = a.Id })
             @await Component.InvokeAsync("UptickRecord", new { resource = "assets", uptickId = a.UptickId })
         </div>
 

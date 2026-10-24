@@ -154,8 +154,36 @@ public class FieldController : Controller
     // Photos come straight off a phone (field.js shrinks them first when it can)
     private const long PhotoUploadLimit = 200L * 1024 * 1024;
 
+    // An asset at the job's property: its result on the job, remarks, photos and history
+    [HttpGet("/Field/Task/{id:int}/Asset/{assetId:int}")]
+    public async Task<IActionResult> Asset(int id, int assetId, [FromServices] IFieldAssetService assets, CancellationToken ct = default)
+    {
+        var me = await TechnicianIdAsync();
+        if (!await MayOpenAsync(id, me, ct)) return Forbid();
+        var vm = await assets.AssetAsync(id, assetId, me, ct);
+        return vm == null ? NotFound() : View(vm);
+    }
+
+    [HttpPost("/Field/Task/{id:int}/Asset/{assetId:int}/Photos"), ValidateAntiForgeryToken]
+    [RequestSizeLimit(PhotoUploadLimit), RequestFormLimits(MultipartBodyLengthLimit = PhotoUploadLimit)]
+    public async Task<IActionResult> AssetPhotos(int id, int assetId, List<IFormFile> photos, long? doneAt,
+        [FromServices] IFieldAssetService assets, CancellationToken ct = default)
+    {
+        if (await TechnicianIdAsync() is not { } me || !await MayOpenAsync(id, me, ct)) return Forbid();
+        var (result, problems) = await assets.AddPhotosAsync(id, assetId, photos, When(doneAt), ct);
+        if (result.Outcome == FieldOutcome.Invalid && !Fetched)
+        {
+            TempData["Error"] = result.Message;
+            return RedirectToAction(nameof(Asset), new { id, assetId });
+        }
+        if (result.Outcome != FieldOutcome.Done || Fetched) return Done(id, result);
+        if (problems.Count > 0) TempData["Error"] = $"Not all the photos were kept: {string.Join(" ", problems)}";
+        else TempData["Success"] = photos.Count(p => p.Length > 0) == 1 ? "Photo added." : "Photos added.";
+        return Redirect(Url.Action(nameof(Asset), new { id, assetId }) + "#photos");
+    }
+
     [HttpGet("/Field/Task/{id:int}/Remark")]
-    public async Task<IActionResult> Remark(int id, int? assetId, [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
+    public async Task<IActionResult> Remark(int id, int? assetId, int? backToAsset, [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
     {
         if (!await MayOpenAsync(id, await TechnicianIdAsync(), ct)) return Forbid();
         var vm = await remarks.RaiseFormAsync(id, assetId, ct);
@@ -164,7 +192,7 @@ public class FieldController : Controller
 
     [HttpPost("/Field/Task/{id:int}/Remark"), ValidateAntiForgeryToken]
     [RequestSizeLimit(PhotoUploadLimit), RequestFormLimits(MultipartBodyLengthLimit = PhotoUploadLimit)]
-    public async Task<IActionResult> Remark(int id, [Bind(Prefix = "Input")] RaiseRemarkInput input, List<IFormFile> photos, long? doneAt,
+    public async Task<IActionResult> Remark(int id, [Bind(Prefix = "Input")] RaiseRemarkInput input, List<IFormFile> photos, long? doneAt, int? backToAsset,
         [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
     {
         var me = await TechnicianIdAsync();
@@ -178,11 +206,11 @@ public class FieldController : Controller
             ModelState.AddModelError("", saved.Result.Message!);
             return View(vm);
         }
-        return Saved(id, saved, "Remark raised", input.AssetId);
+        return Saved(id, saved, "Remark raised", input.AssetId, backToAsset);
     }
 
     [HttpGet("/Field/Task/{id:int}/Remark/{remarkId:int}/Resolve")]
-    public async Task<IActionResult> Resolve(int id, int remarkId, [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
+    public async Task<IActionResult> Resolve(int id, int remarkId, int? backToAsset, [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
     {
         if (!await MayOpenAsync(id, await TechnicianIdAsync(), ct)) return Forbid();
         var vm = await remarks.ResolveFormAsync(id, remarkId, ct);
@@ -191,7 +219,7 @@ public class FieldController : Controller
 
     [HttpPost("/Field/Task/{id:int}/Remark/{remarkId:int}/Resolve"), ValidateAntiForgeryToken]
     [RequestSizeLimit(PhotoUploadLimit), RequestFormLimits(MultipartBodyLengthLimit = PhotoUploadLimit)]
-    public async Task<IActionResult> Resolve(int id, int remarkId, string? resolution, List<IFormFile> photos, long? doneAt,
+    public async Task<IActionResult> Resolve(int id, int remarkId, string? resolution, List<IFormFile> photos, long? doneAt, int? backToAsset,
         [FromServices] IFieldRemarkService remarks, CancellationToken ct = default)
     {
         var me = await TechnicianIdAsync();
@@ -205,16 +233,18 @@ public class FieldController : Controller
             ModelState.AddModelError("", saved.Result.Message!);
             return View(vm);
         }
-        return Saved(id, saved, "Remark resolved", null);
+        return Saved(id, saved, "Remark resolved", null, backToAsset);
     }
 
-    private IActionResult Saved(int id, RemarkSaved saved, string what, int? assetId)
+    private IActionResult Saved(int id, RemarkSaved saved, string what, int? assetId, int? backToAsset)
     {
         if (saved.Result.Outcome != FieldOutcome.Done || Fetched) return Done(id, saved.Result);
         if (saved.PhotoProblems is { Count: > 0 } problems)
             TempData["Error"] = $"{what}, but not all its photos: {string.Join(" ", problems)}";
         else
             TempData["Success"] = $"{what}.";
+        // Back where it was raised from: the asset's page, or the job at the asset
+        if (backToAsset is { } back) return RedirectToAction(nameof(Asset), new { id, assetId = back });
         return Redirect(Url.Action(nameof(Visit), new { id }) + (assetId == null ? "" : $"#asset-{assetId}"));
     }
 

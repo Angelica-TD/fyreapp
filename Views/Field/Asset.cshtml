@@ -1,0 +1,203 @@
+@model FyreApp.ViewModels.Field.FieldAssetVm
+@using System.Globalization
+@{
+    var a = Model.Asset;
+    var task = Model.Job.Task;
+    var canWork = Model.CanWork;
+    ViewData["Title"] = $"{a.Ref ?? a.Name} {task.DisplayRef}";
+    ViewData["BackUrl"] = Url.Action("Visit", new { id = task.Id }) + $"#asset-{a.Id}";
+    ViewData["BackLabel"] = "The job";
+    string When(DateTime? utc) => utc is { } d ? d.ToSydney().ToOrdinalDate() : "-";
+    var type = a.AssetTypes.FirstOrDefault()?.Name;
+    var facts = new (string Label, string? Value)[]
+    {
+        ("Type", type), ("Variant", a.AssetTypeVariant?.Name ?? a.Variant), ("Make", a.Make), ("Model", a.Model), ("Size", a.Size),
+        ("Serial", a.Serial), ("Barcode", a.Barcode), ("Quantity", a.Quantity),
+        ("Installed", a.InstallationDate?.ToOrdinalDate()), ("Base date", a.BaseDate?.ToOrdinalDate()),
+        ("Last serviced", a.LastServiceDate is { } last ? last.ToOrdinalDate() + (a.LastServicedBy != null ? $" by {a.LastServicedBy.Name}" : "") : null),
+        ("Note", a.InternalNote)
+    }.Where(f => !string.IsNullOrWhiteSpace(f.Value)).ToList();
+    var historyCount = Model.Service.Count + Model.PastRemarks.Count + Model.Timeline.Count;
+}
+
+@* The technician's view of one asset on the job: what it is, its result for the job's routines, its remarks and
+   photos, then its history (service on every task, past remarks, the Timeline). *@
+
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success py-2">@success</div>
+}
+
+<div class="mb-3">
+    <div class="small text-muted">@task.DisplayRef · @task.Property.Name</div>
+    <h1 class="h4 mb-0">@(a.Ref ?? a.Name) @if (a.Ref != null) { <span class="fw-normal text-muted">@a.Name</span> }</h1>
+    @if (a.Location != null) { <div class="text-muted"><i class="bi bi-geo-alt"></i> @a.Location</div> }
+    @if (!a.IsActive) { <span class="badge text-bg-secondary mt-1">Inactive</span> }
+</div>
+
+@if (!canWork)
+{
+    <div class="alert alert-secondary">@Model.Job.CannotWork</div>
+}
+
+@* The result for each of the job's routines *@
+<section class="mb-4" id="result">
+    <h2 class="h5 mb-2">Test</h2>
+    <div class="card"><div class="card-body">
+        @if (Model.Lines.Count == 0)
+        {
+            <div class="text-muted">This asset isn't on this job's list, so there's nothing to record for it here.</div>
+        }
+        @for (var i = 0; i < Model.Lines.Count; i++)
+        {
+            var l = Model.Lines[i];
+            <div class="@(i > 0 ? "mt-3 pt-3 border-top" : "")">
+                @if (Model.Lines.Count > 1 || !string.IsNullOrWhiteSpace(l.Routine))
+                {
+                    <div class="small fw-semibold">@(string.IsNullOrWhiteSpace(l.Routine) ? "Assets" : l.Routine)</div>
+                }
+                <partial name="_ResultForm" model="new FyreApp.ViewModels.Field.FieldResultForm(task.Id, l, 'a' + i.ToString(), canWork, a.Id)" />
+            </div>
+        }
+    </div></div>
+</section>
+
+@* Remarks open on it *@
+<section class="mb-4" id="remarks">
+    <h2 class="h5 mb-2">Remarks <span class="small text-muted fw-normal">@Model.OpenRemarks.Count open</span></h2>
+    <div class="card"><div class="card-body">
+        @if (Model.OpenRemarks.Count == 0) { <div class="text-muted">None open.</div> }
+        <partial name="_Remarks" model="new FyreApp.ViewModels.Field.FieldRemarksList(task.Id, Model.OpenRemarks, canWork, a.Id)" />
+        @if (canWork)
+        {
+            <a class="btn btn-outline-warning w-100 mt-2" href="@Url.Action("Remark", new { id = task.Id, assetId = a.Id, backToAsset = a.Id })">
+                <i class="bi bi-exclamation-triangle"></i> Raise a remark
+            </a>
+        }
+    </div></div>
+</section>
+
+@* Photos: Uptick's, and those taken in FyreApp *@
+<section class="mb-4" id="photos">
+    <h2 class="h5 mb-2">Photos</h2>
+    @await Component.InvokeAsync("UptickFiles", new { resource = "assets", uptickId = a.UptickId, recordId = a.Id })
+    @if (canWork)
+    {
+        <form method="post" enctype="multipart/form-data" asp-action="AssetPhotos" asp-route-id="@task.Id" asp-route-assetId="@a.Id" class="js-photos card mt-2">
+            <div class="card-body">
+                <partial name="_PhotoInput" model="@("Add photos of this asset")" />
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-camera"></i> Save photos</button>
+            </div>
+        </form>
+    }
+</section>
+
+@* What it is *@
+@if (facts.Count > 0)
+{
+    <section class="mb-4">
+        <h2 class="h5 mb-2">Details</h2>
+        <div class="card"><div class="card-body">
+            <dl class="row mb-0">
+                @foreach (var f in facts)
+                {
+                    <dt class="col-5 fw-normal text-muted">@f.Label</dt>
+                    <dd class="col-7" style="white-space: pre-line">@f.Value</dd>
+                }
+            </dl>
+        </div></div>
+    </section>
+}
+
+@* History, newest first *@
+<section class="mb-4" id="history">
+    <h2 class="h5 mb-2">History</h2>
+    @if (historyCount == 0)
+    {
+        <div class="card"><div class="card-body text-muted">Nothing recorded for this asset yet.</div></div>
+    }
+
+    @if (Model.Service.Count > 0)
+    {
+        <details class="card mb-2" open>
+            <summary class="card-body py-2 fw-semibold">Service history <span class="small text-muted fw-normal">@Model.Service.Count</span></summary>
+            <ul class="list-group list-group-flush">
+                @foreach (var s in Model.Service)
+                {
+                    var style = s.Result switch { "Pass" => "success", "Fail" => "danger", _ => "secondary" };
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between gap-2">
+                            <span class="fw-semibold">@When(s.WhenUtc)</span>
+                            <span class="badge text-bg-@style align-self-start">@s.Result</span>
+                        </div>
+                        <div class="small">
+                            @s.TaskRef@(s.TaskId == task.Id ? " (this job)" : "")@(string.IsNullOrWhiteSpace(s.Routine) ? "" : $" · {s.Routine}")
+                        </div>
+                        @if (s.By != null) { <div class="small text-muted">@s.By</div> }
+                        @if (!string.IsNullOrWhiteSpace(s.Notes)) { <div class="small" style="white-space: pre-line">@s.Notes</div> }
+                    </li>
+                }
+            </ul>
+        </details>
+    }
+
+    @if (Model.PastRemarks.Count > 0)
+    {
+        <details class="card mb-2">
+            <summary class="card-body py-2 fw-semibold">Past remarks <span class="small text-muted fw-normal">@Model.PastRemarks.Count</span></summary>
+            <ul class="list-group list-group-flush">
+                @foreach (var d in Model.PastRemarks)
+                {
+                    <li class="list-group-item small">
+                        <div class="d-flex justify-content-between gap-2">
+                            <span class="fw-semibold">@d.DisplayRef</span>
+                            <span class="text-muted">@(d.Status ?? "Closed")@(d.InactiveUtc != null ? $" {When(d.InactiveUtc)}" : "")</span>
+                        </div>
+                        <div>@(d.RemarkType ?? d.Description)</div>
+                        @if (d.RemarkType != null && d.Description != null && d.Description != d.RemarkType) { <div class="text-muted">@d.Description</div> }
+                        @if (!string.IsNullOrWhiteSpace(d.Resolution)) { <div><span class="text-muted">Fixed:</span> @d.Resolution</div> }
+                        <div class="text-muted">Raised @When(d.RaisedUtc)@(d.SeverityLabel != null ? $" · {d.SeverityLabel}" : "")</div>
+                    </li>
+                }
+            </ul>
+        </details>
+    }
+
+    @if (Model.Timeline.Count > 0)
+    {
+        <details class="card mb-2">
+            <summary class="card-body py-2 fw-semibold">Timeline <span class="small text-muted fw-normal">@Model.Timeline.Count</span></summary>
+            <ul class="list-group list-group-flush">
+                @foreach (var e in Model.Timeline)
+                {
+                    <li class="list-group-item small">
+                        <div class="text-muted"><span class="fw-semibold">@(e.Author ?? "Unknown")</span> · @e.WhenUtc.ToSydney().ToOrdinalDateTime()</div>
+                        @* Uptick's text keeps only em, p and small (TimelineText) *@
+                        @if (e.Html != null)
+                        {
+                            <div class="timeline-body">@Html.Raw(e.Html)</div>
+                        }
+                        else if (e.Field != null)
+                        {
+                            <div>@if (e.Value == null) { <text><em>@e.Field</em> was cleared.</text> } else { <text><em>@e.Field</em> was changed to <em>@e.Value</em>.</text> }</div>
+                        }
+                        else
+                        {
+                            <div style="white-space: pre-line">@e.Text</div>
+                        }
+                    </li>
+                }
+            </ul>
+        </details>
+    }
+</section>
+
+<a class="btn btn-outline-secondary w-100 mb-3" href="@ViewData["BackUrl"]"><i class="bi bi-chevron-left"></i> Back to the job</a>
+
+@section Scripts {
+    <script src="~/js/field.js" asp-append-version="true"></script>
+}

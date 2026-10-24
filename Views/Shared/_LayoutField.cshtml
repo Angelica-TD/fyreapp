@@ -49,8 +49,9 @@
             }
             else
             {
-                <a class="btn btn-outline-light me-auto" asp-controller="Field" asp-action="Index">
-                    <i class="bi bi-chevron-left"></i> My day
+                @* A page within a job goes back to it (BackUrl); others to My day *@
+                <a class="btn btn-outline-light me-auto" href="@(ViewData["BackUrl"] as string ?? Url.Action("Index", "Field"))">
+                    <i class="bi bi-chevron-left"></i> @(ViewData["BackLabel"] as string ?? "My day")
                 </a>
             }
             @* Offline, and what's waiting to send (filled in by field-sync.js) *@
