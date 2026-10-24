@@ -423,6 +423,9 @@ a.routine-marker:hover {
 .routine-marker-late     { background-color: #f0a30a; }
 .routine-marker-overdue  { background-color: #dc3545; }
 
+/* Left from a removed routine service: faded, dashed */
+.routine-marker-leftover { opacity: .55; outline: 2px dashed #6c757d; outline-offset: 1px; }
+
 .routine-grid-tasks td {
     vertical-align: top;
 }

@@ -254,6 +254,18 @@ namespace FyreApp.Controllers
             return RedirectToAction(nameof(Details), new { id = result.PropertyId, tab = "routines" });
         }
 
+        // Routines tab → a grid row's routines left from a removed routine service → Remove
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RemoveLeftoverRoutines(int id, string routineType, int? year,
+            [FromServices] FyreApp.Services.Routines.IRoutineSetupService routineSetup, CancellationToken ct)
+        {
+            var removed = await routineSetup.RemoveLeftoversAsync(id, routineType, ct);
+            TempData["Success"] = $"Removed {removed} {routineType} routine{(removed == 1 ? "" : "s")} left from a removed routine service.";
+            return RedirectToAction(nameof(Details), new { id, tab = "routines", year });
+        }
+
         private void RoutineServiceBreadcrumbs(FyreApp.ViewModels.Routines.EditRoutineServiceVm vm) =>
             ViewData["Breadcrumbs"] = new List<(string Text, string? Url)>
             {

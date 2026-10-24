@@ -37,6 +37,12 @@ public class PropertyRoutineRowVm
     // Markers per month (index 0 = January)
     public List<PropertyRoutineMarkerVm>[] Months { get; set; } =
         Enumerable.Range(0, 12).Select(_ => new List<PropertyRoutineMarkerVm>()).ToArray();
+
+    // Every routine on the row is left from a removed routine service: nothing in the routine services list
+    public bool AllWithoutService => Months.SelectMany(m => m).All(m => m.NoService);
+
+    // Routines made in FyreApp left from a removed routine service, which an admin can remove
+    public bool HasLeftovers => Months.SelectMany(m => m).Any(m => m.NoService && !m.FromUptick);
 }
 
 // Uptick's legend
@@ -61,6 +67,10 @@ public class PropertyRoutineMarkerVm
     public DateTime? CompletedDate { get; set; }
     public RoutineMarkerState State { get; set; }
     public int? TaskId { get; set; }
+
+    // Its routine service was removed: kept as history (a task raised for it, or done), so it isn't in the list
+    public bool NoService { get; set; }
+    public bool FromUptick { get; set; }
 }
 
 public class PropertyRoutineTaskVm

@@ -1,14 +1,18 @@
 @model IReadOnlyList<FyreApp.ViewModels.Routines.RoutineServiceSummaryVm>
 @using FyreApp.Infrastructure
 
-@* Routine services set up on this property in FyreApp (Add routine services), with Edit and Remove.
-   Routines imported from Uptick aren't listed: Uptick's exports don't include its routine services. *@
+@* The property's routine services: what generates its routines (the grid above shows the routines themselves, due
+   in its year). Uptick's are marked; those set up in FyreApp (Add routine services) can be edited and removed. One
+   that has ended has nothing in the grid. *@
+@{
+    var today = DateTime.SpecifyKind(DateTime.UtcNow.ToSydney().Date, DateTimeKind.Utc);
+}
 <div class="card property-card">
     <div class="card-header"><span>Routine services</span></div>
     @if (!Model.Any())
     {
         <div class="card-body text-muted">
-            None set up in FyreApp yet. Use "Add routine services" above; routines imported from Uptick show on the grid only.
+            None yet. Use "Add routine services" above.
         </div>
     }
     else
@@ -21,8 +25,15 @@
                 <tbody>
                     @foreach (var s in Model)
                     {
-                        <tr>
-                            <td class="fw-semibold">@s.RoutineType</td>
+                        var ended = s.EndDate is { } end && end < today;
+                        <tr class="@(ended ? "text-muted" : "")">
+                            <td class="fw-semibold">
+                                @s.RoutineType
+                                @if (ended)
+                                {
+                                    <span class="badge text-bg-secondary ms-1" title="Ended, so no routines are due: it isn't on the grid">Ended @s.EndDate!.Value.ToOrdinalDate()</span>
+                                }
+                            </td>
                             <td>
                                 @foreach (var l in s.Levels) { <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis me-1">@l</span> }
                             </td>
