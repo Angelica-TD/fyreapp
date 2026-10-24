@@ -25,6 +25,10 @@ public interface IRoutineSetupService
 
     // Remove it and its pending routines; history is kept
     Task<RoutineServiceChangeResult> RemoveAsync(int id, CancellationToken ct = default);
+
+    // The property's routines of a type (e.g. "06 - Fire Detection (Devices)") left from routine services removed in
+    // FyreApp: kept as history then, removed now. Uptick's aren't touched. Returns how many.
+    Task<int> RemoveLeftoversAsync(int siteId, string routineType, CancellationToken ct = default);
 }
 
 // Found = the routine service exists. Removed / Added: pending routines replaced; Kept: history left as it was.
@@ -301,6 +305,18 @@ public class RoutineSetupService : IRoutineSetupService
 
         await _db.SaveChangesAsync(ct);
         return new RoutineServiceChangeResult(true, service.PropertyId, Removed: pending.Count, Kept: history.Count);
+    }
+
+    public async Task<int> RemoveLeftoversAsync(int siteId, string routineType, CancellationToken ct = default)
+    {
+        // Made in FyreApp (no Uptick id) and no longer under a routine service; a task raised for one stays
+        var leftovers = await _db.Routines
+            .Where(o => o.PropertyId == siteId && o.UptickId == null && o.RoutineServiceId == null
+                        && o.RoutineServiceLevel != null && o.RoutineServiceLevel.RoutineServiceType.Name == routineType)
+            .ToListAsync(ct);
+        _db.Routines.RemoveRange(leftovers);
+        await _db.SaveChangesAsync(ct);
+        return leftovers.Count;
     }
 
     // ---- Forecasting

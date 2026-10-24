@@ -26,7 +26,11 @@
 
     string MarkerTitle(PropertyRoutineMarkerVm m) =>
         $"{m.Level} · due {m.DueDate.ToDisplayDate()} · {StateLabel(m.State)}"
-        + (m.CompletedDate is DateTime c ? $" {c.ToDisplayDate()}" : "");
+        + (m.CompletedDate is DateTime c ? $" {c.ToDisplayDate()}" : "")
+        + (m.NoService ? " · its routine service was removed" : "");
+
+    string MarkerClass(PropertyRoutineMarkerVm m) => StateClass(m.State) + (m.NoService ? " routine-marker-leftover" : "");
+    var admin = User.IsInRole("Admin");
 }
 
 <div class="card mb-3" id="routines">
@@ -79,7 +83,26 @@
                         @foreach (var row in group.Rows)
                         {
                             <tr>
-                                <td class="routine-grid-name">@row.Routine</td>
+                                <td class="routine-grid-name">
+                                    @row.Routine
+                                    @* Routines kept as history when their routine service was removed: not in the list below *@
+                                    @if (row.HasLeftovers)
+                                    {
+                                        <div class="small text-muted">
+                                            @(row.AllWithoutService ? "Routine service removed" : "Some from a removed routine service")
+                                            @if (admin)
+                                            {
+                                                <form asp-action="RemoveLeftoverRoutines" asp-route-id="@Model.PropertyId" method="post" class="d-inline">
+                                                    <input type="hidden" name="routineType" value="@row.Routine" />
+                                                    <input type="hidden" name="year" value="@Model.Year" />
+                                                    <button type="submit" class="btn btn-link btn-sm p-0 align-baseline text-danger"
+                                                            data-confirm="Remove the @row.Routine routines left from a removed routine service, in every year? Any tasks raised for them stay."
+                                                            onclick="return confirm(this.dataset.confirm)">Remove</button>
+                                                </form>
+                                            }
+                                        </div>
+                                    }
+                                </td>
                                 @foreach (var markers in row.Months)
                                 {
                                     <td class="routine-grid-month">
@@ -87,12 +110,12 @@
                                         {
                                             if (m.TaskId is int taskId)
                                             {
-                                                <a class="routine-marker @StateClass(m.State)" title="@MarkerTitle(m)"
+                                                <a class="routine-marker @MarkerClass(m)" title="@MarkerTitle(m)"
                                                    asp-controller="Task" asp-action="Details" asp-route-id="@taskId">@m.Code</a>
                                             }
                                             else
                                             {
-                                                <span class="routine-marker @StateClass(m.State)" title="@MarkerTitle(m)">@m.Code</span>
+                                                <span class="routine-marker @MarkerClass(m)" title="@MarkerTitle(m)">@m.Code</span>
                                             }
                                         }
                                     </td>

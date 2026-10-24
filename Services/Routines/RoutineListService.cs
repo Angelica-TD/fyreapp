@@ -262,7 +262,10 @@ public class RoutineListService : IRoutineListService
                 o.ToleranceEnd,
                 o.CompletedDate,
                 o.Status,
-                o.ClientTaskId
+                o.ClientTaskId,
+                // Left behind when its routine service was removed (kept as history: a task raised, or done)
+                NoService = o.RoutineServiceId == null,
+                FromUptick = o.UptickId != null
             })
             .ToListAsync(ct);
 
@@ -285,7 +288,9 @@ public class RoutineListService : IRoutineListService
                     DueDate = o.DueDate,
                     CompletedDate = o.CompletedDate,
                     TaskId = o.ClientTaskId,
-                    State = MarkerState(o.Status, o.ToleranceEnd, o.CompletedDate, today)
+                    State = MarkerState(o.Status, o.ToleranceEnd, o.CompletedDate, today),
+                    NoService = o.NoService,
+                    FromUptick = o.FromUptick
                 }
             };
         }).ToList();

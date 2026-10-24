@@ -208,6 +208,37 @@ public class RoutineSetupTests
         Assert.False((await svc.RemoveAsync(service.Id)).Found);
     }
 
+    // What a removed routine service leaves (a routine with a task) shows on the grid as such, and an admin can remove it
+    [Fact]
+    public async Task Leftovers_OfARemovedService_AreMarkedOnTheGrid_AndCanBeRemoved()
+    {
+        var (db, site, type, service) = await WithServiceAsync();
+        using var _ = db;
+        var svc = new RoutineSetupService(db);
+        await svc.RemoveAsync(service.Id);
+        // Uptick's own routine of the type, with no routine service: not FyreApp's to remove
+        db.Routines.Add(new Routine
+        {
+            PropertyId = site.Id, UptickId = 900, Name = $"{type.Name}: Annual", RoutineServiceLevelId = type.Levels.First().Id,
+            DueDate = Day(2027, 6, 1), Status = RoutineStatus.Pending
+        });
+        await db.SaveChangesAsync();
+
+        var grid = await new RoutineListService(db).ForPropertyAsync(site.Id, 2027);
+        var row = Assert.Single(Assert.Single(grid.Groups).Rows);
+        Assert.Equal(type.Name, row.Routine);
+        Assert.True(row.HasLeftovers);
+        var markers = row.Months.SelectMany(m => m).ToList();
+        Assert.All(markers, m => Assert.True(m.NoService));
+        Assert.Equal(new[] { false, true }, markers.OrderBy(m => m.DueDate).Select(m => m.FromUptick));
+
+        Assert.Equal(1, await svc.RemoveLeftoversAsync(site.Id, type.Name));
+        Assert.Equal(900, (await db.Routines.SingleAsync()).UptickId);
+        // The task raised for it stays
+        Assert.Equal(1, await db.ClientTasks.CountAsync());
+        Assert.Equal(0, await svc.RemoveLeftoversAsync(site.Id, "Something else"));
+    }
+
     [Theory]
     [InlineData(false, true, "Start date and last annual date are required.")]
     [InlineData(true, false, "Tick at least one routine type and level.")]
