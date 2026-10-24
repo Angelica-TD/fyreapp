@@ -24,8 +24,14 @@
 
         if (!calendarEl) return;
 
+        // A month grid is unreadable on a phone: there, the week as a list
+        const phone = window.matchMedia('(max-width: 767.98px)').matches;
         const calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
+            initialView: phone ? 'listWeek' : 'dayGridMonth',
+            headerToolbar: phone
+                ? { left: 'title', right: 'prev,next' }
+                : { left: 'title', right: 'today prev,next' },
+            noEventsContent: 'Nothing due this week.',
             height: 'auto',
             eventDisplay: 'block',
 

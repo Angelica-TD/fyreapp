@@ -29,7 +29,8 @@ export function SearchTable({ columns, rows, loading, onRowClick, emptyMessage =
 
   return (
     <div className="table-responsive">
-      <table className="table table-hover align-middle">
+      {/* table-stack: on a phone, a wide table's rows show as cards, each value under its column's label (site.css) */}
+      <table className={`table table-hover align-middle${columns.length >= 5 ? ' table-stack' : ''}`}>
         <thead>
           <tr>
             {columns.map(col => (
@@ -49,7 +50,7 @@ export function SearchTable({ columns, rows, loading, onRowClick, emptyMessage =
               onClick={onRowClick ? () => onRowClick(row) : undefined}
             >
               {columns.map(col => (
-                <td key={col.key}>
+                <td key={col.key} data-label={typeof col.label === 'string' ? col.label : ''}>
                   {col.render ? col.render(row) : row[col.key]}
                 </td>
               ))}

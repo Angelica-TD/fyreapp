@@ -815,3 +815,98 @@ a.routine-marker:hover {
 .asset-form {
     max-width: 48rem;
 }
+
+/* ---- Phones -------------------------------------------------------------------------------------------------- */
+
+/* iPhones zoom into a text box whose text is under 16px when it's tapped (the site's is 14px): 16px on touch
+   screens, so tapping the email box on the login page doesn't zoom. Pinch zoom still works. */
+@media (hover: none) and (pointer: coarse) {
+    input.form-control, textarea.form-control, select.form-select, .form-control-sm, .form-select-sm,
+    input[type=text], input[type=email], input[type=password], input[type=search], input[type=number],
+    input[type=tel], input[type=date], input[type=url], textarea, select {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 767.98px) {
+    /* Nothing pushes the page wider than the phone: what's wider scrolls in its own box */
+    .app-main-inner { overflow-x: clip; }
+
+    /* Tables: each scrolls sideways on its own (those not already in .table-responsive too), with columns wide
+       enough to read rather than squashed into a few letters a line */
+    .app-main-inner :not(.table-responsive) > table.table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .app-main-inner table.table > :not(caption) > tr > th,
+    .app-main-inner table.table > :not(caption) > tr > td {
+        min-width: 6.5rem;
+    }
+    /* …except tick-box columns, empty cells and small key / value tables */
+    .app-main-inner table.table > :not(caption) > tr > :is(th, td):has(> .form-check-input:only-child),
+    .app-main-inner table.table > :not(caption) > tr > :is(th, td):empty,
+    .app-main-inner table.table-borderless > :not(caption) > tr > :is(th, td) {
+        min-width: 0;
+    }
+
+    /* Headings: a long title doesn't take half the screen */
+    .app-main-inner h1, .app-main-inner .h1 { font-size: 1.5rem; }
+    .app-main-inner h2, .app-main-inner .h2 { font-size: 1.25rem; }
+    .property-title { font-size: 1.35rem; }
+
+    /* The routines grid: the routine's name stays in view as the months scroll by */
+    .routine-grid-name {
+        min-width: 9.5rem;
+        max-width: 9.5rem;
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: var(--bs-body-bg, #fff);
+        white-space: normal;
+    }
+    .routine-grid-group > th { position: sticky; left: 0; }
+
+    /* The page's buttons in a row wrap rather than run off the edge */
+    .app-main-inner .d-flex:not(.flex-nowrap) { flex-wrap: wrap; }
+
+    /* Calendar list on phones: event titles wrap */
+    .fc .fc-list-event-title { white-space: normal; }
+}
+
+@media (max-width: 767.98px) {
+    /* A wide table as cards (.table-stack: React lists, and wide tables site.js marks): one row a block, each cell
+       its column's heading (data-label) then its value */
+    .app-main-inner table.table-stack { display: block; overflow: visible; }
+    .table-stack thead { display: none; }
+    .table-stack tbody, .table-stack tr { display: block; width: 100%; }
+    .table-stack > tbody > tr { border-bottom: 1px solid var(--bs-border-color); padding: .5rem 0; }
+    .app-main-inner table.table-stack > tbody > tr > td {
+        display: block;
+        position: relative;
+        min-width: 0;
+        min-height: 1.6rem;
+        border: 0;
+        padding: .2rem .5rem .2rem 7.5rem;
+        text-align: left;
+        box-shadow: none;
+        overflow-wrap: anywhere;
+    }
+    .table-stack > tbody > tr > td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: .5rem;
+        width: 6.5rem;
+        color: var(--bs-secondary-color, #6c757d);
+        font-size: .8em;
+        line-height: 1.9;
+    }
+    /* No heading (a tick box, a button, a message across the table): the value alone */
+    .app-main-inner table.table-stack > tbody > tr > td:is([data-label=""], :not([data-label])) { padding-left: .5rem; }
+    .table-stack > tbody > tr > td:is([data-label=""], :not([data-label]))::before { display: none; }
+    .table-stack > tbody > tr > td:empty { display: none; }
+
+    /* A task's title: the scope summary after it, smaller */
+    .app-main-inner .task-title { font-size: 1.2rem; line-height: 1.4; }
+    .task-subtitle { font-size: .95rem; display: block; }
+}

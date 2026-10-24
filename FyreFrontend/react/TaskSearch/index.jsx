@@ -4,7 +4,7 @@ import { SearchToolbar } from '../shared/SearchToolbar'
 import { SearchTable } from '../shared/SearchTable'
 import {
   FiltersButton, FilterPanel, FilterRow, YesNoAny, IsCheckboxes, ListPager,
-  useSelection, selectColumn, SelectionBar, Modal, postJson, SuccessAlert
+  useSelection, selectColumn, SelectionBar, Modal, postJson, SuccessAlert, filtersOpenAtFirst
 } from '../shared/ListControls'
 
 const STATUSES = ['Open', 'InProgress', 'Blocked', 'Completed', 'Cancelled']
@@ -115,7 +115,7 @@ function TaskSearch({ canEdit, techs, canFilterMine, defaultTechnician, onlyMine
   const [query, setQuery]     = useState(initial.query)
   const [filters, setFilters] = useState(initial.filters)
   const [page, setPage]       = useState(1)
-  const [showFilters, setShowFilters] = useState(true)
+  const [showFilters, setShowFilters] = useState(filtersOpenAtFirst)
   const [data, setData]       = useState({ total: 0, pages: 1, items: [], categories: [] })
   const [loading, setLoading] = useState(true)
   const [reload, setReload]   = useState(0)
